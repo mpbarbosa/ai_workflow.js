@@ -172,13 +172,18 @@ ai_workflow/
 #### Code Metrics
 
 | Category | Count | Lines of Code |
+| Category | Count | Lines of Code |
 |----------|-------|---------------|
 | **Main Orchestrator** | 1 | 2,009 |
-| **Library Modules** | 57 (44 prod + 13 test) | ~14,993 |
+| **Library Modules (Production)** | 44 | ~14,993 |
+| **Library Modules (Test)** | 13 | (not migrated) |
 | **Step Modules** | 15 | 4,777 |
-| **Total Core Code** | 73 modules | **~26,500+ lines** |
+| **Total Production Code** | 60 modules | **~21,779 lines** |
+| **Total Migration Scope** | 65 modules* | **~32,664 lines*** |
 | **Documentation Files** | 50+ | Extensive |
 | **Test Files** | 37+ tests | 100% coverage |
+
+*\*Includes 5 additional modules counted in detailed analysis. Total lines include auxiliary code.*
 
 ### 1.2 Key Features - ACTUAL ANALYSIS ✅
 
@@ -935,9 +940,9 @@ This section maps the actual 73 modules from the source repository to their Java
 | P0 | Foundation + Workflow Engine | 16 | ~7,646 | Week 1-2 |
 | P1 | AI + Performance + Project | 28 | ~16,254 | Week 3-5 |
 | P2 | Utilities + Steps | 21 | ~8,764 | Week 6-7 |
-| **Total** | **All Phases** | **65 modules** | **~32,664 lines** | **7-8 weeks** |
+| **Total** | **All Phases** | **65 modules** | **~32,664 lines** | **10-14 weeks** |
 
-**Note:** Test modules (13 in source) are not included in migration as they'll be replaced with Jest tests.
+**Note:** Test modules (13 in source) are not included in migration as they'll be replaced with Jest tests. The 65 modules represent all production code to be migrated.
 
 ### 7.3 Key Migration Considerations
 
