@@ -796,32 +796,195 @@ managers/apt/
 
 ---
 
-## 7. Module Migration Map
+## 7. Module Migration Map - ACTUAL MAPPING ✅
 
 ### 7.1 Shell Script → JavaScript Mapping
 
-| Shell Script | JavaScript Module | Priority |
-|--------------|-------------------|----------|
-| `core_lib.sh` | `core/logger.js`, `core/colors.js`, `core/prompt.js` | P0 |
-| `system_update.sh` | `orchestrator/workflow.js` | P0 |
-| `system_summary.sh` | `orchestrator/summary.js` | P1 |
-| `apt_manager.sh` | `managers/apt/aptManager.js` | P0 |
-| `pacman_manager.sh` | `managers/pacman/pacmanManager.js` | P0 |
-| `dpkg_manager.sh` | `managers/apt/dpkgManager.js` | P1 |
-| `app_managers.sh` | `managers/apps/` (multiple files) | P2 |
-| `snap_manager.sh` | `managers/optional/snapManager.js` | P2 |
-| `cargo_manager.sh` | `managers/optional/cargoManager.js` | P2 |
-| `pip_manager.sh` | `managers/optional/pipManager.js` | P2 |
-| `npm_manager.sh` | `managers/optional/npmManager.js` | P2 |
-| `upgrade_utils.sh` | `utils/upgradeUtils.js` | P1 |
-| All `update_*.sh` | `managers/apps/*Updater.js` | P2 |
-| All `check_*_update.sh` | `managers/apps/*Updater.js` | P2 |
+This section maps the actual 73 modules from the source repository to their JavaScript counterparts.
 
-**Priority Legend:**
-- P0: Critical (foundation, core managers)
-- P1: High (important features)
-- P2: Medium (optional features)
-- P3: Low (nice to have)
+#### Phase 1: Foundation Layer (P0 - Critical)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `colors.sh` | `src/core/colors.js` | 10 | P0 |
+| `utils.sh` | `src/core/utils.js` | 450 | P0 |
+| `file_operations.sh` | `src/core/fileOperations.js` | 455 | P0 |
+| `edit_operations.sh` | `src/core/editOperations.js` | 436 | P0 |
+| `config.sh` | `src/core/config.js` | 66 | P0 |
+| `backlog.sh` | `src/core/backlog.js` | 84 | P0 |
+| `validation.sh` | `src/core/validation.js` | 535 | P0 |
+
+**Total Foundation:** 7 modules, ~2,036 lines
+
+#### Phase 2: Workflow Engine (P0 - Critical)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `execute_tests_docs_workflow.sh` | `src/orchestrator/workflow.js` | 2,009 | P0 |
+| `step_execution.sh` | `src/orchestrator/stepExecution.js` | 455 | P0 |
+| `step_metadata.sh` | `src/orchestrator/stepMetadata.js` | 368 | P0 |
+| `dependency_graph.sh` | `src/orchestrator/dependencyGraph.js` | 668 | P0 |
+| `argument_parser.sh` | `src/cli/argumentParser.js` | 475 | P0 |
+| `summary.sh` | `src/orchestrator/summary.js` | 454 | P0 |
+| `metrics.sh` | `src/orchestrator/metrics.js` | 598 | P0 |
+| `session_manager.sh` | `src/orchestrator/sessionManager.js` | 317 | P0 |
+| `cleanup_handlers.sh` | `src/orchestrator/cleanupHandlers.js` | 266 | P0 |
+
+**Total Workflow Engine:** 9 modules, ~5,610 lines
+
+#### Phase 3: AI Integration (P1 - High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `ai_helpers.sh` | `src/ai/helpers.js` | 3,500 | P1 |
+| `ai_personas.sh` | `src/ai/personas.js` | 222 | P1 |
+| `ai_prompt_builder.sh` | `src/ai/promptBuilder.js` | 710 | P1 |
+| `ai_cache.sh` | `src/ai/cache.js` | 377 | P1 |
+| `ai_validation.sh` | `src/ai/validation.js` | 113 | P1 |
+
+**Total AI Integration:** 5 modules, ~4,922 lines
+
+#### Phase 4: Performance & Optimization (P1 - High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `workflow_optimization.sh` | `src/optimization/workflowOptimization.js` | 481 | P1 |
+| `performance.sh` | `src/optimization/performance.js` | 481 | P1 |
+| `performance_monitoring.sh` | `src/optimization/performanceMonitoring.js` | 521 | P1 |
+| `ml_optimization.sh` | `src/optimization/mlOptimization.js` | 753 | P1 |
+| `multi_stage_pipeline.sh` | `src/optimization/multiStagePipeline.js` | 622 | P1 |
+| `docs_only_optimization.sh` | `src/optimization/docsOnlyOptimization.js` | 536 | P1 |
+| `code_changes_optimization.sh` | `src/optimization/codeChangesOptimization.js` | 506 | P1 |
+| `full_changes_optimization.sh` | `src/optimization/fullChangesOptimization.js` | 626 | P1 |
+
+**Total Performance:** 8 modules, ~4,526 lines
+
+#### Phase 5: Caching & Detection (P1 - High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `change_detection.sh` | `src/core/changeDetection.js` | 520 | P1 |
+| `analysis_cache.sh` | `src/cache/analysisCache.js` | 561 | P1 |
+| `git_cache.sh` | `src/cache/gitCache.js` | 214 | P1 |
+| `step_validation_cache.sh` | `src/cache/stepValidationCache.js` | 528 | P1 |
+| `step_validation_cache_integration.sh` | `src/cache/stepValidationCacheIntegration.js` | 292 | P1 |
+
+**Total Caching:** 5 modules, ~2,115 lines
+
+#### Phase 6: Git & Automation (P1 - High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `git_automation.sh` | `src/git/automation.js` | 467 | P1 |
+| `auto_commit.sh` | `src/git/autoCommit.js` | 300 | P1 |
+| `batch_ai_commit.sh` | `src/git/batchAiCommit.js` | 446 | P1 |
+
+**Total Git:** 3 modules, ~1,213 lines
+
+#### Phase 7: Project Management (P1 - High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `project_kind_detection.sh` | `src/project/kindDetection.js` | 453 | P1 |
+| `project_kind_config.sh` | `src/project/kindConfig.js` | 461 | P1 |
+| `tech_stack.sh` | `src/project/techStack.js` | 541 | P1 |
+| `third_party_exclusion.sh` | `src/project/thirdPartyExclusion.js` | 482 | P1 |
+| `config_wizard.sh` | `src/project/configWizard.js` | 541 | P1 |
+
+**Total Project Management:** 5 modules, ~2,478 lines
+
+#### Phase 8: Additional Utilities (P2 - Medium)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `conditional_execution.sh` | `src/utils/conditionalExecution.js` | 462 | P2 |
+| `step_adaptation.sh` | `src/utils/stepAdaptation.js` | 533 | P2 |
+| `enhanced_validations.sh` | `src/utils/enhancedValidations.js` | 449 | P2 |
+| `doc_template_validator.sh` | `src/utils/docTemplateValidator.js` | 399 | P2 |
+| `metrics_validation.sh` | `src/utils/metricsValidation.js` | 347 | P2 |
+| `health_check.sh` | `src/utils/healthCheck.js` | 454 | P2 |
+
+**Total Utilities:** 6 modules, ~2,644 lines
+
+#### Phase 9: Step Implementations (P2 - Medium to High)
+
+| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
+|----------------------------|-----------------------------------|-------|----------|
+| `step_00_analyze.sh` | `src/steps/step00Analyze.js` | 322 | P1 |
+| `step_01_documentation.sh` | `src/steps/step01Documentation.js` | 481 | P1 |
+| `step_02_consistency.sh` | `src/steps/step02Consistency.js` | 202 | P2 |
+| `step_03_script_refs.sh` | `src/steps/step03ScriptRefs.js` | 394 | P2 |
+| `step_04_directory.sh` | `src/steps/step04Directory.js` | 501 | P2 |
+| `step_05_test_review.sh` | `src/steps/step05TestReview.js` | 143 | P1 |
+| `step_06_test_gen.sh` | `src/steps/step06TestGen.js` | 131 | P1 |
+| `step_07_test_exec.sh` | `src/steps/step07TestExec.js` | 469 | P1 |
+| `step_08_dependencies.sh` | `src/steps/step08Dependencies.js` | 600 | P2 |
+| `step_09_code_quality.sh` | `src/steps/step09CodeQuality.js` | 394 | P2 |
+| `step_10_context.sh` | `src/steps/step10Context.js` | 426 | P2 |
+| `step_11_git.sh` | `src/steps/step11Git.js` | 531 | P2 |
+| `step_12_markdown_lint.sh` | `src/steps/step12MarkdownLint.js` | 267 | P2 |
+| `step_13_prompt_engineer.sh` | `src/steps/step13PromptEngineer.js` | 581 | P2 |
+| `step_14_ux_analysis.sh` | `src/steps/step14UxAnalysis.js` | 678 | P2 |
+
+**Total Steps:** 15 modules, ~6,120 lines
+
+### 7.2 Migration Priorities Summary
+
+| Priority | Phase | Module Count | Total Lines | Duration |
+|----------|-------|--------------|-------------|----------|
+| P0 | Foundation + Workflow Engine | 16 | ~7,646 | Week 1-2 |
+| P1 | AI + Performance + Project | 28 | ~16,254 | Week 3-5 |
+| P2 | Utilities + Steps | 21 | ~8,764 | Week 6-7 |
+| **Total** | **All Phases** | **65 modules** | **~32,664 lines** | **7-8 weeks** |
+
+**Note:** Test modules (13 in source) are not included in migration as they'll be replaced with Jest tests.
+
+### 7.3 Key Migration Considerations
+
+#### 7.3.1 Shell to JavaScript Patterns
+
+**1. Command Execution**
+- Shell: Direct command execution (`apt-get update`)
+- JavaScript: Use `execa` or `child_process` with proper error handling
+
+**2. File Operations**
+- Shell: `cat`, `grep`, `sed`, `awk`
+- JavaScript: `fs/promises`, regex, string operations
+
+**3. Async Operations**
+- Shell: Sequential by default, background jobs with `&`
+- JavaScript: Native async/await, Promise.all for parallel execution
+
+**4. Configuration**
+- Shell: Source files (`. config.sh`)
+- JavaScript: Import/export, YAML parsing
+
+**5. AI Integration**
+- Shell: Shell commands (`gh copilot suggest`, `gh copilot explain`)
+- JavaScript: Child process execution or native SDK if available
+
+#### 7.3.2 Special Challenges
+
+**AI Helpers Module (3,500+ lines)**
+- Most complex module in source
+- Contains extensive YAML configuration (ai_helpers.yaml)
+- Needs careful migration with comprehensive testing
+- May need to be split into multiple smaller modules
+
+**ML Optimization Module**
+- Predictive analytics using historical data
+- May need additional ML libraries (TensorFlow.js or similar)
+- Data persistence for training data
+
+**Multi-Stage Pipeline**
+- Complex state management
+- Checkpoint/resume functionality
+- Needs robust state handling in JavaScript
+
+**Caching Systems**
+- Multiple caching layers (AI, analysis, git, validation)
+- Need to maintain cache invalidation logic
+- Consider using a caching library (node-cache or similar)
 
 ### 7.2 Function Migration Examples
 
