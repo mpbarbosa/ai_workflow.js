@@ -2,6 +2,22 @@
 
 AI Workflow Automation (in JavaScript)
 
+**Version:** 1.0.0  
+**Last Updated:** January 27, 2026  
+**Status:** Planning & Analysis Phase
+
+---
+
+## Document Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0.0 | 2026-01-27 | Initial semantic versioning applied. Added Copilot SDK integration section. Updated .gitignore for Node.js. |
+| 0.2.0 | 2026-01-26 | Updated with source repository details and actual features from v2.10.0. |
+| 0.1.0 | 2025-12-XX | Initial README created for migration project. |
+
+---
+
 ## Overview
 
 This project is a comprehensive migration plan for migrating the [ai_workflow](https://github.com/mpbarbosa/ai_workflow) repository from shell script to JavaScript with Node.js. The goal is to transform shell-based AI workflow automation scripts into a modern, cross-platform Node.js application.
@@ -9,6 +25,8 @@ This project is a comprehensive migration plan for migrating the [ai_workflow](h
 ## Current Status
 
 ✅ **Update (January 2026):** The source repository (https://github.com/mpbarbosa/ai_workflow) is now **PUBLIC and ACCESSIBLE**! 
+
+✅ **Copilot SDK Support:** This project is now supported by **GitHub Copilot SDK**, enabling advanced AI-powered development assistance, code generation, and workflow automation.
 
 **Status:** 🚧 **Analysis Phase** - Source repository analyzed, migration plan being updated with actual structure.
 
@@ -64,6 +82,33 @@ A comprehensive migration plan has been created that outlines:
 
 📄 **See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for the complete migration plan.**
 
+## Copilot SDK Integration
+
+This project leverages **GitHub Copilot SDK** to provide:
+
+- 🤖 **AI-Powered Development** - Intelligent code generation and refactoring
+- 🔄 **Workflow Automation** - Automated migration assistance and code transformation
+- 📊 **Code Analysis** - AI-driven code quality and architecture recommendations
+- 🧪 **Test Generation** - Automated test creation and coverage improvements
+- 📝 **Documentation** - AI-assisted documentation generation and maintenance
+
+### Configuration & Templates
+
+The project uses [ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) as a Git submodule (`.workflow_core/`) to maintain consistency with the original workflow architecture. This provides:
+
+- **Configuration Templates** - Pre-configured YAML files for workflow automation
+- **GitHub Integration** - Actions workflows and Copilot instructions
+- **Utility Scripts** - Cleanup and validation tools
+- **Standard Structure** - Artifact directories (`.ai_workflow/`)
+
+To update the configuration submodule:
+
+```bash
+git submodule update --remote .workflow_core
+```
+
+See [.workflow-config.yaml](./.workflow-config.yaml) for project-specific configuration.
+
 ## Target Features
 
 The JavaScript implementation will maintain feature parity with the original shell scripts while adding:
@@ -77,6 +122,7 @@ The JavaScript implementation will maintain feature parity with the original she
 - ✅ Rich CLI with progress indicators and colors
 - ✅ Type documentation with JSDoc
 - ✅ npm package distribution
+- ✅ **Copilot SDK integration** for AI-enhanced development
 
 ## Planned Architecture
 
@@ -153,7 +199,8 @@ mpbarbosa
 ## Links
 
 - **Migration Plan**: [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) - Comprehensive migration framework
-- **Source Repository** (expected): [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
+- **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
+- **Core Configuration**: [mpbarbosa/ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) - Shared configuration templates
 - **Issue Tracker**: [GitHub Issues](https://github.com/mpbarbosa/ai_workflow.js/issues)
 
 ---

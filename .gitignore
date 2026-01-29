@@ -137,3 +137,78 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - IntelliJ / WebStorm
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# Temporary files
+*.swp
+*.swo
+*.tmp
+*.temp
+*~
+
+# Local configuration
+config/local.json
+.env.local
+.env.*.local
+
+# Build artifacts
+dist/
+build/
+lib/
+bin/
+
+# Test artifacts
+test-results/
+playwright-report/
+.screenshots/
+
+# Backup files
+*.bak
+*.backup
+
+# Package lock files (choose one based on project preference)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# AI Workflow artifacts
+.ai_workflow/backlog/
+.ai_workflow/summaries/
+.ai_workflow/logs/
+.ai_workflow/metrics/
+.ai_workflow/checkpoints/
+.ai_workflow/prompts/
+.ai_workflow/ml_models/
+.ai_workflow/.incremental_cache/
