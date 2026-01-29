@@ -8,13 +8,13 @@
 
 ## Document Version History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.2.0 | 2026-01-29 | **MAJOR UPDATE**: Emphasized JavaScript-first architecture, added best practices, clarified this is feature extraction not translation. |
-| 1.1.0 | 2026-01-29 | Updated with latest source repository information (v3.0.0), recent commits, bug fixes, and feature additions. |
-| 1.0.0 | 2026-01-27 | Initial semantic versioning applied. Added Copilot SDK support documentation. |
-| 0.2.0 | 2026-01-26 | Updated with actual source repository structure and analysis. |
-| 0.1.0 | 2025-12-XX | Initial migration plan created. |
+| Version | Date       | Changes                                                                                                                                 |
+| ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.2.0   | 2026-01-29 | **MAJOR UPDATE**: Emphasized JavaScript-first architecture, added best practices, clarified this is feature extraction not translation. |
+| 1.1.0   | 2026-01-29 | Updated with latest source repository information (v3.0.0), recent commits, bug fixes, and feature additions.                           |
+| 1.0.0   | 2026-01-27 | Initial semantic versioning applied. Added Copilot SDK support documentation.                                                           |
+| 0.2.0   | 2026-01-26 | Updated with actual source repository structure and analysis.                                                                           |
+| 0.1.0   | 2025-12-XX | Initial migration plan created.                                                                                                         |
 
 ---
 
@@ -60,7 +60,7 @@ This migration plan is being updated to reflect the **actual** production-ready 
   - Resolved jq JSON parsing errors in metrics updates
   - Fixed astronomical workflow duration predictions (7168816222s bug)
   - Corrected find directory and jq validation errors
-  
+
 **Feature Additions:**
 
 - **Enhanced AI Prompt Builder** (v2.5.0): Complete prompt generation restoration (6 builders, 450%+ content increase)
@@ -245,11 +245,11 @@ ai_workflow/
 | **Library Modules (Test)** | 13 | (not migrated) |
 | **Step Modules** | 15 | 4,777 |
 | **Total Production Code** | 60 modules | **~21,779 lines** |
-| **Total Migration Scope** | 65 modules* | **~32,664 lines*** |
+| **Total Migration Scope** | 65 modules\* | **~32,664 lines\*** |
 | **Documentation Files** | 50+ | Extensive |
 | **Test Files** | 37+ tests | 100% coverage |
 
-*\*Includes 5 additional modules counted in detailed analysis. Total lines include auxiliary code.*
+_\*Includes 5 additional modules counted in detailed analysis. Total lines include auxiliary code._
 
 ### 1.2 Key Features - ACTUAL ANALYSIS ✅
 
@@ -374,35 +374,29 @@ The source repository follows a well-structured, modular architecture:
   - `ai_prompt_builder.sh`
   - `ai_cache.sh`
   - `ai_validation.sh`
-  
 - **Performance:**
   - `workflow_optimization.sh`
   - `performance.sh`
   - `performance_monitoring.sh`
   - `ml_optimization.sh`
   - `multi_stage_pipeline.sh`
-  
 - **Optimizations:**
   - `docs_only_optimization.sh`
   - `code_changes_optimization.sh`
   - `full_changes_optimization.sh`
-  
 - **Caching:**
   - `analysis_cache.sh`
   - `git_cache.sh`
   - `step_validation_cache.sh`
-  
 - **Git:**
   - `git_automation.sh`
   - `auto_commit.sh`
   - `batch_ai_commit.sh`
-  
 - **Project Management:**
   - `project_kind_detection.sh`
   - `project_kind_config.sh`
   - `tech_stack.sh`
   - `third_party_exclusion.sh`
-  
 - **Validation:**
   - `validation.sh`
   - `enhanced_validations.sh`
@@ -530,8 +524,8 @@ import { join } from 'path';
 async function findFiles(dir, pattern = /\.js$/) {
   const entries = await readdir(dir, { withFileTypes: true, recursive: true });
   return entries
-    .filter(entry => entry.isFile() && pattern.test(entry.name))
-    .map(entry => join(entry.path, entry.name));
+    .filter((entry) => entry.isFile() && pattern.test(entry.name))
+    .map((entry) => join(entry.path, entry.name));
 }
 ```
 
@@ -561,8 +555,10 @@ class WorkflowConfig {
     Object.assign(this, options);
   }
 
-  get smartExecution() { return this.#smartExecution; }
-  set smartExecution(value) { 
+  get smartExecution() {
+    return this.#smartExecution;
+  }
+  set smartExecution(value) {
     if (typeof value !== 'boolean') throw new TypeError('Must be boolean');
     this.#smartExecution = value;
   }
@@ -704,17 +700,21 @@ class BaseStep {
     await this.afterExecute(context, result);
     return result;
   }
-  
+
   // Abstract methods to be implemented by subclasses
-  async validate(context) { throw new Error('Must implement'); }
-  async doExecute(context) { throw new Error('Must implement'); }
+  async validate(context) {
+    throw new Error('Must implement');
+  }
+  async doExecute(context) {
+    throw new Error('Must implement');
+  }
 }
 
 class Step01Documentation extends BaseStep {
   async validate(context) {
     // Validation logic
   }
-  
+
   async doExecute(context) {
     // Documentation step logic
   }
@@ -727,7 +727,7 @@ class Step01Documentation extends BaseStep {
 class WorkflowOrchestrator extends EventEmitter {
   async runWorkflow(config) {
     this.emit('workflow:start', { config });
-    
+
     for (const step of this.steps) {
       this.emit('step:start', { step: step.name });
       try {
@@ -738,7 +738,7 @@ class WorkflowOrchestrator extends EventEmitter {
         throw error;
       }
     }
-    
+
     this.emit('workflow:complete');
   }
 }
@@ -755,7 +755,7 @@ class Step01Documentation extends BaseStep {
     this.ai = aiService;
     this.logger = logger;
   }
-  
+
   async doExecute(context) {
     const files = await this.fs.findFiles('**/*.md');
     const changes = await this.git.getChanges();
@@ -774,7 +774,7 @@ class GitService {
     try {
       const [status, diff] = await Promise.all([
         this.runner.exec('git status --porcelain'),
-        this.runner.exec('git diff --stat')
+        this.runner.exec('git diff --stat'),
       ]);
       return { status: this.parseStatus(status), diff };
     } catch (error) {
@@ -803,8 +803,8 @@ export default [
       'prefer-arrow-callback': 'error',
       'prefer-template': 'error',
       'async-await/space-after-async': 'error',
-    }
-  }
+    },
+  },
 ];
 ```
 
@@ -828,7 +828,7 @@ async function executeStep(step) {
   } catch (error) {
     throw new WorkflowError(`Step ${step.name} failed`, {
       step: step.name,
-      cause: error
+      cause: error,
     });
   }
 }
@@ -841,14 +841,11 @@ import winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   transports: [
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' })
-  ]
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
 });
 
 // Usage
@@ -861,27 +858,27 @@ logger.info('Step completed', { step: 'documentation', duration: 1234 });
 // Unit test example
 describe('Step01Documentation', () => {
   let step, mockFs, mockGit, mockAI;
-  
+
   beforeEach(() => {
     mockFs = { findFiles: jest.fn() };
     mockGit = { getChanges: jest.fn() };
     mockAI = { analyze: jest.fn() };
-    
+
     step = new Step01Documentation({
       fileSystem: mockFs,
       gitClient: mockGit,
       aiService: mockAI,
-      logger: mockLogger
+      logger: mockLogger,
     });
   });
-  
+
   it('should analyze markdown files', async () => {
     mockFs.findFiles.mockResolvedValue(['README.md']);
     mockGit.getChanges.mockResolvedValue({ status: 'M', diff: '+10 -5' });
     mockAI.analyze.mockResolvedValue({ score: 95 });
-    
+
     const result = await step.execute({});
-    
+
     expect(result.score).toBe(95);
     expect(mockFs.findFiles).toHaveBeenCalledWith('**/*.md');
   });
@@ -952,16 +949,16 @@ try {
 ```json
 {
   "dependencies": {
-    "commander": "^12.0.0",          // CLI framework
-    "chalk": "^5.3.0",               // Terminal colors
-    "ora": "^8.0.1",                 // Spinners
-    "inquirer": "^9.2.0",            // Interactive prompts
-    "execa": "^8.0.1",               // Process execution
-    "listr2": "^8.0.0",              // Task lists
-    "semver": "^7.5.4",              // Version comparison
-    "yaml": "^2.3.4",                // YAML parsing
-    "winston": "^3.11.0",            // Logging
-    "node-fetch": "^3.3.2"           // HTTP requests
+    "commander": "^12.0.0", // CLI framework
+    "chalk": "^5.3.0", // Terminal colors
+    "ora": "^8.0.1", // Spinners
+    "inquirer": "^9.2.0", // Interactive prompts
+    "execa": "^8.0.1", // Process execution
+    "listr2": "^8.0.0", // Task lists
+    "semver": "^7.5.4", // Version comparison
+    "yaml": "^2.3.4", // YAML parsing
+    "winston": "^3.11.0", // Logging
+    "node-fetch": "^3.3.2" // HTTP requests
   }
 }
 ```
@@ -971,14 +968,14 @@ try {
 ```json
 {
   "devDependencies": {
-    "jest": "^29.7.0",               // Testing framework
-    "@types/jest": "^29.5.8",        // Jest types
-    "eslint": "^8.54.0",             // Linting
-    "prettier": "^3.1.0",            // Code formatting
-    "husky": "^8.0.3",               // Git hooks
-    "lint-staged": "^15.1.0",        // Staged file linting
-    "nodemon": "^3.0.2",             // Development server
-    "jsdoc": "^4.0.2"                // Documentation
+    "jest": "^29.7.0", // Testing framework
+    "@types/jest": "^29.5.8", // Jest types
+    "eslint": "^8.54.0", // Linting
+    "prettier": "^3.1.0", // Code formatting
+    "husky": "^8.0.3", // Git hooks
+    "lint-staged": "^15.1.0", // Staged file linting
+    "nodemon": "^3.0.2", // Development server
+    "jsdoc": "^4.0.2" // Documentation
   }
 }
 ```
@@ -995,6 +992,7 @@ try {
 The project uses [ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) as a Git submodule at `.workflow_core/` to maintain architectural consistency with the original workflow system.
 
 **Integration Details:**
+
 - **Submodule Location:** `.workflow_core/`
 - **Configuration File:** `.workflow-config.yaml` (copied from `.workflow_core/config/.workflow-config.yaml.template`)
 - **Artifact Directory:** `.ai_workflow/` with subdirectories (backlog, summaries, logs, metrics, checkpoints, prompts, ml_models, .incremental_cache)
@@ -1002,12 +1000,14 @@ The project uses [ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_cor
 - **Utility Scripts:** `scripts/cleanup_artifacts.sh` for artifact management
 
 **Benefits:**
+
 - Shared configuration structure with original ai_workflow
 - Automatic updates via `git submodule update --remote .workflow_core`
 - Pre-configured templates for project setup
 - Standard artifact directory structure
 
 **Update Submodule:**
+
 ```bash
 git submodule update --remote .workflow_core
 ```
@@ -1338,137 +1338,137 @@ This section maps the actual 73 modules from the source repository to their Java
 #### Phase 1: Foundation Layer (P0 - Critical)
 
 | Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `colors.sh` | `src/core/colors.js` | 10 | P0 |
-| `utils.sh` | `src/core/utils.js` | 450 | P0 |
-| `file_operations.sh` | `src/core/fileOperations.js` | 455 | P0 |
-| `edit_operations.sh` | `src/core/editOperations.js` | 436 | P0 |
-| `config.sh` | `src/core/config.js` | 66 | P0 |
-| `backlog.sh` | `src/core/backlog.js` | 84 | P0 |
-| `validation.sh` | `src/core/validation.js` | 535 | P0 |
+| -------------------------- | ---------------------------------- | ----- | -------- |
+| `colors.sh`                | `src/core/colors.js`               | 10    | P0       |
+| `utils.sh`                 | `src/core/utils.js`                | 450   | P0       |
+| `file_operations.sh`       | `src/core/fileOperations.js`       | 455   | P0       |
+| `edit_operations.sh`       | `src/core/editOperations.js`       | 436   | P0       |
+| `config.sh`                | `src/core/config.js`               | 66    | P0       |
+| `backlog.sh`               | `src/core/backlog.js`              | 84    | P0       |
+| `validation.sh`            | `src/core/validation.js`           | 535   | P0       |
 
 **Total Foundation:** 7 modules, ~2,036 lines
 
 #### Phase 2: Workflow Engine (P0 - Critical)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `execute_tests_docs_workflow.sh` | `src/orchestrator/workflow.js` | 2,009 | P0 |
-| `step_execution.sh` | `src/orchestrator/stepExecution.js` | 455 | P0 |
-| `step_metadata.sh` | `src/orchestrator/stepMetadata.js` | 368 | P0 |
-| `dependency_graph.sh` | `src/orchestrator/dependencyGraph.js` | 668 | P0 |
-| `argument_parser.sh` | `src/cli/argumentParser.js` | 475 | P0 |
-| `summary.sh` | `src/orchestrator/summary.js` | 454 | P0 |
-| `metrics.sh` | `src/orchestrator/metrics.js` | 598 | P0 |
-| `session_manager.sh` | `src/orchestrator/sessionManager.js` | 317 | P0 |
-| `cleanup_handlers.sh` | `src/orchestrator/cleanupHandlers.js` | 266 | P0 |
+| Shell Script (ai_workflow)       | JavaScript Module (ai_workflow.js)    | Lines | Priority |
+| -------------------------------- | ------------------------------------- | ----- | -------- |
+| `execute_tests_docs_workflow.sh` | `src/orchestrator/workflow.js`        | 2,009 | P0       |
+| `step_execution.sh`              | `src/orchestrator/stepExecution.js`   | 455   | P0       |
+| `step_metadata.sh`               | `src/orchestrator/stepMetadata.js`    | 368   | P0       |
+| `dependency_graph.sh`            | `src/orchestrator/dependencyGraph.js` | 668   | P0       |
+| `argument_parser.sh`             | `src/cli/argumentParser.js`           | 475   | P0       |
+| `summary.sh`                     | `src/orchestrator/summary.js`         | 454   | P0       |
+| `metrics.sh`                     | `src/orchestrator/metrics.js`         | 598   | P0       |
+| `session_manager.sh`             | `src/orchestrator/sessionManager.js`  | 317   | P0       |
+| `cleanup_handlers.sh`            | `src/orchestrator/cleanupHandlers.js` | 266   | P0       |
 
 **Total Workflow Engine:** 9 modules, ~5,610 lines
 
 #### Phase 3: AI Integration (P1 - High)
 
 | Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `ai_helpers.sh` | `src/ai/helpers.js` | 3,500 | P1 |
-| `ai_personas.sh` | `src/ai/personas.js` | 222 | P1 |
-| `ai_prompt_builder.sh` | `src/ai/promptBuilder.js` | 710 | P1 |
-| `ai_cache.sh` | `src/ai/cache.js` | 377 | P1 |
-| `ai_validation.sh` | `src/ai/validation.js` | 113 | P1 |
+| -------------------------- | ---------------------------------- | ----- | -------- |
+| `ai_helpers.sh`            | `src/ai/helpers.js`                | 3,500 | P1       |
+| `ai_personas.sh`           | `src/ai/personas.js`               | 222   | P1       |
+| `ai_prompt_builder.sh`     | `src/ai/promptBuilder.js`          | 710   | P1       |
+| `ai_cache.sh`              | `src/ai/cache.js`                  | 377   | P1       |
+| `ai_validation.sh`         | `src/ai/validation.js`             | 113   | P1       |
 
 **Total AI Integration:** 5 modules, ~4,922 lines
 
 #### Phase 4: Performance & Optimization (P1 - High)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `workflow_optimization.sh` | `src/optimization/workflowOptimization.js` | 481 | P1 |
-| `performance.sh` | `src/optimization/performance.js` | 481 | P1 |
-| `performance_monitoring.sh` | `src/optimization/performanceMonitoring.js` | 521 | P1 |
-| `ml_optimization.sh` | `src/optimization/mlOptimization.js` | 753 | P1 |
-| `multi_stage_pipeline.sh` | `src/optimization/multiStagePipeline.js` | 622 | P1 |
-| `docs_only_optimization.sh` | `src/optimization/docsOnlyOptimization.js` | 536 | P1 |
-| `code_changes_optimization.sh` | `src/optimization/codeChangesOptimization.js` | 506 | P1 |
-| `full_changes_optimization.sh` | `src/optimization/fullChangesOptimization.js` | 626 | P1 |
+| Shell Script (ai_workflow)     | JavaScript Module (ai_workflow.js)            | Lines | Priority |
+| ------------------------------ | --------------------------------------------- | ----- | -------- |
+| `workflow_optimization.sh`     | `src/optimization/workflowOptimization.js`    | 481   | P1       |
+| `performance.sh`               | `src/optimization/performance.js`             | 481   | P1       |
+| `performance_monitoring.sh`    | `src/optimization/performanceMonitoring.js`   | 521   | P1       |
+| `ml_optimization.sh`           | `src/optimization/mlOptimization.js`          | 753   | P1       |
+| `multi_stage_pipeline.sh`      | `src/optimization/multiStagePipeline.js`      | 622   | P1       |
+| `docs_only_optimization.sh`    | `src/optimization/docsOnlyOptimization.js`    | 536   | P1       |
+| `code_changes_optimization.sh` | `src/optimization/codeChangesOptimization.js` | 506   | P1       |
+| `full_changes_optimization.sh` | `src/optimization/fullChangesOptimization.js` | 626   | P1       |
 
 **Total Performance:** 8 modules, ~4,526 lines
 
 #### Phase 5: Caching & Detection (P1 - High)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `change_detection.sh` | `src/core/changeDetection.js` | 520 | P1 |
-| `analysis_cache.sh` | `src/cache/analysisCache.js` | 561 | P1 |
-| `git_cache.sh` | `src/cache/gitCache.js` | 214 | P1 |
-| `step_validation_cache.sh` | `src/cache/stepValidationCache.js` | 528 | P1 |
-| `step_validation_cache_integration.sh` | `src/cache/stepValidationCacheIntegration.js` | 292 | P1 |
+| Shell Script (ai_workflow)             | JavaScript Module (ai_workflow.js)            | Lines | Priority |
+| -------------------------------------- | --------------------------------------------- | ----- | -------- |
+| `change_detection.sh`                  | `src/core/changeDetection.js`                 | 520   | P1       |
+| `analysis_cache.sh`                    | `src/cache/analysisCache.js`                  | 561   | P1       |
+| `git_cache.sh`                         | `src/cache/gitCache.js`                       | 214   | P1       |
+| `step_validation_cache.sh`             | `src/cache/stepValidationCache.js`            | 528   | P1       |
+| `step_validation_cache_integration.sh` | `src/cache/stepValidationCacheIntegration.js` | 292   | P1       |
 
 **Total Caching:** 5 modules, ~2,115 lines
 
 #### Phase 6: Git & Automation (P1 - High)
 
 | Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `git_automation.sh` | `src/git/automation.js` | 467 | P1 |
-| `auto_commit.sh` | `src/git/autoCommit.js` | 300 | P1 |
-| `batch_ai_commit.sh` | `src/git/batchAiCommit.js` | 446 | P1 |
+| -------------------------- | ---------------------------------- | ----- | -------- |
+| `git_automation.sh`        | `src/git/automation.js`            | 467   | P1       |
+| `auto_commit.sh`           | `src/git/autoCommit.js`            | 300   | P1       |
+| `batch_ai_commit.sh`       | `src/git/batchAiCommit.js`         | 446   | P1       |
 
 **Total Git:** 3 modules, ~1,213 lines
 
 #### Phase 7: Project Management (P1 - High)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `project_kind_detection.sh` | `src/project/kindDetection.js` | 453 | P1 |
-| `project_kind_config.sh` | `src/project/kindConfig.js` | 461 | P1 |
-| `tech_stack.sh` | `src/project/techStack.js` | 541 | P1 |
-| `third_party_exclusion.sh` | `src/project/thirdPartyExclusion.js` | 482 | P1 |
-| `config_wizard.sh` | `src/project/configWizard.js` | 541 | P1 |
+| Shell Script (ai_workflow)  | JavaScript Module (ai_workflow.js)   | Lines | Priority |
+| --------------------------- | ------------------------------------ | ----- | -------- |
+| `project_kind_detection.sh` | `src/project/kindDetection.js`       | 453   | P1       |
+| `project_kind_config.sh`    | `src/project/kindConfig.js`          | 461   | P1       |
+| `tech_stack.sh`             | `src/project/techStack.js`           | 541   | P1       |
+| `third_party_exclusion.sh`  | `src/project/thirdPartyExclusion.js` | 482   | P1       |
+| `config_wizard.sh`          | `src/project/configWizard.js`        | 541   | P1       |
 
 **Total Project Management:** 5 modules, ~2,478 lines
 
 #### Phase 8: Additional Utilities (P2 - Medium)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `conditional_execution.sh` | `src/utils/conditionalExecution.js` | 462 | P2 |
-| `step_adaptation.sh` | `src/utils/stepAdaptation.js` | 533 | P2 |
-| `enhanced_validations.sh` | `src/utils/enhancedValidations.js` | 449 | P2 |
-| `doc_template_validator.sh` | `src/utils/docTemplateValidator.js` | 399 | P2 |
-| `metrics_validation.sh` | `src/utils/metricsValidation.js` | 347 | P2 |
-| `health_check.sh` | `src/utils/healthCheck.js` | 454 | P2 |
+| Shell Script (ai_workflow)  | JavaScript Module (ai_workflow.js)  | Lines | Priority |
+| --------------------------- | ----------------------------------- | ----- | -------- |
+| `conditional_execution.sh`  | `src/utils/conditionalExecution.js` | 462   | P2       |
+| `step_adaptation.sh`        | `src/utils/stepAdaptation.js`       | 533   | P2       |
+| `enhanced_validations.sh`   | `src/utils/enhancedValidations.js`  | 449   | P2       |
+| `doc_template_validator.sh` | `src/utils/docTemplateValidator.js` | 399   | P2       |
+| `metrics_validation.sh`     | `src/utils/metricsValidation.js`    | 347   | P2       |
+| `health_check.sh`           | `src/utils/healthCheck.js`          | 454   | P2       |
 
 **Total Utilities:** 6 modules, ~2,644 lines
 
 #### Phase 9: Step Implementations (P2 - Medium to High)
 
-| Shell Script (ai_workflow) | JavaScript Module (ai_workflow.js) | Lines | Priority |
-|----------------------------|-----------------------------------|-------|----------|
-| `step_00_analyze.sh` | `src/steps/step00Analyze.js` | 322 | P1 |
-| `step_01_documentation.sh` | `src/steps/step01Documentation.js` | 481 | P1 |
-| `step_02_consistency.sh` | `src/steps/step02Consistency.js` | 202 | P2 |
-| `step_03_script_refs.sh` | `src/steps/step03ScriptRefs.js` | 394 | P2 |
-| `step_04_directory.sh` | `src/steps/step04Directory.js` | 501 | P2 |
-| `step_05_test_review.sh` | `src/steps/step05TestReview.js` | 143 | P1 |
-| `step_06_test_gen.sh` | `src/steps/step06TestGen.js` | 131 | P1 |
-| `step_07_test_exec.sh` | `src/steps/step07TestExec.js` | 469 | P1 |
-| `step_08_dependencies.sh` | `src/steps/step08Dependencies.js` | 600 | P2 |
-| `step_09_code_quality.sh` | `src/steps/step09CodeQuality.js` | 394 | P2 |
-| `step_10_context.sh` | `src/steps/step10Context.js` | 426 | P2 |
-| `step_11_git.sh` | `src/steps/step11Git.js` | 531 | P2 |
-| `step_12_markdown_lint.sh` | `src/steps/step12MarkdownLint.js` | 267 | P2 |
-| `step_13_prompt_engineer.sh` | `src/steps/step13PromptEngineer.js` | 581 | P2 |
-| `step_14_ux_analysis.sh` | `src/steps/step14UxAnalysis.js` | 678 | P2 |
+| Shell Script (ai_workflow)   | JavaScript Module (ai_workflow.js)  | Lines | Priority |
+| ---------------------------- | ----------------------------------- | ----- | -------- |
+| `step_00_analyze.sh`         | `src/steps/step00Analyze.js`        | 322   | P1       |
+| `step_01_documentation.sh`   | `src/steps/step01Documentation.js`  | 481   | P1       |
+| `step_02_consistency.sh`     | `src/steps/step02Consistency.js`    | 202   | P2       |
+| `step_03_script_refs.sh`     | `src/steps/step03ScriptRefs.js`     | 394   | P2       |
+| `step_04_directory.sh`       | `src/steps/step04Directory.js`      | 501   | P2       |
+| `step_05_test_review.sh`     | `src/steps/step05TestReview.js`     | 143   | P1       |
+| `step_06_test_gen.sh`        | `src/steps/step06TestGen.js`        | 131   | P1       |
+| `step_07_test_exec.sh`       | `src/steps/step07TestExec.js`       | 469   | P1       |
+| `step_08_dependencies.sh`    | `src/steps/step08Dependencies.js`   | 600   | P2       |
+| `step_09_code_quality.sh`    | `src/steps/step09CodeQuality.js`    | 394   | P2       |
+| `step_10_context.sh`         | `src/steps/step10Context.js`        | 426   | P2       |
+| `step_11_git.sh`             | `src/steps/step11Git.js`            | 531   | P2       |
+| `step_12_markdown_lint.sh`   | `src/steps/step12MarkdownLint.js`   | 267   | P2       |
+| `step_13_prompt_engineer.sh` | `src/steps/step13PromptEngineer.js` | 581   | P2       |
+| `step_14_ux_analysis.sh`     | `src/steps/step14UxAnalysis.js`     | 678   | P2       |
 
 **Total Steps:** 15 modules, ~6,120 lines
 
 ### 7.2 Migration Priorities Summary
 
-| Priority | Phase | Module Count | Total Lines | Duration |
-|----------|-------|--------------|-------------|----------|
-| P0 | Foundation + Workflow Engine | 16 | ~7,646 | Week 1-2 |
-| P1 | AI + Performance + Project | 28 | ~16,254 | Week 3-5 |
-| P2 | Utilities + Steps | 21 | ~8,764 | Week 6-7 |
-| **Total** | **All Phases** | **65 modules** | **~32,664 lines** | **10-14 weeks** |
+| Priority  | Phase                        | Module Count   | Total Lines       | Duration        |
+| --------- | ---------------------------- | -------------- | ----------------- | --------------- |
+| P0        | Foundation + Workflow Engine | 16             | ~7,646            | Week 1-2        |
+| P1        | AI + Performance + Project   | 28             | ~16,254           | Week 3-5        |
+| P2        | Utilities + Steps            | 21             | ~8,764            | Week 6-7        |
+| **Total** | **All Phases**               | **65 modules** | **~32,664 lines** | **10-14 weeks** |
 
 **Note:** Test modules (13 in source) are not included in migration as they'll be replaced with Jest tests. The 65 modules represent all production code to be migrated.
 
@@ -1592,7 +1592,7 @@ export async function executeCommand(command, args, options = {}) {
     const result = await execa(command, args, {
       stdio: options.silent ? 'pipe' : 'inherit',
       reject: false,
-      ...options
+      ...options,
     });
     return result;
   } catch (error) {
@@ -1675,11 +1675,7 @@ describe('AptManager', () => {
 
       await aptManager.update();
 
-      expect(mockExec).toHaveBeenCalledWith(
-        'sudo',
-        ['apt-get', 'update'],
-        expect.any(Object)
-      );
+      expect(mockExec).toHaveBeenCalledWith('sudo', ['apt-get', 'update'], expect.any(Object));
     });
 
     it('should throw error on failure', async () => {
@@ -1734,29 +1730,29 @@ describe('AptManager', () => {
 
 ### 9.1 Technical Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Node.js version compatibility | High | Low | Use LTS version, specify engines in package.json |
-| Permission issues (sudo commands) | High | Medium | Proper sudo handling, clear documentation |
-| Platform-specific differences | Medium | High | Extensive testing, conditional logic |
-| Performance vs shell scripts | Medium | Low | Optimize critical paths, async operations |
-| Package installation failures | High | Medium | Robust error handling, rollback mechanisms |
+| Risk                              | Impact | Probability | Mitigation                                       |
+| --------------------------------- | ------ | ----------- | ------------------------------------------------ |
+| Node.js version compatibility     | High   | Low         | Use LTS version, specify engines in package.json |
+| Permission issues (sudo commands) | High   | Medium      | Proper sudo handling, clear documentation        |
+| Platform-specific differences     | Medium | High        | Extensive testing, conditional logic             |
+| Performance vs shell scripts      | Medium | Low         | Optimize critical paths, async operations        |
+| Package installation failures     | High   | Medium      | Robust error handling, rollback mechanisms       |
 
 ### 9.2 Functional Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Feature regression | High | Medium | Comprehensive testing, feature parity checklist |
-| Unexpected edge cases | Medium | High | Extensive testing, user feedback |
-| Breaking changes in package managers | High | Low | Version checking, graceful degradation |
+| Risk                                 | Impact | Probability | Mitigation                                      |
+| ------------------------------------ | ------ | ----------- | ----------------------------------------------- |
+| Feature regression                   | High   | Medium      | Comprehensive testing, feature parity checklist |
+| Unexpected edge cases                | Medium | High        | Extensive testing, user feedback                |
+| Breaking changes in package managers | High   | Low         | Version checking, graceful degradation          |
 
 ### 9.3 Project Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Scope creep | Medium | High | Clear requirements, phase-based approach |
-| Timeline delays | Medium | Medium | Buffer time, prioritization |
-| Documentation gaps | Low | Medium | Documentation-first approach |
+| Risk               | Impact | Probability | Mitigation                               |
+| ------------------ | ------ | ----------- | ---------------------------------------- |
+| Scope creep        | Medium | High        | Clear requirements, phase-based approach |
+| Timeline delays    | Medium | Medium      | Buffer time, prioritization              |
+| Documentation gaps | Low    | Medium      | Documentation-first approach             |
 
 ---
 
@@ -1768,19 +1764,19 @@ describe('AptManager', () => {
 
 The timeline is based on migrating 65 production modules (~32,664 lines of code) plus comprehensive testing and documentation.
 
-| Phase | Modules | Lines | Duration | Dependencies |
-|-------|---------|-------|----------|--------------|
-| **Phase 1: Foundation** | 7 modules | ~2,036 | 1-2 weeks | None |
-| **Phase 2: Workflow Engine** | 9 modules | ~5,610 | 2 weeks | Phase 1 |
-| **Phase 3: AI Integration** | 5 modules | ~4,922 | 2-3 weeks | Phase 1, 2 |
-| **Phase 4: Performance** | 8 modules | ~4,526 | 2 weeks | Phase 1, 2 |
-| **Phase 5: Caching** | 5 modules | ~2,115 | 1 week | Phase 1, 4 |
-| **Phase 6: Git & Project** | 8 modules | ~3,691 | 1-2 weeks | Phase 1, 2 |
-| **Phase 7: Steps** | 15 modules | ~6,120 | 2 weeks | All previous |
-| **Phase 8: Utilities** | 6 modules | ~2,644 | 1 week | Phase 1, 2 |
-| **Phase 9: Integration** | Testing | N/A | 1 week | All previous |
-| **Phase 10: Documentation** | Docs | N/A | 1 week | All previous |
-| **Phase 11: Packaging** | Build/Deploy | N/A | 1 week | All previous |
+| Phase                        | Modules      | Lines  | Duration  | Dependencies |
+| ---------------------------- | ------------ | ------ | --------- | ------------ |
+| **Phase 1: Foundation**      | 7 modules    | ~2,036 | 1-2 weeks | None         |
+| **Phase 2: Workflow Engine** | 9 modules    | ~5,610 | 2 weeks   | Phase 1      |
+| **Phase 3: AI Integration**  | 5 modules    | ~4,922 | 2-3 weeks | Phase 1, 2   |
+| **Phase 4: Performance**     | 8 modules    | ~4,526 | 2 weeks   | Phase 1, 2   |
+| **Phase 5: Caching**         | 5 modules    | ~2,115 | 1 week    | Phase 1, 4   |
+| **Phase 6: Git & Project**   | 8 modules    | ~3,691 | 1-2 weeks | Phase 1, 2   |
+| **Phase 7: Steps**           | 15 modules   | ~6,120 | 2 weeks   | All previous |
+| **Phase 8: Utilities**       | 6 modules    | ~2,644 | 1 week    | Phase 1, 2   |
+| **Phase 9: Integration**     | Testing      | N/A    | 1 week    | All previous |
+| **Phase 10: Documentation**  | Docs         | N/A    | 1 week    | All previous |
+| **Phase 11: Packaging**      | Build/Deploy | N/A    | 1 week    | All previous |
 
 **Notes:**
 
@@ -1865,13 +1861,13 @@ The timeline is based on migrating 65 production modules (~32,664 lines of code)
 
 ### 10.4 Risk Mitigation Timeline
 
-| Risk | Probability | Impact | Mitigation | Timeline |
-|------|------------|--------|------------|----------|
-| AI integration complexity | High | High | Break into smaller modules, extensive testing | Week 5-7 |
-| ML optimization challenges | Medium | Medium | May need to simplify or use existing libraries | Week 6-7 |
-| Performance degradation | Medium | High | Benchmark early, optimize incrementally | Ongoing |
-| Scope creep | Medium | High | Strict feature parity, no new features in v1.0 | Ongoing |
-| Testing coverage gaps | Medium | Medium | Test-driven development, continuous testing | Ongoing |
+| Risk                       | Probability | Impact | Mitigation                                     | Timeline |
+| -------------------------- | ----------- | ------ | ---------------------------------------------- | -------- |
+| AI integration complexity  | High        | High   | Break into smaller modules, extensive testing  | Week 5-7 |
+| ML optimization challenges | Medium      | Medium | May need to simplify or use existing libraries | Week 6-7 |
+| Performance degradation    | Medium      | High   | Benchmark early, optimize incrementally        | Ongoing  |
+| Scope creep                | Medium      | High   | Strict feature parity, no new features in v1.0 | Ongoing  |
+| Testing coverage gaps      | Medium      | Medium | Test-driven development, continuous testing    | Ongoing  |
 
 ---
 
@@ -2217,15 +2213,7 @@ ai-workflow list --detailed
     "docs": "jsdoc -c jsdoc.json",
     "prepare": "husky install"
   },
-  "keywords": [
-    "system",
-    "automation",
-    "package-manager",
-    "update",
-    "maintenance",
-    "linux",
-    "cli"
-  ],
+  "keywords": ["system", "automation", "package-manager", "update", "maintenance", "linux", "cli"],
   "author": "mpbarbosa",
   "license": "MIT",
   "engines": {

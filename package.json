@@ -1,5 +1,49 @@
 {
+  "name": "ai-workflow",
+  "version": "1.0.0",
+  "description": "JavaScript/Node.js migration of AI workflow automation system",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "ai-workflow": "src/cli/index.js"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "npm test -- --watch",
+    "test:coverage": "npm test -- --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md}\"",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "workflow",
+    "automation",
+    "ai",
+    "package-manager",
+    "cli"
+  ],
+  "author": "mpbarbosa",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpbarbosa/ai_workflow.js.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/jest": "^30.0.0",
+    "eslint": "^9.39.2",
+    "globals": "^17.2.0",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1"
   }
 }

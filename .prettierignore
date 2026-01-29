@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+coverage
+.ai_workflow
+.workflow_core
+*.log
+package-lock.json

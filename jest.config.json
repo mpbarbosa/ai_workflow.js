@@ -1,0 +1,8 @@
+{
+  "testEnvironment": "node",
+  "coverageDirectory": "coverage",
+  "collectCoverageFrom": ["src/**/*.js", "!src/**/*.test.js", "!src/**/*.spec.js"],
+  "testMatch": ["**/test/**/*.test.js", "**/test/**/*.spec.js", "**/__tests__/**/*.js"],
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/"],
+  "transform": {}
+}
