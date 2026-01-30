@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2026-01-30
 
+### Added
+
+#### Phase 3: File Operations & Utilities (Module 1)
+
+**file_operations.js (v2.0.0)**: Complete file system operations module
+
+- Pure functions for path validation, filtering, sorting, and metadata building
+- `FileOperations` wrapper class for I/O operations (read, write, exists, stat, list, copy, move, delete)
+- Directory operations (create, delete, list recursive)
+- Dry-run mode support for all destructive operations
+- Comprehensive error handling with `FileSystemError`
+- 54 tests (24 pure function tests + 30 integration tests)
+- All operations async/await for performance
+- Automatic parent directory creation
+
+**errors.js**: Added `FileSystemError` class for file I/O error handling
+
 ### Changed
 
 #### Referential Transparency Refactoring

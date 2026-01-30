@@ -62,10 +62,24 @@ export class ValidationError extends WorkflowError {
   }
 }
 
+/**
+ * Error for file system operations
+ */
+export class FileSystemError extends WorkflowError {
+  constructor(message, details = {}) {
+    super(message, 'FILE_SYSTEM_ERROR');
+    this.name = 'FileSystemError';
+    this.path = details.path || null;
+    this.destination = details.destination || null;
+    this.originalError = details.originalError || null;
+  }
+}
+
 export default {
   WorkflowError,
   SystemError,
   ExecutionError,
   ConfigurationError,
   ValidationError,
+  FileSystemError,
 };
