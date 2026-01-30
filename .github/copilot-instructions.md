@@ -30,9 +30,9 @@
 - **Cross-Platform**: Works on Linux, macOS, and Windows via Node.js
 - **Modern JavaScript**: ES6+ modules, async/await, pure functional patterns
 - **Referentially Transparent**: v2.0.0 modules follow functional programming principles
-- **Comprehensive Testing**: 259+ tests with 100% pass rate and high coverage
+- **Comprehensive Testing**: 528+ tests with 100% pass rate and high coverage
 
-**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1 modules) / 2.0.0 (Phase 2.1 modules)  
+**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1 modules) / 2.0.0 (Phase 2-3 modules)  
 **License**: MIT  
 **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell/Bash v3.0.0)
 
@@ -55,11 +55,17 @@
 
    ```
    ┌─────────────────────────────────────┐
-   │  CLI Layer (future Phase 7)         │
+   │  CLI Layer (future Phase 11)        │
    ├─────────────────────────────────────┤
-   │  Workflow Engine (future Phase 4)   │
+   │  Workflow Engine (future Phase 7)   │
    ├─────────────────────────────────────┤
-   │  Configuration & State (Phase 2.1)  │  ← Current: v2.0.0 with pure functions
+   │  AI Integration (future Phase 6)    │
+   ├─────────────────────────────────────┤
+   │  Git & Project (future Phase 4-5)   │
+   ├─────────────────────────────────────┤
+   │  File Operations (Phase 3)          │  ← Current: v2.0.0 complete
+   ├─────────────────────────────────────┤
+   │  Configuration & State (Phase 2)    │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
    │  Core Foundation (Phase 1)          │  ← Complete: v1.0.0
    └─────────────────────────────────────┘
@@ -68,7 +74,7 @@
 3. **Module Organization**
    - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
    - **src/utils/**: Helper functions (errors)
-   - **src/lib/**: Configuration and state management (config, backlog, session_manager, metrics)
+   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers)
    - **test/**: Comprehensive test suite mirroring src/ structure
    - **docs/**: Architecture, requirements, and migration documentation
 
@@ -123,11 +129,33 @@
 - Time/random dependencies injected as parameters instead of internal calls
 - Comprehensive testing: 86 deterministic tests for pure functions, 88 tests for integration
 
-### 🚧 Phase 2.2-2.4: Remaining Configuration (IN PROGRESS)
+### ✅ Phase 3: File Operations & Utilities (v2.0.0) - COMPLETE
 
-- Phase 2.2: Git Integration (lib/git_automation.js, lib/git_cache.js)
-- Phase 2.3: Project Detection (lib/project_type.js, lib/tech_stack_detection.js)
-- Phase 2.4: File Operations (lib/file_operations.js, lib/edit_operations.js)
+**Modules Implemented (5 modules, ~1,634 LOC):**
+
+| Module                        | Version | LOC | Purpose                                           | Architecture             |
+| ----------------------------- | ------- | --- | ------------------------------------------------- | ------------------------ |
+| `src/lib/file_operations.js`  | v2.0.0  | 295 | File system operations (read, write, copy, etc.)  | Pure functions + wrapper |
+| `src/lib/edit_operations.js`  | v2.0.0  | 380 | File editing utilities (find/replace, diff, etc.) | Pure functions + wrapper |
+| `src/lib/utils.js`            | v1.0.0  | 289 | General utilities (string, array, object helpers) | Pure functions only      |
+| `src/lib/argument_parser.js`  | v2.0.0  | 344 | CLI argument parsing with validation              | Pure functions + wrapper |
+| `src/lib/cleanup_handlers.js` | v2.0.0  | 326 | Cleanup operations (temp files, sessions, cache)  | Pure functions + wrapper |
+
+**Testing:** 354 tests (163 pure function tests + 191 integration tests), 100% coverage, 100% pass rate
+
+**Key Features:**
+
+- All modules follow v2.0.0 referential transparency architecture (except utils.js which is pure-only)
+- Comprehensive file operations with async/await, dry-run mode, error handling
+- Advanced text editing with diff generation and formatting
+- CLI parsing with schema validation, type coercion, auto-generated help
+- Utilities library with string, array, and object helpers (all pure functions)
+- Cleanup handlers with age/size/pattern-based cleanup, cross-realm Date handling
+
+### 🚧 Phase 4-5: Project Detection & Git Integration (NEXT)
+
+- Phase 4: Project Detection (lib/project_type.js, lib/tech_stack_detection.js, lib/dependency_analysis.js, lib/project_context.js)
+- Phase 5: Git Integration (lib/git_automation.js, lib/git_cache.js)
 
 ### 📋 Future Phases
 
@@ -140,7 +168,7 @@
 - **Phase 9**: Documentation & Examples (Complete docs, tutorials, migration guides)
 - **Phase 10**: Packaging & Distribution (npm package, installation, deployment)
 
-**Overall Progress:** 2 of 10 major phases complete (~20% of migration)
+**Overall Progress:** 3 of 13 major phases complete (~23% of migration)
 
 ---
 
@@ -159,14 +187,19 @@ ai_workflow.js/
 │   │   └── executor.js          # Command execution
 │   ├── utils/                   # Phase 1: Helper utilities (v1.0.0)
 │   │   └── errors.js            # Custom error classes
-│   ├── lib/                     # Phase 2: Core libraries (v2.0.0+)
+│   ├── lib/                     # Phase 2-3: Core libraries (v2.0.0+)
 │   │   ├── config.js            # ✅ Configuration management (v2.0.0)
 │   │   ├── backlog.js           # ✅ Backlog reporting (v2.0.0)
 │   │   ├── session_manager.js   # ✅ Session lifecycle (v2.0.0)
 │   │   ├── metrics.js           # ✅ Performance metrics (v2.0.0)
-│   │   ├── git_automation.js    # 🚧 Git operations (planned)
-│   │   ├── git_cache.js         # 🚧 Git caching (planned)
-│   │   ├── project_type.js      # 🚧 Project detection (planned)
+│   │   ├── file_operations.js   # ✅ File system operations (v2.0.0)
+│   │   ├── edit_operations.js   # ✅ File editing utilities (v2.0.0)
+│   │   ├── utils.js             # ✅ General utilities (v1.0.0)
+│   │   ├── argument_parser.js   # ✅ CLI argument parsing (v2.0.0)
+│   │   ├── cleanup_handlers.js  # ✅ Cleanup operations (v2.0.0)
+│   │   ├── git_automation.js    # 🚧 Git operations (planned Phase 5)
+│   │   ├── git_cache.js         # 🚧 Git caching (planned Phase 5)
+│   │   ├── project_type.js      # 🚧 Project detection (planned Phase 4)
 │   │   └── ...                  # 🚧 More modules (future phases)
 │   ├── cli/                     # Phase 7: CLI (future)
 │   ├── orchestrator/            # Phase 4: Workflow engine (future)
@@ -175,7 +208,7 @@ ai_workflow.js/
 ├── test/                        # Comprehensive test suite
 │   ├── core/                    # Phase 1 tests (85 tests)
 │   ├── utils/                   # Phase 1 tests
-│   └── lib/                     # Phase 2.1 tests (174 tests)
+│   └── lib/                     # Phase 2-3 tests (528 tests total)
 ├── docs/                        # Documentation
 │   ├── FUNCTIONAL_REQUIREMENTS.md
 │   ├── reports/
@@ -206,43 +239,63 @@ ai_workflow.js/
 ### Module Dependency Graph (Phase 1 + 2.1)
 
 ```
-┌────────────────────────────────────────┐
-│         Phase 2.1: lib/ (v2.0.0)       │
-│   ┌──────────┐  ┌──────────┐          │
-│   │ config   │  │ backlog  │          │
-│   └────┬─────┘  └────┬─────┘          │
-│        │             │                 │
-│   ┌────┴─────┐  ┌───┴──────┐          │
-│   │ session_ │  │ metrics  │          │
-│   │ manager  │  │          │          │
-│   └────┬─────┘  └────┬─────┘          │
-└────────┼─────────────┼────────────────┘
-         │             │
-         ▼             ▼
-┌────────────────────────────────────────┐
-│       Phase 1: core/ (v1.0.0)          │
-│                                         │
-│   ┌────────┐  ┌────────┐  ┌────────┐ │
-│   │ logger │  │ system │  │executor│ │
-│   └────┬───┘  └────┬───┘  └────┬───┘ │
-│        │           │           │      │
-│        └───────────┴───────────┘      │
-│                    │                   │
-│              ┌─────▼─────┐            │
-│              │  colors   │            │
-│              └───────────┘            │
-│                                        │
-│         ┌──────────┐  ┌──────────┐   │
-│         │ version  │  │  errors  │   │
-│         └──────────┘  └──────────┘   │
-└────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│              Phase 3: lib/ (v2.0.0)                      │
+│                                                           │
+│  ┌──────────────┐  ┌─────────────┐  ┌────────────┐     │
+│  │file_operations│  │edit_operations│ │cleanup_   │     │
+│  │              │  │               │  │handlers   │     │
+│  └──────┬───────┘  └──────┬────────┘  └────┬──────┘     │
+│         │                 │                │             │
+│         └─────────────────┴────────────────┘             │
+│                          │                               │
+│         ┌────────────────┴───────────────┐               │
+│         │                                │               │
+│    ┌────▼──────┐               ┌────────▼─────┐        │
+│    │ utils     │               │argument_parser│        │
+│    │(pure only)│               │               │        │
+│    └───────────┘               └───────────────┘        │
+└───────────────────────┬──────────────────────────────────┘
+                        │
+                        ▼
+┌──────────────────────────────────────────────────────────┐
+│         Phase 2: lib/ (v2.0.0)                           │
+│   ┌──────────┐  ┌──────────┐                            │
+│   │ config   │  │ backlog  │                            │
+│   └────┬─────┘  └────┬─────┘                            │
+│        │             │                                   │
+│   ┌────┴─────┐  ┌───┴──────┐                            │
+│   │ session_ │  │ metrics  │                            │
+│   │ manager  │  │          │                            │
+│   └────┬─────┘  └────┬─────┘                            │
+└─────────┼─────────────┼────────────────────────────────-┘
+          │             │
+          ▼             ▼
+┌──────────────────────────────────────────────────────────┐
+│       Phase 1: core/ (v1.0.0)                            │
+│                                                           │
+│   ┌────────┐  ┌────────┐  ┌────────┐                   │
+│   │ logger │  │ system │  │executor│                   │
+│   └────┬───┘  └────┬───┘  └────┬───┘                   │
+│        │           │           │                         │
+│        └───────────┴───────────┘                         │
+│                    │                                     │
+│              ┌─────▼─────┐                              │
+│              │  colors   │                              │
+│              └───────────┘                              │
+│                                                           │
+│         ┌──────────┐  ┌──────────┐                     │
+│         │ version  │  │  errors  │                     │
+│         └──────────┘  └──────────┘                     │
+└──────────────────────────────────────────────────────────┘
 ```
 
 **Dependency Rules:**
 
 - Phase 1 modules have no dependencies on Phase 2+ modules
-- Phase 2.1 modules depend only on Phase 1 core utilities
-- Future phases will depend on Phase 1 + 2 foundation
+- Phase 2 modules depend only on Phase 1 core utilities
+- Phase 3 modules depend on Phase 1 + 2 foundation
+- Future phases will depend on Phase 1-3 foundation
 
 ---
 
@@ -353,12 +406,17 @@ describe('SessionManager Integration', () => {
 
 ### Modules Using This Pattern
 
-| Module             | Pure Functions                                   | Wrapper Class      | Benefits                          |
-| ------------------ | ------------------------------------------------ | ------------------ | --------------------------------- |
-| config.js          | `parseYamlSync`, `validateConfig`, etc.          | `ConfigManager`    | Configuration parsing is testable |
-| backlog.js         | `getStatusEmoji`, `generateSummaryContent`, etc. | `BacklogManager`   | Markdown generation is pure       |
-| session_manager.js | `generateSessionId`, `createSessionEntry`, etc.  | `SessionManager`   | Session logic is deterministic    |
-| metrics.js         | `calculateDuration`, `formatMetrics`, etc.       | `MetricsCollector` | Metric calculations are pure      |
+| Module              | Pure Functions                                    | Wrapper Class      | Benefits                            |
+| ------------------- | ------------------------------------------------- | ------------------ | ----------------------------------- |
+| config.js           | `parseYamlSync`, `validateConfig`, etc.           | `ConfigManager`    | Configuration parsing is testable   |
+| backlog.js          | `getStatusEmoji`, `generateSummaryContent`, etc.  | `BacklogManager`   | Markdown generation is pure         |
+| session_manager.js  | `generateSessionId`, `createSessionEntry`, etc.   | `SessionManager`   | Session logic is deterministic      |
+| metrics.js          | `calculateDuration`, `formatMetrics`, etc.        | `MetricsCollector` | Metric calculations are pure        |
+| file_operations.js  | `validatePath`, `filterByExtension`, etc.         | `FileOperations`   | Path validation is testable         |
+| edit_operations.js  | `findMatches`, `replaceAll`, `generateDiff`, etc. | `EditOperations`   | Text manipulation is pure           |
+| argument_parser.js  | `parseArguments`, `validateArguments`, etc.       | `ArgumentParser`   | CLI parsing logic is testable       |
+| cleanup_handlers.js | `filterByAge`, `calculateTotalSize`, etc.         | `CleanupManager`   | Cleanup decisions are deterministic |
+| utils.js            | All functions (no wrapper class)                  | N/A (pure only)    | Reusable pure utilities             |
 
 **See:** `.github/REFERENTIAL_TRANSPARENCY.md` for complete guide and examples.
 
