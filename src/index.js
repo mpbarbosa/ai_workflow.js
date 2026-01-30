@@ -98,3 +98,14 @@ export {
   deepEqual,
   isEmpty,
 } from './lib/utils.js';
+
+export {
+  parseArguments,
+  validateArguments,
+  validateType,
+  coerceTypes,
+  applyDefaults,
+  generateHelpText,
+  normalizeAliases,
+  ArgumentParser,
+} from './lib/argument_parser.js';
