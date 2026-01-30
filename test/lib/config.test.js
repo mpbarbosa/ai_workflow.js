@@ -1,14 +1,215 @@
 /**
- * Tests for Config module
- * @version 1.0.0
- * @description Test suite for configuration management
+ * Tests for Config module (Pure Functions + Wrapper)
+ * @version 2.0.0
+ * @description Test suite for workflow configuration with referential transparency
  * @module test/lib/config
  */
 
-import { Config } from '../../src/lib/config.js';
+import {
+  Config,
+  generateTimestamp,
+  generateWorkflowRunId,
+  calculatePaths,
+  createMetadata,
+  createExecutionMode,
+  createAnalysisContext,
+  addTempFile,
+  createStepStatus,
+  updateStepStatusMap,
+  calculateElapsedTime,
+  resolveProjectRoot,
+} from '../../src/lib/config.js';
 import path from 'path';
 
-describe('Config', () => {
+describe('Config - Pure Functions', () => {
+  describe('generateTimestamp', () => {
+    test('should generate timestamp in correct format', () => {
+      const date = new Date('2026-01-30T12:34:56Z');
+      const timestamp = generateTimestamp(date);
+
+      expect(timestamp).toMatch(/^\d{8}_\d{6}$/);
+      expect(timestamp).toContain('20260130');
+    });
+
+    test('should be referentially transparent', () => {
+      const date = new Date('2026-01-30T12:00:00Z');
+      const ts1 = generateTimestamp(date);
+      const ts2 = generateTimestamp(date);
+
+      expect(ts1).toBe(ts2);
+    });
+
+    test('should pad numbers correctly', () => {
+      const date = new Date(2026, 0, 5, 3, 4, 5); // Local time: Jan 5, 2026, 03:04:05
+      const timestamp = generateTimestamp(date);
+
+      expect(timestamp).toMatch(/^20260105_030405$/);
+    });
+  });
+
+  describe('generateWorkflowRunId', () => {
+    test('should generate workflow run ID', () => {
+      const runId = generateWorkflowRunId('20260130_120000');
+
+      expect(runId).toBe('workflow_20260130_120000');
+    });
+
+    test('should be referentially transparent', () => {
+      const runId1 = generateWorkflowRunId('test');
+      const runId2 = generateWorkflowRunId('test');
+
+      expect(runId1).toBe(runId2);
+    });
+  });
+
+  describe('calculatePaths', () => {
+    test('should calculate all paths correctly', () => {
+      const projectRoot = '/test/project';
+      const workflowRunId = 'workflow_123';
+
+      const paths = calculatePaths(projectRoot, workflowRunId);
+
+      expect(paths.projectRoot).toBe('/test/project');
+      expect(paths.srcDir).toBe('/test/project/src');
+      expect(paths.docsDir).toBe('/test/project/docs');
+      expect(paths.artifactDir).toBe('/test/project/.ai_workflow');
+      expect(paths.backlogRunDir).toBe('/test/project/.ai_workflow/backlog/workflow_123');
+    });
+
+    test('should be referentially transparent', () => {
+      const paths1 = calculatePaths('/test', 'run1');
+      const paths2 = calculatePaths('/test', 'run1');
+
+      expect(paths1).toEqual(paths2);
+    });
+  });
+
+  describe('createMetadata', () => {
+    test('should create metadata object', () => {
+      const metadata = createMetadata('1.0.0', 'Test', 'run_123', 15, 1000);
+
+      expect(metadata).toEqual({
+        scriptVersion: '1.0.0',
+        scriptName: 'Test',
+        workflowRunId: 'run_123',
+        totalSteps: 15,
+        workflowStartTime: 1000,
+      });
+    });
+  });
+
+  describe('createExecutionMode', () => {
+    test('should create execution mode object', () => {
+      const mode = createExecutionMode(true, false, false);
+
+      expect(mode).toEqual({
+        dryRun: true,
+        interactive: false,
+        auto: false,
+      });
+    });
+  });
+
+  describe('createAnalysisContext', () => {
+    test('should create analysis context object', () => {
+      const context = createAnalysisContext('HEAD~3', '5 files', 'mixed');
+
+      expect(context).toEqual({
+        commits: 'HEAD~3',
+        modified: '5 files',
+        changeScope: 'mixed',
+      });
+    });
+  });
+
+  describe('addTempFile', () => {
+    test('should add file to list', () => {
+      const files = ['file1.txt'];
+      const newFiles = addTempFile(files, 'file2.txt');
+
+      expect(newFiles).toEqual(['file1.txt', 'file2.txt']);
+      expect(files).toEqual(['file1.txt']); // Original unchanged
+    });
+
+    test('should not mutate original array', () => {
+      const files = [];
+      const newFiles = addTempFile(files, 'test.txt');
+
+      expect(files).toEqual([]);
+      expect(newFiles).toEqual(['test.txt']);
+    });
+  });
+
+  describe('createStepStatus', () => {
+    test('should create step status object', () => {
+      const status = createStepStatus('passed', 1000, { duration: 500 });
+
+      expect(status).toEqual({
+        status: 'passed',
+        timestamp: 1000,
+        duration: 500,
+      });
+    });
+
+    test('should handle empty metadata', () => {
+      const status = createStepStatus('failed', 2000);
+
+      expect(status).toEqual({
+        status: 'failed',
+        timestamp: 2000,
+      });
+    });
+  });
+
+  describe('updateStepStatusMap', () => {
+    test('should update status map', () => {
+      const statusMap = new Map();
+      const newMap = updateStepStatusMap(statusMap, 0, 'passed', 1000, { test: true });
+
+      expect(newMap.get(0)).toEqual({
+        status: 'passed',
+        timestamp: 1000,
+        test: true,
+      });
+      expect(statusMap.size).toBe(0); // Original unchanged
+    });
+
+    test('should not mutate original map', () => {
+      const statusMap = new Map([[0, { status: 'pending', timestamp: 500 }]]);
+      const newMap = updateStepStatusMap(statusMap, 1, 'passed', 1000);
+
+      expect(statusMap.size).toBe(1);
+      expect(newMap.size).toBe(2);
+    });
+  });
+
+  describe('calculateElapsedTime', () => {
+    test('should calculate elapsed time', () => {
+      const elapsed = calculateElapsedTime(1000, 2500);
+
+      expect(elapsed).toBe(1500);
+    });
+
+    test('should be referentially transparent', () => {
+      const elapsed1 = calculateElapsedTime(100, 200);
+      const elapsed2 = calculateElapsedTime(100, 200);
+
+      expect(elapsed1).toBe(elapsed2);
+      expect(elapsed1).toBe(100);
+    });
+  });
+
+  describe('resolveProjectRoot', () => {
+    test('should resolve project root from dirname', () => {
+      const dirname = '/test/project/src/lib';
+      const root = resolveProjectRoot(dirname);
+
+      expect(root).toBe(path.resolve(dirname, '../..'));
+    });
+  });
+});
+
+describe('Config - Wrapper Class', () => {
   let config;
 
   beforeEach(() => {
