@@ -2,18 +2,18 @@
 # Copy this file to your project root as .workflow-config.yaml and customize
 
 project:
-  name: "ai_workflow.js"
-  type: "nodejs-application"  # e.g., bash-automation-framework, nodejs-application, python-package
-  description: "JavaScript/Node.js migration of AI workflow automation system"
-  kind: "library"  # e.g., shell_automation, web_application, library
-  version: "1.0.0"
+  name: 'ai_workflow.js'
+  type: 'nodejs-application' # e.g., bash-automation-framework, nodejs-application, python-package
+  description: 'JavaScript/Node.js migration of AI workflow automation system'
+  kind: 'cli_tool' # e.g., shell_automation, web_application, library, cli_tool
+  version: '1.0.0'
 
 tech_stack:
-  primary_language: "javascript"  # e.g., bash, javascript, python, typescript
-  build_system: "npm"  # e.g., none, npm, webpack, maven, gradle
-  test_framework: "jest"  # e.g., shell-script, jest, pytest, mocha
-  test_command: "npm test"  # e.g., ./tests/run_all_tests.sh, npm test, pytest
-  lint_command: "npm run lint"  # e.g., shellcheck src/**/*.sh, eslint ., pylint src/
+  primary_language: 'javascript' # e.g., bash, javascript, python, typescript
+  build_system: 'npm' # e.g., none, npm, webpack, maven, gradle
+  test_framework: 'jest' # e.g., shell-script, jest, pytest, mocha
+  test_command: 'npm test' # e.g., ./tests/run_all_tests.sh, npm test, pytest
+  lint_command: 'npm run lint' # e.g., shellcheck src/**/*.sh, eslint ., pylint src/
 
 structure:
   source_dirs:

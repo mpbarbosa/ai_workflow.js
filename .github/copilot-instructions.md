@@ -1,19 +1,20 @@
-# GitHub Copilot Instructions: AI Workflow Core
+# GitHub Copilot Instructions: ai_workflow.js
 
-> ⚠️ **Critical Context**: This is a **configuration and template library**, NOT a workflow execution engine. It provides templates, schemas, and examples that other projects use as a Git submodule. Several docs in `docs/` reference the parent **ai_workflow** execution project - focus on configuration templates, project_kinds schemas, and integration patterns when assisting with this repository.
+> 🎯 **Project Context**: This is a **JavaScript/Node.js implementation** of AI-powered workflow automation for software development projects. It is a complete migration from the shell-based [ai_workflow](https://github.com/mpbarbosa/ai_workflow) repository, reimagining the architecture with modern JavaScript best practices while maintaining feature parity.
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
 - [Architecture & Design Principles](#architecture--design-principles)
-- [Directory Structure](#directory-structure)
-- [Template System & Placeholders](#template-system--placeholders)
-- [Project Kinds System](#project-kinds-system)
+- [Current Implementation Status](#current-implementation-status)
+- [Module Structure](#module-structure)
+- [Referential Transparency Pattern](#referential-transparency-pattern)
 - [Coding Standards & Conventions](#coding-standards--conventions)
 - [Key Documentation References](#key-documentation-references)
 - [Development Workflow](#development-workflow)
+- [Testing Strategy](#testing-strategy)
 - [Common Assistance Patterns](#common-assistance-patterns)
-- [Important Context](#important-context)
+- [Migration Context](#migration-context)
 - [Quick Reference](#quick-reference)
 - [Contact & Resources](#contact--resources)
 
@@ -21,285 +22,345 @@
 
 ## Project Overview
 
-**ai_workflow_core** is a language-agnostic foundational template system for AI-powered workflow automation. This repository provides configuration templates, directory structures, GitHub workflows, utility scripts, and documentation that can be integrated into projects written in any language (Shell, JavaScript/Node.js, Python, etc.).
+**ai_workflow.js** is a Node.js implementation of an AI-powered workflow automation system for software development. It provides a comprehensive 15-step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
 
 **Key Characteristics:**
 
-- **Template Repository**: Designed to be used as a Git submodule in other projects
-- **Language-Agnostic**: Provides foundational structure that works across programming languages
-- **Configuration-Driven**: Uses YAML templates with placeholder substitution patterns
-- **Dual Nature**: You're working on both the core templates AND the system that consumes them
+- **Workflow Automation Engine**: Orchestrates 15-step AI-powered development workflows
+- **Cross-Platform**: Works on Linux, macOS, and Windows via Node.js
+- **Modern JavaScript**: ES6+ modules, async/await, pure functional patterns
+- **Referentially Transparent**: v2.0.0 modules follow functional programming principles
+- **Comprehensive Testing**: 259+ tests with 100% pass rate and high coverage
 
-**Version**: 1.0.0  
+**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1 modules) / 2.0.0 (Phase 2.1 modules)  
 **License**: MIT  
-**Originally extracted from**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
+**Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell/Bash v3.0.0)
+
+**Migration Note**: This is NOT a line-by-line shell-to-JavaScript translation. It's a complete architectural redesign extracting behaviors and features from the original shell scripts while building idiomatic JavaScript code with modern best practices.
 
 ---
 
 ## Architecture & Design Principles
 
-### Core Concepts
+### Core Architectural Patterns
 
-1. **Template System with Placeholders**
-   - Configuration files use `{{PLACEHOLDER}}` syntax for substitution
-   - Projects copy templates and replace placeholders with specific values
-   - Enables single source of truth that adapts to different contexts
+1. **Referential Transparency (v2.0.0)**
+   - Pure functions for core logic (deterministic, no side effects)
+   - Impure wrapper classes for I/O and state management
+   - Time and random dependencies injected as parameters
+   - Immutable data transformations throughout
+   - Isolated side effects at system boundaries
 
-2. **Git Submodule Integration Pattern**
-   - Projects add ai_workflow_core as a submodule (typically `.workflow_core/`)
-   - Copy and customize configuration files to project root
-   - Keep templates updated via `git submodule update`
+2. **Layered Architecture**
 
-3. **Language-Agnostic Design**
-   - No language-specific code in core repository
-   - Configuration defines language-specific settings (test commands, linters, etc.)
-   - Directory structures follow common conventions across languages
+   ```
+   ┌─────────────────────────────────────┐
+   │  CLI Layer (future Phase 7)         │
+   ├─────────────────────────────────────┤
+   │  Workflow Engine (future Phase 4)   │
+   ├─────────────────────────────────────┤
+   │  Configuration & State (Phase 2.1)  │  ← Current: v2.0.0 with pure functions
+   ├─────────────────────────────────────┤
+   │  Core Foundation (Phase 1)          │  ← Complete: v1.0.0
+   └─────────────────────────────────────┘
+   ```
 
-4. **Separation of Concerns**
-   - **config/**: Template configurations and schemas
-   - **docs/**: Architecture and integration guides
-   - **examples/**: Reference implementations per language
-   - **scripts/**: Reusable utility scripts (templates)
-   - **github/**: GitHub-specific integrations
+3. **Module Organization**
+   - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
+   - **src/utils/**: Helper functions (errors)
+   - **src/lib/**: Configuration and state management (config, backlog, session_manager, metrics)
+   - **test/**: Comprehensive test suite mirroring src/ structure
+   - **docs/**: Architecture, requirements, and migration documentation
 
-5. **Workflow Artifact Management**
-   - Projects create `.ai_workflow/` directory for workflow execution artifacts
-   - Artifacts are gitignored by default (logs, metrics, cache)
-   - Standard directory structure across all projects
+4. **Dependency Management**
+   - Minimal external dependencies (@github/copilot-sdk only for production)
+   - No heavy frameworks - lightweight and focused
+   - Dev dependencies for testing (jest) and code quality (eslint, prettier)
+
+5. **Configuration Management**
+   - Uses `.workflow_core/` submodule for shared configuration templates
+   - Project-specific config in `.workflow-config.yaml`
+   - Workflow artifacts in `.ai_workflow/` directory (logs, metrics, backlog, summaries)
 
 ---
 
-## Directory Structure
+## Current Implementation Status
+
+### ✅ Phase 1: Core Foundation (v1.0.0) - COMPLETE
+
+**Modules Implemented (7 modules, ~595 LOC):**
+
+| Module                 | Version | LOC | Purpose                                              |
+| ---------------------- | ------- | --- | ---------------------------------------------------- |
+| `src/core/colors.js`   | v1.0.0  | 54  | ANSI color codes with terminal support detection     |
+| `src/core/logger.js`   | v1.0.0  | 99  | Colored logging system with multiple severity levels |
+| `src/utils/errors.js`  | v1.0.0  | 68  | Custom error class hierarchy for workflow errors     |
+| `src/core/system.js`   | v1.0.0  | 130 | OS detection and system configuration                |
+| `src/core/version.js`  | v1.0.0  | 114 | Semantic version parsing and comparison              |
+| `src/core/executor.js` | v1.0.0  | 105 | Command execution with async/streaming support       |
+| `src/index.js`         | v1.0.0  | 25  | Module exports and public API                        |
+
+**Testing:** 85 tests, 95%+ coverage, 100% pass rate
+
+### ✅ Phase 2.1: Configuration & State Management (v2.0.0) - COMPLETE
+
+**Modules Implemented (4 modules, ~1,205 LOC):**
+
+| Module                       | Version | LOC | Purpose                          | Architecture             |
+| ---------------------------- | ------- | --- | -------------------------------- | ------------------------ |
+| `src/lib/config.js`          | v2.0.0  | 315 | Configuration management         | Pure functions + wrapper |
+| `src/lib/backlog.js`         | v2.0.0  | 195 | Workflow summary/backlog reports | Pure functions + wrapper |
+| `src/lib/session_manager.js` | v2.0.0  | 220 | Session lifecycle management     | Pure functions + wrapper |
+| `src/lib/metrics.js`         | v2.0.0  | 475 | Performance metrics collection   | Pure functions + wrapper |
+
+**Testing:** 174 tests (86 pure function tests + 88 integration tests), 100% coverage, 100% pass rate
+
+**Referential Transparency Refactoring:**
+
+- All Phase 2.1 modules refactored to v2.0.0 with pure functional architecture
+- Core logic extracted as pure functions (deterministic, no side effects, immutable)
+- Side effects isolated in wrapper classes (I/O, console logging, state management)
+- Time/random dependencies injected as parameters instead of internal calls
+- Comprehensive testing: 86 deterministic tests for pure functions, 88 tests for integration
+
+### 🚧 Phase 2.2-2.4: Remaining Configuration (IN PROGRESS)
+
+- Phase 2.2: Git Integration (lib/git_automation.js, lib/git_cache.js)
+- Phase 2.3: Project Detection (lib/project_type.js, lib/tech_stack_detection.js)
+- Phase 2.4: File Operations (lib/file_operations.js, lib/edit_operations.js)
+
+### 📋 Future Phases
+
+- **Phase 3**: AI Integration (Copilot integration, AI personas, caching, prompt generation)
+- **Phase 4**: Workflow Engine (Step orchestration, dependencies, parallelization, checkpoints)
+- **Phase 5**: Step Implementations (15 workflow steps)
+- **Phase 6**: Performance Optimizations (Smart execution, ML optimization, caching strategies)
+- **Phase 7**: CLI & User Interface (Interactive CLI, progress indicators, configuration wizard)
+- **Phase 8**: Testing & Quality Assurance (End-to-end tests, validation, performance testing)
+- **Phase 9**: Documentation & Examples (Complete docs, tutorials, migration guides)
+- **Phase 10**: Packaging & Distribution (npm package, installation, deployment)
+
+**Overall Progress:** 2 of 10 major phases complete (~20% of migration)
+
+---
+
+## Module Structure
+
+### Directory Layout
 
 ```
-ai_workflow_core/
-├── .github/
-│   ├── DESCRIPTION.md           # Repository description for GitHub
-│   └── copilot-instructions.md  # This file
-├── config/                      # Configuration templates
-│   ├── .workflow-config.yaml.template  # Main workflow config template
-│   ├── ai_helpers.yaml          # AI helper definitions (1900+ lines)
-│   ├── ai_prompts_project_kinds.yaml   # Project-specific AI prompts
-│   ├── paths.yaml               # Path configurations
-│   ├── project_kinds.yaml       # Project type definitions & validation rules
-│   └── README.md
-├── docs/                        # Comprehensive documentation
-│   ├── guides/                  # Implementation guides
-│   │   ├── ML_OPTIMIZATION_GUIDE.md
-│   │   ├── MULTI_STAGE_PIPELINE_GUIDE.md
-│   │   └── PROJECT_REFERENCE.md
-│   ├── AI_WORKFLOW_DIRECTORY.md # Artifact directory structure guide
-│   ├── CODE_OF_CONDUCT.md       # Contributor Covenant 2.1
-│   ├── CONTRIBUTING.md          # Contributing guidelines (detailed)
-│   ├── INTEGRATION.md           # Integration guide for using as submodule
-│   └── LICENSE                  # MIT License
-├── examples/                    # Language-specific integration examples
-│   ├── shell/                   # Shell script integration example
-│   └── nodejs/                  # Node.js integration example
-├── scripts/                     # Utility script templates
-│   ├── cleanup_artifacts.sh.template  # Artifact cleanup script
-│   ├── validate_context_blocks.py     # Documentation validator
-│   └── README.md
-├── github/                      # GitHub-specific files (workflow templates)
-│   └── workflows/               # GitHub Actions workflow templates
-│       ├── code-quality.yml
-│       ├── validate-docs.yml
-│       └── validate-tests.yml
-├── .ai_workflow/                # Workflow artifacts (for dogfooding)
-│   ├── backlog/                 # Execution reports and development artifacts
-│   ├── summaries/               # AI summaries
-│   ├── logs/                    # Execution logs
-│   ├── metrics/                 # Performance metrics
-│   └── prompts/                 # AI prompt logs
-├── .workflow-config.yaml        # Root config (for testing on self)
-├── README.md                    # Main project documentation
-├── CHANGELOG.md                 # Version history
-└── .gitignore
-
-# Standard Project Integration Structure (not in this repo):
-target_project/
-├── .workflow_core/              # This repository as submodule
-├── .ai_workflow/                # Workflow artifacts (created by projects)
+ai_workflow.js/
+├── src/
+│   ├── core/                    # Phase 1: Foundation utilities (v1.0.0)
+│   │   ├── colors.js            # ANSI color codes
+│   │   ├── logger.js            # Logging system
+│   │   ├── system.js            # OS detection
+│   │   ├── version.js           # Semver handling
+│   │   └── executor.js          # Command execution
+│   ├── utils/                   # Phase 1: Helper utilities (v1.0.0)
+│   │   └── errors.js            # Custom error classes
+│   ├── lib/                     # Phase 2: Core libraries (v2.0.0+)
+│   │   ├── config.js            # ✅ Configuration management (v2.0.0)
+│   │   ├── backlog.js           # ✅ Backlog reporting (v2.0.0)
+│   │   ├── session_manager.js   # ✅ Session lifecycle (v2.0.0)
+│   │   ├── metrics.js           # ✅ Performance metrics (v2.0.0)
+│   │   ├── git_automation.js    # 🚧 Git operations (planned)
+│   │   ├── git_cache.js         # 🚧 Git caching (planned)
+│   │   ├── project_type.js      # 🚧 Project detection (planned)
+│   │   └── ...                  # 🚧 More modules (future phases)
+│   ├── cli/                     # Phase 7: CLI (future)
+│   ├── orchestrator/            # Phase 4: Workflow engine (future)
+│   ├── managers/                # Phase 3: AI integration (future)
+│   └── index.js                 # Public API exports
+├── test/                        # Comprehensive test suite
+│   ├── core/                    # Phase 1 tests (85 tests)
+│   ├── utils/                   # Phase 1 tests
+│   └── lib/                     # Phase 2.1 tests (174 tests)
+├── docs/                        # Documentation
+│   ├── FUNCTIONAL_REQUIREMENTS.md
+│   ├── reports/
+│   │   ├── implementation/
+│   │   │   └── MIGRATION_PLAN.md
+│   │   └── analysis/
+│   │       └── CORRECTION_REPORT.md
+│   └── misc/
+├── .workflow_core/              # Config templates submodule
+├── .ai_workflow/                # Workflow artifacts
 │   ├── backlog/                 # Execution reports
 │   ├── summaries/               # AI summaries
 │   ├── logs/                    # Execution logs
-│   ├── metrics/                 # Performance metrics
-│   ├── checkpoints/             # Resume points
-│   ├── prompts/                 # AI prompt logs (optional commit)
-│   ├── ml_models/               # ML models (optional commit)
-│   └── .incremental_cache/      # Incremental processing cache
-└── .workflow-config.yaml        # Customized config (copied from template)
+│   └── metrics/                 # Performance data
+├── .github/
+│   ├── copilot-instructions.md  # This file
+│   └── REFERENTIAL_TRANSPARENCY.md
+├── .workflow-config.yaml        # Project configuration
+├── package.json                 # Node.js project metadata
+├── jest.config.json             # Jest configuration
+├── eslint.config.mjs            # ESLint configuration
+├── README.md                    # Project overview
+├── CHANGELOG.md                 # Version history
+├── CONTRIBUTING.md              # Contribution guidelines
+└── LICENSE                      # MIT License
 ```
 
-### Key Directories Explained
+### Module Dependency Graph (Phase 1 + 2.1)
 
-**config/**: Contains all template configuration files
+```
+┌────────────────────────────────────────┐
+│         Phase 2.1: lib/ (v2.0.0)       │
+│   ┌──────────┐  ┌──────────┐          │
+│   │ config   │  │ backlog  │          │
+│   └────┬─────┘  └────┬─────┘          │
+│        │             │                 │
+│   ┌────┴─────┐  ┌───┴──────┐          │
+│   │ session_ │  │ metrics  │          │
+│   │ manager  │  │          │          │
+│   └────┬─────┘  └────┬─────┘          │
+└────────┼─────────────┼────────────────┘
+         │             │
+         ▼             ▼
+┌────────────────────────────────────────┐
+│       Phase 1: core/ (v1.0.0)          │
+│                                         │
+│   ┌────────┐  ┌────────┐  ┌────────┐ │
+│   │ logger │  │ system │  │executor│ │
+│   └────┬───┘  └────┬───┘  └────┬───┘ │
+│        │           │           │      │
+│        └───────────┴───────────┘      │
+│                    │                   │
+│              ┌─────▼─────┐            │
+│              │  colors   │            │
+│              └───────────┘            │
+│                                        │
+│         ┌──────────┐  ┌──────────┐   │
+│         │ version  │  │  errors  │   │
+│         └──────────┘  └──────────┘   │
+└────────────────────────────────────────┘
+```
 
-- `.workflow-config.yaml.template`: Main config with placeholders
-- `project_kinds.yaml`: Defines validation rules per project type (shell_script_automation, nodejs_api, react_spa, python_app, client_spa, static_website, generic)
-- `ai_helpers.yaml`: Large file (1900+ lines) with AI helper configurations
-- Project types define test frameworks, linters, build systems, and best practices
+**Dependency Rules:**
 
-**docs/**: Comprehensive documentation organized by purpose
-
-- Essential docs at root level: INTEGRATION.md, AI_WORKFLOW_DIRECTORY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md
-- `guides/` subdirectory contains implementation guides (some reference parent ai_workflow features)
-- Clean structure with no empty directories
-
-**examples/**: Reference implementations showing integration patterns
-
-- Each subdirectory demonstrates language-specific setup
-- Includes full project structure, configuration, and README
-- Copy and customize as starting point
-
-**scripts/**: Template scripts that projects can copy and adapt
-
-- `.template` files should be copied without extension
-- Placeholders like `{{PROJECT_ROOT}}`, `{{ARTIFACT_DIR}}` need substitution
-- Can be adapted to different languages (bash → Node.js, Python, etc.)
+- Phase 1 modules have no dependencies on Phase 2+ modules
+- Phase 2.1 modules depend only on Phase 1 core utilities
+- Future phases will depend on Phase 1 + 2 foundation
 
 ---
 
-## Template System & Placeholders
+## Referential Transparency Pattern (v2.0.0)
 
-### Core Placeholder Pattern
+### Overview
 
-Configuration files use `{{PLACEHOLDER}}` syntax for values that projects must customize.
+Phase 2.1 modules (v2.0.0) follow a **referential transparency architecture** separating pure functions from side effects:
 
-### Common Placeholders
+```javascript
+// ✅ Pure Functions - Exported for testing and reuse
+export function generateSessionId(randomBytes) {
+  return randomBytes.toString('hex'); // Deterministic given input
+}
 
-| Placeholder               | Description                                        | Example Value                                                    |
-| ------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
-| `{{PROJECT_NAME}}`        | Human-readable project name                        | "My Application"                                                 |
-| `{{PROJECT_TYPE}}`        | Technical project type (hyphenated)                | "nodejs-application", "configuration-library"                    |
-| `{{PROJECT_DESCRIPTION}}` | Brief project description                          | "RESTful API for user management"                                |
-| `{{PROJECT_KIND}}`        | Project kind from project_kinds.yaml (underscored) | "nodejs_api", "shell_script_automation", "configuration_library" |
-| `{{VERSION}}`             | Project version (semver, no 'v' prefix)            | "1.0.0"                                                          |
-| `{{LANGUAGE}}`            | Primary programming language                       | "javascript", "bash", "python", "yaml"                           |
-| `{{BUILD_SYSTEM}}`        | Build system/package manager                       | "npm", "webpack", "maven", "none"                                |
-| `{{TEST_FRAMEWORK}}`      | Testing framework                                  | "jest", "pytest", "shell-script", "validation-scripts"           |
-| `{{TEST_COMMAND}}`        | Command to run tests                               | "npm test", "./tests/run_tests.sh", "python scripts/validate.py" |
-| `{{LINT_COMMAND}}`        | Command to run linter                              | "eslint .", "shellcheck \*_/_.sh", "yamllint config/"            |
+export function createSessionEntry(sessionId, currentTime, metadata) {
+  return { id: sessionId, startTime: currentTime, ...metadata }; // Immutable
+}
 
-**Terminology Note:**
+// ❌ Impure Wrapper - Handles side effects
+export class SessionManager {
+  constructor() {
+    this.sessions = new Map();
+  }
 
-- `PROJECT_TYPE` uses hyphens: `"nodejs-application"`, `"configuration-library"`
-- `PROJECT_KIND` uses underscores: `"nodejs_api"`, `"configuration_library"`
-- Version format: `"1.0.0"` (no 'v' prefix in config values)
+  createSession(metadata = {}) {
+    // Inject dependencies (time, randomness)
+    const randomBytes = crypto.randomBytes(16);
+    const sessionId = generateSessionId(randomBytes); // Pure function
+    const entry = createSessionEntry(sessionId, Date.now(), metadata); // Pure function
 
-### Configuration Template Example
-
-From `config/.workflow-config.yaml.template`:
-
-```yaml
-project:
-  name: '{{PROJECT_NAME}}'
-  type: '{{PROJECT_TYPE}}' # hyphenated: nodejs-application, configuration-library
-  description: '{{PROJECT_DESCRIPTION}}'
-  kind: '{{PROJECT_KIND}}' # underscored: nodejs_api, configuration_library
-  version: '{{VERSION}}' # no 'v' prefix: 1.0.0
-
-tech_stack:
-  primary_language: '{{LANGUAGE}}' # javascript, bash, python, yaml
-  build_system: '{{BUILD_SYSTEM}}' # npm, webpack, maven, none
-  test_framework: '{{TEST_FRAMEWORK}}' # jest, pytest, validation-scripts
-  test_command: '{{TEST_COMMAND}}'
-  lint_command: '{{LINT_COMMAND}}'
-
-structure:
-  source_dirs:
-    - src
-  test_dirs:
-    - tests
-  docs_dirs:
-    - docs
+    this.sessions.set(sessionId, entry); // Side effect: state mutation
+    logger.info(`Session created: ${sessionId}`); // Side effect: I/O
+    return sessionId;
+  }
+}
 ```
 
-**Example - This Repository (ai_workflow_core):**
+### Design Principles
 
-```yaml
-project:
-  name: 'AI Workflow Core'
-  type: 'configuration-library' # hyphenated
-  kind: 'configuration_library' # underscored
-  version: '1.0.0' # no 'v' prefix
+1. **Pure Functions (Referentially Transparent)**
+   - Always produce same output for same input (deterministic)
+   - No observable side effects (no mutation, I/O, global state)
+   - Time/random dependencies passed as parameters
+   - Immutable data transformations
+   - Easy to test (no mocks needed)
 
-tech_stack:
-  primary_language: 'yaml'
-  build_system: 'none'
-  test_framework: 'validation-scripts'
-  test_command: 'python scripts/validate_context_blocks.py'
-  lint_command: 'yamllint -d relaxed config/'
+2. **Impure Wrappers (Side Effect Boundaries)**
+   - Handle I/O operations (file system, console, network)
+   - Manage mutable state (in-memory caches, sessions)
+   - Inject time (`Date.now()`) and randomness (`crypto.randomBytes()`)
+   - Call pure functions for business logic
+   - Isolate side effects at system boundaries
+
+3. **Benefits**
+   - **Testability**: Pure functions have deterministic tests, no setup/teardown
+   - **Predictability**: Same inputs always produce same outputs
+   - **Composability**: Pure functions can be freely combined
+   - **Maintainability**: Clear separation of concerns
+   - **Debugging**: Side effects are obvious and isolated
+
+### Architecture Pattern
+
+```
+┌──────────────────────────────────────────────┐
+│         APPLICATION LAYER (Impure)           │
+│  SessionManager, ConfigManager, etc.         │
+│  - File I/O, Console logging                 │
+│  - State management, Time/Random injection   │
+└──────────────┬───────────────────────────────┘
+               │ calls
+               ▼
+┌──────────────────────────────────────────────┐
+│         BUSINESS LOGIC (Pure Functions)      │
+│  generateSessionId, createSessionEntry, etc. │
+│  - Deterministic calculations                │
+│  - Immutable transformations                 │
+│  - No side effects                           │
+└──────────────────────────────────────────────┘
 ```
 
-### Project Integration Workflow
+### Testing Strategy
 
-1. **Add as submodule**: `git submodule add https://github.com/mpbarbosa/ai_workflow_core.git .workflow_core`
-2. **Copy template**: `cp .workflow_core/config/.workflow-config.yaml.template .workflow-config.yaml`
-3. **Replace placeholders**: Edit `.workflow-config.yaml` with project-specific values
-4. **Create artifact directory**: `mkdir -p .ai_workflow/{backlog,summaries,logs,metrics,checkpoints,prompts,ml_models,.incremental_cache}`
-5. **Update .gitignore**: Add `.ai_workflow/` patterns to ignore generated artifacts
+**Pure Functions** (86 tests across Phase 2.1 modules):
 
----
+```javascript
+describe('Pure Functions', () => {
+  test('generateSessionId is deterministic', () => {
+    const bytes = Buffer.from('test1234test1234');
+    expect(generateSessionId(bytes)).toBe('7465737431323334746573743132333');
+    expect(generateSessionId(bytes)).toBe('7465737431323334746573743132333'); // Always same
+  });
+});
+```
 
-## Project Kinds System
+**Integration Tests** (88 tests across Phase 2.1 modules):
 
-### Supported Project Kinds
+```javascript
+describe('SessionManager Integration', () => {
+  test('createSession generates unique IDs', () => {
+    const manager = new SessionManager();
+    const id1 = manager.createSession();
+    const id2 = manager.createSession();
+    expect(id1).not.toBe(id2); // Non-deterministic (uses crypto.randomBytes)
+  });
+});
+```
 
-Defined in `config/project_kinds.yaml` (7 types) + this repo's own kind:
+### Modules Using This Pattern
 
-**Note**: This repository itself uses `kind: "configuration_library"` (a meta-type for configuration libraries, not included in the standard project_kinds.yaml definitions below).
+| Module             | Pure Functions                                   | Wrapper Class      | Benefits                          |
+| ------------------ | ------------------------------------------------ | ------------------ | --------------------------------- |
+| config.js          | `parseYamlSync`, `validateConfig`, etc.          | `ConfigManager`    | Configuration parsing is testable |
+| backlog.js         | `getStatusEmoji`, `generateSummaryContent`, etc. | `BacklogManager`   | Markdown generation is pure       |
+| session_manager.js | `generateSessionId`, `createSessionEntry`, etc.  | `SessionManager`   | Session logic is deterministic    |
+| metrics.js         | `calculateDuration`, `formatMetrics`, etc.       | `MetricsCollector` | Metric calculations are pure      |
 
-**Standard Project Kinds:**
-
-1. **shell_script_automation**: Bash/shell script projects
-   - Test framework: bash_unit/BATS
-   - Linters: shellcheck, shfmt
-   - Standards: Google Shell Style Guide
-
-2. **nodejs_api**: Node.js backend APIs
-   - Test framework: jest/mocha/vitest
-   - Linters: eslint, prettier
-   - Coverage threshold: 80%
-
-3. **client_spa**: Vanilla JS SPAs with Bootstrap
-   - Test framework: jest/playwright
-   - Linters: eslint, htmlhint, stylelint
-   - Focus: No React/Vue/Angular
-
-4. **react_spa**: React single-page applications
-   - Test framework: jest/vitest with React Testing Library
-   - Build required: true
-   - TypeScript support
-
-5. **static_website**: HTML/CSS/JavaScript static sites
-   - Linters: htmlhint, stylelint
-   - Accessibility: WCAG AA required
-
-6. **python_app**: Python applications
-   - Test framework: pytest/unittest
-   - Linters: pylint, black, mypy
-   - Docstrings: Google/NumPy/Sphinx format
-
-7. **generic**: Fallback for other project types
-   - Minimal assumptions
-   - Basic documentation requirements
-
-**Special Cases:**
-
-- **configuration_library**: Meta-type used by ai_workflow_core itself (not in project_kinds.yaml as it's for libraries that define project kinds)
-
-### Project Kind Schema
-
-Each project kind defines:
-
-- **validation**: Required files, directories, patterns
-- **testing**: Framework, commands, coverage thresholds
-- **quality**: Linters, documentation requirements
-- **dependencies**: Package files, security audit commands
-- **build**: Whether build is required, commands, output directories
-- **deployment**: Deployment type, artifact patterns
-- **ai_guidance**: Testing standards, style guides, best practices, directory standards
+**See:** `.github/REFERENTIAL_TRANSPARENCY.md` for complete guide and examples.
 
 ---
 

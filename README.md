@@ -15,14 +15,14 @@ AI Workflow Automation (in JavaScript)
 | ------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
 | 1.1.0   | 2026-01-30 | Updated status to Phase 2.1 complete. Added semantic versioning to all code and test files. Corrected migration plan. |
 | 1.0.0   | 2026-01-27 | Initial semantic versioning applied. Added Copilot SDK integration section. Updated .gitignore for Node.js.           |
-| 0.2.0   | 2026-01-26 | Updated with source repository details and actual features from v2.10.0.                                              |
+| 0.2.0   | 2026-01-26 | Updated with source repository details and actual features from v3.0.0.                                               |
 | 0.1.0   | 2025-12-XX | Initial README created for migration project.                                                                         |
 
 ---
 
 ## Overview
 
-This project is a comprehensive migration plan for migrating the [ai_workflow](https://github.com/mpbarbosa/ai_workflow) repository from shell script to JavaScript with Node.js. The goal is to transform shell-based AI workflow automation scripts into a modern, cross-platform Node.js application.
+This project is a Node.js implementation of the [ai_workflow](https://github.com/mpbarbosa/ai_workflow) repository, transforming shell-based AI workflow automation scripts into a modern, cross-platform Node.js application. This is working code with a comprehensive migration plan, not just documentation.
 
 ## Current Status
 
@@ -38,7 +38,7 @@ This project is a comprehensive migration plan for migrating the [ai_workflow](h
 
 **Repository Details:**
 
-- **Version:** v2.10.0
+- **Version:** v3.0.0
 - **Size:** 2,851 objects, ~3 MB
 - **Language:** Bash 4.0+
 - **Structure:** Comprehensive workflow automation system with 15 steps, 33+ library modules, and 15 step modules
@@ -61,7 +61,7 @@ The source repository is a **mature, production-ready AI workflow automation sys
 - ✅ **AI Response Caching** - 60-80% token reduction
 - ✅ **ML Optimization** - Predictive workflow intelligence (v2.7.0)
 - ✅ **Multi-Stage Pipeline** - Progressive validation (v2.8.0)
-- ✅ **Pre-Commit Hooks** - Fast validation checks (v2.10.0)
+- ✅ **Pre-Commit Hooks** - Fast validation checks (v3.0.0)
 
 **Key Components:**
 
@@ -86,7 +86,17 @@ A comprehensive migration plan has been created that outlines:
 - Testing strategy
 - Timeline and resources
 
-📄 **See [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) for the complete migration plan.**
+📄 **See [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) for the complete migration plan.**
+
+## Documentation
+
+Key project documents:
+
+- **[MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md)** - Comprehensive migration plan with architecture, phases, and implementation details
+- **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1 & Phase 2.1 (Foundation and Configuration/State Management)
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and notable changes with semantic versioning
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guidelines for contributing to the project
+- **[LICENSE](./LICENSE)** - MIT License
 
 ## Copilot SDK Integration
 
@@ -142,7 +152,9 @@ ai_workflow.js/
 │   ├── utils/            # Helper utilities
 │   └── config/           # Configuration
 ├── test/                 # Test suite
-└── docs/                 # Documentation
+├── docs/                 # Documentation
+├── .husky/               # Git hooks (pre-commit validation)
+└── .workflow_core/       # Configuration templates (submodule)
 ```
 
 ## Installation (Future)
@@ -175,20 +187,65 @@ ai-workflow list
 ai-workflow cleanup
 ```
 
+## Development Setup
+
+### Prerequisites
+
+- **Node.js**: >= 18.0.0 (check with `node --version`)
+- **npm**: >= 9.0.0 (check with `npm --version`)
+- **Git**: For cloning and submodule management
+
+### Quick Start
+
+```bash
+# 1. Clone the repository with submodules
+git clone --recursive https://github.com/mpbarbosa/ai_workflow.js.git
+cd ai_workflow.js
+
+# If already cloned without --recursive, initialize submodules:
+git submodule update --init --recursive
+
+# 2. Install dependencies
+npm install
+
+# 3. Run tests
+npm test
+
+# 4. Run linter
+npm run lint
+
+# 5. Format check
+npm run format:check
+```
+
+### Available Commands
+
+- `npm test` - Run Jest test suite (89 tests)
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Generate coverage report
+- `npm run lint` - Check code style with ESLint
+- `npm run lint:fix` - Auto-fix linting issues
+- `npm run format` - Format code with Prettier
+- `npm run format:check` - Check formatting without changes
+
+### Project Structure
+
+See [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) for detailed architecture.
+
 ## Development
 
 This project is being developed incrementally following the migration plan phases:
 
-1. **Phase 1**: Foundation - Core utilities and base architecture
-2. **Phase 2**: Package Managers - Core package manager implementations
-3. **Phase 3**: System Summary - Diagnostics and system information
-4. **Phase 4**: App Updaters - Application update checkers
-5. **Phase 5**: Orchestration - Workflow engine
-6. **Phase 6**: CLI - Command-line interface
-7. **Phase 7**: Configuration - Plugin system and extensibility
-8. **Phase 8**: Testing - Comprehensive test coverage
-9. **Phase 9**: Documentation - Complete documentation
-10. **Phase 10**: Packaging - npm distribution
+1. **Phase 1**: Foundation & Core Utilities ✅ (Complete)
+2. **Phase 2**: Core Workflow Library (Configuration, Git integration, Project detection)
+3. **Phase 3**: AI Integration (Copilot integration, AI personas, caching)
+4. **Phase 4**: Workflow Execution Engine (Step orchestration, dependencies, parallelization)
+5. **Phase 5**: Step Implementations (15 workflow steps: docs, tests, code quality, etc.)
+6. **Phase 6**: Performance Optimizations (Smart execution, ML optimization, caching)
+7. **Phase 7**: CLI & User Interface (Interactive CLI, configuration wizard)
+8. **Phase 8**: Testing & Quality Assurance (Comprehensive test coverage, validation)
+9. **Phase 9**: Documentation & Examples (Complete docs, usage examples)
+10. **Phase 10**: Packaging & Distribution (npm package, installation guides)
 
 ## Contributing
 

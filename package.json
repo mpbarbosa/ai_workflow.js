@@ -1,7 +1,7 @@
 {
   "name": "ai-workflow",
   "version": "1.0.0",
-  "description": "JavaScript/Node.js migration of AI workflow automation system",
+  "description": "AI-powered workflow automation for software development (Node.js)",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -21,8 +21,10 @@
     "workflow",
     "automation",
     "ai",
-    "package-manager",
-    "cli"
+    "cli",
+    "automation-framework",
+    "github-copilot",
+    "workflow-automation"
   ],
   "author": "mpbarbosa",
   "license": "MIT",
