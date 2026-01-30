@@ -1,7 +1,7 @@
 /**
- * Workflow Metrics Collection Module
- * @version 1.0.0
- * @description Track duration, success rate, and step timing for workflow automation
+ * Workflow Metrics Collection Module (Pure Functions + Wrapper)
+ * @version 2.0.0
+ * @description Track duration, success rate, and step timing with referential transparency
  * @module lib/metrics
  * Part of: AI Workflow Automation v1.0.0
  */
@@ -10,7 +10,222 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Metrics collector for workflow execution
+ * PURE FUNCTIONS - All referentially transparent
+ */
+
+/**
+ * Format ISO timestamp (PURE)
+ * @param {number} epochMs - Epoch time in milliseconds
+ * @returns {string} ISO timestamp string
+ */
+export function formatISOTimestamp(epochMs) {
+  return new Date(epochMs).toISOString();
+}
+
+/**
+ * Convert epoch ms to seconds (PURE)
+ * @param {number} epochMs - Epoch time in milliseconds
+ * @returns {number} Epoch time in seconds
+ */
+export function convertToEpochSeconds(epochMs) {
+  return Math.floor(epochMs / 1000);
+}
+
+/**
+ * Get execution mode string (PURE)
+ * @param {Object} executionMode - Execution mode object
+ * @returns {string} Mode string
+ */
+export function getExecutionModeString(executionMode) {
+  if (executionMode.dryRun) return 'dry-run';
+  if (executionMode.auto) return 'auto';
+  if (executionMode.interactive) return 'interactive';
+  return 'unknown';
+}
+
+/**
+ * Calculate duration (PURE)
+ * @param {number} startTime - Start time in ms
+ * @param {number} endTime - End time in ms
+ * @returns {number} Duration in ms
+ */
+export function calculateDuration(startTime, endTime) {
+  return endTime - startTime;
+}
+
+/**
+ * Add step timing to map (PURE - returns new Map)
+ * @param {Map} timingMap - Current timing map
+ * @param {number} stepNumber - Step number
+ * @param {number} time - Time value
+ * @returns {Map} New timing map
+ */
+export function addStepTiming(timingMap, stepNumber, time) {
+  const newMap = new Map(timingMap);
+  newMap.set(stepNumber, time);
+  return newMap;
+}
+
+/**
+ * Update step counters (PURE - returns new counters)
+ * @param {Object} counters - Current counters
+ * @param {string} status - Step status
+ * @returns {Object} New counters object
+ */
+export function updateStepCounters(counters, status) {
+  const newCounters = { ...counters };
+  if (status === 'passed') {
+    newCounters.stepsCompleted++;
+  } else if (status === 'failed') {
+    newCounters.stepsFailed++;
+  } else if (status === 'skipped') {
+    newCounters.stepsSkipped++;
+  }
+  return newCounters;
+}
+
+/**
+ * Format duration for display (PURE)
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration
+ */
+export function formatDuration(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+  const minutes = Math.floor(ms / 60000);
+  const seconds = ((ms % 60000) / 1000).toFixed(0);
+  return `${minutes}m ${seconds}s`;
+}
+
+/**
+ * Get status emoji (PURE)
+ * @param {string} status - Step status
+ * @returns {string} Emoji
+ */
+export function getStatusEmoji(status) {
+  if (status === 'passed') return '✅';
+  if (status === 'failed') return '❌';
+  return '⏭️';
+}
+
+/**
+ * Create initial metrics data (PURE)
+ * @param {string} workflowRunId - Workflow run ID
+ * @param {string} startTime - ISO start time
+ * @param {number} startEpoch - Start epoch seconds
+ * @param {string} version - Script version
+ * @param {string} mode - Execution mode
+ * @returns {Object} Initial metrics data
+ */
+export function createInitialMetricsData(workflowRunId, startTime, startEpoch, version, mode) {
+  return {
+    workflow_run_id: workflowRunId,
+    start_time: startTime,
+    start_epoch: startEpoch,
+    version,
+    mode,
+    steps: {},
+  };
+}
+
+/**
+ * Create metrics data object (PURE)
+ * @param {Object} params - All parameters
+ * @returns {Object} Complete metrics data
+ */
+export function createMetricsData({
+  workflowRunId,
+  startEpoch,
+  endEpoch,
+  duration,
+  version,
+  mode,
+  success,
+  stepsCompleted,
+  stepsFailed,
+  stepsSkipped,
+  stepDurations,
+  stepStatuses,
+  stepStartTimes,
+  stepEndTimes,
+}) {
+  const steps = {};
+  for (const [stepNum, duration] of stepDurations.entries()) {
+    steps[stepNum] = {
+      duration_ms: duration,
+      status: stepStatuses.get(stepNum),
+      start_time: stepStartTimes.get(stepNum),
+      end_time: stepEndTimes.get(stepNum),
+    };
+  }
+
+  return {
+    workflow_run_id: workflowRunId,
+    start_time: formatISOTimestamp(startEpoch),
+    end_time: formatISOTimestamp(endEpoch),
+    start_epoch: convertToEpochSeconds(startEpoch),
+    end_epoch: convertToEpochSeconds(endEpoch),
+    duration_ms: duration,
+    version,
+    mode,
+    success,
+    steps_completed: stepsCompleted,
+    steps_failed: stepsFailed,
+    steps_skipped: stepsSkipped,
+    steps,
+  };
+}
+
+/**
+ * Generate metrics summary markdown (PURE)
+ * @param {Object} params - Summary parameters
+ * @returns {string} Markdown content
+ */
+export function generateMetricsSummary({
+  workflowRunId,
+  timestamp,
+  duration,
+  success,
+  stepsCompleted,
+  stepsFailed,
+  stepsSkipped,
+  stepDurations,
+  stepStatuses,
+}) {
+  let content = `# Workflow Metrics Summary
+
+**Last Run:** ${workflowRunId}
+**Generated:** ${timestamp}
+
+---
+
+## Current Run
+
+- **Duration:** ${formatDuration(duration)}
+- **Status:** ${success ? '✅ Success' : '❌ Failed'}
+- **Steps Completed:** ${stepsCompleted}
+- **Steps Failed:** ${stepsFailed}
+- **Steps Skipped:** ${stepsSkipped}
+
+### Step Durations
+
+| Step | Duration | Status |
+|------|----------|--------|
+`;
+
+  for (const [stepNum, stepDuration] of stepDurations.entries()) {
+    const status = stepStatuses.get(stepNum);
+    const emoji = getStatusEmoji(status);
+    content += `| ${stepNum} | ${formatDuration(stepDuration)} | ${emoji} ${status} |\n`;
+  }
+
+  content += '\n---\n\n*See history.jsonl for complete historical data*\n';
+
+  return content;
+}
+
+/**
+ * IMPURE WRAPPER CLASS - Isolates side effects at boundaries
  */
 export class Metrics {
   /**
@@ -42,89 +257,76 @@ export class Metrics {
   }
 
   /**
-   * Initialize metrics collection
-   * Creates necessary directories and files
+   * Initialize metrics collection (IMPURE - file I/O)
    * @returns {Promise<void>}
    */
   async initMetrics() {
     const metricsDir = this.config.metricsDir;
 
-    // Create metrics directory
     await fs.mkdir(metricsDir, { recursive: true });
 
-    // Set file paths
     this.metricsCurrentFile = path.join(metricsDir, 'current_run.json');
     this.metricsHistoryFile = path.join(metricsDir, 'history.jsonl');
     this.metricsSummaryFile = path.join(metricsDir, 'summary.md');
 
-    // Initialize current run file
+    // Use pure function to create initial data
     const metadata = this.config.getMetadata();
     const executionMode = this.config.getExecutionMode();
+    const now = Date.now();
 
-    const initialData = {
-      workflow_run_id: metadata.workflowRunId,
-      start_time: new Date().toISOString(),
-      start_epoch: Math.floor(Date.now() / 1000),
-      version: metadata.scriptVersion,
-      mode: this._getExecutionModeString(executionMode),
-      steps: {},
-    };
+    const initialData = createInitialMetricsData(
+      metadata.workflowRunId,
+      formatISOTimestamp(now),
+      convertToEpochSeconds(now),
+      metadata.scriptVersion,
+      getExecutionModeString(executionMode)
+    );
 
     await fs.writeFile(this.metricsCurrentFile, JSON.stringify(initialData, null, 2), 'utf8');
 
-    // Initialize history file if it doesn't exist
     try {
       await fs.access(this.metricsHistoryFile);
     } catch {
       await fs.writeFile(this.metricsHistoryFile, '', 'utf8');
     }
 
-    this.workflowStartEpoch = Date.now();
+    this.workflowStartEpoch = now;
   }
 
   /**
-   * Get execution mode as string
-   * @private
-   */
-  _getExecutionModeString(executionMode) {
-    if (executionMode.dryRun) return 'dry-run';
-    if (executionMode.auto) return 'auto';
-    if (executionMode.interactive) return 'interactive';
-    return 'unknown';
-  }
-
-  /**
-   * Start timing a step
+   * Start timing a step (IMPURE - uses Date.now())
    * @param {number} stepNumber - Step number
    */
   startStepTimer(stepNumber) {
-    this.stepStartTimes.set(stepNumber, Date.now());
+    this.stepStartTimes = addStepTiming(this.stepStartTimes, stepNumber, Date.now());
   }
 
   /**
-   * End timing a step and record duration
+   * End timing a step and record duration (IMPURE - uses Date.now())
    * @param {number} stepNumber - Step number
-   * @param {string} status - Step status (passed|failed|skipped)
+   * @param {string} status - Step status
    */
   endStepTimer(stepNumber, status = 'passed') {
     const endTime = Date.now();
-    this.stepEndTimes.set(stepNumber, endTime);
-    this.stepStatuses.set(stepNumber, status);
+    this.stepEndTimes = addStepTiming(this.stepEndTimes, stepNumber, endTime);
+    this.stepStatuses = addStepTiming(this.stepStatuses, stepNumber, status);
 
     const startTime = this.stepStartTimes.get(stepNumber);
     if (startTime) {
-      const duration = endTime - startTime;
-      this.stepDurations.set(stepNumber, duration);
+      const duration = calculateDuration(startTime, endTime);
+      this.stepDurations = addStepTiming(this.stepDurations, stepNumber, duration);
     }
 
-    // Update workflow counters
-    if (status === 'passed') {
-      this.workflowStepsCompleted++;
-    } else if (status === 'failed') {
-      this.workflowStepsFailed++;
-    } else if (status === 'skipped') {
-      this.workflowStepsSkipped++;
-    }
+    // Update counters using pure function
+    const counters = {
+      stepsCompleted: this.workflowStepsCompleted,
+      stepsFailed: this.workflowStepsFailed,
+      stepsSkipped: this.workflowStepsSkipped,
+    };
+    const newCounters = updateStepCounters(counters, status);
+    this.workflowStepsCompleted = newCounters.stepsCompleted;
+    this.workflowStepsFailed = newCounters.stepsFailed;
+    this.workflowStepsSkipped = newCounters.stepsSkipped;
   }
 
   /**
@@ -146,17 +348,17 @@ export class Metrics {
   }
 
   /**
-   * Mark workflow as complete
+   * Mark workflow as complete (IMPURE - uses Date.now())
    * @param {boolean} success - Whether workflow succeeded
    */
   markWorkflowComplete(success = true) {
     this.workflowEndEpoch = Date.now();
-    this.workflowDuration = this.workflowEndEpoch - this.workflowStartEpoch;
+    this.workflowDuration = calculateDuration(this.workflowStartEpoch, this.workflowEndEpoch);
     this.workflowSuccess = success;
   }
 
   /**
-   * Save metrics to current run file
+   * Save metrics to current run file (IMPURE - file I/O)
    * @returns {Promise<void>}
    */
   async saveCurrentMetrics() {
@@ -167,37 +369,29 @@ export class Metrics {
     const metadata = this.config.getMetadata();
     const executionMode = this.config.getExecutionMode();
 
-    const steps = {};
-    for (const [stepNum, duration] of this.stepDurations.entries()) {
-      steps[stepNum] = {
-        duration_ms: duration,
-        status: this.stepStatuses.get(stepNum),
-        start_time: this.stepStartTimes.get(stepNum),
-        end_time: this.stepEndTimes.get(stepNum),
-      };
-    }
-
-    const data = {
-      workflow_run_id: metadata.workflowRunId,
-      start_time: new Date(this.workflowStartEpoch).toISOString(),
-      end_time: new Date(this.workflowEndEpoch).toISOString(),
-      start_epoch: Math.floor(this.workflowStartEpoch / 1000),
-      end_epoch: Math.floor(this.workflowEndEpoch / 1000),
-      duration_ms: this.workflowDuration,
+    // Use pure function to create data
+    const data = createMetricsData({
+      workflowRunId: metadata.workflowRunId,
+      startEpoch: this.workflowStartEpoch,
+      endEpoch: this.workflowEndEpoch,
+      duration: this.workflowDuration,
       version: metadata.scriptVersion,
-      mode: this._getExecutionModeString(executionMode),
+      mode: getExecutionModeString(executionMode),
       success: this.workflowSuccess,
-      steps_completed: this.workflowStepsCompleted,
-      steps_failed: this.workflowStepsFailed,
-      steps_skipped: this.workflowStepsSkipped,
-      steps,
-    };
+      stepsCompleted: this.workflowStepsCompleted,
+      stepsFailed: this.workflowStepsFailed,
+      stepsSkipped: this.workflowStepsSkipped,
+      stepDurations: this.stepDurations,
+      stepStatuses: this.stepStatuses,
+      stepStartTimes: this.stepStartTimes,
+      stepEndTimes: this.stepEndTimes,
+    });
 
     await fs.writeFile(this.metricsCurrentFile, JSON.stringify(data, null, 2), 'utf8');
   }
 
   /**
-   * Append current metrics to history
+   * Append current metrics to history (IMPURE - file I/O)
    * @returns {Promise<void>}
    */
   async appendToHistory() {
@@ -205,16 +399,14 @@ export class Metrics {
       throw new Error('Metrics not initialized. Call initMetrics() first.');
     }
 
-    // Read current metrics
     const currentData = await fs.readFile(this.metricsCurrentFile, 'utf8');
     const metrics = JSON.parse(currentData);
 
-    // Append as single line JSON
     await fs.appendFile(this.metricsHistoryFile, JSON.stringify(metrics) + '\n', 'utf8');
   }
 
   /**
-   * Generate metrics summary markdown
+   * Generate metrics summary markdown (IMPURE - file I/O)
    * @returns {Promise<void>}
    */
   async generateSummary() {
@@ -224,49 +416,29 @@ export class Metrics {
 
     const metadata = this.config.getMetadata();
 
-    let content = `# Workflow Metrics Summary
-
-**Last Run:** ${metadata.workflowRunId}
-**Generated:** ${new Date().toLocaleString()}
-
----
-
-## Current Run
-
-- **Duration:** ${this.formatDuration(this.workflowDuration)}
-- **Status:** ${this.workflowSuccess ? '✅ Success' : '❌ Failed'}
-- **Steps Completed:** ${this.workflowStepsCompleted}
-- **Steps Failed:** ${this.workflowStepsFailed}
-- **Steps Skipped:** ${this.workflowStepsSkipped}
-
-### Step Durations
-
-| Step | Duration | Status |
-|------|----------|--------|
-`;
-
-    for (const [stepNum, duration] of this.stepDurations.entries()) {
-      const status = this.stepStatuses.get(stepNum);
-      const statusEmoji = status === 'passed' ? '✅' : status === 'failed' ? '❌' : '⏭️';
-      content += `| ${stepNum} | ${this.formatDuration(duration)} | ${statusEmoji} ${status} |\n`;
-    }
-
-    content += '\n---\n\n*See history.jsonl for complete historical data*\n';
+    // Use pure function to generate content
+    const content = generateMetricsSummary({
+      workflowRunId: metadata.workflowRunId,
+      timestamp: new Date().toLocaleString(),
+      duration: this.workflowDuration,
+      success: this.workflowSuccess,
+      stepsCompleted: this.workflowStepsCompleted,
+      stepsFailed: this.workflowStepsFailed,
+      stepsSkipped: this.workflowStepsSkipped,
+      stepDurations: this.stepDurations,
+      stepStatuses: this.stepStatuses,
+    });
 
     await fs.writeFile(this.metricsSummaryFile, content, 'utf8');
   }
 
   /**
-   * Format duration for display
+   * Format duration for display (delegates to pure function)
    * @param {number} ms - Duration in milliseconds
    * @returns {string} Formatted duration
    */
   formatDuration(ms) {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-    const minutes = Math.floor(ms / 60000);
-    const seconds = ((ms % 60000) / 1000).toFixed(0);
-    return `${minutes}m ${seconds}s`;
+    return formatDuration(ms);
   }
 
   /**

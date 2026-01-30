@@ -1,17 +1,264 @@
 /**
- * Tests for Metrics module
- * @version 1.0.0
- * @description Test suite for metrics collection
+ * Tests for Metrics module (Pure Functions + Wrapper)
+ * @version 2.0.0
+ * @description Test suite for metrics collection with referential transparency
  * @module test/lib/metrics
  */
 
-import { Metrics } from '../../src/lib/metrics.js';
+import {
+  Metrics,
+  formatISOTimestamp,
+  convertToEpochSeconds,
+  getExecutionModeString,
+  calculateDuration,
+  addStepTiming,
+  updateStepCounters,
+  formatDuration,
+  getStatusEmoji,
+  createInitialMetricsData,
+  createMetricsData,
+  generateMetricsSummary,
+} from '../../src/lib/metrics.js';
 import { Config } from '../../src/lib/config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-describe('Metrics', () => {
+describe('Metrics - Pure Functions', () => {
+  describe('formatISOTimestamp', () => {
+    test('should format timestamp to ISO string', () => {
+      const timestamp = formatISOTimestamp(1706576169000);
+
+      expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    test('should be referentially transparent', () => {
+      const ts1 = formatISOTimestamp(1000000);
+      const ts2 = formatISOTimestamp(1000000);
+
+      expect(ts1).toBe(ts2);
+    });
+  });
+
+  describe('convertToEpochSeconds', () => {
+    test('should convert milliseconds to seconds', () => {
+      expect(convertToEpochSeconds(1000)).toBe(1);
+      expect(convertToEpochSeconds(5500)).toBe(5);
+      expect(convertToEpochSeconds(999)).toBe(0);
+    });
+  });
+
+  describe('getExecutionModeString', () => {
+    test('should return dry-run mode', () => {
+      expect(getExecutionModeString({ dryRun: true })).toBe('dry-run');
+    });
+
+    test('should return auto mode', () => {
+      expect(getExecutionModeString({ auto: true })).toBe('auto');
+    });
+
+    test('should return interactive mode', () => {
+      expect(getExecutionModeString({ interactive: true })).toBe('interactive');
+    });
+
+    test('should prioritize dryRun over auto', () => {
+      expect(getExecutionModeString({ dryRun: true, auto: true })).toBe('dry-run');
+    });
+  });
+
+  describe('calculateDuration', () => {
+    test('should calculate duration correctly', () => {
+      expect(calculateDuration(1000, 2500)).toBe(1500);
+      expect(calculateDuration(0, 1000)).toBe(1000);
+    });
+
+    test('should be referentially transparent', () => {
+      const d1 = calculateDuration(100, 200);
+      const d2 = calculateDuration(100, 200);
+
+      expect(d1).toBe(d2);
+      expect(d1).toBe(100);
+    });
+  });
+
+  describe('addStepTiming', () => {
+    test('should add timing to map', () => {
+      const map = new Map();
+      const newMap = addStepTiming(map, 0, 1000);
+
+      expect(newMap.get(0)).toBe(1000);
+      expect(map.size).toBe(0); // Original unchanged
+    });
+
+    test('should not mutate original map', () => {
+      const map = new Map([[0, 500]]);
+      const newMap = addStepTiming(map, 1, 1000);
+
+      expect(map.size).toBe(1);
+      expect(newMap.size).toBe(2);
+    });
+  });
+
+  describe('updateStepCounters', () => {
+    test('should increment completed for passed status', () => {
+      const counters = { stepsCompleted: 0, stepsFailed: 0, stepsSkipped: 0 };
+      const newCounters = updateStepCounters(counters, 'passed');
+
+      expect(newCounters.stepsCompleted).toBe(1);
+      expect(counters.stepsCompleted).toBe(0); // Original unchanged
+    });
+
+    test('should increment failed for failed status', () => {
+      const counters = { stepsCompleted: 0, stepsFailed: 0, stepsSkipped: 0 };
+      const newCounters = updateStepCounters(counters, 'failed');
+
+      expect(newCounters.stepsFailed).toBe(1);
+    });
+
+    test('should increment skipped for skipped status', () => {
+      const counters = { stepsCompleted: 0, stepsFailed: 0, stepsSkipped: 0 };
+      const newCounters = updateStepCounters(counters, 'skipped');
+
+      expect(newCounters.stepsSkipped).toBe(1);
+    });
+  });
+
+  describe('formatDuration', () => {
+    test('should format milliseconds', () => {
+      expect(formatDuration(500)).toBe('500ms');
+      expect(formatDuration(999)).toBe('999ms');
+    });
+
+    test('should format seconds', () => {
+      expect(formatDuration(1000)).toBe('1.00s');
+      expect(formatDuration(5500)).toBe('5.50s');
+    });
+
+    test('should format minutes', () => {
+      expect(formatDuration(60000)).toBe('1m 0s');
+      expect(formatDuration(125000)).toBe('2m 5s');
+    });
+  });
+
+  describe('getStatusEmoji', () => {
+    test('should return correct emoji', () => {
+      expect(getStatusEmoji('passed')).toBe('✅');
+      expect(getStatusEmoji('failed')).toBe('❌');
+      expect(getStatusEmoji('skipped')).toBe('⏭️');
+      expect(getStatusEmoji('unknown')).toBe('⏭️');
+    });
+  });
+
+  describe('createInitialMetricsData', () => {
+    test('should create initial metrics object', () => {
+      const data = createInitialMetricsData(
+        'run_123',
+        '2026-01-30T12:00:00Z',
+        1706616000,
+        '1.0.0',
+        'auto'
+      );
+
+      expect(data).toEqual({
+        workflow_run_id: 'run_123',
+        start_time: '2026-01-30T12:00:00Z',
+        start_epoch: 1706616000,
+        version: '1.0.0',
+        mode: 'auto',
+        steps: {},
+      });
+    });
+  });
+
+  describe('createMetricsData', () => {
+    test('should create complete metrics data object', () => {
+      const stepDurations = new Map([[0, 1000]]);
+      const stepStatuses = new Map([[0, 'passed']]);
+      const stepStartTimes = new Map([[0, 100]]);
+      const stepEndTimes = new Map([[0, 1100]]);
+
+      const data = createMetricsData({
+        workflowRunId: 'run_123',
+        startEpoch: 1000,
+        endEpoch: 2000,
+        duration: 1000,
+        version: '1.0.0',
+        mode: 'auto',
+        success: true,
+        stepsCompleted: 1,
+        stepsFailed: 0,
+        stepsSkipped: 0,
+        stepDurations,
+        stepStatuses,
+        stepStartTimes,
+        stepEndTimes,
+      });
+
+      expect(data.workflow_run_id).toBe('run_123');
+      expect(data.duration_ms).toBe(1000);
+      expect(data.success).toBe(true);
+      expect(data.steps[0]).toEqual({
+        duration_ms: 1000,
+        status: 'passed',
+        start_time: 100,
+        end_time: 1100,
+      });
+    });
+  });
+
+  describe('generateMetricsSummary', () => {
+    test('should generate summary markdown', () => {
+      const stepDurations = new Map([
+        [0, 1000],
+        [1, 2000],
+      ]);
+      const stepStatuses = new Map([
+        [0, 'passed'],
+        [1, 'failed'],
+      ]);
+
+      const summary = generateMetricsSummary({
+        workflowRunId: 'run_123',
+        timestamp: '2026-01-30 12:00:00',
+        duration: 5000,
+        success: true,
+        stepsCompleted: 1,
+        stepsFailed: 1,
+        stepsSkipped: 0,
+        stepDurations,
+        stepStatuses,
+      });
+
+      expect(summary).toContain('# Workflow Metrics Summary');
+      expect(summary).toContain('**Last Run:** run_123');
+      expect(summary).toContain('**Duration:** 5.00s');
+      expect(summary).toContain('**Status:** ✅ Success');
+      expect(summary).toContain('| 0 | 1.00s | ✅ passed |');
+      expect(summary).toContain('| 1 | 2.00s | ❌ failed |');
+    });
+
+    test('should be referentially transparent', () => {
+      const params = {
+        workflowRunId: 'test',
+        timestamp: '2026-01-30',
+        duration: 1000,
+        success: false,
+        stepsCompleted: 0,
+        stepsFailed: 1,
+        stepsSkipped: 0,
+        stepDurations: new Map(),
+        stepStatuses: new Map(),
+      };
+
+      const s1 = generateMetricsSummary(params);
+      const s2 = generateMetricsSummary(params);
+
+      expect(s1).toBe(s2);
+    });
+  });
+});
+
+describe('Metrics - Wrapper Class', () => {
   let metrics;
   let config;
   let tempDir;

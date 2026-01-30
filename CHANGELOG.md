@@ -31,9 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Testing
 
+- **metrics.test.js (v2.0.0)**: Added 22 pure function tests, 46 total (22 pure + 24 integration)
 - **config.test.js (v2.0.0)**: Added 19 pure function tests, 51 total (19 pure + 32 integration)
 - **backlog.test.js (v2.0.0)**: Added 18 pure function tests, 27 total (18 pure + 9 integration)
-- **session_manager.test.js (v2.0.0)**: Complete test rewrite with 50 tests
+- **session_manager.test.js (v2.0.0)**: Complete test rewrite with 50 tests (27 pure + 23 integration)
   - 27 tests for pure functions (deterministic, no mocking needed)
   - 23 tests for wrapper class integration (non-deterministic behavior)
   - Removed Jest-specific mocking (incompatible with VM modules)
