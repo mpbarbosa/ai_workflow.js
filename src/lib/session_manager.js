@@ -1,6 +1,8 @@
 /**
  * Session Management Module
- * Purpose: Manage unique sessions, timeouts, and cleanup for workflow steps
+ * @version 1.0.0
+ * @description Manage unique sessions, timeouts, and cleanup for workflow steps
+ * @module lib/session_manager
  * Part of: AI Workflow Automation v1.0.0
  */
 

@@ -1,3 +1,11 @@
+/**
+ * Command Executor Module
+ * @version 1.0.0
+ * @description Shell command execution with dry-run support and output capture
+ * @module core/executor
+ * Part of: AI Workflow Automation v1.0.0
+ */
+
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import { ExecutionError } from '../utils/errors.js';

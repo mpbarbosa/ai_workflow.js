@@ -1,6 +1,8 @@
 /**
  * Workflow Configuration Module
- * Purpose: Central configuration and constants for workflow automation
+ * @version 1.0.0
+ * @description Central configuration and constants for workflow automation
+ * @module lib/config
  * Part of: AI Workflow Automation v1.0.0
  */
 

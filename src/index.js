@@ -1,6 +1,9 @@
 /**
  * AI Workflow Automation - Core Module
- * Entry point for the core functionality
+ * @version 1.0.0
+ * @description Entry point for the core functionality and public API
+ * @module index
+ * Part of: AI Workflow Automation v1.0.0
  */
 
 export { colors, colorize, supportsColor } from './core/colors.js';

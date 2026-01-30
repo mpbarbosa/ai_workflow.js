@@ -1,5 +1,9 @@
 /**
- * Version comparison utilities using semantic versioning
+ * Version Information and Comparison Module
+ * @version 1.0.0
+ * @description Version comparison utilities using semantic versioning
+ * @module core/version
+ * Part of: AI Workflow Automation v1.0.0
  */
 
 /**

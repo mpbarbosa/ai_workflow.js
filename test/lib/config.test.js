@@ -1,5 +1,8 @@
 /**
  * Tests for Config module
+ * @version 1.0.0
+ * @description Test suite for configuration management
+ * @module test/lib/config
  */
 
 import { Config } from '../../src/lib/config.js';

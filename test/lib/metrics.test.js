@@ -1,5 +1,8 @@
 /**
  * Tests for Metrics module
+ * @version 1.0.0
+ * @description Test suite for metrics collection
+ * @module test/lib/metrics
  */
 
 import { Metrics } from '../../src/lib/metrics.js';

@@ -1,5 +1,8 @@
 /**
  * Tests for Backlog module
+ * @version 1.0.0
+ * @description Test suite for backlog management
+ * @module test/lib/backlog
  */
 
 import { Backlog } from '../../src/lib/backlog.js';

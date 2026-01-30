@@ -1,3 +1,11 @@
+/**
+ * System Information Module
+ * @version 1.0.0
+ * @description OS detection and system configuration utilities
+ * @module core/system
+ * Part of: AI Workflow Automation v1.0.0
+ */
+
 import os from 'os';
 import { execSync } from 'child_process';
 import { SystemError } from '../utils/errors.js';

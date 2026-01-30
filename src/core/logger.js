@@ -1,3 +1,11 @@
+/**
+ * Logger Module
+ * @version 1.0.0
+ * @description Colored output and logging utilities for workflow automation
+ * @module core/logger
+ * Part of: AI Workflow Automation v1.0.0
+ */
+
 import { colorize, colors } from './colors.js';
 
 /**

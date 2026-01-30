@@ -1,6 +1,8 @@
 /**
  * Backlog Management Module
- * Purpose: Workflow summary and backlog report generation
+ * @version 1.0.0
+ * @description Workflow summary and backlog report generation
+ * @module lib/backlog
  * Part of: AI Workflow Automation v1.0.0
  */
 

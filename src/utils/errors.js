@@ -1,5 +1,9 @@
 /**
- * Custom error classes for the application
+ * Custom Error Classes Module
+ * @version 1.0.0
+ * @description Custom error types for workflow automation
+ * @module utils/errors
+ * Part of: AI Workflow Automation v1.0.0
  */
 
 /**

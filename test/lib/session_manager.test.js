@@ -1,5 +1,8 @@
 /**
  * Tests for SessionManager module
+ * @version 1.0.0
+ * @description Test suite for session management
+ * @module test/lib/session_manager
  */
 
 import { SessionManager } from '../../src/lib/session_manager.js';

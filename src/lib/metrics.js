@@ -1,6 +1,8 @@
 /**
  * Workflow Metrics Collection Module
- * Purpose: Track duration, success rate, and step timing for workflow automation
+ * @version 1.0.0
+ * @description Track duration, success rate, and step timing for workflow automation
+ * @module lib/metrics
  * Part of: AI Workflow Automation v1.0.0
  */
 

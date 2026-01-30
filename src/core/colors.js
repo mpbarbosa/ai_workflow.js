@@ -1,6 +1,9 @@
 /**
- * ANSI color codes for terminal output
- * Provides consistent color scheme across the application
+ * ANSI Color Codes Module
+ * @version 1.0.0
+ * @description ANSI color codes for terminal output with color support detection
+ * @module core/colors
+ * Part of: AI Workflow Automation v1.0.0
  */
 
 export const colors = {
