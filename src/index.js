@@ -66,3 +66,35 @@ export {
   formatDiff,
   EditOperations,
 } from './lib/edit_operations.js';
+
+export {
+  // String utilities
+  camelCase,
+  kebabCase,
+  snakeCase,
+  pascalCase,
+  capitalize,
+  truncate,
+  sanitize,
+  cleanWhitespace,
+  escapeRegex,
+  // Array utilities
+  dedupe,
+  chunk,
+  flatten,
+  groupBy,
+  sortBy,
+  intersection,
+  difference,
+  partition,
+  // Object utilities
+  deepClone,
+  deepMerge,
+  pick,
+  omit,
+  getProperty,
+  setProperty,
+  hasProperty,
+  deepEqual,
+  isEmpty,
+} from './lib/utils.js';

@@ -33,9 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 80 tests (40 pure function tests + 40 integration tests)
 - All operations integrate with FileOperations for I/O
 
+**utils.js (v1.0.0)**: General utility functions library (Module 3)
+
+- String utilities: camelCase, kebabCase, snakeCase, pascalCase, capitalize, truncate, sanitize, cleanWhitespace, escapeRegex
+- Array utilities: dedupe, chunk, flatten, groupBy, sortBy, intersection, difference, partition
+- Object utilities: deepClone, deepMerge, pick, omit, getProperty, setProperty, hasProperty, deepEqual, isEmpty
+- All pure functions (no side effects, fully deterministic)
+- 109 comprehensive tests covering all utilities
+- Reusable across all workflow modules
+
 **errors.js**: Added `FileSystemError` class for file I/O error handling
 
-**Total Phase 3 Progress**: 2 of 5 modules complete, 134 tests (was 174, now 308 total)
+**Total Phase 3 Progress**: 3 of 5 modules complete (60%), 243 tests (was 174, now 417 total)
 
 ### Changed
 
