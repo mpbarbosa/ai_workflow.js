@@ -1,9 +1,9 @@
 # Functional Requirements: Core Foundation Layer
 
 **Project:** ai_workflow.js  
-**Phase:** 1 - Foundation and Development Setup  
-**Version:** 1.0.0  
-**Date:** January 29, 2026  
+**Phase:** 1 & 2.1 - Foundation and Configuration/State Management  
+**Version:** 1.1.0  
+**Date:** January 30, 2026  
 **Status:** Active
 
 ---
@@ -13,13 +13,19 @@
 1. [Overview](#1-overview)
 2. [Architecture Overview](#2-architecture-overview)
 3. [Module Requirements](#3-module-requirements)
-   - [3.1 colors.js](#31-colorsjs---terminal-color-support)
-   - [3.2 logger.js](#32-loggerjs---logging-system)
-   - [3.3 errors.js](#33-errorsjs---error-handling)
-   - [3.4 system.js](#34-systemjs---system-detection)
-   - [3.5 version.js](#35-versionjs---version-management)
-   - [3.6 executor.js](#36-executorjs---command-execution)
-   - [3.7 index.js](#37-indexjs---module-exports)
+   - [3.1 Phase 1: Core Foundation Modules](#31-phase-1-core-foundation-modules)
+     - [3.1.1 colors.js](#311-colorsjs---terminal-color-support)
+     - [3.1.2 logger.js](#312-loggerjs---logging-system)
+     - [3.1.3 errors.js](#313-errorsjs---error-handling)
+     - [3.1.4 system.js](#314-systemjs---system-detection)
+     - [3.1.5 version.js](#315-versionjs---version-management)
+     - [3.1.6 executor.js](#316-executorjs---command-execution)
+     - [3.1.7 index.js](#317-indexjs---module-exports)
+   - [3.2 Phase 2.1: Configuration & State Management](#32-phase-21-configuration--state-management)
+     - [3.2.1 config.js](#321-configjs---configuration-management)
+     - [3.2.2 backlog.js](#322-backlogjs---backlog-reporting)
+     - [3.2.3 session_manager.js](#323-session_managerjs---session-lifecycle)
+     - [3.2.4 metrics.js](#324-metricsjs---performance-metrics)
 4. [Integration Requirements](#4-integration-requirements)
 5. [Quality Requirements](#5-quality-requirements)
 6. [Testing Strategy](#6-testing-strategy)
@@ -32,23 +38,37 @@
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the core foundation layer of ai_workflow.js, a JavaScript/Node.js migration of the AI workflow automation system. The foundation layer provides essential utilities for logging, error handling, system detection, version management, and command execution that will be used throughout the application.
+This document defines the functional requirements for the core foundation layer and configuration/state management of ai_workflow.js, a JavaScript/Node.js migration of the AI workflow automation system. The foundation layer provides essential utilities for logging, error handling, system detection, version management, and command execution. The configuration layer provides workflow configuration, backlog reporting, session management, and performance metrics.
 
 ### 1.2 Scope
 
-This document covers the requirements for **7 core modules** implemented in Phase 1:
+This document covers the requirements for **11 core modules** implemented in Phase 1 and Phase 2.1:
 
-| Module                 | Lines of Code | Purpose                                            |
-| ---------------------- | ------------- | -------------------------------------------------- |
-| `src/core/colors.js`   | ~54           | ANSI color codes and terminal support detection    |
-| `src/core/logger.js`   | ~99           | Logging system with multiple severity levels       |
-| `src/utils/errors.js`  | ~68           | Custom error class hierarchy                       |
-| `src/core/system.js`   | ~130          | Operating system and package manager detection     |
-| `src/core/version.js`  | ~114          | Semantic version parsing and comparison            |
-| `src/core/executor.js` | ~105          | Command execution with async and streaming support |
-| `src/index.js`         | ~25           | Module exports and public API                      |
+#### Phase 1: Core Foundation Modules
 
-**Total:** ~595 lines of code (excluding comments and blank lines)
+| Module                 | Version | Lines of Code | Purpose                                            |
+| ---------------------- | ------- | ------------- | -------------------------------------------------- |
+| `src/core/colors.js`   | v1.0.0  | ~54           | ANSI color codes and terminal support detection    |
+| `src/core/logger.js`   | v1.0.0  | ~99           | Logging system with multiple severity levels       |
+| `src/utils/errors.js`  | v1.0.0  | ~68           | Custom error class hierarchy                       |
+| `src/core/system.js`   | v1.0.0  | ~130          | Operating system and package manager detection     |
+| `src/core/version.js`  | v1.0.0  | ~114          | Semantic version parsing and comparison            |
+| `src/core/executor.js` | v1.0.0  | ~105          | Command execution with async and streaming support |
+| `src/index.js`         | v1.0.0  | ~25           | Module exports and public API                      |
+
+**Phase 1 Total:** ~595 lines of code (excluding comments and blank lines)
+
+#### Phase 2.1: Configuration & State Management Modules
+
+| Module                       | Version | Lines of Code | Purpose                                                         |
+| ---------------------------- | ------- | ------------- | --------------------------------------------------------------- |
+| `src/lib/config.js`          | v2.0.0  | ~315          | Configuration management with pure functional architecture      |
+| `src/lib/backlog.js`         | v2.0.0  | ~195          | Workflow summary and backlog report generation (pure + wrapper) |
+| `src/lib/session_manager.js` | v2.0.0  | ~220          | Session lifecycle management with pure functions                |
+| `src/lib/metrics.js`         | v2.0.0  | ~475          | Performance metrics collection with referential transparency    |
+
+**Phase 2.1 Total:** ~1,205 lines of code (excluding comments and blank lines)  
+**Combined Total:** ~1,800 lines of code
 
 ### 1.3 Target Users
 
@@ -75,6 +95,8 @@ This document uses RFC 2119 keywords:
 ## 2. Architecture Overview
 
 ### 2.1 Module Dependencies
+
+#### Phase 1: Core Foundation Layer
 
 ```
 ┌─────────────────────────────────────────┐
@@ -104,8 +126,48 @@ This document uses RFC 2119 keywords:
                       └─────────┘
 ```
 
+#### Phase 2.1: Configuration & State Management Layer
+
+```
+┌──────────────────────────────────────────────┐
+│         src/lib/ modules                     │
+│   (Configuration & State Management)         │
+└────────┬─────────────────────────────────────┘
+         │
+    ┌────┴─────┬──────────┬────────────┐
+    │          │          │            │
+    ▼          ▼          ▼            ▼
+┌─────────┐ ┌─────────┐ ┌──────────┐ ┌─────────┐
+│  lib/   │ │  lib/   │ │   lib/   │ │  lib/   │
+│ config  │ │ backlog │ │ session_ │ │ metrics │
+│         │ │         │ │ manager  │ │         │
+└────┬────┘ └────┬────┘ └─────┬────┘ └────┬────┘
+     │           │            │           │
+     └───────────┴────────────┴───────────┘
+                      │
+         ┌────────────▼────────────┐
+         │   Pure Functions +       │
+         │   Impure Wrappers        │
+         │ (Referential Transparency)│
+         └─────────────────────────┘
+```
+
+**Architecture Principles (v2.0.0):**
+
+- **Referential Transparency**: All Phase 2.1 modules follow pure functional programming principles
+- **Pure Functions**: Core logic is deterministic, side-effect-free, and immutable
+- **Impure Wrappers**: Side effects (I/O, logging, time) isolated at boundaries
+- **Testability**: Pure functions require no mocking, only deterministic assertions
+  ┌────▼────┐
+  │ core/ │
+  │ version │
+  └─────────┘
+
+````
+
 ### 2.2 Design Principles
 
+#### Phase 1 Core Principles:
 1. **Modularity**: Each module has a single, well-defined responsibility
 2. **ES Modules**: Using modern JavaScript module system
 3. **Cross-Platform**: Support Linux, macOS, and Windows
@@ -114,6 +176,14 @@ This document uses RFC 2119 keywords:
 6. **Performance**: Efficient algorithms, minimal dependencies
 7. **Developer Experience**: Clear APIs, helpful error messages
 
+#### Phase 2.1 Additional Principles (v2.0.0):
+1. **Referential Transparency**: All logic is pure, side-effect-free, and deterministic
+2. **Functional Purity**: Core functions have no side effects, return new values instead of mutations
+3. **Dependency Injection**: Time/randomness injected as parameters, not called internally
+4. **Boundary Isolation**: Side effects (I/O, logging, time) isolated to wrapper class methods
+5. **Immutability**: Data structures transformed via copying, not mutation
+6. **Testability**: Pure functions tested without mocking, only deterministic assertions
+
 ### 2.3 Technology Stack
 
 - **Runtime:** Node.js 18+
@@ -121,12 +191,15 @@ This document uses RFC 2119 keywords:
 - **Testing:** Jest with experimental VM modules
 - **Linting:** ESLint 9+ with flat config
 - **Formatting:** Prettier
+- **Architecture Pattern:** Pure Functions + Impure Wrappers (Phase 2.1+)
 
 ---
 
 ## 3. Module Requirements
 
-### 3.1 colors.js - Terminal Color Support
+### 3.1 Phase 1: Core Foundation Modules
+
+#### 3.1.1 colors.js - Terminal Color Support
 
 #### 3.1.1 Purpose
 
@@ -177,7 +250,7 @@ export function supportsColor(): boolean
 
 // Export: Colorize text
 export function colorize(text: string, color: string): string
-```
+````
 
 #### 3.1.4 Usage Examples
 
@@ -1163,6 +1236,157 @@ if (os === OS.LINUX) {
 
 ---
 
+### 3.2 Phase 2.1: Configuration & State Management
+
+Phase 2.1 modules implement **referential transparency** architecture:
+
+- **Pure Functions**: Core logic with no side effects, deterministic behavior
+- **Impure Wrappers**: Class methods that isolate I/O, logging, and time operations
+- **Version**: All Phase 2.1 modules are at v2.0.0 (refactored for functional purity)
+
+#### 3.2.1 config.js - Configuration Management
+
+**Purpose:** Centralized workflow configuration with pure functional architecture
+
+**Version:** v2.0.0 (Pure Functions + Wrapper)
+
+**Key Features:**
+
+- Auto-detect project root directory
+- Generate unique workflow run IDs
+- Manage execution modes (auto, interactive, dry-run)
+- Track analysis context and step status
+- Pure timestamp and path resolution functions
+
+**Pure Functions Exported:**
+
+- `generateTimestamp(epochMs)` - Format ISO timestamps
+- `generateRunId(timestamp, randomBytes)` - Create workflow run IDs with injected randomness
+- `resolvePath(basePath, ...paths)` - Cross-platform path resolution
+- `createMetadata(...)` - Build metadata objects immutably
+
+**Wrapper Class:** `Config`
+
+- Constructor accepts project root path
+- Side effects isolated: file I/O, directory creation, timestamp generation
+- Immutable configuration state management
+
+**Lines of Code:** ~315
+
+#### 3.2.2 backlog.js - Backlog Reporting
+
+**Purpose:** Generate workflow summaries and step-by-step backlog reports
+
+**Version:** v2.0.0 (Pure Functions + Wrapper)
+
+**Key Features:**
+
+- Markdown generation for workflow summaries
+- Step-by-step execution reports with status tracking
+- Change analysis section generation
+- Emoji status indicators (✅ ❌ ⏭️)
+- Pure markdown generation logic
+
+**Pure Functions Exported:**
+
+- `getStatusEmoji(status)` - Map status to emoji
+- `formatExecutionMode(executionMode)` - Format mode display string
+- `buildStepStatusList(steps)` - Generate step status table
+- `buildChangeAnalysisSection(changeInfo)` - Create change summary
+- `generateSummaryContent(params)` - Build full summary markdown
+- `generateStepReportContent(params)` - Build step report markdown
+
+**Wrapper Class:** `Backlog`
+
+- Constructor accepts Config instance
+- Side effects isolated: file I/O, timestamp injection
+- All markdown generation delegated to pure functions
+
+**Lines of Code:** ~195
+
+#### 3.2.3 session_manager.js - Session Lifecycle
+
+**Purpose:** Manage workflow session lifecycle with pure functional core
+
+**Version:** v2.0.0 (Pure Functions + Wrapper)
+
+**Key Features:**
+
+- Unique session ID generation with crypto
+- Session registration and cleanup queue management
+- Timeout-based session validation
+- Immutable state transformations
+- Pure session management logic
+
+**Pure Functions Exported:**
+
+- `generateSessionId(randomBytes)` - Create session IDs from injected bytes
+- `createSessionEntry(sessionId, createdAt)` - Build session entry object
+- `registerSession(sessions, sessionId, createdAt)` - Add session immutably
+- `unregisterSession(sessions, sessionId)` - Remove session immutably
+- `addToCleanupQueue(queue, sessionId, timestamp)` - Queue session immutably
+- `removeFromCleanupQueue(queue, sessionId)` - Dequeue session immutably
+- `getSession(sessions, sessionId)` - Retrieve session data
+- `getActiveSessions(sessions, cleanupQueue, currentTime, timeout)` - Filter active sessions
+- `getSessionAge(sessions, sessionId, currentTime)` - Calculate session age
+- `isSessionActive(sessions, cleanupQueue, sessionId, currentTime, timeout)` - Check if active
+- `getSessionCount(sessions)` - Count total sessions
+
+**Wrapper Class:** `SessionManager`
+
+- Constructor accepts timeout configuration
+- Side effects isolated: `Date.now()`, `crypto.randomBytes()`, console logging
+- All state transformations use pure functions
+- Wrapper delegates to pure functions with injected dependencies
+
+**Lines of Code:** ~220
+
+#### 3.2.4 metrics.js - Performance Metrics
+
+**Purpose:** Collect and report workflow performance metrics with full referential transparency
+
+**Version:** v2.0.0 (Pure Functions + Wrapper)
+
+**Key Features:**
+
+- Step-level timing tracking
+- Workflow-level duration and success metrics
+- JSON/JSONL history export
+- Markdown summary generation
+- Pure calculation and formatting functions
+
+**Pure Functions Exported:**
+
+- `formatISOTimestamp(epochMs)` - Convert epoch to ISO string
+- `convertToEpochSeconds(epochMs)` - Convert milliseconds to seconds
+- `getExecutionModeString(executionMode)` - Format execution mode
+- `calculateDuration(startTime, endTime)` - Compute duration
+- `addStepTiming(timingMap, stepNumber, time)` - Add timing immutably
+- `updateStepCounters(counters, status)` - Update counters immutably
+- `formatDuration(ms)` - Format duration for display
+- `getStatusEmoji(status)` - Get emoji for status
+- `createInitialMetricsData(...)` - Build initial metrics object
+- `createMetricsData(...)` - Build complete metrics object
+- `generateMetricsSummary(...)` - Generate markdown summary
+
+**Wrapper Class:** `Metrics`
+
+- Constructor accepts Config instance
+- Side effects isolated: file I/O, `Date.now()`, directory creation
+- All data transformations use pure functions
+- Step timing tracks start/end times with immutable Maps
+
+**Lines of Code:** ~475
+
+**Testing Strategy (Phase 2.1):**
+
+- Pure function tests: 86 tests (deterministic, no mocking)
+- Wrapper integration tests: 80 tests (side effects, file I/O)
+- Total Phase 2.1 tests: 166 tests
+- Coverage target: 100%
+
+---
+
 ## 4. Integration Requirements
 
 ### 4.1 Module Interaction Patterns
@@ -1346,15 +1570,49 @@ No specific initialization required. All modules are stateless except for the de
 
 ### 6.4 Test Requirements by Module
 
-| Module      | Min Coverage | Critical Tests                          |
-| ----------- | ------------ | --------------------------------------- |
-| colors.js   | 100%         | Color codes, terminal detection         |
-| logger.js   | 95%          | All log levels, quiet/verbose modes     |
-| errors.js   | 100%         | Error hierarchy, properties             |
-| system.js   | 90%          | OS detection, package manager detection |
-| version.js  | 100%         | Parsing, comparison, semver compliance  |
-| executor.js | 85%          | Execute, executeStream, error handling  |
-| index.js    | 100%         | All exports available                   |
+#### Phase 1: Core Foundation Modules
+
+| Module      | Version | Min Coverage | Critical Tests                          |
+| ----------- | ------- | ------------ | --------------------------------------- |
+| colors.js   | v1.0.0  | 100%         | Color codes, terminal detection         |
+| logger.js   | v1.0.0  | 95%          | All log levels, quiet/verbose modes     |
+| errors.js   | v1.0.0  | 100%         | Error hierarchy, properties             |
+| system.js   | v1.0.0  | 90%          | OS detection, package manager detection |
+| version.js  | v1.0.0  | 100%         | Parsing, comparison, semver compliance  |
+| executor.js | v1.0.0  | 85%          | Execute, executeStream, error handling  |
+| index.js    | v1.0.0  | 100%         | All exports available                   |
+
+**Phase 1 Testing Summary:**
+
+- 7 test files
+- ~85 total tests
+- 95%+ average coverage
+- All tests passing
+
+#### Phase 2.1: Configuration & State Management Modules
+
+| Module             | Version | Min Coverage | Pure Function Tests | Integration Tests | Total Tests |
+| ------------------ | ------- | ------------ | ------------------- | ----------------- | ----------- |
+| config.js          | v2.0.0  | 100%         | 19                  | 32                | 51          |
+| backlog.js         | v2.0.0  | 100%         | 18                  | 9                 | 27          |
+| session_manager.js | v2.0.0  | 100%         | 27                  | 23                | 50          |
+| metrics.js         | v2.0.0  | 100%         | 22                  | 24                | 46          |
+
+**Phase 2.1 Testing Summary:**
+
+- 4 test files with v2.0.0 architecture
+- 86 pure function tests (deterministic, no mocking)
+- 88 integration tests (side effects, file I/O)
+- 174 total tests
+- 100% coverage for all modules
+- All tests passing
+
+**Combined Testing Summary (Phase 1 + 2.1):**
+
+- 11 modules total
+- 259+ total tests
+- 100% test pass rate
+- 95%+ average coverage
 
 ---
 
@@ -1369,11 +1627,14 @@ No specific initialization required. All modules are stateless except for the de
 - Log levels from environment variables
 - Custom log transports
 
-**FUT-002: Performance Monitoring** [OPTIONAL]
+**FUT-002: Performance Monitoring** ~~[OPTIONAL]~~ **[IMPLEMENTED in Phase 2.1]**
 
-- Execution time tracking
-- Performance metrics collection
-- Bottleneck identification
+- ✅ Execution time tracking (metrics.js v2.0.0)
+- ✅ Performance metrics collection (metrics.js v2.0.0)
+- ✅ Step-level and workflow-level timing
+- ✅ JSON/JSONL history export
+- ✅ Markdown summary generation
+- Future: Bottleneck identification (automated analysis)
 
 **FUT-003: Advanced Version Management** [OPTIONAL]
 
@@ -1446,13 +1707,18 @@ No specific initialization required. All modules are stateless except for the de
 
 ### Appendix C: Change Log
 
-| Version | Date       | Changes                                  |
-| ------- | ---------- | ---------------------------------------- |
-| 1.0.0   | 2026-01-29 | Initial functional requirements document |
+| Version | Date       | Changes                                                                     |
+| ------- | ---------- | --------------------------------------------------------------------------- |
+| 1.1.0   | 2026-01-30 | Added Phase 2.1 modules (config, backlog, session_manager, metrics v2.0.0). |
+|         |            | Updated architecture diagrams with pure functional design principles.       |
+|         |            | Added referential transparency documentation.                               |
+|         |            | Updated testing statistics (259+ tests, 11 modules).                        |
+|         |            | Marked FUT-002 Performance Monitoring as implemented.                       |
+| 1.0.0   | 2026-01-29 | Initial functional requirements document                                    |
 
 ---
 
 **Document Status:** ✅ Complete and Active  
-**Last Review:** January 29, 2026  
-**Next Review:** Phase 2 completion or as requirements evolve  
+**Last Review:** January 30, 2026  
+**Next Review:** Phase 2.2 completion or as requirements evolve  
 **Maintained By:** ai_workflow.js development team
