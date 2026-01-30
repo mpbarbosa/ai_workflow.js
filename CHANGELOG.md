@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-30
+
+### Changed
+
+#### Referential Transparency Refactoring
+
+- **session_manager.js (v2.0.0)**: Complete refactoring to follow referential transparency principles
+  - Extracted pure functions: `generateSessionId`, `createSessionEntry`, `registerSession`, `addToCleanupQueue`, `unregisterSession`, `removeFromCleanupQueue`, `getSession`, `getActiveSessions`, `getSessionAge`, `isSessionActive`, `getSessionCount`
+  - All core logic is now referentially transparent (deterministic, no side effects, immutable)
+  - Time dependencies injected as parameters instead of using `Date.now()` internally
+  - Random dependencies injected as parameters instead of using `crypto.randomBytes()` internally
+  - State transformations return new values instead of mutating existing state
+  - Console logging isolated to wrapper class methods (side effects at boundaries)
+  - `SessionManager` class now acts as impure wrapper around pure functions
+
+#### Testing
+
+- **session_manager.test.js (v2.0.0)**: Complete test rewrite with 50 tests
+  - 27 tests for pure functions (deterministic, no mocking needed)
+  - 23 tests for wrapper class integration (non-deterministic behavior)
+  - Removed Jest-specific mocking (incompatible with VM modules)
+  - All 50 tests passing
+
+### Added
+
+- `.ai_workflow/backlog/referential_transparency_analysis.md`: Comprehensive analysis document
+  - Detailed violation analysis with code examples
+  - Before/after comparisons
+  - Benefits of pure functional programming
+  - Testing improvements
+  - Migration strategy
+
 ## [1.0.0] - 2026-01-30
 
 ### Added
