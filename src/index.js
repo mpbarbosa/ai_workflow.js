@@ -109,3 +109,18 @@ export {
   normalizeAliases,
   ArgumentParser,
 } from './lib/argument_parser.js';
+
+export {
+  shouldCleanByAge,
+  shouldCleanBySize,
+  filterByAge,
+  filterBySize,
+  calculateTotalSize,
+  sortByOldest,
+  sortByLargest,
+  selectFilesForSizeLimit,
+  formatDuration,
+  formatSize,
+  generateCleanupSummary,
+  CleanupManager,
+} from './lib/cleanup_handlers.js';

@@ -54,9 +54,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 61 comprehensive tests (46 pure + 15 integration)
 - Full support for --help/-h flag
 
+**cleanup_handlers.js (v2.0.0)**: Cleanup operations for temp files, sessions, cache (Module 5)
+
+- Pure functions: shouldCleanByAge, shouldCleanBySize, filterByAge, filterBySize, calculateTotalSize, sortByOldest, sortByLargest, selectFilesForSizeLimit, formatDuration, formatSize, generateCleanupSummary
+- CleanupManager class for automated cleanup operations
+- Age-based cleanup (clean files older than threshold)
+- Size-based cleanup (clean files larger than threshold)
+- Directory size limit enforcement (delete oldest files to meet limit)
+- Empty directory removal
+- Pattern-based cleanup (regex/string matching)
+- Dry-run mode support
+- 50 comprehensive tests (33 pure + 17 integration)
+- Cross-realm Date handling for Jest VM modules
+
 **errors.js**: Added `FileSystemError` class for file I/O error handling
 
-**Total Phase 3 Progress**: 4 of 5 modules complete (80%), 304 tests (was 174, now 478 total)
+**Total Phase 3 Progress**: ✅ 5 of 5 modules complete (100%), 354 tests (was 174, now 528 total)
 
 ### Changed
 
