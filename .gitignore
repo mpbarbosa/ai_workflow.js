@@ -186,7 +186,7 @@ config/local.json
 # Build artifacts
 dist/
 build/
-lib/
+/lib/
 bin/
 
 # Test artifacts
