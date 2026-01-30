@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-#### Phase 3: File Operations & Utilities (Module 1)
+#### Phase 3: File Operations & Utilities
 
-**file_operations.js (v2.0.0)**: Complete file system operations module
+**file_operations.js (v2.0.0)**: Complete file system operations module (Module 1)
 
 - Pure functions for path validation, filtering, sorting, and metadata building
 - `FileOperations` wrapper class for I/O operations (read, write, exists, stat, list, copy, move, delete)
@@ -22,7 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All operations async/await for performance
 - Automatic parent directory creation
 
+**edit_operations.js (v2.0.0)**: File content editing utilities (Module 2)
+
+- Pure functions for text manipulation: findMatches, replaceAll, replaceFirst, insertAtLine, appendText, prependText, deleteLines, extractLines, getLineRange, replaceLineRange
+- Diff generation and formatting: generateDiff, formatDiff
+- `EditOperations` wrapper class for file editing (find/replace, insert, append, prepend, delete lines, line range operations)
+- Preview mode to show changes before applying
+- Transformation function support (applyTransform)
+- Dry-run mode for all operations
+- 80 tests (40 pure function tests + 40 integration tests)
+- All operations integrate with FileOperations for I/O
+
 **errors.js**: Added `FileSystemError` class for file I/O error handling
+
+**Total Phase 3 Progress**: 2 of 5 modules complete, 134 tests (was 174, now 308 total)
 
 ### Changed
 

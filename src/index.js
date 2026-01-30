@@ -50,3 +50,19 @@ export {
   calculateRelativePath,
   FileOperations,
 } from './lib/file_operations.js';
+
+export {
+  findMatches,
+  replaceAll,
+  replaceFirst,
+  insertAtLine,
+  appendText,
+  prependText,
+  deleteLines,
+  extractLines,
+  getLineRange,
+  replaceLineRange,
+  generateDiff,
+  formatDiff,
+  EditOperations,
+} from './lib/edit_operations.js';
