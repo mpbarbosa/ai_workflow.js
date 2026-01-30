@@ -11,17 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Referential Transparency Refactoring
 
-- **session_manager.js (v2.0.0)**: Complete refactoring to follow referential transparency principles
-  - Extracted pure functions: `generateSessionId`, `createSessionEntry`, `registerSession`, `addToCleanupQueue`, `unregisterSession`, `removeFromCleanupQueue`, `getSession`, `getActiveSessions`, `getSessionAge`, `isSessionActive`, `getSessionCount`
-  - All core logic is now referentially transparent (deterministic, no side effects, immutable)
-  - Time dependencies injected as parameters instead of using `Date.now()` internally
-  - Random dependencies injected as parameters instead of using `crypto.randomBytes()` internally
-  - State transformations return new values instead of mutating existing state
-  - Console logging isolated to wrapper class methods (side effects at boundaries)
-  - `SessionManager` class now acts as impure wrapper around pure functions
+**backlog.js (v2.0.0)**: Refactored to pure functional approach
+
+- Extracted pure functions: `getStatusEmoji`, `formatExecutionMode`, `buildStepStatusList`, `buildChangeAnalysisSection`, `generateSummaryContent`, `generateStepReportContent`
+- All markdown generation logic is now referentially transparent
+- Timestamp injection moved to wrapper methods
+- Console logging isolated to wrapper class
+- File I/O isolated to wrapper class
+
+**session_manager.js (v2.0.0)**: Complete refactoring to follow referential transparency principles
+
+- Extracted pure functions: `generateSessionId`, `createSessionEntry`, `registerSession`, `addToCleanupQueue`, `unregisterSession`, `removeFromCleanupQueue`, `getSession`, `getActiveSessions`, `getSessionAge`, `isSessionActive`, `getSessionCount`
+- All core logic is now referentially transparent (deterministic, no side effects, immutable)
+- Time dependencies injected as parameters instead of using `Date.now()` internally
+- Random dependencies injected as parameters instead of using `crypto.randomBytes()` internally
+- State transformations return new values instead of mutating existing state
+- Console logging isolated to wrapper class methods (side effects at boundaries)
+- `SessionManager` class now acts as impure wrapper around pure functions
 
 #### Testing
 
+- **backlog.test.js (v2.0.0)**: Added 18 pure function tests, 27 total (18 pure + 9 integration)
 - **session_manager.test.js (v2.0.0)**: Complete test rewrite with 50 tests
   - 27 tests for pure functions (deterministic, no mocking needed)
   - 23 tests for wrapper class integration (non-deterministic behavior)

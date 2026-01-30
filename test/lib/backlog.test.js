@@ -1,17 +1,214 @@
 /**
- * Tests for Backlog module
- * @version 1.0.0
- * @description Test suite for backlog management
+ * Tests for Backlog module (Pure Functions + Wrapper)
+ * @version 2.0.0
+ * @description Test suite for backlog management with referential transparency
  * @module test/lib/backlog
  */
 
-import { Backlog } from '../../src/lib/backlog.js';
+import {
+  Backlog,
+  getStatusEmoji,
+  formatExecutionMode,
+  buildStepStatusList,
+  buildChangeAnalysisSection,
+  generateSummaryContent,
+  generateStepReportContent,
+} from '../../src/lib/backlog.js';
 import { Config } from '../../src/lib/config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-describe('Backlog', () => {
+describe('Backlog - Pure Functions', () => {
+  describe('getStatusEmoji', () => {
+    test('should return correct emoji for each status', () => {
+      expect(getStatusEmoji('passed')).toBe('✅');
+      expect(getStatusEmoji('failed')).toBe('❌');
+      expect(getStatusEmoji('skipped')).toBe('⏭️');
+      expect(getStatusEmoji('running')).toBe('▶️');
+      expect(getStatusEmoji('pending')).toBe('⏸️');
+    });
+
+    test('should return default emoji for unknown status', () => {
+      expect(getStatusEmoji('unknown')).toBe('⏭️');
+      expect(getStatusEmoji(null)).toBe('⏭️');
+      expect(getStatusEmoji(undefined)).toBe('⏭️');
+    });
+
+    test('should be referentially transparent', () => {
+      const result1 = getStatusEmoji('passed');
+      const result2 = getStatusEmoji('passed');
+      expect(result1).toBe(result2);
+    });
+  });
+
+  describe('formatExecutionMode', () => {
+    test('should format auto mode', () => {
+      expect(formatExecutionMode({ auto: true })).toBe('Automatic');
+    });
+
+    test('should format interactive mode', () => {
+      expect(formatExecutionMode({ interactive: true })).toBe('Interactive');
+    });
+
+    test('should format dry run mode', () => {
+      expect(formatExecutionMode({ dryRun: true })).toBe('Dry Run');
+    });
+
+    test('should return Unknown for unrecognized mode', () => {
+      expect(formatExecutionMode({})).toBe('Unknown');
+    });
+
+    test('should prioritize auto over interactive', () => {
+      expect(formatExecutionMode({ auto: true, interactive: true })).toBe('Automatic');
+    });
+  });
+
+  describe('buildStepStatusList', () => {
+    test('should build step status list for all steps', () => {
+      const workflowStatus = new Map();
+      workflowStatus.set(0, { status: 'passed' });
+      workflowStatus.set(1, { status: 'failed' });
+      workflowStatus.set(2, { status: 'skipped' });
+
+      const result = buildStepStatusList(workflowStatus, 3);
+
+      expect(result).toContain('- **Step 0:** ✅');
+      expect(result).toContain('- **Step 1:** ❌');
+      expect(result).toContain('- **Step 2:** ⏭️');
+    });
+
+    test('should handle missing status as pending', () => {
+      const workflowStatus = new Map();
+      const result = buildStepStatusList(workflowStatus, 2);
+
+      expect(result).toContain('- **Step 0:** ⏭️');
+      expect(result).toContain('- **Step 1:** ⏭️');
+    });
+
+    test('should default to 15 steps', () => {
+      const workflowStatus = new Map();
+      const result = buildStepStatusList(workflowStatus);
+
+      const lines = result.split('\n').filter((l) => l.trim());
+      expect(lines).toHaveLength(15);
+    });
+  });
+
+  describe('buildChangeAnalysisSection', () => {
+    test('should build change analysis with all fields', () => {
+      const analysisContext = {
+        changeScope: 'mixed',
+        commits: 'HEAD~3..HEAD',
+        modified: '5 files',
+      };
+
+      const result = buildChangeAnalysisSection(analysisContext);
+
+      expect(result).toContain('**Change Scope:** mixed');
+      expect(result).toContain('**Commits Ahead:** HEAD~3..HEAD');
+      expect(result).toContain('**Modified Files:** 5 files');
+    });
+
+    test('should handle missing fields with defaults', () => {
+      const result = buildChangeAnalysisSection({});
+
+      expect(result).toContain('**Change Scope:** Not specified');
+      expect(result).toContain('**Commits Ahead:** 0');
+      expect(result).toContain('**Modified Files:** 0');
+    });
+  });
+
+  describe('generateSummaryContent', () => {
+    test('should generate complete summary markdown', () => {
+      const metadata = {
+        workflowRunId: 'workflow_123',
+        scriptVersion: '1.0.0',
+        scriptName: 'Test Script',
+        totalSteps: 3,
+      };
+      const executionMode = { auto: true };
+      const workflowStatus = new Map([[0, { status: 'passed' }]]);
+      const analysisContext = { changeScope: 'docs' };
+      const timestamp = '2026-01-30 12:00:00';
+
+      const result = generateSummaryContent({
+        metadata,
+        executionMode,
+        workflowStatus,
+        analysisContext,
+        timestamp,
+      });
+
+      expect(result).toContain('# Workflow Execution Summary');
+      expect(result).toContain('**Workflow Run ID:** workflow_123');
+      expect(result).toContain('**Execution Date:** 2026-01-30 12:00:00');
+      expect(result).toContain('**Mode:** Automatic');
+      expect(result).toContain('- **Step 0:** ✅');
+      expect(result).toContain('**Change Scope:** docs');
+      expect(result).toContain('Generated by:** Test Script v1.0.0');
+    });
+
+    test('should be referentially transparent', () => {
+      const params = {
+        metadata: {
+          workflowRunId: 'test',
+          scriptVersion: '1.0.0',
+          scriptName: 'Test',
+          totalSteps: 2,
+        },
+        executionMode: { interactive: true },
+        workflowStatus: new Map(),
+        analysisContext: {},
+        timestamp: '2026-01-30',
+      };
+
+      const result1 = generateSummaryContent(params);
+      const result2 = generateSummaryContent(params);
+
+      expect(result1).toBe(result2);
+    });
+  });
+
+  describe('generateStepReportContent', () => {
+    test('should generate step report markdown', () => {
+      const reportData = {
+        name: 'Test Step',
+        status: 'passed',
+        summary: 'Step summary',
+        details: 'Step details',
+      };
+      const timestamp = '2026-01-30 12:00:00';
+
+      const result = generateStepReportContent(5, reportData, timestamp);
+
+      expect(result).toContain('# Step 5 Report');
+      expect(result).toContain('**Step:** Test Step');
+      expect(result).toContain('**Status:** passed');
+      expect(result).toContain('**Timestamp:** 2026-01-30 12:00:00');
+      expect(result).toContain('Step summary');
+      expect(result).toContain('Step details');
+    });
+
+    test('should handle missing report data', () => {
+      const result = generateStepReportContent(3, {}, '2026-01-30');
+
+      expect(result).toContain('**Step:** Step 3');
+      expect(result).toContain('**Status:** Unknown');
+      expect(result).toContain('No summary available');
+      expect(result).toContain('No details available');
+    });
+
+    test('should be referentially transparent', () => {
+      const result1 = generateStepReportContent(1, { name: 'Test' }, '2026-01-30');
+      const result2 = generateStepReportContent(1, { name: 'Test' }, '2026-01-30');
+
+      expect(result1).toBe(result2);
+    });
+  });
+});
+
+describe('Backlog - Wrapper Class', () => {
   let backlog;
   let config;
   let tempDir;
