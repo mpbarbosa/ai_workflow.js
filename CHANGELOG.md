@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - Phase 4 (In Progress)
+
+- **Project Kind Detection** (Module 1/4) - Auto-detect project type based on file patterns (v1.0.0)
+  - Supports 8 project kinds: nodejs_api, react_spa, python_app, shell_script_automation, static_website, client_spa, configuration_library, generic
+  - Analyzes package.json for Node.js/React projects
+  - Analyzes requirements.txt for Python projects
+  - Pattern-based detection (file extensions, directory structure)
+  - Confidence scoring with indicator tracking
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 32 tests (30 passing, 93.8% coverage)
+  - See: `src/lib/project_kind_detection.js`, `test/lib/project_kind_detection.test.js`
+
 ## [1.1.0] - 2026-01-30
 
 ### Added
