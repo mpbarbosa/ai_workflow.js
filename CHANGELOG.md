@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 42 tests (42 passing, 100% coverage)
   - See: `src/lib/project_kind_config.js`, `test/lib/project_kind_config.test.js`
 
+- **Tech Stack Detection** (Module 3/4) - Detect languages, frameworks, and tools (v1.0.0)
+  - Detect programming languages from file extensions (JavaScript, TypeScript, Python, Shell, Go, Rust, Java)
+  - Detect frameworks from package.json and requirements.txt (Express, React, Flask, Django, FastAPI, etc.)
+  - Detect build systems (npm, yarn, pnpm, cargo, maven, gradle, etc.)
+  - Detect test frameworks (jest, vitest, pytest, bash_unit, etc.)
+  - Detect linters (eslint, prettier, pylint, shellcheck, black, etc.)
+  - Generate human-readable tech stack reports
+  - Result caching for performance
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 52 tests (52 passing, 100% coverage)
+  - See: `src/lib/tech_stack.js`, `test/lib/tech_stack.test.js`
+
 ## [1.1.0] - 2026-01-30
 
 ### Added
