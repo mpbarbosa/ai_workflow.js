@@ -11,9 +11,9 @@ Welcome to the ai_workflow.js documentation! This documentation covers the Node.
 
 Start here if you're new to ai_workflow.js:
 
-- **[Quick Start](./getting-started/QUICK_START.md)** - Get up and running in 5 minutes
-- **[Installation](./getting-started/INSTALLATION.md)** - Detailed installation guide
-- **[First Workflow](./getting-started/FIRST_WORKFLOW.md)** - Create your first workflow
+- **[Quick Start](./getting-started/QUICK_START.md)** - Get up and running in 5 minutes ⚡
+- **[Installation Guide](./getting-started/INSTALLATION.md)** - Detailed installation for all platforms 📦
+- **[First Workflow Tutorial](./getting-started/FIRST_WORKFLOW.md)** - Build your first workflow step-by-step 🎓
 
 ### Guides
 
