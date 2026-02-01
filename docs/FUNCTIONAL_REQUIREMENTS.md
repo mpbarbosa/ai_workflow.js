@@ -1,9 +1,9 @@
-# Functional Requirements: Core Foundation Layer
+# Functional Requirements: Foundation & Configuration Layers
 
 **Project:** ai_workflow.js  
-**Phase:** 1 & 2.1 - Foundation and Configuration/State Management  
-**Version:** 1.1.0  
-**Date:** January 30, 2026  
+**Phases:** 1, 2.1, 3, 4 - Foundation, Configuration/State Management, File Operations, Project Detection  
+**Version:** 1.2.0  
+**Date:** February 1, 2026  
 **Status:** Active
 
 ---
@@ -26,6 +26,7 @@
      - [3.2.2 backlog.js](#322-backlogjs---backlog-reporting)
      - [3.2.3 session_manager.js](#323-session_managerjs---session-lifecycle)
      - [3.2.4 metrics.js](#324-metricsjs---performance-metrics)
+   - [3.3 Phase 3 & 4: Later Phases](#33-phase-3--4-later-phases)
 4. [Integration Requirements](#4-integration-requirements)
 5. [Quality Requirements](#5-quality-requirements)
 6. [Testing Strategy](#6-testing-strategy)
@@ -38,11 +39,13 @@
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the core foundation layer and configuration/state management of ai_workflow.js, a JavaScript/Node.js migration of the AI workflow automation system. The foundation layer provides essential utilities for logging, error handling, system detection, version management, and command execution. The configuration layer provides workflow configuration, backlog reporting, session management, and performance metrics.
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2.1), file operations (Phase 3), and project detection & analysis (Phase 4).
+
+For requirements related to later phases (Git Integration, AI Integration, Workflow Engine, etc.), see the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
 
 ### 1.2 Scope
 
-This document covers the requirements for **11 core modules** implemented in Phase 1 and Phase 2.1:
+This document covers the requirements for **20 core modules** implemented in Phases 1-4:
 
 #### Phase 1: Core Foundation Modules
 
@@ -67,22 +70,54 @@ This document covers the requirements for **11 core modules** implemented in Pha
 | `src/lib/session_manager.js` | v2.0.0  | ~220          | Session lifecycle management with pure functions                |
 | `src/lib/metrics.js`         | v2.0.0  | ~475          | Performance metrics collection with referential transparency    |
 
-**Phase 2.1 Total:** ~1,205 lines of code (excluding comments and blank lines)  
-**Combined Total:** ~1,800 lines of code
+**Phase 2.1 Total:** ~1,205 lines of code (excluding comments and blank lines)
+
+#### Phase 3: File Operations & Utilities Modules
+
+| Module                        | Version | Lines of Code | Purpose                                           |
+| ----------------------------- | ------- | ------------- | ------------------------------------------------- |
+| `src/lib/file_operations.js`  | v2.0.0  | ~295          | File system operations (read, write, copy, etc.)  |
+| `src/lib/edit_operations.js`  | v2.0.0  | ~380          | File editing utilities (find/replace, diff, etc.) |
+| `src/lib/utils.js`            | v1.0.0  | ~289          | General utilities (string, array, object helpers) |
+| `src/lib/argument_parser.js`  | v2.0.0  | ~344          | CLI argument parsing with validation              |
+| `src/lib/cleanup_handlers.js` | v2.0.0  | ~326          | Cleanup operations (temp files, sessions, cache)  |
+
+**Phase 3 Total:** ~1,634 lines of code (excluding comments and blank lines)
+
+#### Phase 4: Project Detection & Analysis Modules
+
+| Module                              | Version | Lines of Code | Purpose                                     |
+| ----------------------------------- | ------- | ------------- | ------------------------------------------- |
+| `src/lib/project_kind_detection.js` | v1.0.0  | ~270          | Auto-detect project type from file patterns |
+| `src/lib/project_kind_config.js`    | v1.0.0  | ~310          | Load/parse project configs from YAML        |
+| `src/lib/tech_stack.js`             | v1.0.0  | ~385          | Detect languages, frameworks, tools         |
+| `src/lib/third_party_exclusion.js`  | v1.0.0  | ~360          | Filter third-party files from analysis      |
+
+**Phase 4 Total:** ~1,325 lines of code (excluding comments and blank lines)
+
+**Combined Total (Phases 1-4):** ~4,759 lines of code
 
 ### 1.3 Target Users
 
-- **Primary:** Future developers implementing package managers and workflow orchestration
+- **Primary:** Developers implementing workflow orchestration and step modules (Phases 5-13)
 - **Secondary:** End users through CLI output and error messages
 - **Tertiary:** System administrators and DevOps engineers
 
-### 1.4 Related Documents
+### 1.4 Out of Scope
 
-- [MIGRATION_PLAN.md](../MIGRATION_PLAN.md) - Overall migration strategy
+This document does NOT cover:
+
+- Phase 5-13 features (Git, AI, Workflow Engine, Steps, CLI)
+- See [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md) for complete roadmap
+
+### 1.5 Related Documents
+
+- [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md) - Overall migration strategy and Phases 5-13
 - [README.md](../README.md) - Project overview
+- [CHANGELOG.md](../CHANGELOG.md) - Version history with Phase 3-4 details
 - Source repository: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
 
-### 1.5 Conventions
+### 1.6 Conventions
 
 This document uses RFC 2119 keywords:
 
@@ -1384,6 +1419,39 @@ Phase 2.1 modules implement **referential transparency** architecture:
 - Wrapper integration tests: 80 tests (side effects, file I/O)
 - Total Phase 2.1 tests: 166 tests
 - Coverage target: 100%
+
+---
+
+### 3.3 Phase 3 & 4: Later Phases
+
+**Note:** This document focuses on detailed functional requirements for Phase 1 (Core Foundation) and Phase 2.1 (Configuration & State Management).
+
+For functional requirements related to:
+
+- **Phase 3**: File Operations & Utilities (5 modules) - See [CHANGELOG.md](../CHANGELOG.md) v1.1.0
+- **Phase 4**: Project Detection & Analysis (4 modules) - See [CHANGELOG.md](../CHANGELOG.md) Unreleased section
+- **Phases 5-13**: Git Integration, AI Integration, Workflow Engine, etc. - See [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md)
+
+**Phase 3 Modules (Complete - v2.0.0):**
+
+- `file_operations.js` - File system operations
+- `edit_operations.js` - Text editing utilities
+- `utils.js` - String/array/object helpers
+- `argument_parser.js` - CLI argument parsing
+- `cleanup_handlers.js` - Cleanup operations
+
+**Phase 4 Modules (Complete - v1.0.0):**
+
+- `project_kind_detection.js` - Auto-detect project type
+- `project_kind_config.js` - Load project configs
+- `tech_stack.js` - Detect languages/frameworks
+- `third_party_exclusion.js` - Filter third-party files
+
+**Testing Status:**
+
+- Phase 3: 354 tests, 100% passing
+- Phase 4: 167 tests, 165 passing (98.8%)
+- Combined: 695 tests, 693 passing (99.7%)
 
 ---
 
