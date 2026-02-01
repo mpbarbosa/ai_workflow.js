@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 32 tests (30 passing, 93.8% coverage)
   - See: `src/lib/project_kind_detection.js`, `test/lib/project_kind_detection.test.js`
 
+- **Project Kind Configuration** (Module 2/4) - Load project configs from ai_workflow_core (v1.0.0)
+  - Load configs from `.workflow_core/config/project_kinds.yaml`
+  - Parse YAML configurations with js-yaml
+  - Extract validation rules, testing config, quality standards, AI guidance
+  - Merge user overrides from `.workflow-config.yaml`
+  - Validate project structure against rules
+  - Configuration caching for performance
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 42 tests (42 passing, 100% coverage)
+  - See: `src/lib/project_kind_config.js`, `test/lib/project_kind_config.test.js`
+
 ## [1.1.0] - 2026-01-30
 
 ### Added
