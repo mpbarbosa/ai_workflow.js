@@ -94,7 +94,7 @@ export function calculateDuration(startTime, endTime) {
   return endTime - startTime;
 }
 
-// I/O wrapper class (Phase 2-3 modules)
+// I/O wrapper class (Phase 2-5 modules)
 export class MetricsCollector {
   constructor(fileOps) {
     this.fileOps = fileOps;

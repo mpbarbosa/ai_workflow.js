@@ -1,9 +1,11 @@
 # API Reference
 
 **Version:** 1.0.0  
-**Last Updated:** February 1, 2026
+**Last Updated:** February 2, 2026
 
-Complete API documentation for all ai_workflow.js modules.
+Complete API documentation for ai_workflow.js modules (Phase 1-3).
+
+**⚠️ Note:** API documentation for Phase 4 (Project Detection) and Phase 5 (Git Integration) modules is pending generation.
 
 ## 📦 Module Categories
 
@@ -17,7 +19,7 @@ Foundation utilities providing basic functionality:
 - **[version](./core/version.md)** - Semantic version parsing and comparison
 - **[executor](./core/executor.md)** - Command execution with async/streaming support
 
-### Library Modules (Phase 2-3 - v2.0.0)
+### Library Modules (Phase 2-5 - v2.0.0 or v1.0.0)
 
 Core libraries implementing business logic:
 
@@ -41,6 +43,28 @@ Core libraries implementing business logic:
 Helper utilities:
 
 - **[errors](./utils/errors.md)** - Custom error class hierarchy for workflow errors
+
+### Library Modules - Phase 4 (Project Detection - v1.0.0)
+
+**⚠️ API documentation pending generation**
+
+Modules implemented but documentation not yet generated:
+
+- **project_kind_detection** - Auto-detect project type from file patterns
+- **project_kind_config** - Load/parse project configs from YAML
+- **tech_stack** - Detect languages, frameworks, tools
+- **third_party_exclusion** - Filter third-party files from analysis
+
+### Library Modules - Phase 5 (Git Integration - v2.0.0)
+
+**⚠️ API documentation pending generation**
+
+Modules implemented but documentation not yet generated:
+
+- **git_automation** - Git operations (status, diff, commit)
+- **git_cache** - Git operation caching with invalidation
+- **auto_commit** - Automatic artifact commits
+- **change_detection** - File change detection and categorization
 
 ## 🚀 Quick Reference
 
@@ -113,9 +137,9 @@ const summary = metrics.getSummary();
 
 ## 📊 Module Comparison
 
-### Phase 1 vs Phase 2-3 Architecture
+### Phase 1 vs Phase 2-5 Architecture
 
-| Aspect              | Phase 1 (v1.0.0)         | Phase 2-3 (v2.0.0)                  |
+| Aspect              | Phase 1 (v1.0.0)         | Phase 2-5 (v2.0.0 or v1.0.0)        |
 | ------------------- | ------------------------ | ----------------------------------- |
 | **Architecture**    | Basic modular            | Referential transparency            |
 | **Testing**         | Standard unit tests      | Pure function + integration tests   |
@@ -334,7 +358,7 @@ const summary = metrics.getSummary();
 All modules have comprehensive test coverage:
 
 - **Phase 1 modules:** 85 tests (standard unit tests)
-- **Phase 2-3 modules:** 443 tests (pure function + integration tests)
+- **Phase 2-5 modules:** 829 tests (pure function + integration tests)
 - **Total:** 528+ tests with 100% pass rate
 
 ### Test Structure
@@ -347,7 +371,7 @@ test/
 │   ├── system.test.js
 │   ├── version.test.js
 │   └── executor.test.js
-├── lib/           # Phase 2-3 tests
+├── lib/           # Phase 2-5 tests
 │   ├── config.test.js
 │   ├── backlog.test.js
 │   ├── session_manager.test.js

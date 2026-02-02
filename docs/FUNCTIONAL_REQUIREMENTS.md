@@ -1,9 +1,9 @@
 # Functional Requirements: Foundation & Configuration Layers
 
 **Project:** ai_workflow.js  
-**Phases:** 1, 2.1, 3, 4 - Foundation, Configuration/State Management, File Operations, Project Detection  
-**Version:** 1.2.0  
-**Date:** February 1, 2026  
+**Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration  
+**Version:** 1.3.0  
+**Date:** February 2, 2026  
 **Status:** Active
 
 ---
@@ -21,7 +21,7 @@
      - [3.1.5 version.js](#315-versionjs---version-management)
      - [3.1.6 executor.js](#316-executorjs---command-execution)
      - [3.1.7 index.js](#317-indexjs---module-exports)
-   - [3.2 Phase 2.1: Configuration & State Management](#32-phase-21-configuration--state-management)
+   - [3.2 Phase 2: Configuration & State Management](#32-phase-2-configuration--state-management)
      - [3.2.1 config.js](#321-configjs---configuration-management)
      - [3.2.2 backlog.js](#322-backlogjs---backlog-reporting)
      - [3.2.3 session_manager.js](#323-session_managerjs---session-lifecycle)
@@ -39,67 +39,86 @@
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2.1), file operations (Phase 3), and project detection & analysis (Phase 4).
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), and project detection & analysis (Phase 4).
 
 For requirements related to later phases (Git Integration, AI Integration, Workflow Engine, etc.), see the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
 
 ### 1.2 Scope
 
-This document covers the requirements for **20 core modules** implemented in Phases 1-4:
+This document covers the requirements for **23 core modules** implemented in Phases 1-5:
+
+- **Phase 1 (Foundation):** 7 modules - colors, logger, errors, system, version, executor, index
+- **Phase 2 (Configuration):** 4 modules - config, backlog, session_manager, metrics
+- **Phase 3 (File Operations):** 5 modules - file_operations, edit_operations, utils, argument_parser, cleanup_handlers
+- **Phase 4 (Project Detection):** 4 modules - project_kind_detection, project_kind_config, tech_stack, third_party_exclusion
+- **Phase 5 (Git Integration):** 4 modules - git_automation, git_cache, auto_commit, change_detection
+
+Detailed specifications for each module are provided in the sections below.
 
 #### Phase 1: Core Foundation Modules
 
 | Module                 | Version | Lines of Code | Purpose                                            |
 | ---------------------- | ------- | ------------- | -------------------------------------------------- |
-| `src/core/colors.js`   | v1.0.0  | ~54           | ANSI color codes and terminal support detection    |
-| `src/core/logger.js`   | v1.0.0  | ~99           | Logging system with multiple severity levels       |
-| `src/utils/errors.js`  | v1.0.0  | ~68           | Custom error class hierarchy                       |
-| `src/core/system.js`   | v1.0.0  | ~130          | Operating system and package manager detection     |
-| `src/core/version.js`  | v1.0.0  | ~114          | Semantic version parsing and comparison            |
-| `src/core/executor.js` | v1.0.0  | ~105          | Command execution with async and streaming support |
-| `src/index.js`         | v1.0.0  | ~25           | Module exports and public API                      |
+| `src/core/colors.js`   | v1.0.0  | ~56           | ANSI color codes and terminal support detection    |
+| `src/core/logger.js`   | v1.0.0  | ~106          | Logging system with multiple severity levels       |
+| `src/utils/errors.js`  | v1.0.0  | ~85           | Custom error class hierarchy                       |
+| `src/core/system.js`   | v1.0.0  | ~137          | Operating system and package manager detection     |
+| `src/core/version.js`  | v1.0.0  | ~117          | Semantic version parsing and comparison            |
+| `src/core/executor.js` | v1.0.0  | ~112          | Command execution with async and streaming support |
+| `src/index.js`         | v1.1.0  | ~209          | Module exports and public API                      |
 
-**Phase 1 Total:** ~595 lines of code (excluding comments and blank lines)
+**Phase 1 Total:** ~822 lines of code (excluding comments and blank lines)
 
-#### Phase 2.1: Configuration & State Management Modules
+#### Phase 2: Configuration & State Management Modules
 
 | Module                       | Version | Lines of Code | Purpose                                                         |
 | ---------------------------- | ------- | ------------- | --------------------------------------------------------------- |
-| `src/lib/config.js`          | v2.0.0  | ~315          | Configuration management with pure functional architecture      |
-| `src/lib/backlog.js`         | v2.0.0  | ~195          | Workflow summary and backlog report generation (pure + wrapper) |
-| `src/lib/session_manager.js` | v2.0.0  | ~220          | Session lifecycle management with pure functions                |
-| `src/lib/metrics.js`         | v2.0.0  | ~475          | Performance metrics collection with referential transparency    |
+| `src/lib/config.js`          | v2.0.0  | ~398          | Configuration management with pure functional architecture      |
+| `src/lib/backlog.js`         | v2.0.0  | ~250          | Workflow summary and backlog report generation (pure + wrapper) |
+| `src/lib/session_manager.js` | v2.0.0  | ~257          | Session lifecycle management with pure functions                |
+| `src/lib/metrics.js`         | v2.0.0  | ~474          | Performance metrics collection with referential transparency    |
 
-**Phase 2.1 Total:** ~1,205 lines of code (excluding comments and blank lines)
+**Phase 2 Total:** ~1,379 lines of code (excluding comments and blank lines)
 
 #### Phase 3: File Operations & Utilities Modules
 
 | Module                        | Version | Lines of Code | Purpose                                           |
 | ----------------------------- | ------- | ------------- | ------------------------------------------------- |
-| `src/lib/file_operations.js`  | v2.0.0  | ~295          | File system operations (read, write, copy, etc.)  |
-| `src/lib/edit_operations.js`  | v2.0.0  | ~380          | File editing utilities (find/replace, diff, etc.) |
-| `src/lib/utils.js`            | v1.0.0  | ~289          | General utilities (string, array, object helpers) |
-| `src/lib/argument_parser.js`  | v2.0.0  | ~344          | CLI argument parsing with validation              |
-| `src/lib/cleanup_handlers.js` | v2.0.0  | ~326          | Cleanup operations (temp files, sessions, cache)  |
+| `src/lib/file_operations.js`  | v2.0.0  | ~540          | File system operations (read, write, copy, etc.)  |
+| `src/lib/edit_operations.js`  | v2.0.0  | ~608          | File editing utilities (find/replace, diff, etc.) |
+| `src/lib/utils.js`            | v1.0.0  | ~551          | General utilities (string, array, object helpers) |
+| `src/lib/argument_parser.js`  | v2.0.0  | ~448          | CLI argument parsing with validation              |
+| `src/lib/cleanup_handlers.js` | v2.0.0  | ~625          | Cleanup operations (temp files, sessions, cache)  |
 
-**Phase 3 Total:** ~1,634 lines of code (excluding comments and blank lines)
+**Phase 3 Total:** ~2,772 lines of code (excluding comments and blank lines)
 
 #### Phase 4: Project Detection & Analysis Modules
 
 | Module                              | Version | Lines of Code | Purpose                                     |
 | ----------------------------------- | ------- | ------------- | ------------------------------------------- |
-| `src/lib/project_kind_detection.js` | v1.0.0  | ~270          | Auto-detect project type from file patterns |
-| `src/lib/project_kind_config.js`    | v1.0.0  | ~310          | Load/parse project configs from YAML        |
-| `src/lib/tech_stack.js`             | v1.0.0  | ~385          | Detect languages, frameworks, tools         |
-| `src/lib/third_party_exclusion.js`  | v1.0.0  | ~360          | Filter third-party files from analysis      |
+| `src/lib/project_kind_detection.js` | v1.0.0  | ~356          | Auto-detect project type from file patterns |
+| `src/lib/project_kind_config.js`    | v1.0.0  | ~431          | Load/parse project configs from YAML        |
+| `src/lib/tech_stack.js`             | v1.0.0  | ~576          | Detect languages, frameworks, tools         |
+| `src/lib/third_party_exclusion.js`  | v1.0.0  | ~488          | Filter third-party files from analysis      |
 
-**Phase 4 Total:** ~1,325 lines of code (excluding comments and blank lines)
+**Phase 4 Total:** ~1,851 lines of code (excluding comments and blank lines)
 
-**Combined Total (Phases 1-4):** ~4,759 lines of code
+#### Phase 5: Git Integration Modules
+
+| Module                        | Version | Lines of Code | Purpose                                  |
+| ----------------------------- | ------- | ------------- | ---------------------------------------- |
+| `src/lib/git_automation.js`   | v2.0.0  | ~523          | Git operations (status, diff, commit)    |
+| `src/lib/git_cache.js`        | v2.0.0  | ~377          | Git operation caching with invalidation  |
+| `src/lib/auto_commit.js`      | v2.0.0  | ~504          | Automatic artifact commits               |
+| `src/lib/change_detection.js` | v2.0.0  | ~540          | File change detection and categorization |
+
+**Phase 5 Total:** ~1,944 lines of code (excluding comments and blank lines)
+
+**Combined Total (Phases 1-5):** ~8,768 lines of code
 
 ### 1.3 Target Users
 
-- **Primary:** Developers implementing workflow orchestration and step modules (Phases 5-13)
+- **Primary:** Developers implementing workflow orchestration and step modules (Phases 6-13)
 - **Secondary:** End users through CLI output and error messages
 - **Tertiary:** System administrators and DevOps engineers
 
@@ -107,7 +126,7 @@ This document covers the requirements for **20 core modules** implemented in Pha
 
 This document does NOT cover:
 
-- Phase 5-13 features (Git, AI, Workflow Engine, Steps, CLI)
+- Phase 6-13 features (AI Integration, Workflow Engine, Steps, CLI)
 - See [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md) for complete roadmap
 
 ### 1.5 Related Documents
@@ -161,7 +180,7 @@ This document uses RFC 2119 keywords:
                       └─────────┘
 ```
 
-#### Phase 2.1: Configuration & State Management Layer
+#### Phase 2: Configuration & State Management Layer
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -189,7 +208,7 @@ This document uses RFC 2119 keywords:
 
 **Architecture Principles (v2.0.0):**
 
-- **Referential Transparency**: All Phase 2.1 modules follow pure functional programming principles
+- **Referential Transparency**: All Phase 2 modules follow pure functional programming principles
 - **Pure Functions**: Core logic is deterministic, side-effect-free, and immutable
 - **Impure Wrappers**: Side effects (I/O, logging, time) isolated at boundaries
 - **Testability**: Pure functions require no mocking, only deterministic assertions
@@ -211,7 +230,7 @@ This document uses RFC 2119 keywords:
 6. **Performance**: Efficient algorithms, minimal dependencies
 7. **Developer Experience**: Clear APIs, helpful error messages
 
-#### Phase 2.1 Additional Principles (v2.0.0):
+#### Phase 2+ Additional Principles (v2.0.0):
 1. **Referential Transparency**: All logic is pure, side-effect-free, and deterministic
 2. **Functional Purity**: Core functions have no side effects, return new values instead of mutations
 3. **Dependency Injection**: Time/randomness injected as parameters, not called internally
@@ -226,7 +245,7 @@ This document uses RFC 2119 keywords:
 - **Testing:** Jest with experimental VM modules
 - **Linting:** ESLint 9+ with flat config
 - **Formatting:** Prettier
-- **Architecture Pattern:** Pure Functions + Impure Wrappers (Phase 2.1+)
+- **Architecture Pattern:** Pure Functions + Impure Wrappers (Phase 2+)
 
 ---
 
@@ -1271,13 +1290,13 @@ if (os === OS.LINUX) {
 
 ---
 
-### 3.2 Phase 2.1: Configuration & State Management
+### 3.2 Phase 2: Configuration & State Management
 
-Phase 2.1 modules implement **referential transparency** architecture:
+Phase 2 modules implement **referential transparency** architecture:
 
 - **Pure Functions**: Core logic with no side effects, deterministic behavior
 - **Impure Wrappers**: Class methods that isolate I/O, logging, and time operations
-- **Version**: All Phase 2.1 modules are at v2.0.0 (refactored for functional purity)
+- **Version**: All Phase 2 modules are at v2.0.0 (refactored for functional purity)
 
 #### 3.2.1 config.js - Configuration Management
 
@@ -1306,7 +1325,7 @@ Phase 2.1 modules implement **referential transparency** architecture:
 - Side effects isolated: file I/O, directory creation, timestamp generation
 - Immutable configuration state management
 
-**Lines of Code:** ~315
+**Lines of Code:** ~398
 
 #### 3.2.2 backlog.js - Backlog Reporting
 
@@ -1337,7 +1356,7 @@ Phase 2.1 modules implement **referential transparency** architecture:
 - Side effects isolated: file I/O, timestamp injection
 - All markdown generation delegated to pure functions
 
-**Lines of Code:** ~195
+**Lines of Code:** ~250
 
 #### 3.2.3 session_manager.js - Session Lifecycle
 
@@ -1374,7 +1393,7 @@ Phase 2.1 modules implement **referential transparency** architecture:
 - All state transformations use pure functions
 - Wrapper delegates to pure functions with injected dependencies
 
-**Lines of Code:** ~220
+**Lines of Code:** ~257
 
 #### 3.2.4 metrics.js - Performance Metrics
 
@@ -1411,20 +1430,20 @@ Phase 2.1 modules implement **referential transparency** architecture:
 - All data transformations use pure functions
 - Step timing tracks start/end times with immutable Maps
 
-**Lines of Code:** ~475
+**Lines of Code:** ~474
 
-**Testing Strategy (Phase 2.1):**
+**Testing Strategy (Phase 2):**
 
 - Pure function tests: 86 tests (deterministic, no mocking)
 - Wrapper integration tests: 80 tests (side effects, file I/O)
-- Total Phase 2.1 tests: 166 tests
+- Total Phase 2 tests: 166 tests
 - Coverage target: 100%
 
 ---
 
 ### 3.3 Phase 3 & 4: Later Phases
 
-**Note:** This document focuses on detailed functional requirements for Phase 1 (Core Foundation) and Phase 2.1 (Configuration & State Management).
+**Note:** This document focuses on detailed functional requirements for Phase 1 (Core Foundation) and Phase 2 (Configuration & State Management).
 
 For functional requirements related to:
 
@@ -1657,7 +1676,7 @@ No specific initialization required. All modules are stateless except for the de
 - 95%+ average coverage
 - All tests passing
 
-#### Phase 2.1: Configuration & State Management Modules
+#### Phase 2: Configuration & State Management Modules
 
 | Module             | Version | Min Coverage | Pure Function Tests | Integration Tests | Total Tests |
 | ------------------ | ------- | ------------ | ------------------- | ----------------- | ----------- |
@@ -1666,7 +1685,7 @@ No specific initialization required. All modules are stateless except for the de
 | session_manager.js | v2.0.0  | 100%         | 27                  | 23                | 50          |
 | metrics.js         | v2.0.0  | 100%         | 22                  | 24                | 46          |
 
-**Phase 2.1 Testing Summary:**
+**Phase 2 Testing Summary:**
 
 - 4 test files with v2.0.0 architecture
 - 86 pure function tests (deterministic, no mocking)
@@ -1695,7 +1714,7 @@ No specific initialization required. All modules are stateless except for the de
 - Log levels from environment variables
 - Custom log transports
 
-**FUT-002: Performance Monitoring** ~~[OPTIONAL]~~ **[IMPLEMENTED in Phase 2.1]**
+**FUT-002: Performance Monitoring** ~~[OPTIONAL]~~ **[IMPLEMENTED in Phase 2]**
 
 - ✅ Execution time tracking (metrics.js v2.0.0)
 - ✅ Performance metrics collection (metrics.js v2.0.0)

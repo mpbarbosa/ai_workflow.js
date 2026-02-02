@@ -12,6 +12,7 @@ Thank you for your interest in contributing to **ai_workflow.js**! This document
 - [Commit Messages](#commit-messages)
 - [Pull Request Process](#pull-request-process)
 - [Architecture](#architecture)
+- [Maintaining Source Version References](#maintaining-source-version-references)
 
 ---
 
@@ -97,7 +98,7 @@ This project uses **ESLint** and **Prettier** for code quality and formatting.
 
 ### Functional Programming Principles
 
-**Phase 2.1 modules** follow **referential transparency** principles:
+**Phase 2+ modules** follow **referential transparency** principles:
 
 - **Pure functions**: Extract core logic as pure, referentially transparent functions
 - **Side effects**: Isolate I/O, logging, and time dependencies to wrapper classes
@@ -293,23 +294,82 @@ ai_workflow.js/
 ### Key Documents
 
 - **[MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md)**: Comprehensive migration plan with phases, architecture, and implementation details
-- **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)**: Detailed module requirements for Phase 1 & 2.1
+- **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)**: Detailed module requirements for Phase 1-4
 - **[CHANGELOG.md](./CHANGELOG.md)**: Version history and notable changes
 
 ### Implementation Phases
 
-1. **Phase 1**: Foundation & Core Utilities ✅ (Complete)
-2. **Phase 2**: Core Workflow Library (In Progress - 2.1 complete)
-3. **Phase 3**: AI Integration
-4. **Phase 4**: Workflow Execution Engine
-5. **Phase 5**: Step Implementations
-6. **Phase 6**: Performance Optimizations
-7. **Phase 7**: CLI & User Interface
-8. **Phase 8**: Testing & Quality Assurance
-9. **Phase 9**: Documentation & Examples
-10. **Phase 10**: Packaging & Distribution
+1. **Phase 1**: Foundation & Core Utilities ✅ (Complete - 85 tests, v1.0.0)
+2. **Phase 2**: Configuration & State Management ✅ (Complete - 174 tests, v2.0.0)
+3. **Phase 3**: File Operations & Utilities ✅ (Complete - 354 tests, v2.0.0)
+4. **Phase 4**: Project Detection & Analysis ✅ (Complete - 167 tests, v1.0.0)
+5. **Phase 5**: Git Integration (Next)
+6. **Phase 6**: AI Integration
+7. **Phase 7**: Workflow Execution Engine
+8. **Phase 8**: Step Implementations
+9. **Phase 9**: Performance Optimizations
+10. **Phase 10**: Testing & Quality Assurance
+11. **Phase 11**: CLI & User Interface
+12. **Phase 12**: Documentation & Examples
+13. **Phase 13**: Packaging & Distribution
 
 See [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) for detailed phase descriptions.
+
+---
+
+## Maintaining Source Version References
+
+This project is a migration from the [ai_workflow](https://github.com/mpbarbosa/ai_workflow) Shell/Bash repository. Version tracking is maintained in `.workflow-config.yaml`.
+
+### Source Version Update Process
+
+When the source repository releases a new version:
+
+1. **Check for updates**:
+
+   ```bash
+   # Visit source repository
+   # https://github.com/mpbarbosa/ai_workflow/releases
+   ```
+
+2. **Update source version**:
+
+   ```yaml
+   # .workflow-config.yaml
+   project:
+     source:
+       version: '3.1.0' # Update version
+       last_sync: '2026-XX-XX' # Update date
+   ```
+
+3. **Update documentation references**:
+   - `README.md` - Source repository description section
+   - `.github/copilot-instructions.md` - Source repository link
+   - `docs/reports/implementation/MIGRATION_PLAN.md` - Source version references
+
+4. **Review new features**:
+   - Check source CHANGELOG for new features
+   - Evaluate for inclusion in migration roadmap
+   - Update migration plan if necessary
+
+5. **Document in CHANGELOG**:
+
+   ```markdown
+   ## [Unreleased]
+
+   ### Changed
+
+   - Updated source repository version tracking to v3.1.0
+   - Synced with source repository release notes
+   ```
+
+### Current Source Version
+
+See `.workflow-config.yaml` for the current tracked version:
+
+- **Repository**: mpbarbosa/ai_workflow
+- **Version**: 3.0.0 (as of 2026-02-01)
+- **URL**: https://github.com/mpbarbosa/ai_workflow
 
 ---
 

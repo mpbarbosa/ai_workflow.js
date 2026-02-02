@@ -7,7 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added - Phase 4 (In Progress)
+### Added - Phase 5 (COMPLETE)
+
+- **Git Automation** (Module 1/4) - Git operations with referential transparency (v2.0.0)
+  - Core Git operations: status, diff, log, commit, add, branch management
+  - Repository detection: find .git root, check if repo, validate status
+  - Git output parsing: status (porcelain format), diff (unified format), log
+  - Branch management: list, create, checkout, get current branch
+  - Commit operations: add files, create commits with messages
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 102 tests (100% passing, 100% coverage) ✅
+  - See: `src/lib/git_automation.js`, `test/lib/git_automation.test.js`
+
+- **Git Cache** (Module 2/4) - Git operation caching with TTL invalidation (v2.0.0)
+  - TTL-based caching: configurable cache duration (default 5 seconds)
+  - Automatic invalidation: clear cache on repository changes
+  - Cache key generation: unique keys for different operations
+  - Operation support: status, diff, log caching
+  - Statistics tracking: hits, misses, invalidations
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 41 tests (100% passing, 100% coverage) ✅
+  - See: `src/lib/git_cache.js`, `test/lib/git_cache.test.js`
+
+- **Auto Commit** (Module 3/4) - Automatic workflow artifact commits (v2.0.0)
+  - Automatic commit generation: workflow artifacts with conventional messages
+  - Change categorization: docs-only, test-only, code-only, config-only, full
+  - Commit message templates: conventional commit format by type
+  - File filtering: include/exclude patterns for artifact commits
+  - Dry-run support: preview commits without executing
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 34 tests (100% passing, 100% coverage) ✅
+  - See: `src/lib/auto_commit.js`, `test/lib/auto_commit.test.js`
+
+- **Change Detection** (Module 4/4) - File change detection and categorization (v2.0.0)
+  - Change type detection: documentation, tests, source code, configuration
+  - File categorization: analyze by extension, path, and content patterns
+  - Change analysis: count changes by type, calculate percentages
+  - Pattern matching: comprehensive file type detection (40+ patterns)
+  - Statistics generation: detailed breakdown of changes
+  - Pure functional core + I/O wrapper (referential transparency)
+  - 42 tests (100% passing, 100% coverage) ✅
+  - See: `src/lib/change_detection.js`, `test/lib/change_detection.test.js`
+
+### Phase 5 Status - COMPLETE ✅
+
+- **Module 1**: Git Automation (v2.0.0) - 102 tests, 100% passing ✅
+- **Module 2**: Git Cache (v2.0.0) - 41 tests, 100% passing ✅
+- **Module 3**: Auto Commit (v2.0.0) - 34 tests, 100% passing ✅
+- **Module 4**: Change Detection (v2.0.0) - 42 tests, 100% passing ✅
+- **Phase 5 Total**: 219 tests, 100% passing ✅
+- **Project Total**: 942 tests passing (100% pass rate)
+
+### Added
+
+- **Pre-commit Test Validation**: Added automatic test execution to Git pre-commit hook
+  - Tests run automatically on `git commit` for changed source files (`src/**/*.js`)
+  - Uses `--findRelatedTests` to run only affected tests (fast feedback)
+  - Uses `--bail` to stop on first failure (fail fast)
+  - Integrated with existing Husky + lint-staged setup
+  - **Benefit**: Catch test regressions before committing (blocks commits on test failure)
+  - **Impact**: CI/CD pipeline protection - no broken tests reach the repository
+
+### Fixed
+
+- **Flaky Test**: Fixed timing-sensitive test in `config.test.js` (`getElapsedTime` test)
+  - Changed assertion from `>=50ms` to `>=45ms` to account for event loop timing variance
+  - JavaScript's `setTimeout()` is not precise - can complete 1-5ms early due to event loop scheduling
+  - Test was intermittently failing with "Expected: >= 50, Received: 49"
+  - **Result**: All 723 tests now passing consistently (100% pass rate) ✅
+
+### Added
+
+- **Error Module Tests**: Created comprehensive test suite for `src/utils/errors.js` (28 tests, 100% coverage)
+  - Tests all 6 error classes: WorkflowError, SystemError, ExecutionError, ConfigurationError, ValidationError, FileSystemError
+  - Verifies proper inheritance chain and error properties
+  - Tests error catching and type discrimination
+  - Validates default export structure
+  - **Result**: Complete test coverage for Phase 1 error handling module ✅
+
+### Fixed
+
+- **Project Kind Detection**: Fixed bug in `detectProjectKind()` where `listDirectoryRecursive()` return values were incorrectly filtered
+  - The method was trying to access `.isFile` and `.isDirectory` properties on string paths
+  - Now correctly passes file paths directly to `detectByFilePatterns()`
+  - Separately lists directories with `includeDirectories: true` option for `detectByDirectoryStructure()`
+  - Fixes 2 failing integration tests: "should detect shell script automation" and "should detect configuration library"
+  - **Result**: All tests now passing (100% pass rate) ✅
+
+### Removed
+
+- **Empty Directory**: Removed unused `docs/workflow-automation/` directory
+
+### Changed
+
+- **Test Count**: Updated from 695 to 942 total tests (28 error module tests + 219 Phase 5 git integration tests)
+- **Phase Status**: Phase 5 (Git Integration) now complete with 4 new modules
+
+## [1.3.0] - 2026-02-01
+
+### Added - Phase 4 (COMPLETE)
 
 - **Project Kind Detection** (Module 1/4) - Auto-detect project type based on file patterns (v1.0.0)
   - Supports 8 project kinds: nodejs_api, react_spa, python_app, shell_script_automation, static_website, client_spa, configuration_library, generic
@@ -16,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pattern-based detection (file extensions, directory structure)
   - Confidence scoring with indicator tracking
   - Pure functional core + I/O wrapper (referential transparency)
-  - 32 tests (30 passing, 93.8% coverage)
+  - 32 tests (100% passing, 100% coverage) ✅
   - See: `src/lib/project_kind_detection.js`, `test/lib/project_kind_detection.test.js`
 
 - **Project Kind Configuration** (Module 2/4) - Load project configs from ai_workflow_core (v1.0.0)
@@ -55,12 +153,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Phase 4 Status - COMPLETE ✅
 
-- **Module 1**: Project Kind Detection (v1.0.0) - 32 tests, 93.8% passing
+- **Module 1**: Project Kind Detection (v1.0.0) - 32 tests, 100% passing ✅
 - **Module 2**: Project Kind Configuration (v1.0.0) - 42 tests, 100% passing
 - **Module 3**: Tech Stack Detection (v1.0.0) - 52 tests, 100% passing
 - **Module 4**: Third-Party Exclusion (v1.0.0) - 41 tests, 100% passing
-- **Phase 4 Total**: 167 tests, 165 passing (98.8%)
-- **Project Total**: 693/695 tests passing (99.7%)
+- **Phase 4 Total**: 167 tests, 100% passing ✅
+- **Project Total**: 723/723 tests passing (100%) ✅
 
 ## [1.1.0] - 2026-01-30
 

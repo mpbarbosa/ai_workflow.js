@@ -3,9 +3,9 @@
 AI Workflow Automation (in JavaScript)
 
 **Version:** 1.1.0  
-**Document Version:** 1.3.0  
-**Last Updated:** February 1, 2026  
-**Status:** Active Development - Phase 4 Complete
+**Document Version:** 1.4.0  
+**Last Updated:** February 2, 2026  
+**Status:** Active Development - Phase 5 Complete
 
 ---
 
@@ -13,6 +13,7 @@ AI Workflow Automation (in JavaScript)
 
 | Version | Date       | Changes                                                                                                               |
 | ------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1.4.0   | 2026-02-02 | Updated status to Phase 5 complete. Added Phase 5 modules (git automation, cache, auto-commit, change detection).     |
 | 1.3.0   | 2026-02-01 | Updated status to Phase 4 complete. Added Phase 4 modules (project detection, config, tech stack, exclusions).        |
 | 1.2.0   | 2026-01-30 | Updated status to Phase 3 complete. Added Phase 3 modules (file operations, utils, argument parser, cleanup).         |
 | 1.1.0   | 2026-01-30 | Updated status to Phase 2.1 complete. Added semantic versioning to all code and test files. Corrected migration plan. |
@@ -32,7 +33,7 @@ This project is a Node.js implementation of the [ai_workflow](https://github.com
 
 ✅ **Copilot SDK Support:** This project is now supported by **GitHub Copilot SDK**, enabling advanced AI-powered development assistance, code generation, and workflow automation.
 
-**Status:** 🚧 **Development Phase 4 Complete** - Project detection, tech stack analysis, and third-party exclusion modules implemented with referential transparency architecture.
+**Status:** 🚧 **Development Phase 5 Complete** - Git integration modules (git_automation, git_cache, auto_commit, change_detection) implemented with referential transparency architecture.
 
 ## Source Repository
 
@@ -94,8 +95,10 @@ A comprehensive migration plan has been created that outlines:
 
 Key project documents:
 
+- **[API Reference](./docs/api/README.md)** - Complete API documentation for all modules with usage examples
+- **[Workflow Engine Requirements](./docs/WORKFLOW_ENGINE_REQUIREMENTS.md)** - Phase 7 planning, test validation, and orchestration specifications
 - **[MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md)** - Comprehensive migration plan with architecture, phases, and implementation details
-- **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1 & Phase 2.1 (Foundation and Configuration/State Management)
+- **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1-5 (Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration)
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and notable changes with semantic versioning
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guidelines for contributing to the project
 - **[LICENSE](./LICENSE)** - MIT License
@@ -222,7 +225,7 @@ npm run format:check
 
 ### Available Commands
 
-- `npm test` - Run Jest test suite (695 tests, 693 passing)
+- `npm test` - Run Jest test suite (942 tests, all passing)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
@@ -242,8 +245,8 @@ This project is being developed incrementally following the migration plan phase
 2. **Phase 2**: Core Workflow Library (Configuration, State management) ✅ (Complete)
 3. **Phase 3**: File Operations & Utilities ✅ (Complete)
 4. **Phase 4**: Project Detection & Analysis ✅ (Complete)
-5. **Phase 5**: Git Integration (Next)
-6. **Phase 6**: AI Integration (Copilot integration, AI personas, caching)
+5. **Phase 5**: Git Integration ✅ (Complete)
+6. **Phase 6**: AI Integration (Next - Copilot integration, AI personas, caching)
 7. **Phase 7**: Workflow Execution Engine (Step orchestration, dependencies, parallelization)
 8. **Phase 8**: Performance Optimizations (Smart execution, ML optimization, caching)
 9. **Phase 9**: Step Implementations (15 workflow steps: docs, tests, code quality, etc.)
@@ -266,7 +269,7 @@ mpbarbosa
 
 ## Links
 
-- **Migration Plan**: [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) - Comprehensive migration framework
+- **Migration Plan**: [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) - Comprehensive migration framework
 - **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
 - **Core Configuration**: [mpbarbosa/ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) - Shared configuration templates
 - **Issue Tracker**: [GitHub Issues](https://github.com/mpbarbosa/ai_workflow.js/issues)

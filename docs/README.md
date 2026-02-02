@@ -1,7 +1,7 @@
 # ai_workflow.js Documentation
 
-**Version:** 1.0.0  
-**Last Updated:** February 1, 2026
+**Version:** 1.1.0  
+**Last Updated:** February 2, 2026
 
 Welcome to the ai_workflow.js documentation! This documentation covers the Node.js implementation of AI-powered workflow automation.
 
@@ -54,21 +54,27 @@ Detailed reference documentation:
 
 Practical usage examples:
 
-- **[Basic Usage](./examples/basic-usage.md)** - Simple examples to get started
-- **[Advanced Patterns](./examples/advanced-patterns.md)** - Complex usage patterns
-- **[Integration Examples](./examples/integration-examples.md)** - Integration scenarios
+- **[Basic Usage](./examples/basic/README.md)** - Simple examples to get started
+- **[Advanced Patterns](./examples/advanced/README.md)** - Complex usage patterns
+- **[Integration Examples](./examples/integration/README.md)** - Integration scenarios
 
 ### Additional Resources
 
-- **[Glossary](./misc/GLOSSARY.md)** - Terms and definitions
 - **[Functional Requirements](./FUNCTIONAL_REQUIREMENTS.md)** - Module requirements
 - **[Migration Plan](./reports/implementation/MIGRATION_PLAN.md)** - Migration strategy
 
 ## 🚀 Current Status
 
-**Phase 4 Complete** - Project Detection & Analysis
+**Phase 5 Complete** - Git Integration
 
-### Implemented Modules (20 modules)
+All Phase 5 modules implemented with v2.0.0 architecture:
+
+✅ **Phase 1**: Core Foundation (6 modules, 113 tests)  
+✅ **Phase 2**: Configuration & State Management (4 modules, 174 tests)  
+✅ **Phase 3**: File Operations & Utilities (5 modules, 354 tests)  
+✅ **Phase 4**: Project Detection & Analysis (4 modules, 167 tests)  
+✅ **Phase 5**: Git Integration (4 modules, 219 tests)  
+🚧 **Phase 6**: AI Integration (next)
 
 #### Phase 1: Core Foundation (v1.0.0)
 
@@ -101,7 +107,18 @@ Practical usage examples:
 - ✅ `tech_stack` - Tech stack detection
 - ✅ `third_party_exclusion` - Filter third-party files
 
-**Testing:** 695 tests, 693 passing (99.7%)
+#### Phase 5: Git Integration (v2.0.0)
+
+- ✅ `git_automation` - Git operations (status, diff, commit)
+- ✅ `git_cache` - Git operation caching with TTL
+- ✅ `auto_commit` - Automatic artifact commits
+- ✅ `change_detection` - File change detection and categorization
+
+### Implemented Modules Summary
+
+**Total:** 23 modules (5 Core + 1 Utils + 17 Library + index.js)  
+**Testing:** 942 tests, all passing (100%) ✅  
+**Coverage:** High coverage across all modules
 
 ## 📖 Quick Navigation
 
@@ -111,7 +128,7 @@ Practical usage examples:
 
 1. [Quick Start](./getting-started/QUICK_START.md)
 2. [User Guide](./guides/USER_GUIDE.md)
-3. [Basic Examples](./examples/basic-usage.md)
+3. [Basic Examples](./examples/basic/README.md)
 
 **Developers:**
 
@@ -164,7 +181,7 @@ Phase 2 and 3 modules follow a pure functional architecture:
 - **Testable** with 86+ pure function tests
 - **Predictable** same inputs = same outputs
 
-See: [Referential Transparency Guide](./guides/REFERENTIAL_TRANSPARENCY.md)
+See: [Referential Transparency Guide](../.github/REFERENTIAL_TRANSPARENCY.md)
 
 ### Layered Architecture
 
@@ -176,7 +193,7 @@ See: [Referential Transparency Guide](./guides/REFERENTIAL_TRANSPARENCY.md)
 ├─────────────────────────────────────┤
 │  AI Integration (future Phase 6)    │
 ├─────────────────────────────────────┤
-│  Git Integration (future Phase 5)   │
+│  Git Integration (Phase 5) ✅       │
 ├─────────────────────────────────────┤
 │  Project Detection (Phase 4) ✅     │
 ├─────────────────────────────────────┤

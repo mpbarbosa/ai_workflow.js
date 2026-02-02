@@ -37,7 +37,7 @@ node --version  # Should be >= 18.0.0
 # Run tests to verify everything works
 npm test
 
-# Expected output: 695 tests, 693 passing (99.7%)
+# Expected output: 942 tests, 942 passing (100%)
 ```
 
 ## Basic Usage
@@ -336,7 +336,7 @@ console.log('Quality standards:', config.quality);
 ### For Users
 
 1. Read the [User Guide](../guides/USER_GUIDE.md)
-2. Explore [Examples](../examples/basic-usage.md)
+2. Explore [Examples](../examples/basic/README.md)
 3. Check [Configuration Guide](../guides/CONFIGURATION_GUIDE.md)
 
 ### For Developers

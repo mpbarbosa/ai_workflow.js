@@ -1,7 +1,7 @@
 # Architecture Overview
 
-**Version:** 1.0.0  
-**Last Updated:** February 1, 2026
+**Version:** 1.1.0  
+**Last Updated:** February 2, 2026
 
 This document provides a high-level overview of the ai_workflow.js architecture, design patterns, and module organization.
 
@@ -46,10 +46,11 @@ ai_workflow.js follows a layered architecture with clear separation of concerns:
 └─────────────────┬────────────────────────────────┘
                   │
 ┌─────────────────▼────────────────────────────────┐
-│     Git Integration (Phase 5 - Future)           │
+│     Git Integration (Phase 5 - Complete)         │
 │  - Git operations                                │
 │  - Git caching                                   │
-│  - Repository management                         │
+│  - Auto-commit                                   │
+│  - Change detection                              │
 └─────────────────┬────────────────────────────────┘
                   │
 ┌─────────────────▼────────────────────────────────┐
@@ -94,10 +95,10 @@ ai_workflow.js follows a layered architecture with clear separation of concerns:
 - **Phase 2**: Configuration & State (v2.0.0) - 4 modules
 - **Phase 3**: File Operations (v2.0.0) - 5 modules
 - **Phase 4**: Project Detection (v1.0.0) - 4 modules
+- **Phase 5**: Git Integration (v2.0.0) - 4 modules
 
 **🚧 Upcoming Layers:**
 
-- Phase 5: Git Integration
 - Phase 6: AI Integration
 - Phase 7: Workflow Engine
 - Phase 11: CLI Layer
@@ -115,7 +116,7 @@ Each module has a single, well-defined responsibility:
 
 ### 2. Referential Transparency (v2.0.0)
 
-Phase 2-3 modules follow a pure functional architecture:
+Phase 2, 3, and 5 modules follow a pure functional architecture:
 
 ```javascript
 // Pure functions - Exported for testing
@@ -290,7 +291,7 @@ src/
 ### Module Versioning
 
 - **v1.0.0**: Phase 1 modules (basic architecture) + Phase 4 modules (project detection)
-- **v2.0.0**: Phase 2-3 modules (referential transparency)
+- **v2.0.0**: Phase 2, 3, 5 modules (referential transparency)
 - **v3.0.0**: Future modules (full workflow capabilities)
 
 ## Dependency Management

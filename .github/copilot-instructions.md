@@ -30,9 +30,9 @@
 - **Cross-Platform**: Works on Linux, macOS, and Windows via Node.js
 - **Modern JavaScript**: ES6+ modules, async/await, pure functional patterns
 - **Referentially Transparent**: v2.0.0 modules follow functional programming principles
-- **Comprehensive Testing**: 528+ tests with 100% pass rate and high coverage
+- **Comprehensive Testing**: 942 tests with 100% pass rate ✅
 
-**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1 modules) / 2.0.0 (Phase 2-3 modules)  
+**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5 modules)  
 **License**: MIT  
 **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell/Bash v3.0.0)
 
@@ -61,9 +61,11 @@
    ├─────────────────────────────────────┤
    │  AI Integration (future Phase 6)    │
    ├─────────────────────────────────────┤
-   │  Git & Project (future Phase 4-5)   │
+   │  Git Operations (Phase 5)           │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
-   │  File Operations (Phase 3)          │  ← Current: v2.0.0 complete
+   │  Project Detection (Phase 4)        │  ← Complete: v1.0.0
+   ├─────────────────────────────────────┤
+   │  File Operations (Phase 3)          │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
    │  Configuration & State (Phase 2)    │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
@@ -74,7 +76,7 @@
 3. **Module Organization**
    - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
    - **src/utils/**: Helper functions (errors)
-   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers)
+   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers, project_kind_detection, project_kind_config, tech_stack, third_party_exclusion, git_automation, git_cache, auto_commit, change_detection)
    - **test/**: Comprehensive test suite mirroring src/ structure
    - **docs/**: Architecture, requirements, and migration documentation
 
@@ -96,7 +98,7 @@
 
 **✅ Phase 1: Core Foundation (v1.0.0) - COMPLETE**
 
-**Modules Implemented (7 modules, ~595 LOC):**
+**Modules Implemented (7 modules, ~822 LOC):**
 
 | Module                 | Version | LOC | Purpose                                              |
 | ---------------------- | ------- | --- | ---------------------------------------------------- |
@@ -106,13 +108,13 @@
 | `src/core/system.js`   | v1.0.0  | 130 | OS detection and system configuration                |
 | `src/core/version.js`  | v1.0.0  | 114 | Semantic version parsing and comparison              |
 | `src/core/executor.js` | v1.0.0  | 105 | Command execution with async/streaming support       |
-| `src/index.js`         | v1.0.0  | 25  | Module exports and public API                        |
+| `src/index.js`         | v1.1.0  | 209 | Module exports and public API                        |
 
-**Testing:** 85 tests, 95%+ coverage, 100% pass rate
+**Testing:** 113 tests (85 original + 28 error tests), 100% coverage, 100% pass rate ✅
 
-### ✅ Phase 2.1: Configuration & State Management (v2.0.0) - COMPLETE
+### ✅ Phase 2: Configuration & State Management (v2.0.0) - COMPLETE
 
-**Modules Implemented (4 modules, ~1,205 LOC):**
+**Modules Implemented (4 modules, ~1,379 LOC):**
 
 | Module                       | Version | LOC | Purpose                          | Architecture             |
 | ---------------------------- | ------- | --- | -------------------------------- | ------------------------ |
@@ -125,7 +127,7 @@
 
 **Referential Transparency Refactoring:**
 
-- All Phase 2.1 modules refactored to v2.0.0 with pure functional architecture
+- All Phase 2 modules refactored to v2.0.0 with pure functional architecture
 - Core logic extracted as pure functions (deterministic, no side effects, immutable)
 - Side effects isolated in wrapper classes (I/O, console logging, state management)
 - Time/random dependencies injected as parameters instead of internal calls
@@ -133,7 +135,7 @@
 
 ### ✅ Phase 3: File Operations & Utilities (v2.0.0) - COMPLETE
 
-**Modules Implemented (5 modules, ~1,634 LOC):**
+**Modules Implemented (5 modules, ~2,772 LOC):**
 
 | Module                        | Version | LOC | Purpose                                           | Architecture             |
 | ----------------------------- | ------- | --- | ------------------------------------------------- | ------------------------ |
@@ -156,7 +158,7 @@
 
 ### ✅ Phase 4: Project Detection & Analysis (v1.0.0) - COMPLETE
 
-**Modules Implemented (4 modules, ~1,325 LOC):**
+**Modules Implemented (4 modules, ~1,851 LOC):**
 
 | Module                              | Version | LOC | Purpose                                     | Architecture             |
 | ----------------------------------- | ------- | --- | ------------------------------------------- | ------------------------ |
@@ -165,7 +167,7 @@
 | `src/lib/tech_stack.js`             | v1.0.0  | 385 | Detect languages, frameworks, tools         | Pure functions + wrapper |
 | `src/lib/third_party_exclusion.js`  | v1.0.0  | 360 | Filter third-party files from analysis      | Pure functions + wrapper |
 
-**Testing:** 167 tests (165 passing = 98.8%), 100% coverage
+**Testing:** 167 tests (100% passing), 100% coverage ✅
 
 **Key Features:**
 
@@ -177,12 +179,36 @@
 - Parses and applies .gitignore patterns with smart glob matching
 - All modules follow v1.0.0 architecture with pure functional core
 
-### 🚧 Phase 5: Git Integration (NEXT)
+### ✅ Phase 5: Git Integration (v2.0.0) - COMPLETE
 
-- Git automation (lib/git_automation.js)
-- Git caching (lib/git_cache.js)
+**Modules Implemented (4 modules, ~1,944 LOC):**
 
-**Overall Progress:** 4 of 13 major phases complete (~31% of migration)
+| Module                        | Version | LOC | Purpose                                  | Architecture             |
+| ----------------------------- | ------- | --- | ---------------------------------------- | ------------------------ |
+| `src/lib/git_automation.js`   | v2.0.0  | 523 | Git operations (status, diff, commit)    | Pure functions + wrapper |
+| `src/lib/git_cache.js`        | v2.0.0  | 377 | Git operation caching with invalidation  | Pure functions + wrapper |
+| `src/lib/auto_commit.js`      | v2.0.0  | 504 | Automatic artifact commits               | Pure functions + wrapper |
+| `src/lib/change_detection.js` | v2.0.0  | 540 | File change detection and categorization | Pure functions + wrapper |
+
+**Testing:** 219 tests (100% passing), 100% coverage ✅
+
+**Key Features:**
+
+- Git operations: status, diff, log, commit, add, branch management
+- Git output parsing: status, diff, log with structured results
+- Repository detection: find .git root, check if repo, validate status
+- Caching system: TTL-based cache with automatic invalidation
+- Auto-commit: workflow artifact commits with conventional messages
+- Change detection: categorize changes by type (docs, tests, code, config)
+- All modules follow v2.0.0 architecture with pure functional core
+
+### 🚧 Phase 6: AI Integration (NEXT)
+
+- AI helper management
+- Prompt template system
+- GitHub Copilot SDK integration
+
+**Overall Progress:** 5 of 13 major phases complete (~38% of migration)
 
 ---
 
@@ -215,18 +241,19 @@ ai_workflow.js/
 │   │   ├── project_kind_config.js    # ✅ Project config (v1.0.0)
 │   │   ├── tech_stack.js             # ✅ Tech stack detection (v1.0.0)
 │   │   ├── third_party_exclusion.js  # ✅ Third-party exclusion (v1.0.0)
-│   │   ├── git_automation.js    # 🚧 Git operations (planned Phase 5)
-│   │   ├── git_cache.js         # 🚧 Git caching (planned Phase 5)
-│   │   ├── project_type.js      # 🚧 Project detection (planned Phase 4)
+│   │   ├── git_automation.js    # ✅ Git operations (v2.0.0)
+│   │   ├── git_cache.js         # ✅ Git caching (v2.0.0)
+│   │   ├── auto_commit.js       # ✅ Auto-commit (v2.0.0)
+│   │   ├── change_detection.js  # ✅ Change detection (v2.0.0)
 │   │   └── ...                  # 🚧 More modules (future phases)
-│   ├── cli/                     # Phase 7: CLI (future)
-│   ├── orchestrator/            # Phase 4: Workflow engine (future)
-│   ├── managers/                # Phase 3: AI integration (future)
+│   ├── cli/                     # Phase 11: CLI (future)
+│   ├── orchestrator/            # Phase 7: Workflow engine (future)
+│   ├── managers/                # Phase 6: AI integration (future)
 │   └── index.js                 # Public API exports
 ├── test/                        # Comprehensive test suite
-│   ├── core/                    # Phase 1 tests (85 tests)
-│   ├── utils/                   # Phase 1 tests
-│   └── lib/                     # Phase 2-4 tests (695 tests total)
+│   ├── core/                    # Phase 1 core tests (85 tests)
+│   ├── utils/                   # Phase 1 utils tests (28 tests)
+│   └── lib/                     # Phase 2-5 tests (829 tests total, 100% passing) ✅
 ├── docs/                        # Documentation
 │   ├── FUNCTIONAL_REQUIREMENTS.md
 │   ├── reports/
@@ -254,9 +281,25 @@ ai_workflow.js/
 └── LICENSE                      # MIT License
 ```
 
-### Module Dependency Graph (Phase 1 + 2.1 + 3 + 4)
+### Module Dependency Graph (Phase 1-5)
 
 ```
+┌──────────────────────────────────────────────────────────┐
+│           Phase 5: lib/ (v2.0.0)                         │
+│                                                           │
+│  ┌───────────────┐  ┌────────────────┐                  │
+│  │git_automation │  │git_cache       │                  │
+│  └───────┬───────┘  └────────┬───────┘                  │
+│          │                   │                           │
+│          │    ┌──────────────┴───────┐                  │
+│          │    │                      │                  │
+│    ┌─────▼────▼──────┐    ┌─────────▼────────┐        │
+│    │ auto_commit     │    │change_detection   │        │
+│    │                 │    │                   │        │
+│    └─────────────────┘    └───────────────────┘        │
+└───────────────────────┬──────────────────────────────────┘
+                        │
+                        ▼
 ┌──────────────────────────────────────────────────────────┐
 │           Phase 4: lib/ (v1.0.0)                         │
 │                                                           │
@@ -331,7 +374,9 @@ ai_workflow.js/
 - Phase 2 modules depend only on Phase 1 core utilities
 - Phase 3 modules depend on Phase 1 + 2 foundation
 - Phase 4 modules depend on Phase 1-3 foundation
-- Future phases will depend on Phase 1-4 foundation
+- Phase 5 modules depend on Phase 1-5 foundation (updated after Phase 5 completion)
+- Phase 6+ modules will depend on Phase 1-5 foundation
+- Future phases will depend on Phase 1-5 foundation
 
 ---
 
@@ -339,7 +384,7 @@ ai_workflow.js/
 
 ### Overview
 
-Phase 2.1 modules (v2.0.0) follow a **referential transparency architecture** separating pure functions from side effects:
+Phase 2 modules (v2.0.0) follow a **referential transparency architecture** separating pure functions from side effects:
 
 ```javascript
 // ✅ Pure Functions - Exported for testing and reuse
@@ -415,7 +460,7 @@ export class SessionManager {
 
 ### Testing Strategy
 
-**Pure Functions** (86 tests across Phase 2.1 modules):
+**Pure Functions** (86 tests across Phase 2 modules):
 
 ```javascript
 describe('Pure Functions', () => {
@@ -427,7 +472,7 @@ describe('Pure Functions', () => {
 });
 ```
 
-**Integration Tests** (88 tests across Phase 2.1 modules):
+**Integration Tests** (88 tests across Phase 2 modules):
 
 ```javascript
 describe('SessionManager Integration', () => {
@@ -453,6 +498,10 @@ describe('SessionManager Integration', () => {
 | argument_parser.js  | `parseArguments`, `validateArguments`, etc.       | `ArgumentParser`   | CLI parsing logic is testable       |
 | cleanup_handlers.js | `filterByAge`, `calculateTotalSize`, etc.         | `CleanupManager`   | Cleanup decisions are deterministic |
 | utils.js            | All functions (no wrapper class)                  | N/A (pure only)    | Reusable pure utilities             |
+| git_automation.js   | `parseGitStatus`, `parseGitDiff`, etc.            | `GitAutomation`    | Git output parsing is testable      |
+| git_cache.js        | `isCacheValid`, `calculateCacheKey`, etc.         | `GitCache`         | Cache validation is deterministic   |
+| auto_commit.js      | `generateCommitMessage`, `shouldCommitFile`, etc. | `AutoCommit`       | Commit logic is testable            |
+| change_detection.js | `categorizeFile`, `analyzeChanges`, etc.          | `ChangeDetector`   | Change categorization is pure       |
 
 **See:** `.github/REFERENTIAL_TRANSPARENCY.md` for complete guide and examples.
 
@@ -549,92 +598,108 @@ When assisting with this project, reference these critical documents:
 
 ### Essential Reading
 
-1. **README.md**: Project overview, quick start, placeholder reference
-2. **CHANGELOG.md**: Version history and changes
-3. **docs/INTEGRATION.md**: Integration guide for using as Git submodule
-4. **docs/AI_WORKFLOW_DIRECTORY.md**: `.ai_workflow/` directory structure explanation
-5. **docs/CODE_OF_CONDUCT.md**: Contributor Covenant 2.1
+1. **README.md**: Project overview and current implementation status
+2. **CHANGELOG.md**: Version history and notable changes
+3. **docs/README.md**: Documentation index and navigation guide
+4. **docs/api/README.md**: Complete API reference for all modules (Phases 1-5)
+5. **docs/FUNCTIONAL_REQUIREMENTS.md**: Detailed module requirements and specifications
 
-### Configuration References (Core Assets)
+### Getting Started
 
-6. **config/.workflow-config.yaml.template**: Main configuration template with placeholders
-7. **config/project_kinds.yaml**: Project type definitions with validation rules (7 project types)
-8. **config/ai_helpers.yaml**: AI helper configurations (1900+ lines)
-9. **config/ai_prompts_project_kinds.yaml**: Project-specific AI prompts
-10. **config/paths.yaml**: Path configurations
-11. **config/README.md**: Configuration system overview
+6. **docs/getting-started/QUICK_START.md**: Get up and running in 5 minutes
+7. **docs/getting-started/INSTALLATION.md**: Detailed installation for all platforms
+8. **docs/getting-started/FIRST_WORKFLOW.md**: Build your first workflow step-by-step
 
-### Integration Examples
+### Guides
 
-12. **examples/shell/README.md**: Shell script integration example (basic quick start)
-13. **examples/nodejs/README.md**: Node.js integration example (comprehensive with full setup)
+9. **docs/guides/DEVELOPER_GUIDE.md**: Contributing and development workflow
+10. **docs/guides/USER_GUIDE.md**: End-user documentation
+11. **docs/guides/CONFIGURATION_GUIDE.md**: Configuration options and patterns
+12. **docs/guides/TESTING_GUIDE.md**: Testing patterns and best practices
 
-**Note**: The shell example is a minimal quick-start. The nodejs example provides a complete, detailed integration guide. Consider expanding the shell example with similar detail if working on examples.
+### Architecture Documentation (Phase D - NEW)
 
-### Additional Documentation
+13. **docs/architecture/OVERVIEW.md**: High-level system design and layered architecture
+14. **docs/architecture/DESIGN_PRINCIPLES.md**: Design patterns and referential transparency
+15. **docs/architecture/MODULE_STRUCTURE.md**: Module organization across 5 phases
+16. **docs/architecture/DEPENDENCY_GRAPH.md**: Module dependencies with visual diagrams
 
-14. **docs/CONTRIBUTING.md**: Contributing guidelines (references parent ai_workflow project features)
-15. **docs/guides/PROJECT_REFERENCE.md**: Project reference (documents parent ai_workflow v3.0.0)
-16. **docs/guides/ML_OPTIMIZATION_GUIDE.md**: ML optimization guide (for parent project)
-17. **docs/guides/MULTI_STAGE_PIPELINE_GUIDE.md**: Pipeline guide (for parent project)
+### Reference Materials (Phase D - NEW)
 
-### ⚠️ Important: Documentation Context
+17. **docs/reference/ERROR_CODES.md**: Complete error reference (6 categories, 23 codes)
+18. **docs/reference/CONFIGURATION_SCHEMA.md**: Configuration file schema with JSON Schema
+19. **docs/reference/CLI_REFERENCE.md**: Command-line interface reference (future Phase 11)
 
-**Note**: `docs/CONTRIBUTING.md`, `docs/guides/PROJECT_REFERENCE.md`, and some other docs in `docs/guides/` reference features from the **parent ai_workflow project** (the execution engine), NOT this configuration library. When helping with ai_workflow_core:
+### Examples (Phase D - NEW)
 
-- **Focus on**: Configuration templates, project_kinds schemas, placeholder patterns, integration examples
-- **This repo provides**: Templates, configs, examples, documentation structure
-- **This repo does NOT provide**: Workflow execution engine, step orchestration, AI pipeline features
-- **Parent project** (ai_workflow) uses this as a foundation and adds execution capabilities
+20. **docs/examples/basic/README.md**: 5 basic workflow examples
+21. **docs/examples/advanced/README.md**: 5 advanced patterns with complex workflows
+22. **docs/examples/integration/README.md**: 6 integration examples (GitHub, GitLab, Jenkins, Docker, etc.)
+
+### Implementation Documentation
+
+23. **docs/reports/implementation/MIGRATION_PLAN.md**: Comprehensive migration strategy from shell to JavaScript
+24. **docs/WORKFLOW_ENGINE_REQUIREMENTS.md**: Phase 7 planning and orchestration specifications
+25. **docs/PHASE_D_COMPLETION_SUMMARY.md**: Phase D documentation completion summary
+26. **docs/guides/PHASE_C_COMPLETION_SUMMARY.md**: Phase C guides completion summary
+
+### Project Files
+
+27. **CONTRIBUTING.md**: Guidelines for contributing to the project
+28. **LICENSE**: MIT License
+29. **.workflow-config.yaml**: Project-specific configuration (dogfooding example)
 
 ---
 
 ## Development Workflow
 
-### Working on Configuration Templates
+### Working on Core Modules
 
-When modifying template files in `config/`:
+When adding or modifying modules in `src/`:
 
-1. Update the configuration file (`.yaml` or `.template`)
-2. Update placeholder documentation in README.md if adding new placeholders
-3. Test with actual values in `.workflow-config.yaml` (this repo's own config)
-4. Update CHANGELOG.md if significant change
-5. Ensure backward compatibility or document breaking changes in migration guide
+1. Follow the referential transparency pattern (v2.0.0): pure functions + impure wrapper
+2. Write comprehensive tests (both pure function tests and integration tests)
+3. Update API documentation in `docs/api/` if adding new public methods
+4. Add JSDoc comments for all exported functions and classes
+5. Run linters and formatters: `npm run lint` and `npm run format`
+6. Ensure 100% test pass rate: `npm test`
+7. Update CHANGELOG.md for significant changes
 
-### Adding New Project Kinds
+### Adding New Modules
 
-To add a new project type to `config/project_kinds.yaml`:
+When creating a new module:
 
-1. Study existing project kind definitions (7 current types)
-2. Define validation rules (required files, directories, file patterns)
-3. Specify testing configuration (framework, commands, coverage thresholds)
-4. Define quality standards (linters, documentation requirements)
-5. Add AI guidance (testing standards, style guides, best practices, directory standards)
-6. Update metadata changelog at bottom of file
-7. Consider creating example integration in `examples/` directory
+1. Determine which phase it belongs to (Phase 1-13)
+2. Follow the module template from existing modules
+3. Extract pure functions first, then create wrapper class
+4. Write tests before implementation (TDD)
+5. Add module to `src/index.js` exports
+6. Create API documentation in `docs/api/`
+7. Update dependency graph in `docs/architecture/DEPENDENCY_GRAPH.md`
+8. Update module list in README.md and copilot-instructions.md
 
-### Working on Examples
+### Working on Documentation
 
-When creating or updating integration examples in `examples/`:
+When creating or updating documentation:
 
-1. Create complete project structure showing realistic integration
-2. Include customized `.workflow-config.yaml` with actual values (no placeholders)
-3. Write comprehensive README.md with step-by-step setup
-4. Show before/after for key configuration files
-5. Include working code examples relevant to the language
-6. Document common pitfalls and solutions
+1. Follow existing structure in `docs/` directory
+2. Use professional technical writing style
+3. Include code examples and usage patterns
+4. Cross-reference related documentation
+5. Update `docs/README.md` navigation links
+6. Run validation: `npm run lint:docs` (if available)
+7. Keep "Last Updated" dates current
 
 ### Testing Changes
 
-Since this is a template/configuration repository:
+For this implementation repository:
 
-1. **Self-test**: Apply changes to `.workflow-config.yaml` in this repo
-2. **Example test**: Verify changes work in `examples/*/` projects
-3. **Validation**: Run `scripts/validate_context_blocks.py` for documentation
-4. **Schema validation**: Ensure YAML syntax is valid
-5. **Placeholder verification**: Check all `{{PLACEHOLDERS}}` are documented
-
-**No execution tests**: This repo doesn't contain workflow execution code, so there are no unit/integration tests for step execution.
+1. **Unit tests**: Run `npm test` (942 tests, 100% pass rate required)
+2. **Code coverage**: Maintain high coverage across all modules
+3. **Linting**: Run `npm run lint` (ESLint 9.x)
+4. **Formatting**: Run `npm run format` (Prettier 3.x)
+5. **Integration tests**: Verify wrapper classes work with real I/O
+6. **Documentation tests**: Ensure all examples compile and run
 
 ### Documentation Updates
 
@@ -705,124 +770,129 @@ When updating documentation:
 
 ## Important Context
 
-### This is a Configuration & Template Library
+### This is a JavaScript/Node.js Implementation
 
 **What this repository IS:**
 
-- Configuration file templates with placeholder patterns
-- Project kind definitions and validation schemas
-- Integration examples for different languages
-- Documentation structure and standards
-- Utility script templates
-- GitHub workflow templates
+- A Node.js implementation of AI workflow automation
+- Complete migration from shell-based ai_workflow to JavaScript
+- 23 modules (5 Core + 1 Utils + 17 Library + index.js) with 942 passing tests
+- Referentially transparent architecture (pure functions + impure wrappers)
+- Comprehensive documentation (48 files in docs/ directory)
+- Active development with 5 of 13 phases complete
 
 **What this repository IS NOT:**
 
-- A workflow execution engine (that's in the parent ai_workflow project)
-- A complete automation system
-- An application or service
-- A testing framework
+- A simple shell-to-JavaScript translation (it's a complete redesign)
+- A finished product (Phase 6-13 are still in development)
+- A template or configuration library (it's a full implementation)
 
-**Key Distinction:**
+**Key Points:**
 
-- **ai_workflow_core** = Templates + Configuration + Examples (this repo)
-- **ai_workflow** = Execution Engine + Orchestration + AI Integration (parent project)
+- **ai_workflow.js** = This repository (JavaScript implementation in progress)
+- **ai_workflow** = Source repository (Shell/Bash v3.0.0, fully functional)
+- **Migration approach**: Extract behaviors from shell scripts, redesign in modern JavaScript
+- **Architecture**: Referential transparency with pure functions and impure wrappers
+- **Testing**: 942 tests, 100% pass rate, high code coverage
 
-### Documentation Context Warning
+### Documentation Context
 
-⚠️ **Important**: Several documentation files in `docs/` were copied from the parent ai_workflow project and reference execution features:
+All documentation in `docs/` is specifically for **ai_workflow.js** (this repository):
 
-**Files that reference parent project:**
+- **Architecture docs**: Describe the JavaScript implementation's design
+- **API docs**: Document the Node.js modules and their APIs
+- **Guides**: Cover development and usage of this JavaScript implementation
+- **Examples**: Show workflows for the JavaScript version (future Phase 7+)
+- **Reference**: Error codes, configuration schema, CLI reference for this implementation
 
-- `docs/CONTRIBUTING.md` - Documents workflow execution, testing framework, v2.x/v3.x features
-- `docs/guides/PROJECT_REFERENCE.md` - Documents ai_workflow v3.0.0 execution features
-- `docs/guides/ML_OPTIMIZATION_GUIDE.md` - ML optimization for workflow execution
-- `docs/guides/MULTI_STAGE_PIPELINE_GUIDE.md` - Pipeline execution patterns
+### Development Status
 
-**When helping with ai_workflow_core, focus on:**
+**Completed (Phases 1-5):**
 
-- Configuration templates and schemas
-- Placeholder patterns and substitution
-- Project kind definitions
-- Integration examples
-- Documentation structure (not execution features)
+- ✅ Phase 1: Core Foundation (v1.0.0) - 7 modules, 113 tests
+- ✅ Phase 2: Configuration & State Management (v2.0.0) - 4 modules, 174 tests
+- ✅ Phase 3: File Operations & Utilities (v2.0.0) - 5 modules, 354 tests
+- ✅ Phase 4: Project Detection & Analysis (v1.0.0) - 4 modules, 167 tests
+- ✅ Phase 5: Git Integration (v2.0.0) - 4 modules, 219 tests
+
+**In Progress:**
+
+- 🚧 Phase 6: AI Integration (next)
+- 🚧 Phase 7: Workflow Engine
+- 🚧 Phase 11: CLI Layer
 
 ### Dual Development Context
 
 When working on this repository, you might be:
 
-1. **Developing the config library**: Improving templates, schemas, examples
-2. **Testing integration**: Using it as a submodule in another project
-3. **Dogfooding**: Applying ai_workflow_core to itself (see `.workflow-config.yaml`)
+1. **Implementing new modules**: Adding Phase 6+ functionality
+2. **Improving existing modules**: Refactoring, optimizing, bug fixes
+3. **Writing documentation**: API docs, guides, examples
+4. **Writing tests**: Unit tests, integration tests
+5. **Dogfooding**: Using ai_workflow.js to develop itself (via `.workflow-config.yaml`)
 
 Always clarify which context applies to the current task.
 
-### Version Compatibility
+### Version Information
 
-- **ai_workflow_core version**: 1.0.0
-- **Schema version** (project_kinds.yaml): 1.1.0
-- Maintain backward compatibility within major version
-- Document breaking changes in CHANGELOG.md
-- Provide migration guides for major version changes
+- **Project version**: 1.1.0
+- **Phase 1 modules**: v1.0.0
+- **Phase 2-5 modules**: v2.0.0 (referentially transparent)
+- **Node.js requirement**: >= 18.0.0
+- **npm requirement**: >= 9.0.0
+- **Test suite**: 942 tests, 100% pass rate
 
 ### Repository Scope
 
 **This repository contains:**
 
-- Configuration templates (2 files: `.workflow-config.yaml.template`, `cleanup_artifacts.sh.template`)
-- Configuration schemas (5 YAML files in `config/`: project_kinds, ai_helpers, ai_prompts_project_kinds, paths, README)
-- GitHub workflow templates (3 files in `github/workflows/`: code-quality, validate-docs, validate-tests)
-- Integration examples (2 language examples: shell minimal quick-start, nodejs comprehensive guide)
-- Documentation (7 core docs in `docs/` + 3 guides in `docs/guides/`)
-- Utility scripts (1 Python validator: `validate_context_blocks.py`)
-- Workflow artifacts in `.ai_workflow/` (for dogfooding - this repo tests itself)
+- **Source code** (23 modules in `src/`):
+  - Core foundation (5 modules: colors, logger, system, version, executor)
+  - Utils layer (1 module: errors)
+  - Library modules (17 modules: config, backlog, session_manager, metrics, file operations, utils, etc.)
+  - Entry point (1 module: index.js)
+- **Comprehensive test suite** (18 test files in `test/`): 942 tests, 100% pass rate
+- **Documentation** (48 files in `docs/`): API reference, guides, architecture, reference, examples
+- **Configuration files**: `.workflow-config.yaml`, `package.json`, `jest.config.json`, `eslint.config.mjs`
+- **GitHub integration**: `.github/copilot-instructions.md`, workflows
+- **Submodule**: `.workflow_core/` (configuration templates from ai_workflow_core project)
 
-**This repository does NOT contain:**
+**This repository does NOT yet contain:**
 
-- Workflow execution engine (no `src/workflow/` directory)
-- Test execution framework (no `tests/` directory)
-- AI integration code (only configuration schemas for AI helpers)
-- Step orchestration logic (only directory structure definitions)
+- Workflow execution engine (Phase 7 - future)
+- AI integration code (Phase 6 - next)
+- CLI layer (Phase 11 - future)
+- Step orchestration logic (Phase 7 - future)
 
 **Terminology Standards:**
 
-- Project type field: Use hyphens (e.g., `type: "nodejs-application"`, `type: "configuration-library"`)
-- Project kind field: Use underscores (e.g., `kind: "nodejs_api"`, `kind: "configuration_library"`)
-- YAML keys: Use underscores (e.g., `project_kinds`, `shell_script_automation`)
-- Version format: No 'v' prefix in config values (e.g., `version: "1.0.0"` not `"v1.0.0"`)
-
-### Integration Pattern
-
-This repository is designed to be used as a Git submodule:
-
-```bash
-# In target project:
-git submodule add https://github.com/mpbarbosa/ai_workflow_core.git .workflow_core
-cp .workflow_core/config/.workflow-config.yaml.template .workflow-config.yaml
-# Edit .workflow-config.yaml to replace {{PLACEHOLDERS}}
-```
+- Module versions: v1.0.0 (Phase 1, 4) or v2.0.0 (Phase 2, 3, 5)
+- Architecture pattern: Pure functions + impure wrappers (referential transparency)
+- Testing: Jest framework with AAA pattern (Arrange, Act, Assert)
+- Naming: camelCase for functions/variables, PascalCase for classes
+- Code style: ESLint 9.x + Prettier 3.x
 
 ---
 
 ## Quick Reference
 
-### File Extensions
-
-- `.template`: Copy without extension, replace placeholders
-- `.yaml` / `.yml`: Configuration files
-- `.md`: Markdown documentation
-- `.sh`: Shell scripts (must be executable)
-
 ### Common Commands
 
 ```bash
-# Add as submodule
-git submodule add https://github.com/mpbarbosa/ai_workflow_core.git .workflow_core
+# Install dependencies
+npm install
 
-# Update submodule
-git submodule update --init --recursive
+# Run tests (942 tests)
+npm test
 
-# Copy and customize config
+# Run linting
+npm run lint
+
+# Run formatting
+npm run format
+
+# Check test coverage
+npm test -- --coverage
 cp .workflow_core/config/.workflow-config.yaml.template .workflow-config.yaml
 
 # Create artifact directories
