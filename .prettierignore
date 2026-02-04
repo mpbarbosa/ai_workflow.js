@@ -6,3 +6,5 @@ coverage
 .workflow_core
 *.log
 package-lock.json
+docs/*_OLD.md
+docs/PHASE_E_*.md
