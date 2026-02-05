@@ -1,8 +1,8 @@
 # Migration Plan: AI Workflow from Shell Script to JavaScript/Node.js
 
 **Version:** 3.0.0 - **REORGANIZED**  
-**Document Version:** 3.3.0  
-**Last Updated:** February 2, 2026  
+**Document Version:** 3.4.0  
+**Last Updated:** February 5, 2026  
 **Status:** Active Development - Phase 5 Complete
 
 ---
@@ -27,6 +27,7 @@
 
 | Version | Date       | Changes                                                                                             |
 | ------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.            |
 | 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).   |
 | 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests). |
 | 3.1.0   | 2026-01-30 | Phase 3 complete. All 5 File Operations modules implemented with v2.0.0 architecture (354 tests).   |
@@ -43,16 +44,16 @@
 
 This document outlines the migration of [ai_workflow](https://github.com/mpbarbosa/ai_workflow) from shell script to JavaScript/Node.js.
 
-**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.0.0)
+**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.1.0)
 
 **What ai_workflow Actually Is:**
 
-- **15-step AI-powered workflow automation for software development projects**
+- **16-step AI-powered workflow automation for software development projects**
 - Documentation validation, test generation, code quality analysis
 - GitHub Copilot integration with 14 specialized AI personas
 - Smart execution, parallel processing, ML optimization, AI caching
 - Checkpoint/resume, change detection, metrics tracking
-- 62 library modules (~28K lines) + 17 step modules (~6K lines)
+- 67+ library modules (~30K+ lines) + 18 step modules (~7K+ lines)
 
 **What ai_workflow is NOT:**
 
@@ -69,7 +70,7 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 ai_workflow/
 ├── src/workflow/
 │   ├── execute_tests_docs_workflow.sh    # Main orchestrator (2,672 lines)
-│   ├── lib/                              # 62 library modules (27,902 lines)
+│   ├── lib/                              # 67+ library modules (30,000+ lines)
 │   │   ├── ai_cache.sh                   # AI response caching
 │   │   ├── ai_helpers.sh                 # AI integration (~3,500 lines!)
 │   │   ├── ai_personas.sh                # 14 AI persona definitions
@@ -99,7 +100,8 @@ ai_workflow/
 │   │   ├── git_automation.sh             # Git automation
 │   │   ├── git_cache.sh                  # Git caching
 │   │   ├── health_check.sh               # Health checks
-│   │   ├── incremental_analysis.sh       # Incremental analysis
+│   │   ├── incremental_analysis.sh       # Incremental analysis (NEW v3.1+)
+│   │   ├── jq_wrapper.sh                 # Safe jq wrapper (NEW v3.1+)
 │   │   ├── metrics.sh                    # Metrics
 │   │   ├── metrics_validation.sh         # Metrics validation
 │   │   ├── ml_optimization.sh            # ML-driven optimization
@@ -117,10 +119,18 @@ ai_workflow/
 │   │   ├── tech_stack.sh                 # Tech stack detection
 │   │   ├── third_party_exclusion.sh      # Third-party exclusion
 │   │   ├── utils.sh                      # Utilities
+│   │   ├── version_bump.sh               # Version bumping (NEW v3.1+)
+│   │   ├── precommit_hooks.sh            # Pre-commit hooks (NEW v3.1+)
 │   │   └── ... (and more)
-│   └── steps/                            # 17 step modules (6,119 lines)
+│   └── steps/                            # 18 step modules (7,000+ lines)
 │       ├── step_00_analyze.sh            # Project analysis
-│       ├── step_01_documentation.sh      # Documentation validation
+│       ├── step_01_documentation.sh      # Documentation validation (refactored v3.1+)
+│       ├── step_01_lib/                  # Step 1 sub-modules (NEW v3.1+)
+│       │   ├── ai_integration.sh         # AI integration (22K lines)
+│       │   ├── cache.sh                  # Caching (4K lines)
+│       │   ├── file_operations.sh        # File operations (6.7K lines)
+│       │   ├── incremental.sh            # Incremental processing (10K lines)
+│       │   └── validation.sh             # Validation (10.6K lines)
 │       ├── step_02_consistency.sh        # Consistency checks
 │       ├── step_03_script_refs.sh        # Script references
 │       ├── step_04_directory.sh          # Directory validation
@@ -130,6 +140,7 @@ ai_workflow/
 │       ├── step_08_dependencies.sh       # Dependency analysis
 │       ├── step_09_code_quality.sh       # Code quality
 │       ├── step_0a_version_update.sh     # Version update (alt)
+│       ├── step_0b_bootstrap_docs.sh     # Bootstrap documentation (NEW v3.1+)
 │       ├── step_10_context.sh            # Context management
 │       ├── step_11_git.sh                # Git operations
 │       ├── step_12_markdown_lint.sh      # Markdown linting
@@ -145,9 +156,10 @@ ai_workflow/
 
 ## Key Features to Migrate
 
-### 1. 15-Step Workflow Pipeline
+### 1. 16-Step Workflow Pipeline
 
 - **Step 0:** Project analysis and context detection
+- **Step 0b:** Bootstrap documentation (gap analysis and generation) _(NEW v3.1+)_
 - **Step 1:** Documentation validation and enhancement
 - **Step 2:** Consistency checking across files
 - **Step 3:** Script reference validation
@@ -354,13 +366,14 @@ ai_workflow/
 **Depends on**: Phase 1, 2, 3, 4 (project detection)  
 **Priority**: **HIGH** - Enables AI-powered workflow steps
 
-#### Modules (5):
+#### Modules (6):
 
 - [ ] `lib/ai_helpers.js` - AI integration helpers (~3,500 lines from source!)
   - GitHub Copilot CLI integration
-  - AI persona management (14 personas)
+  - AI persona management (14 personas including Technical Writer)
   - Prompt template system
   - AI response parsing
+- [ ] `lib/jq_wrapper.js` - Safe JSON operations wrapper (NEW v3.1+)
 - [ ] `lib/ai_personas.js` - AI persona definitions (Documentation Expert, Test Engineer, etc.)
 - [ ] `lib/ai_prompt_builder.js` - Dynamic prompt generation (project-aware, context-aware)
 - [ ] `lib/ai_cache.js` - AI response caching (60-80% token reduction)
@@ -425,12 +438,13 @@ ai_workflow/
 **Depends on**: Phase 7 (step execution), Phase 6 (AI)  
 **Priority**: **MEDIUM** - Performance enhancements
 
-#### Modules (8):
+#### Modules (10):
 
 - [ ] `lib/performance.js` - Performance tracking (timing, memory, I/O)
 - [ ] `lib/performance_monitoring.js` - Real-time monitoring (warnings, alerts)
 - [ ] `lib/ml_optimization.js` - ML-driven optimizations (predictive step skipping)
-- [ ] `lib/analysis_cache.js` - Analysis result caching
+- [ ] `lib/analysis_cache.js` - Analysis result caching (NEW v3.1+)
+- [ ] `lib/incremental_analysis.js` - Incremental analysis (NEW v3.1+)
 - [ ] `lib/docs_only_optimization.js` - Fast path for docs-only changes
 - [ ] `lib/code_changes_optimization.js` - Smart code change detection
 - [ ] `lib/full_changes_optimization.js` - Optimization for full workflow runs
@@ -461,9 +475,10 @@ ai_workflow/
 **Depends on**: Phase 6 (AI), Phase 7 (step engine), Phase 8 (optimization)  
 **Priority**: **HIGH** - Core functionality
 
-#### 15 Step Modules:
+#### 16 Step Modules:
 
 - [ ] `steps/step_00_analyze.js` - Project analysis (detect tech stack, project kind)
+- [ ] `steps/step_0b_bootstrap_docs.js` - Bootstrap documentation (gap analysis, generation) _(NEW v3.1+)_
 - [ ] `steps/step_01_documentation.js` - Documentation validation (completeness, accuracy)
 - [ ] `steps/step_02_consistency.js` - Consistency checks (naming, formatting, structure)
 - [ ] `steps/step_03_script_refs.js` - Script reference validation
@@ -483,18 +498,20 @@ ai_workflow/
 
 - Build steps incrementally (2-3 per week)
 - Each step has comprehensive tests
-- Steps use AI personas where appropriate
+- Steps use AI personas where appropriate (e.g., Technical Writer for Step 0b)
 - Steps adapt to project kind
+- Complex steps use modular architecture (step_XX_lib/) _(NEW v3.1+)_
 
 #### Success Criteria:
 
-- All 15 steps functional
+- All 16 steps functional (including Step 0b)
 - Each step thoroughly tested
 - AI integration works correctly
 - Steps adapt to project type
+- Modular step architecture implemented for complex steps
 - 95%+ test coverage per step
 
-**Provides**: Full 15-step workflow automation capability
+**Provides**: Full 16-step workflow automation capability
 
 ---
 
@@ -519,7 +536,7 @@ ai_workflow/
 
 #### Orchestration Features:
 
-- Run full 15-step workflow
+- Run full 16-step workflow
 - Resume from checkpoint
 - Parallel step execution where possible
 - Graceful error recovery
@@ -683,9 +700,9 @@ This is **NOT a line-by-line translation**. We will:
 
 ## Success Criteria
 
-- ✅ Feature parity with source v3.0.0
-- ✅ All 15 steps implemented
-- ✅ All 14 AI personas working
+- ✅ Feature parity with source v3.1.0
+- ✅ All 16 steps implemented (including Step 0b)
+- ✅ All 14 AI personas working (including Technical Writer)
 - ✅ Checkpoint/resume functional
 - ✅ Smart execution working (40%+ faster)
 - ✅ 80%+ test coverage
@@ -772,6 +789,43 @@ Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ (File Ops) → Phase 4 (Project) →
 
 ---
 
-**Migration Status:** Phase 3 complete (354 tests), Phase 4 (Project Detection) next  
-**Last Updated:** January 30, 2026 (v3.0.0 Reorganization)  
-**Last Updated:** January 30, 2026
+## Recent Source Changes (v3.1.0)
+
+**Changes since last plan update (Feb 2, 2026):**
+
+1. **New Step 0b: Bootstrap Documentation**
+   - 524 lines, gap analysis & generation
+   - Uses Technical Writer AI persona
+   - Complements Step 1 (incremental) and Step 2 (consistency)
+
+2. **JQ Wrapper Module** (jq_wrapper.sh)
+   - 296 lines, safe JSON operations
+   - Prevents jq --argjson errors with validation
+
+3. **Modular Step Architecture**
+   - Step 1 refactored with step_01_lib/ (7 sub-modules, ~53K lines)
+   - Pattern emerging: step_XX_lib/ for complex steps
+
+4. **New Library Modules**
+   - analysis_cache.sh (571 lines)
+   - incremental_analysis.sh (238 lines)
+   - version_bump.sh (415 lines)
+   - precommit_hooks.sh (521 lines)
+
+5. **Bug Fixes & Enhancements**
+   - Multiple jq validation fixes
+   - ML optimization robustness
+   - AI prompt builder restoration
+
+**Impact on Migration:**
+
+- Step count: 15 → 16
+- Library count: 62 → 67+
+- Total LOC: ~34K → ~37K+
+- Modular pattern for complex steps
+
+---
+
+**Migration Status:** Phase 5 complete (219 tests), Phase 6 (AI Integration) next  
+**Source Version:** v3.1.0  
+**Last Updated:** February 5, 2026 (v3.4.0 - Source sync)
