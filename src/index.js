@@ -124,3 +124,13 @@ export {
   generateCleanupSummary,
   CleanupManager,
 } from './lib/cleanup_handlers.js';
+
+// Phase 6 exports (v2.0.0) - AI Integration
+export {
+  validateJson,
+  sanitizeArgjsonValue,
+  parseJqArguments,
+  validateArgjsonPairs,
+  buildJqCommand,
+  JqWrapper,
+} from './lib/jq_wrapper.js';
