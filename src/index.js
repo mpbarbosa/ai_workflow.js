@@ -134,3 +134,15 @@ export {
   buildJqCommand,
   JqWrapper,
 } from './lib/jq_wrapper.js';
+
+export {
+  getAllPersonas,
+  getPersonaById,
+  getPersonaByName,
+  getPersonasByTask,
+  getPersonasByExpertise,
+  validatePersona,
+  getPersonaCount,
+  getPersonaIds,
+  personaExists,
+} from './lib/ai_personas.js';

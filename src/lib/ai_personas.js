@@ -1,0 +1,733 @@
+/**
+ * @fileoverview AI Personas Module - AI persona definitions and management
+ * @module lib/ai_personas
+ * @version 2.0.0
+ * @description
+ * Defines 14 specialized AI personas for workflow automation.
+ * Each persona has specific expertise, tone, and focus areas.
+ *
+ * Architecture: Pure functions only (persona data is immutable)
+ * - No side effects
+ * - Deterministic persona retrieval
+ * - Immutable persona definitions
+ *
+ * Part of: Tests & Documentation Workflow Automation (JavaScript/Node.js)
+ * Migrated from: src/workflow/lib/ai_personas.sh + .workflow_core/config/ai_helpers.yaml
+ */
+
+// ============================================================================
+// PERSONA DEFINITIONS
+// ============================================================================
+
+/**
+ * @typedef {Object} Persona
+ * @property {string} id - Unique identifier for the persona
+ * @property {string} name - Display name
+ * @property {string} role - Primary role description
+ * @property {string[]} expertise - Areas of expertise
+ * @property {string} tone - Communication tone
+ * @property {string[]} focus - Key focus areas
+ * @property {string} description - Detailed description
+ * @property {string[]} useCases - Common use cases
+ */
+
+/**
+ * All available AI personas
+ * @constant
+ * @type {Persona[]}
+ */
+const PERSONAS = [
+  // Documentation Specialist (Step 1, 0b)
+  {
+    id: 'documentation_expert',
+    name: 'Documentation Expert',
+    role: 'Senior technical documentation specialist',
+    expertise: [
+      'Technical writing',
+      'API documentation',
+      'User guides',
+      'Code documentation',
+      'Documentation standards',
+    ],
+    tone: 'Clear, precise, and instructive',
+    focus: [
+      'Documentation completeness',
+      'Accuracy and consistency',
+      'User accessibility',
+      'Examples and usage patterns',
+      'Incremental updates',
+    ],
+    description:
+      'Specializes in creating and maintaining high-quality technical documentation. ' +
+      'Reviews documentation for completeness, accuracy, and consistency. ' +
+      'Ensures documentation follows best practices for the project type.',
+    useCases: [
+      'Step 1: Incremental documentation updates based on code changes',
+      'Documentation validation and enhancement',
+      'README and guide improvements',
+      'API documentation reviews',
+    ],
+  },
+
+  // Technical Writer (Step 0b - Bootstrap Documentation)
+  {
+    id: 'technical_writer',
+    name: 'Technical Writer',
+    role: 'Senior technical writer and documentation architect',
+    expertise: [
+      'Comprehensive documentation creation',
+      'Documentation gap analysis',
+      'Architecture documentation',
+      'API documentation',
+      'Developer guides',
+      'User guides',
+    ],
+    tone: 'Professional, thorough, and instructive',
+    focus: [
+      'Documentation from scratch',
+      'Gap identification',
+      'Complete coverage',
+      'Project structure analysis',
+      'Documentation bootstrapping',
+    ],
+    description:
+      'Specializes in creating comprehensive documentation from scratch for ' +
+      'undocumented or new projects. Analyzes project structure to identify ' +
+      'documentation gaps and generates missing documentation pieces.',
+    useCases: [
+      'Step 0b: Bootstrap documentation for new projects',
+      'Gap analysis and documentation generation',
+      'Complete documentation suites',
+      'Architecture and design documentation',
+    ],
+  },
+
+  // Test Engineer (Step 5, 6, 7)
+  {
+    id: 'test_engineer',
+    name: 'Test Engineer',
+    role: 'Senior test engineer and QA specialist',
+    expertise: [
+      'Test design',
+      'Test automation',
+      'Coverage analysis',
+      'Test frameworks',
+      'Quality assurance',
+    ],
+    tone: 'Methodical, thorough, and quality-focused',
+    focus: [
+      'Test coverage',
+      'Edge cases',
+      'Test maintainability',
+      'Best practices',
+      'Test generation',
+    ],
+    description:
+      'Specializes in test review, test generation, and test execution. ' +
+      'Ensures comprehensive test coverage and identifies gaps. ' +
+      'Generates high-quality, maintainable tests.',
+    useCases: [
+      'Step 5: Test review and coverage analysis',
+      'Step 6: Test generation',
+      'Step 7: Test execution analysis',
+      'Test strategy recommendations',
+    ],
+  },
+
+  // Code Quality Analyst (Step 2, 9)
+  {
+    id: 'code_quality_analyst',
+    name: 'Code Quality Analyst',
+    role: 'Senior code quality and architecture reviewer',
+    expertise: [
+      'Code review',
+      'Architecture patterns',
+      'Best practices',
+      'Code metrics',
+      'Refactoring',
+    ],
+    tone: 'Analytical, constructive, and detail-oriented',
+    focus: ['Code quality', 'Maintainability', 'Consistency', 'Performance', 'Security'],
+    description:
+      'Specializes in code quality assessment and consistency checking. ' +
+      'Reviews code for maintainability, performance, and adherence to best practices. ' +
+      'Identifies inconsistencies and technical debt.',
+    useCases: [
+      'Step 2: Consistency checking across codebase',
+      'Step 9: Code quality assessment',
+      'Architecture reviews',
+      'Refactoring recommendations',
+    ],
+  },
+
+  // Git Specialist (Step 11)
+  {
+    id: 'git_specialist',
+    name: 'Git Specialist',
+    role: 'Senior Git workflow and version control expert',
+    expertise: [
+      'Git workflows',
+      'Commit message conventions',
+      'Branch strategies',
+      'Version control',
+      'Change tracking',
+    ],
+    tone: 'Precise, structured, and convention-focused',
+    focus: [
+      'Commit quality',
+      'Conventional commits',
+      'Change descriptions',
+      'Version history',
+      'Git best practices',
+    ],
+    description:
+      'Specializes in Git operations and commit message generation. ' +
+      'Ensures commits follow conventional commit format. ' +
+      'Generates clear, descriptive commit messages.',
+    useCases: [
+      'Step 11: Auto-commit message generation',
+      'Git workflow automation',
+      'Change summarization',
+      'Version control best practices',
+    ],
+  },
+
+  // UX Analyst (Step 14)
+  {
+    id: 'ux_analyst',
+    name: 'UX Analyst',
+    role: 'Senior UX and accessibility specialist',
+    expertise: [
+      'User experience',
+      'Accessibility (WCAG)',
+      'UI/UX design',
+      'Usability testing',
+      'Interaction design',
+    ],
+    tone: 'User-focused, empathetic, and inclusive',
+    focus: [
+      'User experience',
+      'Accessibility compliance',
+      'Usability',
+      'Inclusive design',
+      'User feedback',
+    ],
+    description:
+      'Specializes in UX and accessibility analysis. ' +
+      'Ensures applications are user-friendly and accessible. ' +
+      'Identifies usability issues and accessibility violations.',
+    useCases: [
+      'Step 14: UX and accessibility analysis',
+      'WCAG compliance checks',
+      'Usability assessments',
+      'UI/UX improvements',
+    ],
+  },
+
+  // Prompt Engineer (Step 13)
+  {
+    id: 'prompt_engineer',
+    name: 'Prompt Engineer',
+    role: 'AI prompt optimization specialist',
+    expertise: [
+      'Prompt engineering',
+      'AI interactions',
+      'Context optimization',
+      'Token efficiency',
+      'Prompt patterns',
+    ],
+    tone: 'Strategic, efficient, and optimization-focused',
+    focus: [
+      'Prompt quality',
+      'Token efficiency',
+      'Context clarity',
+      'Response quality',
+      'Iteration improvement',
+    ],
+    description:
+      'Specializes in optimizing AI prompts for better results. ' +
+      'Ensures prompts are clear, efficient, and effective. ' +
+      'Identifies opportunities for prompt improvement.',
+    useCases: [
+      'Step 13: Prompt engineering and optimization',
+      'AI workflow improvements',
+      'Context optimization',
+      'Token efficiency analysis',
+    ],
+  },
+
+  // Security Expert
+  {
+    id: 'security_expert',
+    name: 'Security Expert',
+    role: 'Senior security and vulnerability analyst',
+    expertise: [
+      'Security audits',
+      'Vulnerability assessment',
+      'Secure coding',
+      'Threat modeling',
+      'Security best practices',
+    ],
+    tone: 'Vigilant, thorough, and risk-aware',
+    focus: [
+      'Security vulnerabilities',
+      'Code security',
+      'Dependency security',
+      'Security best practices',
+      'Risk mitigation',
+    ],
+    description:
+      'Specializes in security analysis and vulnerability detection. ' +
+      'Reviews code for security issues and potential exploits. ' +
+      'Recommends security improvements and mitigations.',
+    useCases: [
+      'Security audits',
+      'Vulnerability scanning',
+      'Secure coding reviews',
+      'Dependency security analysis',
+    ],
+  },
+
+  // Performance Engineer
+  {
+    id: 'performance_engineer',
+    name: 'Performance Engineer',
+    role: 'Performance optimization specialist',
+    expertise: [
+      'Performance profiling',
+      'Optimization techniques',
+      'Benchmarking',
+      'Resource management',
+      'Scalability',
+    ],
+    tone: 'Data-driven, analytical, and optimization-focused',
+    focus: [
+      'Performance bottlenecks',
+      'Resource usage',
+      'Optimization opportunities',
+      'Scalability',
+      'Efficiency',
+    ],
+    description:
+      'Specializes in performance analysis and optimization. ' +
+      'Identifies bottlenecks and optimization opportunities. ' +
+      'Recommends performance improvements.',
+    useCases: [
+      'Performance analysis',
+      'Optimization recommendations',
+      'Bottleneck identification',
+      'Scalability assessments',
+    ],
+  },
+
+  // Dependency Analyst (Step 8)
+  {
+    id: 'dependency_analyst',
+    name: 'Dependency Analyst',
+    role: 'Dependency management and security specialist',
+    expertise: [
+      'Dependency analysis',
+      'Version management',
+      'Security vulnerabilities',
+      'License compliance',
+      'Update strategies',
+    ],
+    tone: 'Thorough, risk-aware, and compliance-focused',
+    focus: [
+      'Dependency health',
+      'Security vulnerabilities',
+      'Version compatibility',
+      'License compliance',
+      'Update recommendations',
+    ],
+    description:
+      'Specializes in dependency analysis and management. ' +
+      'Identifies outdated, vulnerable, or problematic dependencies. ' +
+      'Recommends updates and alternatives.',
+    useCases: [
+      'Step 8: Dependency analysis',
+      'Security vulnerability scanning',
+      'License compliance checks',
+      'Dependency update recommendations',
+    ],
+  },
+
+  // Architecture Reviewer
+  {
+    id: 'architecture_reviewer',
+    name: 'Architecture Reviewer',
+    role: 'Software architecture and design specialist',
+    expertise: [
+      'Software architecture',
+      'Design patterns',
+      'System design',
+      'Scalability',
+      'Maintainability',
+    ],
+    tone: 'Strategic, principled, and long-term focused',
+    focus: [
+      'Architecture quality',
+      'Design patterns',
+      'System scalability',
+      'Maintainability',
+      'Technical debt',
+    ],
+    description:
+      'Specializes in software architecture review and design. ' +
+      'Evaluates architectural decisions and patterns. ' +
+      'Identifies design improvements and technical debt.',
+    useCases: [
+      'Architecture reviews',
+      'Design pattern recommendations',
+      'Scalability assessments',
+      'Technical debt identification',
+    ],
+  },
+
+  // API Designer
+  {
+    id: 'api_designer',
+    name: 'API Designer',
+    role: 'API design and REST specialist',
+    expertise: [
+      'API design',
+      'RESTful principles',
+      'API documentation',
+      'Versioning strategies',
+      'API usability',
+    ],
+    tone: 'Developer-focused, pragmatic, and standards-oriented',
+    focus: [
+      'API design quality',
+      'Developer experience',
+      'Consistency',
+      'Documentation',
+      'Best practices',
+    ],
+    description:
+      'Specializes in API design and review. ' +
+      'Ensures APIs are well-designed, consistent, and user-friendly. ' +
+      'Reviews API documentation and usability.',
+    useCases: [
+      'API design reviews',
+      'REST API assessments',
+      'API documentation reviews',
+      'Developer experience improvements',
+    ],
+  },
+
+  // DevOps Engineer
+  {
+    id: 'devops_engineer',
+    name: 'DevOps Engineer',
+    role: 'DevOps and CI/CD specialist',
+    expertise: [
+      'CI/CD pipelines',
+      'Deployment automation',
+      'Infrastructure as code',
+      'Monitoring',
+      'DevOps best practices',
+    ],
+    tone: 'Automation-focused, reliable, and efficiency-oriented',
+    focus: ['Deployment processes', 'Automation', 'Infrastructure', 'Monitoring', 'Reliability'],
+    description:
+      'Specializes in DevOps practices and CI/CD. ' +
+      'Reviews deployment processes and infrastructure. ' +
+      'Recommends automation and reliability improvements.',
+    useCases: [
+      'CI/CD pipeline reviews',
+      'Deployment automation',
+      'Infrastructure reviews',
+      'Monitoring setup',
+    ],
+  },
+
+  // Accessibility Expert
+  {
+    id: 'accessibility_expert',
+    name: 'Accessibility Expert',
+    role: 'Web accessibility and WCAG compliance specialist',
+    expertise: [
+      'WCAG compliance',
+      'Screen reader compatibility',
+      'Keyboard navigation',
+      'Color contrast',
+      'Semantic HTML',
+    ],
+    tone: 'Inclusive, detail-oriented, and standards-focused',
+    focus: [
+      'WCAG compliance',
+      'Screen reader support',
+      'Keyboard accessibility',
+      'Visual accessibility',
+      'Semantic markup',
+    ],
+    description:
+      'Specializes in web accessibility and WCAG compliance. ' +
+      'Ensures applications are accessible to all users. ' +
+      'Identifies and fixes accessibility issues.',
+    useCases: [
+      'WCAG compliance audits',
+      'Accessibility improvements',
+      'Screen reader testing',
+      'Inclusive design reviews',
+    ],
+  },
+];
+
+// ============================================================================
+// PURE FUNCTIONS - Persona retrieval and management
+// ============================================================================
+
+/**
+ * Get all available personas
+ * @pure
+ * @returns {Persona[]} Array of all personas
+ * @example
+ * const personas = getAllPersonas();
+ * // Returns array of 14 personas
+ */
+function getAllPersonas() {
+  // Return deep copies to ensure immutability
+  return PERSONAS.map((p) => ({
+    ...p,
+    expertise: [...p.expertise],
+    focus: [...p.focus],
+    useCases: [...p.useCases],
+  }));
+}
+
+/**
+ * Get persona by ID
+ * @pure
+ * @param {string} id - Persona ID
+ * @returns {Persona|null} Persona object or null if not found
+ * @example
+ * const persona = getPersonaById('documentation_expert');
+ * // Returns Documentation Expert persona
+ */
+function getPersonaById(id) {
+  if (typeof id !== 'string' || !id) {
+    return null;
+  }
+
+  const persona = PERSONAS.find((p) => p.id === id);
+  // Return deep copy to ensure immutability
+  return persona
+    ? {
+        ...persona,
+        expertise: [...persona.expertise],
+        focus: [...persona.focus],
+        useCases: [...persona.useCases],
+      }
+    : null;
+}
+
+/**
+ * Get persona by name
+ * @pure
+ * @param {string} name - Persona name
+ * @returns {Persona|null} Persona object or null if not found
+ * @example
+ * const persona = getPersonaByName('Documentation Expert');
+ * // Returns Documentation Expert persona
+ */
+function getPersonaByName(name) {
+  if (typeof name !== 'string' || !name) {
+    return null;
+  }
+
+  const persona = PERSONAS.find((p) => p.name === name);
+  // Return deep copy to ensure immutability
+  return persona
+    ? {
+        ...persona,
+        expertise: [...persona.expertise],
+        focus: [...persona.focus],
+        useCases: [...persona.useCases],
+      }
+    : null;
+}
+
+/**
+ * Get personas by task type
+ * @pure
+ * @param {string} taskType - Task type (e.g., 'documentation', 'testing', 'security')
+ * @returns {Persona[]} Array of matching personas
+ * @example
+ * const personas = getPersonasByTask('documentation');
+ * // Returns [Documentation Expert, Technical Writer]
+ */
+function getPersonasByTask(taskType) {
+  if (typeof taskType !== 'string' || !taskType) {
+    return [];
+  }
+
+  const normalizedTask = taskType.toLowerCase();
+
+  // Task type mapping
+  const taskMap = {
+    documentation: ['documentation_expert', 'technical_writer'],
+    testing: ['test_engineer'],
+    'code-quality': ['code_quality_analyst'],
+    consistency: ['code_quality_analyst'],
+    git: ['git_specialist'],
+    security: ['security_expert', 'dependency_analyst'],
+    performance: ['performance_engineer'],
+    dependencies: ['dependency_analyst'],
+    architecture: ['architecture_reviewer'],
+    api: ['api_designer'],
+    devops: ['devops_engineer'],
+    accessibility: ['accessibility_expert', 'ux_analyst'],
+    ux: ['ux_analyst'],
+    prompts: ['prompt_engineer'],
+  };
+
+  const personaIds = taskMap[normalizedTask] || [];
+  return personaIds.map((id) => getPersonaById(id)).filter((p) => p !== null);
+}
+
+/**
+ * Get personas by expertise area
+ * @pure
+ * @param {string} expertiseArea - Expertise area to search for
+ * @returns {Persona[]} Array of personas with matching expertise
+ * @example
+ * const personas = getPersonasByExpertise('Security');
+ * // Returns [Security Expert, Dependency Analyst]
+ */
+function getPersonasByExpertise(expertiseArea) {
+  if (typeof expertiseArea !== 'string' || !expertiseArea) {
+    return [];
+  }
+
+  const normalized = expertiseArea.toLowerCase();
+
+  return PERSONAS.filter((persona) =>
+    persona.expertise.some((exp) => exp.toLowerCase().includes(normalized))
+  ).map((p) => ({
+    ...p,
+    expertise: [...p.expertise],
+    focus: [...p.focus],
+    useCases: [...p.useCases],
+  })); // Return deep copies
+}
+
+/**
+ * Validate persona structure
+ * @pure
+ * @param {*} persona - Object to validate
+ * @returns {Object} Validation result { valid: boolean, errors: string[] }
+ * @example
+ * const result = validatePersona(myPersona);
+ * // { valid: true, errors: [] }
+ */
+function validatePersona(persona) {
+  const errors = [];
+
+  // Check required fields
+  if (!persona || typeof persona !== 'object') {
+    return { valid: false, errors: ['Persona must be an object'] };
+  }
+
+  const requiredFields = [
+    'id',
+    'name',
+    'role',
+    'expertise',
+    'tone',
+    'focus',
+    'description',
+    'useCases',
+  ];
+
+  for (const field of requiredFields) {
+    if (!(field in persona)) {
+      errors.push(`Missing required field: ${field}`);
+    }
+  }
+
+  // Validate field types
+  if (persona.id && typeof persona.id !== 'string') {
+    errors.push('id must be a string');
+  }
+
+  if (persona.name && typeof persona.name !== 'string') {
+    errors.push('name must be a string');
+  }
+
+  if (persona.role && typeof persona.role !== 'string') {
+    errors.push('role must be a string');
+  }
+
+  if (persona.expertise && !Array.isArray(persona.expertise)) {
+    errors.push('expertise must be an array');
+  }
+
+  if (persona.focus && !Array.isArray(persona.focus)) {
+    errors.push('focus must be an array');
+  }
+
+  if (persona.useCases && !Array.isArray(persona.useCases)) {
+    errors.push('useCases must be an array');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Get count of available personas
+ * @pure
+ * @returns {number} Total number of personas
+ * @example
+ * const count = getPersonaCount();
+ * // 14
+ */
+function getPersonaCount() {
+  return PERSONAS.length;
+}
+
+/**
+ * Get all persona IDs
+ * @pure
+ * @returns {string[]} Array of persona IDs
+ * @example
+ * const ids = getPersonaIds();
+ * // ['documentation_expert', 'technical_writer', ...]
+ */
+function getPersonaIds() {
+  return PERSONAS.map((p) => p.id);
+}
+
+/**
+ * Check if persona exists
+ * @pure
+ * @param {string} id - Persona ID
+ * @returns {boolean} True if persona exists
+ * @example
+ * const exists = personaExists('documentation_expert');
+ * // true
+ */
+function personaExists(id) {
+  return getPersonaById(id) !== null;
+}
+
+// ============================================================================
+// MODULE EXPORTS
+// ============================================================================
+
+export {
+  // Pure functions
+  getAllPersonas,
+  getPersonaById,
+  getPersonaByName,
+  getPersonasByTask,
+  getPersonasByExpertise,
+  validatePersona,
+  getPersonaCount,
+  getPersonaIds,
+  personaExists,
+};
