@@ -146,3 +146,16 @@ export {
   getPersonaIds,
   personaExists,
 } from './lib/ai_personas.js';
+
+export {
+  validateResponse,
+  validateJsonSchema,
+  calculateConfidenceScore,
+  getConfidenceLevel,
+  meetsConfidenceThreshold,
+  analyzeContentQuality,
+  countSections,
+  determineFallbackAction,
+  generateRetryStrategy,
+  validateAIResponse,
+} from './lib/ai_validation.js';
