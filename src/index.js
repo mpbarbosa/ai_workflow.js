@@ -159,3 +159,15 @@ export {
   generateRetryStrategy,
   validateAIResponse,
 } from './lib/ai_validation.js';
+
+export {
+  generateCacheKey,
+  isCacheValid,
+  shouldInvalidateCache,
+  calculateCacheStats,
+  filterEntriesByAge,
+  createCacheEntry,
+  mergeCacheMetrics,
+  validateCacheConfig,
+  AiCache,
+} from './lib/ai_cache.js';
