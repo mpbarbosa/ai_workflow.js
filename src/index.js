@@ -221,3 +221,14 @@ export {
   validateStepDependencies,
   StepRegistry,
 } from './orchestrator/step_registry.js';
+
+export {
+  buildDependencyGraph,
+  topologicalSort,
+  detectCircularDependencies,
+  groupParallelSteps,
+  validateDependencies,
+  canRunInParallel,
+  calculateCriticalPath,
+  DependencyResolver,
+} from './orchestrator/dependency_resolver.js';
