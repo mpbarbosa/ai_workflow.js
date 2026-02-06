@@ -256,3 +256,16 @@ export {
   calculateStepPriority,
   ConditionalExecutor,
 } from './orchestrator/conditional_executor.js';
+
+export {
+  CheckpointManager,
+  createCheckpointData,
+  validateCheckpoint,
+  mergeCheckpointState,
+  calculateCheckpointAge,
+  shouldCleanupCheckpoint,
+  generateCheckpointId,
+  parseCheckpointId,
+  filterCheckpointsByWorkflow,
+  sortCheckpointsByTime,
+} from './orchestrator/checkpoint_manager.js';
