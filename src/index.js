@@ -197,3 +197,14 @@ export {
   mergeRequestOptions,
   AiHelper,
 } from './lib/ai_helpers.js';
+
+export {
+  validateWorkflowConfig,
+  buildExecutionPlan,
+  shouldExecuteStep,
+  mergeStepResults,
+  calculateWorkflowProgress,
+  validateStepDefinition,
+  createExecutionContext,
+  WorkflowEngine,
+} from './orchestrator/workflow_engine.js';
