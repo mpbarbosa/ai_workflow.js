@@ -171,3 +171,19 @@ export {
   validateCacheConfig,
   AiCache,
 } from './lib/ai_cache.js';
+
+export {
+  buildPromptFromTemplate,
+  injectProjectContext,
+  formatCodeBlock,
+  buildFileListContext,
+  truncateContext,
+  buildStructuredPrompt,
+  buildDocAnalysisPrompt,
+  buildConsistencyPrompt,
+  buildTestReviewPrompt,
+  buildTestGenPrompt,
+  buildCodeQualityPrompt,
+  buildTechnicalWriterPrompt,
+  PromptBuilder,
+} from './lib/ai_prompt_builder.js';
