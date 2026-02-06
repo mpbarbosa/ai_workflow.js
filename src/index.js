@@ -208,3 +208,16 @@ export {
   createExecutionContext,
   WorkflowEngine,
 } from './orchestrator/workflow_engine.js';
+
+export {
+  createStepDefinition,
+  validateStepMetadata,
+  matchStepRequirements,
+  groupStepsByPhase,
+  filterStepsByTags,
+  filterStepsByEnabled,
+  findStepsByPhase,
+  sortStepsById,
+  validateStepDependencies,
+  StepRegistry,
+} from './orchestrator/step_registry.js';
