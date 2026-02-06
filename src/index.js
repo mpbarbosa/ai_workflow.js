@@ -187,3 +187,13 @@ export {
   buildTechnicalWriterPrompt,
   PromptBuilder,
 } from './lib/ai_prompt_builder.js';
+
+export {
+  parseAiResponse,
+  parseErrorResponse,
+  formatBatchRequests,
+  calculateRetryDelay,
+  shouldRetry,
+  mergeRequestOptions,
+  AiHelper,
+} from './lib/ai_helpers.js';
