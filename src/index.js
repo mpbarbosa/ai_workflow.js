@@ -243,3 +243,16 @@ export {
   buildErrorMessage,
   StepExecutor,
 } from './orchestrator/step_executor.js';
+
+export {
+  shouldSkipStep,
+  adaptStepToProjectKind,
+  calculateChangeImpact,
+  evaluateCondition,
+  buildSkipReason,
+  matchesPattern,
+  filterFilesByPattern,
+  doesChangeAffectStep,
+  calculateStepPriority,
+  ConditionalExecutor,
+} from './orchestrator/conditional_executor.js';
