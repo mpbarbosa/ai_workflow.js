@@ -1,0 +1,90 @@
+{
+  "workflow_run_id": "workflow_20260206_174450",
+  "generated_at": "2026-02-06T20:45:13Z",
+  "git_info": {
+    "commit": "6589441",
+    "branch": "main"
+  },
+  "change_summary": {
+    "total_files": 8,
+    "by_category": {
+      "code": 1,
+      "documentation": 7,
+      "tests": 0
+    }
+  },
+  "complexity_analysis": {
+    "code": {
+  "score": 25,
+  "tier": "low",
+  "factors": {
+    "cyclomatic": 2,
+    "lines_changed": 59,
+    "function_depth": 1,
+    "semantic": "enhancement"
+  }
+},
+    "documentation": {
+  "score": 0,
+  "tier": "low",
+  "factors": {
+    "words_changed": 0,
+    "files_affected": 0,
+    "structural_changes": 0,
+    "primary_doc": false
+  }
+},
+    "tests": {"score":0,"tier":"low","factors":{"test_cases":0,"lines_changed":0,"coverage_impact":"none"}}
+  },
+  "model_definitions": {
+    "step_01_documentation": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity documentation changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_02_consistency": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity documentation validation changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_03_script_refs": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity script analysis changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_05_test_review": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity test analysis changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_06_test_gen": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Test generation (tier adjusted: low → higher)",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_09_code_quality": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity code analysis changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "step_13_prompt_engineer": {
+      "model": "claude-opus-4.5",
+      "reason": "Prompt engineering requires deep reasoning",
+      "tier": "high",
+      "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
+    },
+    "step_14_ux_analysis": {
+      "model": "claude-opus-4.5",
+      "reason": "UX analysis (forced tier: high for UI reasoning)",
+      "tier": "high",
+      "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
+    }
+  },
+  "override": null
+}

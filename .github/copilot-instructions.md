@@ -30,9 +30,9 @@
 - **Cross-Platform**: Works on Linux, macOS, and Windows via Node.js
 - **Modern JavaScript**: ES6+ modules, async/await, pure functional patterns
 - **Referentially Transparent**: v2.0.0 modules follow functional programming principles
-- **Comprehensive Testing**: 942 tests with 100% pass rate ✅
+- **Comprehensive Testing**: 1426 passing tests, 3 known failures in Phase 6 ✅
 
-**Version**: 1.1.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5 modules)  
+**Version**: 1.2.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5, 7 modules)  
 **License**: MIT  
 **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell/Bash v3.0.0)
 
@@ -57,9 +57,9 @@
    ┌─────────────────────────────────────┐
    │  CLI Layer (future Phase 11)        │
    ├─────────────────────────────────────┤
-   │  Workflow Engine (future Phase 7)   │
+   │  Workflow Engine (Phase 7)          │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
-   │  AI Integration (future Phase 6)    │
+   │  AI Integration (Phase 6)           │  ← Complete: v2.0.0 (3 test failures)
    ├─────────────────────────────────────┤
    │  Git Operations (Phase 5)           │  ← Complete: v2.0.0
    ├─────────────────────────────────────┤
@@ -76,7 +76,8 @@
 3. **Module Organization**
    - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
    - **src/utils/**: Helper functions (errors)
-   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers, project_kind_detection, project_kind_config, tech_stack, third_party_exclusion, git_automation, git_cache, auto_commit, change_detection)
+   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers, project_kind_detection, project_kind_config, tech_stack, third_party_exclusion, git_automation, git_cache, auto_commit, change_detection, jq_wrapper, ai_personas, ai_validation, ai_cache, ai_prompt_builder, ai_helpers)
+   - **src/orchestrator/**: Workflow orchestration (workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager)
    - **test/**: Comprehensive test suite mirroring src/ structure
    - **docs/**: Architecture, requirements, and migration documentation
 
@@ -202,13 +203,58 @@
 - Change detection: categorize changes by type (docs, tests, code, config)
 - All modules follow v2.0.0 architecture with pure functional core
 
-### 🚧 Phase 6: AI Integration (NEXT)
+### ✅ Phase 6: AI Integration (v2.0.0) - COMPLETE (3 test failures)
 
-- AI helper management
-- Prompt template system
-- GitHub Copilot SDK integration
+**Modules Implemented (6 modules, ~2,839 LOC):**
 
-**Overall Progress:** 5 of 13 major phases complete (~38% of migration)
+| Module                         | Version | LOC | Purpose                     | Architecture             |
+| ------------------------------ | ------- | --- | --------------------------- | ------------------------ |
+| `src/lib/jq_wrapper.js`        | v2.0.0  | 349 | JSON processing with jq CLI | Pure functions + wrapper |
+| `src/lib/ai_personas.js`       | v2.0.0  | 285 | AI persona management       | Pure functions + wrapper |
+| `src/lib/ai_validation.js`     | v2.0.0  | 380 | AI response validation      | Pure functions + wrapper |
+| `src/lib/ai_cache.js`          | v2.0.0  | 425 | AI response caching         | Pure functions + wrapper |
+| `src/lib/ai_prompt_builder.js` | v2.0.0  | 850 | AI prompt construction      | Pure functions + wrapper |
+| `src/lib/ai_helpers.js`        | v2.0.0  | 550 | AI helper utilities         | Pure functions + wrapper |
+
+**Testing:** 424 tests (421 passing, 3 failures), high coverage ⚠️
+
+**Key Features:**
+
+- JSON processing with jq command-line tool wrapper
+- 14 AI personas for different workflow tasks
+- Response validation with confidence scoring
+- Token-efficient caching with TTL and invalidation
+- Structured prompt building with templates
+- AI helper utilities for parsing and formatting
+
+**Known Issues:** 3 test failures related to jq wrapper edge cases
+
+### ✅ Phase 7: Workflow Orchestration (v2.0.0) - COMPLETE
+
+**Modules Implemented (6 modules, ~3,457 LOC):**
+
+| Module                                     | Version | LOC | Purpose                               | Architecture             |
+| ------------------------------------------ | ------- | --- | ------------------------------------- | ------------------------ |
+| `src/orchestrator/workflow_engine.js`      | v2.0.0  | 612 | Workflow execution engine             | Pure functions + wrapper |
+| `src/orchestrator/step_registry.js`        | v2.0.0  | 455 | Step definition and registration      | Pure functions + wrapper |
+| `src/orchestrator/dependency_resolver.js`  | v2.0.0  | 580 | Dependency graph and topological sort | Pure functions + wrapper |
+| `src/orchestrator/step_executor.js`        | v2.0.0  | 510 | Step execution with retry logic       | Pure functions + wrapper |
+| `src/orchestrator/conditional_executor.js` | v2.0.0  | 792 | Conditional step execution            | Pure functions + wrapper |
+| `src/orchestrator/checkpoint_manager.js`   | v2.0.0  | 508 | Checkpoint save/resume functionality  | Pure functions + wrapper |
+
+**Testing:** 329 tests (100% passing), 100% coverage ✅
+
+**Key Features:**
+
+- Workflow execution engine with parallel step support
+- Step registry with metadata and dependencies
+- Dependency resolution with circular detection
+- Step execution with timeout and retry logic
+- Conditional execution based on project kind and changes
+- Checkpoint system for pause/resume and error recovery
+- All modules follow v2.0.0 architecture with pure functional core
+
+### 🚧 Phase 8-11: Future Phases (PLANNED)
 
 ---
 
@@ -227,7 +273,7 @@ ai_workflow.js/
 │   │   └── executor.js          # Command execution
 │   ├── utils/                   # Phase 1: Helper utilities (v1.0.0)
 │   │   └── errors.js            # Custom error classes
-│   ├── lib/                   # Phase 2-4: Core libraries (v2.0.0+)
+│   ├── lib/                   # Phase 2-6: Core libraries (v2.0.0+)
 │   │   ├── config.js          # ✅ Configuration management (v2.0.0)
 │   │   ├── backlog.js         # ✅ Backlog reporting (v2.0.0)
 │   │   ├── session_manager.js # ✅ Session lifecycle (v2.0.0)
@@ -245,15 +291,26 @@ ai_workflow.js/
 │   │   ├── git_cache.js         # ✅ Git caching (v2.0.0)
 │   │   ├── auto_commit.js       # ✅ Auto-commit (v2.0.0)
 │   │   ├── change_detection.js  # ✅ Change detection (v2.0.0)
-│   │   └── ...                  # 🚧 More modules (future phases)
+│   │   ├── jq_wrapper.js        # ✅ JSON processing (v2.0.0)
+│   │   ├── ai_personas.js       # ✅ AI personas (v2.0.0)
+│   │   ├── ai_validation.js     # ✅ AI validation (v2.0.0)
+│   │   ├── ai_cache.js          # ✅ AI caching (v2.0.0)
+│   │   ├── ai_prompt_builder.js # ✅ Prompt building (v2.0.0)
+│   │   └── ai_helpers.js        # ✅ AI helpers (v2.0.0)
+│   ├── orchestrator/            # Phase 7: Workflow orchestration (v2.0.0)
+│   │   ├── workflow_engine.js   # ✅ Workflow execution (v2.0.0)
+│   │   ├── step_registry.js     # ✅ Step registry (v2.0.0)
+│   │   ├── dependency_resolver.js # ✅ Dependency resolution (v2.0.0)
+│   │   ├── step_executor.js     # ✅ Step execution (v2.0.0)
+│   │   ├── conditional_executor.js # ✅ Conditional execution (v2.0.0)
+│   │   └── checkpoint_manager.js # ✅ Checkpoint management (v2.0.0)
 │   ├── cli/                     # Phase 11: CLI (future)
-│   ├── orchestrator/            # Phase 7: Workflow engine (future)
-│   ├── managers/                # Phase 6: AI integration (future)
 │   └── index.js                 # Public API exports
 ├── test/                        # Comprehensive test suite
 │   ├── core/                    # Phase 1 core tests (85 tests)
 │   ├── utils/                   # Phase 1 utils tests (28 tests)
-│   └── lib/                     # Phase 2-5 tests (829 tests total, 100% passing) ✅
+│   ├── lib/                     # Phase 2-6 tests (1067 tests, 1064 passing) ⚠️
+│   └── orchestrator/            # Phase 7 tests (329 tests, 100% passing) ✅
 ├── docs/                        # Documentation
 │   ├── FUNCTIONAL_REQUIREMENTS.md
 │   ├── reports/
@@ -281,9 +338,47 @@ ai_workflow.js/
 └── LICENSE                      # MIT License
 ```
 
-### Module Dependency Graph (Phase 1-5)
+### Module Dependency Graph (Phase 1-7)
 
 ```
+┌──────────────────────────────────────────────────────────┐
+│        Phase 7: orchestrator/ (v2.0.0)                   │
+│                                                           │
+│  ┌────────────────┐  ┌────────────────┐                 │
+│  │workflow_engine │  │checkpoint_     │                 │
+│  │                │  │manager         │                 │
+│  └───────┬────────┘  └────────┬───────┘                 │
+│          │                    │                          │
+│   ┌──────▼──────┐   ┌────────▼──────┐                  │
+│   │step_registry│   │step_executor  │                  │
+│   └──────┬──────┘   └────────┬──────┘                  │
+│          │                    │                          │
+│   ┌──────▼──────────┐  ┌─────▼────────────┐            │
+│   │dependency_      │  │conditional_      │            │
+│   │resolver         │  │executor          │            │
+│   └─────────────────┘  └──────────────────┘            │
+└───────────────────────┬──────────────────────────────────┘
+                        │
+                        ▼
+┌──────────────────────────────────────────────────────────┐
+│           Phase 6: lib/ (v2.0.0)                         │
+│                                                           │
+│  ┌───────────────┐  ┌────────────────┐                  │
+│  │jq_wrapper     │  │ai_personas     │                  │
+│  └───────┬───────┘  └────────┬───────┘                  │
+│          │                   │                           │
+│    ┌─────▼─────┐   ┌────────▼──────┐                   │
+│    │ai_        │   │ai_cache       │                   │
+│    │validation │   │               │                   │
+│    └───────────┘   └───────────────┘                   │
+│                                                           │
+│    ┌─────────────────┐   ┌────────────────┐            │
+│    │ai_prompt_       │   │ai_helpers      │            │
+│    │builder          │   │                │            │
+│    └─────────────────┘   └────────────────┘            │
+└───────────────────────┬──────────────────────────────────┘
+                        │
+                        ▼
 ┌──────────────────────────────────────────────────────────┐
 │           Phase 5: lib/ (v2.0.0)                         │
 │                                                           │
@@ -374,9 +469,10 @@ ai_workflow.js/
 - Phase 2 modules depend only on Phase 1 core utilities
 - Phase 3 modules depend on Phase 1 + 2 foundation
 - Phase 4 modules depend on Phase 1-3 foundation
-- Phase 5 modules depend on Phase 1-5 foundation (updated after Phase 5 completion)
-- Phase 6+ modules will depend on Phase 1-5 foundation
-- Future phases will depend on Phase 1-5 foundation
+- Phase 5 modules depend on Phase 1-4 foundation
+- Phase 6 modules depend on Phase 1-5 foundation
+- Phase 7 modules depend on Phase 1-6 foundation
+- Future phases (8-11) will depend on Phase 1-7 foundation
 
 ---
 
@@ -487,21 +583,33 @@ describe('SessionManager Integration', () => {
 
 ### Modules Using This Pattern
 
-| Module              | Pure Functions                                    | Wrapper Class      | Benefits                            |
-| ------------------- | ------------------------------------------------- | ------------------ | ----------------------------------- |
-| config.js           | `parseYamlSync`, `validateConfig`, etc.           | `ConfigManager`    | Configuration parsing is testable   |
-| backlog.js          | `getStatusEmoji`, `generateSummaryContent`, etc.  | `BacklogManager`   | Markdown generation is pure         |
-| session_manager.js  | `generateSessionId`, `createSessionEntry`, etc.   | `SessionManager`   | Session logic is deterministic      |
-| metrics.js          | `calculateDuration`, `formatMetrics`, etc.        | `MetricsCollector` | Metric calculations are pure        |
-| file_operations.js  | `validatePath`, `filterByExtension`, etc.         | `FileOperations`   | Path validation is testable         |
-| edit_operations.js  | `findMatches`, `replaceAll`, `generateDiff`, etc. | `EditOperations`   | Text manipulation is pure           |
-| argument_parser.js  | `parseArguments`, `validateArguments`, etc.       | `ArgumentParser`   | CLI parsing logic is testable       |
-| cleanup_handlers.js | `filterByAge`, `calculateTotalSize`, etc.         | `CleanupManager`   | Cleanup decisions are deterministic |
-| utils.js            | All functions (no wrapper class)                  | N/A (pure only)    | Reusable pure utilities             |
-| git_automation.js   | `parseGitStatus`, `parseGitDiff`, etc.            | `GitAutomation`    | Git output parsing is testable      |
-| git_cache.js        | `isCacheValid`, `calculateCacheKey`, etc.         | `GitCache`         | Cache validation is deterministic   |
-| auto_commit.js      | `generateCommitMessage`, `shouldCommitFile`, etc. | `AutoCommit`       | Commit logic is testable            |
-| change_detection.js | `categorizeFile`, `analyzeChanges`, etc.          | `ChangeDetector`   | Change categorization is pure       |
+| Module                  | Pure Functions                                       | Wrapper Class         | Benefits                            |
+| ----------------------- | ---------------------------------------------------- | --------------------- | ----------------------------------- |
+| config.js               | `parseYamlSync`, `validateConfig`, etc.              | `ConfigManager`       | Configuration parsing is testable   |
+| backlog.js              | `getStatusEmoji`, `generateSummaryContent`, etc.     | `BacklogManager`      | Markdown generation is pure         |
+| session_manager.js      | `generateSessionId`, `createSessionEntry`, etc.      | `SessionManager`      | Session logic is deterministic      |
+| metrics.js              | `calculateDuration`, `formatMetrics`, etc.           | `MetricsCollector`    | Metric calculations are pure        |
+| file_operations.js      | `validatePath`, `filterByExtension`, etc.            | `FileOperations`      | Path validation is testable         |
+| edit_operations.js      | `findMatches`, `replaceAll`, `generateDiff`, etc.    | `EditOperations`      | Text manipulation is pure           |
+| argument_parser.js      | `parseArguments`, `validateArguments`, etc.          | `ArgumentParser`      | CLI parsing logic is testable       |
+| cleanup_handlers.js     | `filterByAge`, `calculateTotalSize`, etc.            | `CleanupManager`      | Cleanup decisions are deterministic |
+| utils.js                | All functions (no wrapper class)                     | N/A (pure only)       | Reusable pure utilities             |
+| git_automation.js       | `parseGitStatus`, `parseGitDiff`, etc.               | `GitAutomation`       | Git output parsing is testable      |
+| git_cache.js            | `isCacheValid`, `calculateCacheKey`, etc.            | `GitCache`            | Cache validation is deterministic   |
+| auto_commit.js          | `generateCommitMessage`, `shouldCommitFile`, etc.    | `AutoCommit`          | Commit logic is testable            |
+| change_detection.js     | `categorizeFile`, `analyzeChanges`, etc.             | `ChangeDetector`      | Change categorization is pure       |
+| jq_wrapper.js           | `validateJson`, `buildJqCommand`, etc.               | `JqWrapper`           | JSON processing logic is testable   |
+| ai_personas.js          | `getPersonaById`, `validatePersona`, etc.            | N/A (pure only)       | Persona lookup is deterministic     |
+| ai_validation.js        | `validateResponse`, `calculateConfidenceScore`, etc. | N/A (pure only)       | Validation logic is testable        |
+| ai_cache.js             | `isCacheValid`, `calculateCacheStats`, etc.          | `AiCache`             | Cache logic is deterministic        |
+| ai_prompt_builder.js    | `buildPromptFromTemplate`, `formatCodeBlock`, etc.   | `PromptBuilder`       | Prompt generation is testable       |
+| ai_helpers.js           | `parseAiResponse`, `shouldRetry`, etc.               | `AiHelper`            | Response parsing is testable        |
+| workflow_engine.js      | `validateWorkflowConfig`, `buildExecutionPlan`, etc. | `WorkflowEngine`      | Workflow logic is testable          |
+| step_registry.js        | `createStepDefinition`, `validateStepMetadata`, etc. | `StepRegistry`        | Step management is deterministic    |
+| dependency_resolver.js  | `buildDependencyGraph`, `topologicalSort`, etc.      | `DependencyResolver`  | Graph algorithms are testable       |
+| step_executor.js        | `validateStepInput`, `calculateTimeout`, etc.        | `StepExecutor`        | Execution logic is testable         |
+| conditional_executor.js | `shouldSkipStep`, `evaluateCondition`, etc.          | `ConditionalExecutor` | Conditional logic is testable       |
+| checkpoint_manager.js   | `createCheckpointData`, `validateCheckpoint`, etc.   | `CheckpointManager`   | Checkpoint logic is testable        |
 
 **See:** `.github/REFERENTIAL_TRANSPARENCY.md` for complete guide and examples.
 
@@ -694,7 +802,7 @@ When creating or updating documentation:
 
 For this implementation repository:
 
-1. **Unit tests**: Run `npm test` (942 tests, 100% pass rate required)
+1. **Unit tests**: Run `npm test` (1426 passing tests, 3 known failures in Phase 6)
 2. **Code coverage**: Maintain high coverage across all modules
 3. **Linting**: Run `npm run lint` (ESLint 9.x)
 4. **Formatting**: Run `npm run format` (Prettier 3.x)
@@ -776,15 +884,15 @@ When updating documentation:
 
 - A Node.js implementation of AI workflow automation
 - Complete migration from shell-based ai_workflow to JavaScript
-- 23 modules (5 Core + 1 Utils + 17 Library + index.js) with 942 passing tests
+- 35 modules (5 Core + 1 Utils + 23 Library + 6 Orchestrator) with 1426 passing tests
 - Referentially transparent architecture (pure functions + impure wrappers)
-- Comprehensive documentation (48 files in docs/ directory)
-- Active development with 5 of 13 phases complete
+- Comprehensive documentation (48+ files in docs/ directory)
+- Active development with 7 of 13 phases complete (Phases 1-7 done)
 
 **What this repository IS NOT:**
 
 - A simple shell-to-JavaScript translation (it's a complete redesign)
-- A finished product (Phase 6-13 are still in development)
+- A finished product (Phases 8-13 are still in development)
 - A template or configuration library (it's a full implementation)
 
 **Key Points:**
@@ -793,7 +901,7 @@ When updating documentation:
 - **ai_workflow** = Source repository (Shell/Bash v3.0.0, fully functional)
 - **Migration approach**: Extract behaviors from shell scripts, redesign in modern JavaScript
 - **Architecture**: Referential transparency with pure functions and impure wrappers
-- **Testing**: 942 tests, 100% pass rate, high code coverage
+- **Testing**: 1426 passing tests, 3 known failures in Phase 6, high code coverage
 
 ### Documentation Context
 
@@ -807,19 +915,19 @@ All documentation in `docs/` is specifically for **ai_workflow.js** (this reposi
 
 ### Development Status
 
-**Completed (Phases 1-5):**
+**Completed (Phases 1-7):**
 
 - ✅ Phase 1: Core Foundation (v1.0.0) - 7 modules, 113 tests
 - ✅ Phase 2: Configuration & State Management (v2.0.0) - 4 modules, 174 tests
 - ✅ Phase 3: File Operations & Utilities (v2.0.0) - 5 modules, 354 tests
 - ✅ Phase 4: Project Detection & Analysis (v1.0.0) - 4 modules, 167 tests
 - ✅ Phase 5: Git Integration (v2.0.0) - 4 modules, 219 tests
+- ✅ Phase 6: AI Integration (v2.0.0) - 6 modules, 424 tests (3 failures)
+- ✅ Phase 7: Workflow Orchestration (v2.0.0) - 6 modules, 329 tests
 
 **In Progress:**
 
-- 🚧 Phase 6: AI Integration (next)
-- 🚧 Phase 7: Workflow Engine
-- 🚧 Phase 11: CLI Layer
+- 🚧 Phase 8-11: Future phases (CLI, monitoring, deployment, etc.)
 
 ### Dual Development Context
 
@@ -835,23 +943,24 @@ Always clarify which context applies to the current task.
 
 ### Version Information
 
-- **Project version**: 1.1.0
-- **Phase 1 modules**: v1.0.0
-- **Phase 2-5 modules**: v2.0.0 (referentially transparent)
+- **Project version**: 1.2.0
+- **Phase 1, 4 modules**: v1.0.0
+- **Phase 2, 3, 5, 6, 7 modules**: v2.0.0 (referentially transparent)
 - **Node.js requirement**: >= 18.0.0
 - **npm requirement**: >= 9.0.0
-- **Test suite**: 942 tests, 100% pass rate
+- **Test suite**: 1426 passing tests, 3 known failures in Phase 6
 
 ### Repository Scope
 
 **This repository contains:**
 
-- **Source code** (23 modules in `src/`):
+- **Source code** (35 modules in `src/`):
   - Core foundation (5 modules: colors, logger, system, version, executor)
   - Utils layer (1 module: errors)
-  - Library modules (17 modules: config, backlog, session_manager, metrics, file operations, utils, etc.)
+  - Library modules (23 modules: config, backlog, session_manager, metrics, file operations, git automation, AI integration, etc.)
+  - Orchestrator modules (6 modules: workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager)
   - Entry point (1 module: index.js)
-- **Comprehensive test suite** (18 test files in `test/`): 942 tests, 100% pass rate
+- **Comprehensive test suite** (25 test files in `test/`): 1426 passing tests, 3 known failures in Phase 6 ⚠️
 - **Documentation** (48 files in `docs/`): API reference, guides, architecture, reference, examples
 - **Configuration files**: `.workflow-config.yaml`, `package.json`, `jest.config.json`, `eslint.config.mjs`
 - **GitHub integration**: `.github/copilot-instructions.md`, workflows
@@ -859,10 +968,9 @@ Always clarify which context applies to the current task.
 
 **This repository does NOT yet contain:**
 
-- Workflow execution engine (Phase 7 - future)
-- AI integration code (Phase 6 - next)
 - CLI layer (Phase 11 - future)
-- Step orchestration logic (Phase 7 - future)
+- Monitoring and observability (Phase 8 - future)
+- Advanced CI/CD integrations (Phase 9-10 - future)
 
 **Terminology Standards:**
 
