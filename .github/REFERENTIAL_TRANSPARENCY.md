@@ -658,11 +658,10 @@ function generateColor(rand1, rand2, rand3) {
 
 ### Related Documentation
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) - Immutability principles and guidelines
-- [CODE_REVIEW_GUIDE.md](./CODE_REVIEW_GUIDE.md) - Review checklist for referential transparency
-- [LOW_COUPLING_GUIDE.md](./LOW_COUPLING_GUIDE.md) - Architectural principles
-- [TDD_GUIDE.md](./TDD_GUIDE.md) - Test-driven development with pure functions
-- [UNIT_TEST_GUIDE.md](./UNIT_TEST_GUIDE.md) - Testing referentially transparent code
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines and development practices
+- [Developer Guide](../docs/guides/DEVELOPER_GUIDE.md) - Development workflow and standards
+- [Testing Guide](../docs/guides/TESTING_GUIDE.md) - Testing referentially transparent code
+- [Design Principles](../docs/architecture/DESIGN_PRINCIPLES.md) - Architecture and design patterns
 
 ### In This Project
 

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-07
+
+### Changed
+
+- Updated package.json version to 1.2.0 to reflect project milestones
+- Updated all test count references across documentation (1692 passing, 2 known failures)
+- Updated phase completion status (Phase 1-7 complete, Phase 8 next)
+- Fixed broken internal links in documentation hub (docs/README.md)
+- Corrected module counts (36 modules total across 7 phases)
+- Updated REFERENTIAL_TRANSPARENCY.md links to point to existing guides
+- Synchronized version numbers between package.json and README.md
+
+### Fixed
+
+- Version mismatch between package.json (1.0.0) and README.md (1.2.0)
+- Test count discrepancies across multiple documentation files
+- Broken anchor links in docs/README.md pointing to DEVELOPER_GUIDE.md
+- Outdated phase status references (Phase 5-6 marked as "next" when Phase 7 complete)
+- Module directory structure diagram in OVERVIEW.md (added Phase 6-7 modules)
+
 ## [Unreleased]
 
 ### Added - Phase 5 (COMPLETE)

@@ -13,7 +13,7 @@ AI Workflow Automation (in JavaScript)
 
 | Version | Date       | Changes                                                                                                                                                                                       |
 | ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.5.0   | 2026-02-06 | Updated status to Phase 7 complete. Added Phase 7 modules (workflow engine, step registry, dependency resolver, step executor, conditional executor, checkpoint manager). 1426 passing tests. |
+| 1.5.0   | 2026-02-06 | Updated status to Phase 7 complete. Added Phase 7 modules (workflow engine, step registry, dependency resolver, step executor, conditional executor, checkpoint manager). 1692 passing tests. |
 | 1.4.0   | 2026-02-02 | Updated status to Phase 5 complete. Added Phase 5 modules (git automation, cache, auto-commit, change detection).                                                                             |
 | 1.3.0   | 2026-02-01 | Updated status to Phase 4 complete. Added Phase 4 modules (project detection, config, tech stack, exclusions).                                                                                |
 | 1.2.0   | 2026-01-30 | Updated status to Phase 3 complete. Added Phase 3 modules (file operations, utils, argument parser, cleanup).                                                                                 |
@@ -34,7 +34,7 @@ This project is a Node.js implementation of the [ai_workflow](https://github.com
 
 ✅ **Copilot SDK Support:** This project is now supported by **GitHub Copilot SDK**, enabling advanced AI-powered development assistance, code generation, and workflow automation.
 
-**Status:** 🚧 **Development Phase 7 Complete** - Workflow orchestration modules (workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager) implemented with referential transparency architecture. 1426 passing tests (3 failures in Phase 6).
+**Status:** 🚧 **Development Phase 7 Complete** - Workflow orchestration modules (workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager) implemented with referential transparency architecture. 1692 passing tests (2 known failures).
 
 ## Source Repository
 
@@ -226,7 +226,7 @@ npm run format:check
 
 ### Available Commands
 
-- `npm test` - Run Jest test suite (942 tests, all passing)
+- `npm test` - Run Jest test suite (1694 tests, 1692 passing)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
