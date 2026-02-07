@@ -1,6 +1,6 @@
 /**
  * Tech Stack Detection Module
- * @version 1.0.0
+ * @version 2.0.0
  * @description Detect languages, frameworks, build systems, and tools in a project
  * @module lib/tech_stack
  * Part of: AI Workflow Automation v1.2.0 (Phase 4)

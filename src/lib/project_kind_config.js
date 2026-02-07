@@ -1,6 +1,6 @@
 /**
  * Project Kind Configuration Module
- * @version 1.0.0
+ * @version 2.0.0
  * @description Load and manage project kind configurations from ai_workflow_core
  * @module lib/project_kind_config
  * Part of: AI Workflow Automation v1.2.0 (Phase 4)
