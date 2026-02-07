@@ -56,6 +56,14 @@ export {
   detectFileChanges,
   calculateChangeStats,
 } from './lib/incremental_analysis.js';
+export {
+  MLOptimizer,
+  DEFAULT_CONFIG as ML_CONFIG,
+  PREDICTION,
+  SKIP_REASON,
+  predictSkippability,
+  calculateAccuracy,
+} from './lib/ml_optimization.js';
 
 // Phase 3 exports (v2.0.0)
 export {
