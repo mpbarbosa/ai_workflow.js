@@ -56,7 +56,7 @@ Generate complete workflow summary markdown.
 
 ---
 
-## BacklogManager Class
+## Backlog Class
 
 Wrapper for file I/O operations.
 
@@ -72,9 +72,9 @@ Wrapper for file I/O operations.
 ### Generate Summary
 
 ```javascript
-import { BacklogManager } from './lib/backlog.js';
+import { Backlog } from './lib/backlog.js';
 
-const backlog = new BacklogManager(fileOps, paths);
+const backlog = new Backlog(fileOps, paths);
 
 await backlog.generateSummary({
   metadata,

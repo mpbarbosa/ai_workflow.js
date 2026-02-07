@@ -172,10 +172,10 @@ pnpm add ai-workflow
 
 ```javascript
 // ES Modules (recommended)
-import { Logger, ConfigManager, FileOperations } from 'ai-workflow';
+import { Logger, Config, FileOperations } from 'ai-workflow';
 
 // CommonJS (if needed)
-const { Logger, ConfigManager } = require('ai-workflow');
+const { Logger, Config } = require('ai-workflow');
 ```
 
 ---
@@ -382,13 +382,13 @@ Verify that modules can be imported:
 
 ```javascript
 // Create test.js
-import { Logger, ConfigManager, FileOperations } from './src/index.js';
+import { Logger, Config, FileOperations } from './src/index.js';
 
 const logger = new Logger({ level: 'info' });
 logger.success('Installation verified!');
 
-const config = new ConfigManager();
-console.log('ConfigManager loaded:', typeof config);
+const config = new Config();
+console.log('Config loaded:', typeof config);
 
 const fileOps = new FileOperations();
 console.log('FileOperations loaded:', typeof fileOps);
@@ -400,7 +400,7 @@ Run:
 node test.js
 # Expected:
 # ✓ Installation verified!
-# ConfigManager loaded: object
+# Config loaded: object
 # FileOperations loaded: object
 ```
 

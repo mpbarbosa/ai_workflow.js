@@ -35,10 +35,13 @@ export {
 } from './utils/errors.js';
 
 // Phase 2.1 exports (v2.0.0)
-export { ConfigManager } from './lib/config.js';
-export { BacklogManager } from './lib/backlog.js';
+export { Config } from './lib/config.js';
+export { Backlog } from './lib/backlog.js';
 export { SessionManager } from './lib/session_manager.js';
-export { MetricsCollector } from './lib/metrics.js';
+export { Metrics } from './lib/metrics.js';
+
+// Phase 8 exports (v2.0.0)
+export { PerformanceTracker } from './lib/performance.js';
 
 // Phase 3 exports (v2.0.0)
 export {

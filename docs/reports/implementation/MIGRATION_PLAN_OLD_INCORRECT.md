@@ -635,10 +635,10 @@ ai_workflow.js/
 │   │   │   ├── GitService.js             # Git operations
 │   │   │   └── ChangeDetector.js         # Detect changes
 │   │   ├── config/
-│   │   │   ├── ConfigManager.js          # Configuration
+│   │   │   ├── Config.js          # Configuration
 │   │   │   └── TechStackDetector.js      # Detect tech stack
 │   │   ├── metrics/
-│   │   │   ├── MetricsCollector.js       # Collect metrics
+│   │   │   ├── Metrics.js       # Collect metrics
 │   │   │   └── PerformanceMonitor.js     # Monitor performance
 │   │   └── optimization/
 │   │       ├── SmartExecutor.js          # Smart execution

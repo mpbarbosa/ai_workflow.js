@@ -113,38 +113,38 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 **4 Modules | Pure Functions + Wrappers (v1.0.0)**
 
-| Module                                                            | Purpose             | Key Features                              |
-| ----------------------------------------------------------------- | ------------------- | ----------------------------------------- |
-| [project_kind_detection](./lib/project_kind_detection.md)         | Project detection   | Auto-detect from files, 8 project kinds   |
-| [project_kind_config](./lib/project_kind_config.md)               | Config management   | Load YAML configs, merge overrides        |
-| [tech_stack](./lib/tech_stack.md)                                 | Tech stack analysis | Detect languages, frameworks, build tools |
-| [third_party_exclusion](./lib/third_party_exclusion.md)           | File filtering      | Exclude third-party code, .gitignore      |
+| Module                                                    | Purpose             | Key Features                              |
+| --------------------------------------------------------- | ------------------- | ----------------------------------------- |
+| [project_kind_detection](./lib/project_kind_detection.md) | Project detection   | Auto-detect from files, 8 project kinds   |
+| [project_kind_config](./lib/project_kind_config.md)       | Config management   | Load YAML configs, merge overrides        |
+| [tech_stack](./lib/tech_stack.md)                         | Tech stack analysis | Detect languages, frameworks, build tools |
+| [third_party_exclusion](./lib/third_party_exclusion.md)   | File filtering      | Exclude third-party code, .gitignore      |
 
 ### AI Integration (Phase 6)
 
 **6 Modules | Pure Functions + Wrappers (v2.0.0)**
 
-| Module                                            | Purpose              | Key Features                               |
-| ------------------------------------------------- | -------------------- | ------------------------------------------ |
-| [jq_wrapper](./lib/jq_wrapper.md)                 | JSON processing      | Safe jq execution, validation, parsing     |
-| [ai_personas](./lib/ai_personas.md)               | Persona management   | 14 personas, lookup, validation            |
-| [ai_validation](./lib/ai_validation.md)           | Response validation  | Confidence scoring, fallback strategies    |
-| [ai_cache](./lib/ai_cache.md)                     | Response caching     | TTL, disk storage, 60-80% token savings    |
-| [ai_prompt_builder](./lib/ai_prompt_builder.md)   | Prompt construction  | Templates, context injection, structured   |
-| [ai_helpers](./lib/ai_helpers.md)                 | AI orchestration     | SDK integration, retry, batch processing   |
+| Module                                          | Purpose             | Key Features                             |
+| ----------------------------------------------- | ------------------- | ---------------------------------------- |
+| [jq_wrapper](./lib/jq_wrapper.md)               | JSON processing     | Safe jq execution, validation, parsing   |
+| [ai_personas](./lib/ai_personas.md)             | Persona management  | 14 personas, lookup, validation          |
+| [ai_validation](./lib/ai_validation.md)         | Response validation | Confidence scoring, fallback strategies  |
+| [ai_cache](./lib/ai_cache.md)                   | Response caching    | TTL, disk storage, 60-80% token savings  |
+| [ai_prompt_builder](./lib/ai_prompt_builder.md) | Prompt construction | Templates, context injection, structured |
+| [ai_helpers](./lib/ai_helpers.md)               | AI orchestration    | SDK integration, retry, batch processing |
 
 ### Workflow Orchestration (Phase 7)
 
 **6 Modules | Pure Functions + Wrappers (v2.0.0)**
 
-| Module                                                          | Purpose                | Key Features                                    |
-| --------------------------------------------------------------- | ---------------------- | ----------------------------------------------- |
-| [workflow_engine](./orchestrator/workflow_engine.md)            | Workflow orchestration | Execution, dependency management, checkpoints   |
-| [step_registry](./orchestrator/step_registry.md)                | Step management        | Registration, validation, filtering             |
-| [dependency_resolver](./orchestrator/dependency_resolver.md)    | Dependency resolution  | Topological sort, parallel grouping, validation |
-| [step_executor](./orchestrator/step_executor.md)                | Step execution         | Timeout, retry, validation, event emission      |
-| [conditional_executor](./orchestrator/conditional_executor.md)  | Conditional logic      | Change detection, impact analysis, smart skip   |
-| [checkpoint_manager](./orchestrator/checkpoint_manager.md)      | State management       | Save/resume, cleanup, validation                |
+| Module                                                         | Purpose                | Key Features                                    |
+| -------------------------------------------------------------- | ---------------------- | ----------------------------------------------- |
+| [workflow_engine](./orchestrator/workflow_engine.md)           | Workflow orchestration | Execution, dependency management, checkpoints   |
+| [step_registry](./orchestrator/step_registry.md)               | Step management        | Registration, validation, filtering             |
+| [dependency_resolver](./orchestrator/dependency_resolver.md)   | Dependency resolution  | Topological sort, parallel grouping, validation |
+| [step_executor](./orchestrator/step_executor.md)               | Step execution         | Timeout, retry, validation, event emission      |
+| [conditional_executor](./orchestrator/conditional_executor.md) | Conditional logic      | Change detection, impact analysis, smart skip   |
+| [checkpoint_manager](./orchestrator/checkpoint_manager.md)     | State management       | Save/resume, cleanup, validation                |
 
 ---
 
@@ -168,7 +168,7 @@ export function calculateDuration(startTime, endTime) {
 }
 
 // I/O wrapper class (Phase 2-5 modules)
-export class MetricsCollector {
+export class Metrics {
   constructor(fileOps) {
     this.fileOps = fileOps;
   }
@@ -234,9 +234,9 @@ Modules are organized into two layers:
 
 ## Version History
 
-| Version | Date       | Changes                                         |
-| ------- | ---------- | ----------------------------------------------- |
-| 2.2.0   | 2026-02-07 | Added Phase 6 AI integration modules (6 docs)   |
+| Version | Date       | Changes                                          |
+| ------- | ---------- | ------------------------------------------------ |
+| 2.2.0   | 2026-02-07 | Added Phase 6 AI integration modules (6 docs)    |
 | 2.1.0   | 2026-02-07 | Added Phase 4 project detection modules (4 docs) |
 | 2.0.0   | 2026-02-07 | Added Phase 7 orchestrator modules (6 docs)      |
 | 1.0.0   | 2026-02-01 | Initial API documentation release                |

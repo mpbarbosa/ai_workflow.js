@@ -65,7 +65,7 @@ formatDuration(125000); // '2m 5s'
 
 ---
 
-## MetricsCollector Class
+## Metrics Class
 
 Wrapper for metrics collection and persistence.
 
@@ -83,9 +83,9 @@ Wrapper for metrics collection and persistence.
 ### Collecting Metrics
 
 ```javascript
-import { MetricsCollector } from './lib/metrics.js';
+import { Metrics } from './lib/metrics.js';
 
-const metrics = new MetricsCollector(fileOps, paths);
+const metrics = new Metrics(fileOps, paths);
 
 metrics.recordStepStart(0);
 // ... execute step ...

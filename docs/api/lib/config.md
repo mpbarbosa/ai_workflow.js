@@ -6,12 +6,12 @@
 
 ## Overview
 
-The config module provides configuration management with YAML file support, schema validation, and referentially transparent design. Core logic is implemented as pure functions, with side effects isolated in the `ConfigManager` wrapper class.
+The config module provides configuration management with YAML file support, schema validation, and referentially transparent design. Core logic is implemented as pure functions, with side effects isolated in the `Config` wrapper class.
 
 ## Installation
 
 ```javascript
-import { ConfigManager, generateTimestamp, calculatePaths } from 'ai-workflow';
+import { Config, generateTimestamp, calculatePaths } from 'ai-workflow';
 ```
 
 ## Architecture Pattern
@@ -31,7 +31,7 @@ export function calculateFilePaths(paths, workflowRunId);
 ### Impure Wrapper
 
 ```javascript
-export class ConfigManager {
+export class Config {
   // Handles side effects: file I/O, state management, logging
 }
 ```
@@ -101,12 +101,12 @@ const paths = calculatePaths('/path/to/project', 'workflow_20260201_123045');
 // }
 ```
 
-### ConfigManager Class
+### Config Class
 
 #### Constructor
 
 ```javascript
-new ConfigManager(projectRoot);
+new Config(projectRoot);
 ```
 
 **Parameters:**
@@ -116,9 +116,9 @@ new ConfigManager(projectRoot);
 **Example:**
 
 ```javascript
-const config = new ConfigManager('/path/to/project');
+const config = new Config('/path/to/project');
 // or
-const config = new ConfigManager(); // Uses current directory
+const config = new Config(); // Uses current directory
 ```
 
 #### Properties
@@ -143,7 +143,7 @@ Initialize configuration with timestamp and paths.
 **Example:**
 
 ```javascript
-const config = new ConfigManager();
+const config = new Config();
 config.initialize();
 console.log(config.workflowRunId); // "workflow_20260201_123045"
 ```
@@ -179,10 +179,10 @@ console.log(files.summaryFile); // "/path/to/project/.ai_workflow/backlog/workfl
 ### Basic Configuration Setup
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
 // Create and initialize configuration
-const config = new ConfigManager('/my-project');
+const config = new Config('/my-project');
 config.initialize();
 
 // Access paths
@@ -230,12 +230,12 @@ describe('Pure Functions', () => {
 ### Integration Testing
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
-describe('ConfigManager Integration', () => {
+describe('Config Integration', () => {
   test('initialize generates unique run IDs', () => {
-    const config1 = new ConfigManager();
-    const config2 = new ConfigManager();
+    const config1 = new Config();
+    const config2 = new Config();
 
     config1.initialize();
     config2.initialize();
@@ -274,7 +274,7 @@ The config module manages the following directory structure:
 ### 1. Initialize Early
 
 ```javascript
-const config = new ConfigManager();
+const config = new Config();
 config.initialize(); // Do this early in application startup
 ```
 
@@ -307,7 +307,7 @@ const logsDir = path.join(projectRoot, '.ai_workflow', 'logs');
 ## Error Handling
 
 - Pure functions do not throw errors (return values or null)
-- ConfigManager may throw errors for invalid paths
+- Config may throw errors for invalid paths
 - All errors include context for debugging
 
 ## Related Modules

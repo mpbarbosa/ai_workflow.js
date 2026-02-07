@@ -87,11 +87,11 @@ Workflow orchestration and execution management:
 
 ```javascript
 // Import from main package
-import { Logger, Colors, ConfigManager, SessionManager, FileOperations } from 'ai-workflow';
+import { Logger, Colors, Config, SessionManager, FileOperations } from 'ai-workflow';
 
 // Import specific modules (when published as separate packages)
 import { Logger } from 'ai-workflow/core/logger';
-import { ConfigManager } from 'ai-workflow/lib/config';
+import { Config } from 'ai-workflow/lib/config';
 ```
 
 ### Common Usage Patterns
@@ -110,9 +110,9 @@ logger.error('Error occurred');
 #### Configuration
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
-const config = new ConfigManager();
+const config = new Config();
 await config.loadConfig('.workflow-config.yaml');
 const value = config.get('project.name');
 ```
@@ -141,9 +141,9 @@ sessions.endSession(sessionId);
 #### Metrics Collection
 
 ```javascript
-import { MetricsCollector } from 'ai-workflow';
+import { Metrics } from 'ai-workflow';
 
-const metrics = new MetricsCollector();
+const metrics = new Metrics();
 const opId = metrics.startOperation('processing');
 // ... perform operation ...
 metrics.endOperation(opId, { success: true });

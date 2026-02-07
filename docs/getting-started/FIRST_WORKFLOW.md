@@ -209,7 +209,7 @@ Add configuration loading.
 **Update:** `src/workflow.js`
 
 ```javascript
-import { Logger, ConfigManager } from 'ai-workflow';
+import { Logger, Config } from 'ai-workflow';
 import path from 'path';
 
 const logger = new Logger({ level: 'info' });
@@ -236,7 +236,7 @@ export async function runWorkflow(projectPath) {
  * Load project configuration
  */
 async function loadConfiguration(projectPath) {
-  const configManager = new ConfigManager();
+  const configManager = new Config();
   const configPath = path.join(projectPath, '.workflow-config.yaml');
 
   try {
@@ -273,7 +273,7 @@ Add automatic project type detection.
 **Update:** `src/workflow.js`
 
 ```javascript
-import { Logger, ConfigManager, ProjectKindDetector } from 'ai-workflow';
+import { Logger, Config, ProjectKindDetector } from 'ai-workflow';
 import path from 'path';
 
 const logger = new Logger({ level: 'info' });
@@ -304,7 +304,7 @@ export async function runWorkflow(projectPath) {
 }
 
 async function loadConfiguration(projectPath) {
-  const configManager = new ConfigManager();
+  const configManager = new Config();
   const configPath = path.join(projectPath, '.workflow-config.yaml');
 
   try {
@@ -357,7 +357,7 @@ Add tech stack detection.
 **Update:** `src/workflow.js` (add after Step 2)
 
 ```javascript
-import { Logger, ConfigManager, ProjectKindDetector, TechStackDetector } from 'ai-workflow';
+import { Logger, Config, ProjectKindDetector, TechStackDetector } from 'ai-workflow';
 
 // ... existing code ...
 
@@ -417,7 +417,7 @@ Add third-party file filtering.
 ```javascript
 import {
   Logger,
-  ConfigManager,
+  Config,
   ProjectKindDetector,
   TechStackDetector,
   ThirdPartyExclusionManager,
@@ -736,7 +736,7 @@ async function safeAnalyzeFileStructure(projectPath, projectKind) {
 
 import {
   Logger,
-  ConfigManager,
+  Config,
   ProjectKindDetector,
   TechStackDetector,
   ThirdPartyExclusionManager,
@@ -920,9 +920,9 @@ if (args.json) {
 ### Add Metrics Collection
 
 ```javascript
-import { MetricsCollector } from 'ai-workflow';
+import { Metrics } from 'ai-workflow';
 
-const metrics = new MetricsCollector();
+const metrics = new Metrics();
 const opId = metrics.startOperation('project-analysis');
 
 // ... run workflow ...

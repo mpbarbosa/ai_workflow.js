@@ -197,7 +197,7 @@ export function calculateDuration(startTime, endTime) {
 // - Manages state
 // - Composes pure functions
 
-export class MetricsCollector {
+export class Metrics {
   constructor(fileOps) {
     this.fileOps = fileOps;
   }
@@ -314,7 +314,7 @@ refactor/xyz      # Code improvements
 function calculateTotal(items) {}
 
 // ✅ Good - PascalCase for classes
-class MetricsCollector {}
+class Metrics {}
 
 // ✅ Good - UPPER_CASE for constants
 const MAX_RETRIES = 3;
@@ -338,7 +338,7 @@ const fn = () => value; // Prefer explicit returns
 | --------------- | ----------- | ------------------------------------- |
 | Variables       | camelCase   | `userName`, `totalCount`              |
 | Functions       | camelCase   | `calculateDuration()`, `formatDate()` |
-| Classes         | PascalCase  | `MetricsCollector`, `FileOperations`  |
+| Classes         | PascalCase  | `Metrics`, `FileOperations`           |
 | Constants       | UPPER_CASE  | `MAX_RETRIES`, `DEFAULT_TIMEOUT`      |
 | Private methods | \_camelCase | `_formatInternal()`                   |
 | Test files      | \*.test.js  | `metrics.test.js`                     |

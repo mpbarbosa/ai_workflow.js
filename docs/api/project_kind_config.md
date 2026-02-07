@@ -22,7 +22,7 @@ Loads and manages project kind configurations from `.workflow_core/config/projec
 
 **Wrapper Class**:
 
-- `ProjectKindConfigManager` - Handles file I/O and configuration loading
+- `ProjectKindConfig` - Handles file I/O and configuration loading
 
 ---
 
@@ -179,14 +179,14 @@ const testing = extractConfigSection(config, 'testing');
 
 ---
 
-## ProjectKindConfigManager Class
+## ProjectKindConfig Class
 
 Manages project kind configurations with file I/O and caching.
 
 ### Constructor
 
 ```javascript
-new ProjectKindConfigManager(options);
+new ProjectKindConfig(options);
 ```
 
 **Options:**
@@ -222,9 +222,9 @@ Loads and parses project_kinds.yaml file.
 **Example:**
 
 ```javascript
-import { ProjectKindConfigManager } from './lib/project_kind_config.js';
+import { ProjectKindConfig } from './lib/project_kind_config.js';
 
-const manager = new ProjectKindConfigManager({
+const manager = new ProjectKindConfig({
   projectRoot: '/path/to/project',
 });
 
@@ -422,9 +422,9 @@ const kinds = await manager.getSupportedProjectKinds();
 ### Load and Validate Project Configuration
 
 ```javascript
-import { ProjectKindConfigManager } from './lib/project_kind_config.js';
+import { ProjectKindConfig } from './lib/project_kind_config.js';
 
-const manager = new ProjectKindConfigManager({
+const manager = new ProjectKindConfig({
   projectRoot: '/path/to/project',
   verbose: true,
 });
@@ -447,7 +447,7 @@ if (validation.valid) {
 ### Get Configuration Sections
 
 ```javascript
-const manager = new ProjectKindConfigManager({ projectRoot: '.' });
+const manager = new ProjectKindConfig({ projectRoot: '.' });
 
 // Get different sections
 const validation = await manager.getValidationRules('nodejs_api');

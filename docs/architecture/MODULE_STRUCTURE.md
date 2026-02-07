@@ -268,16 +268,16 @@ const paths = config.getAllPaths();
 
 - `generateBacklog()` - Generate summary (pure)
 - `formatSection()` - Format markdown (pure)
-- `BacklogManager` - Backlog manager class
+- `Backlog` - Backlog manager class
 
 **Dependencies:** `logger.js`, `file_operations.js`
 
 **Example:**
 
 ```javascript
-import { BacklogManager } from './lib/backlog.js';
+import { Backlog } from './lib/backlog.js';
 
-const backlog = new BacklogManager(fileOps, paths);
+const backlog = new Backlog(fileOps, paths);
 await backlog.generateSummary({
   metadata: config.getMetadata(),
   workflowStatus,
@@ -315,16 +315,16 @@ const state = await session.resumeSession(sessionId);
 
 - `formatDuration()` - Format time (pure)
 - `calculateStats()` - Calculate statistics (pure)
-- `MetricsCollector` - Metrics collector class
+- `Metrics` - Metrics collector class
 
 **Dependencies:** `logger.js`, `file_operations.js`
 
 **Example:**
 
 ```javascript
-import { MetricsCollector } from './lib/metrics.js';
+import { Metrics } from './lib/metrics.js';
 
-const metrics = new MetricsCollector(fileOps, paths);
+const metrics = new Metrics(fileOps, paths);
 metrics.recordStepStart(1);
 await executeStep();
 metrics.recordStepEnd(1, 'passed');
@@ -679,7 +679,7 @@ import { colors } from './core/colors.js';
 
 // 3. Business logic modules
 import { Config } from './lib/config.js';
-import { MetricsCollector } from './lib/metrics.js';
+import { Metrics } from './lib/metrics.js';
 
 // 4. Utilities
 import { formatTimestamp } from './utils/utils.js';

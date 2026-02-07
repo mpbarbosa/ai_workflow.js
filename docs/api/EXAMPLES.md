@@ -42,7 +42,7 @@ This document provides comprehensive usage examples for all ai_workflow.js API m
 **Import Convention:**
 
 ```javascript
-import { Logger, ConfigManager, FileOperations } from 'ai-workflow';
+import { Logger, Config, FileOperations } from 'ai-workflow';
 ```
 
 ---
@@ -392,9 +392,9 @@ try {
 **Basic Configuration:**
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
-const configManager = new ConfigManager('.workflow-config.yaml');
+const configManager = new Config('.workflow-config.yaml');
 
 // Load configuration
 const config = await configManager.load();
@@ -405,7 +405,7 @@ console.log(`Version: ${config.project.version}`);
 **Updating Configuration:**
 
 ```javascript
-const configManager = new ConfigManager('.workflow-config.yaml');
+const configManager = new Config('.workflow-config.yaml');
 
 // Update specific fields
 await configManager.update({
@@ -417,9 +417,9 @@ await configManager.update({
 **Validation:**
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
-const configManager = new ConfigManager('.workflow-config.yaml');
+const configManager = new Config('.workflow-config.yaml');
 
 try {
   const config = await configManager.load();
@@ -435,7 +435,7 @@ try {
 **Default Configuration:**
 
 ```javascript
-const configManager = new ConfigManager('.workflow-config.yaml', {
+const configManager = new Config('.workflow-config.yaml', {
   defaults: {
     project: {
       version: '1.0.0',
@@ -514,9 +514,9 @@ console.log(`Cleaned up ${cleaned} old sessions`);
 **Collect Metrics:**
 
 ```javascript
-import { MetricsCollector } from 'ai-workflow';
+import { Metrics } from 'ai-workflow';
 
-const metrics = new MetricsCollector('.ai_workflow/metrics');
+const metrics = new Metrics('.ai_workflow/metrics');
 
 // Start metric tracking
 const metricId = metrics.start('build_time', {
@@ -539,7 +539,7 @@ metrics.record('test_coverage', 87.5, {
 **Query Metrics:**
 
 ```javascript
-const metrics = new MetricsCollector('.ai_workflow/metrics');
+const metrics = new Metrics('.ai_workflow/metrics');
 
 // Get metric by ID
 const metric = metrics.get(metricId);
@@ -556,7 +556,7 @@ const coreMetrics = metrics.getByTag('module', 'core');
 **Export Metrics:**
 
 ```javascript
-const metrics = new MetricsCollector('.ai_workflow/metrics');
+const metrics = new Metrics('.ai_workflow/metrics');
 
 // Export to JSON
 const jsonData = await metrics.exportJSON();
@@ -576,9 +576,9 @@ await metrics.save('.ai_workflow/metrics/report.json');
 **Generate Backlog:**
 
 ```javascript
-import { BacklogManager } from 'ai-workflow';
+import { Backlog } from 'ai-workflow';
 
-const backlog = new BacklogManager('.ai_workflow/backlog');
+const backlog = new Backlog('.ai_workflow/backlog');
 
 // Create backlog entry
 await backlog.create({
@@ -593,7 +593,7 @@ await backlog.create({
 **Generate Summary:**
 
 ```javascript
-const backlog = new BacklogManager('.ai_workflow/backlog');
+const backlog = new Backlog('.ai_workflow/backlog');
 
 // Generate markdown summary
 const summary = await backlog.generateSummary('workflow-run-123');
@@ -609,7 +609,7 @@ console.log(summary);
 **Query Backlog:**
 
 ```javascript
-const backlog = new BacklogManager('.ai_workflow/backlog');
+const backlog = new Backlog('.ai_workflow/backlog');
 
 // Get recent entries
 const recent = await backlog.getRecent(10);
@@ -1201,22 +1201,22 @@ Here's a complete example showing how multiple modules work together:
 ```javascript
 import {
   logger,
-  ConfigManager,
+  Config,
   SessionManager,
-  MetricsCollector,
+  Metrics,
   FileOperations,
   EditOperations,
   ProjectKindDetector,
   TechStackAnalyzer,
-  BacklogManager,
+  Backlog,
 } from 'ai-workflow';
 
 async function runWorkflow(projectPath) {
   // 1. Initialize components
-  const config = new ConfigManager(`${projectPath}/.workflow-config.yaml`);
+  const config = new Config(`${projectPath}/.workflow-config.yaml`);
   const sessions = new SessionManager(`${projectPath}/.ai_workflow/sessions`);
-  const metrics = new MetricsCollector(`${projectPath}/.ai_workflow/metrics`);
-  const backlog = new BacklogManager(`${projectPath}/.ai_workflow/backlog`);
+  const metrics = new Metrics(`${projectPath}/.ai_workflow/metrics`);
+  const backlog = new Backlog(`${projectPath}/.ai_workflow/backlog`);
   const fileOps = new FileOperations();
   const editor = new EditOperations();
 

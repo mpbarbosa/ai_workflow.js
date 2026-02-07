@@ -419,9 +419,9 @@ if (process.env.DEBUG) {
 ### Testing Classes
 
 ```javascript
-import { MetricsCollector } from '../../src/lib/metrics.js';
+import { Metrics } from '../../src/lib/metrics.js';
 
-describe('MetricsCollector', () => {
+describe('Metrics', () => {
   let metrics;
   let mockFileOps;
   let mockPaths;
@@ -436,7 +436,7 @@ describe('MetricsCollector', () => {
       metricsDir: '/tmp/metrics',
     };
 
-    metrics = new MetricsCollector(mockFileOps, mockPaths);
+    metrics = new Metrics(mockFileOps, mockPaths);
   });
 
   test('should record step timing', () => {
@@ -618,7 +618,7 @@ test('should call internal method', () => {
 
 ```javascript
 import { Config } from '../../src/lib/config.js';
-import { BacklogManager } from '../../src/lib/backlog.js';
+import { Backlog } from '../../src/lib/backlog.js';
 import { FileOperations } from '../../src/lib/file_operations.js';
 
 describe('Integration: Config + Backlog', () => {
@@ -637,7 +637,7 @@ describe('Integration: Config + Backlog', () => {
     const config = new Config(tmpDir);
     await config.initialize();
 
-    const backlog = new BacklogManager(fileOps, config.getAllPaths());
+    const backlog = new Backlog(fileOps, config.getAllPaths());
     await backlog.generateSummary({
       metadata: config.getMetadata(),
       executionMode: { auto: true },

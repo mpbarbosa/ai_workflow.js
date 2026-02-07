@@ -255,7 +255,7 @@ All Phase 2-5 modules support `dryRun` mode:
 - `FileOperations` - simulates file operations
 - `EditOperations` - shows what would be changed
 - `CleanupHandlers` - previews cleanup actions
-- `ConfigManager` - validates without writing
+- `Config` - validates without writing
 
 #### Workflow Engine Integration
 
@@ -416,8 +416,8 @@ parallel_steps:
 - **Source Implementation:** [ai_workflow v3.0.0](https://github.com/mpbarbosa/ai_workflow) (orchestrator.sh)
 - **Phase 1-5 Modules:** Already implemented with referential transparency
 - **Configuration:** `.workflow-config.yaml` structure defined
-- **Metrics:** `MetricsCollector` class ready for integration
-- **Backlog:** `BacklogManager` ready for workflow summaries
+- **Metrics:** `Metrics` class ready for integration
+- **Backlog:** `Backlog` ready for workflow summaries
 
 ---
 

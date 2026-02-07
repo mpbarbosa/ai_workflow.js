@@ -395,7 +395,7 @@ test('calculateDuration should return difference', () => {
 
 ```javascript
 // Inject dependencies for testing
-class MetricsCollector {
+class Metrics {
   constructor(fileOps, paths) {
     // Injected
     this.fileOps = fileOps;
@@ -406,7 +406,7 @@ class MetricsCollector {
 // Test with mock
 test('should save metrics', async () => {
   const mockFileOps = { writeFile: jest.fn() };
-  const collector = new MetricsCollector(mockFileOps, { metricsDir: '/tmp' });
+  const collector = new Metrics(mockFileOps, { metricsDir: '/tmp' });
 
   await collector.saveMetrics();
 

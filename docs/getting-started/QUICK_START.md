@@ -58,10 +58,10 @@ logger.success('Installation successful!');
 ### 2. Configuration Management
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
 // Create config manager
-const config = new ConfigManager();
+const config = new Config();
 
 // Load configuration
 await config.loadConfig('.workflow-config.yaml');
@@ -118,10 +118,10 @@ sessions.endSession(sessionId);
 ### 5. Metrics Collection
 
 ```javascript
-import { MetricsCollector } from 'ai-workflow';
+import { Metrics } from 'ai-workflow';
 
 // Create metrics collector
-const metrics = new MetricsCollector();
+const metrics = new Metrics();
 
 // Start tracking an operation
 const operationId = metrics.startOperation('file-processing', {
@@ -242,9 +242,9 @@ ai_workflow.js/
 ### Load and Use Configuration
 
 ```javascript
-import { ConfigManager } from 'ai-workflow';
+import { Config } from 'ai-workflow';
 
-const config = new ConfigManager();
+const config = new Config();
 await config.loadConfig('.workflow-config.yaml');
 
 // Get configuration values

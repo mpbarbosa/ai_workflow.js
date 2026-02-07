@@ -215,7 +215,7 @@ export function mergeConfigs(base, override) {
 // IMPURE WRAPPER - Side effects isolated
 // ========================================
 
-export class ConfigManager {
+export class Config {
   constructor() {
     this.config = null; // State
   }
@@ -240,10 +240,10 @@ export class ConfigManager {
 
 | Module                    | Pure Functions                        | Wrapper Class       |
 | ------------------------- | ------------------------------------- | ------------------- |
-| config.js                 | parseYamlSync, validateConfig, merge  | ConfigManager       |
-| backlog.js                | getStatusEmoji, generateContent       | BacklogManager      |
+| config.js                 | parseYamlSync, validateConfig, merge  | Config              |
+| backlog.js                | getStatusEmoji, generateContent       | Backlog             |
 | session_manager.js        | generateSessionId, createEntry        | SessionManager      |
-| metrics.js                | calculateDuration, formatMetrics      | MetricsCollector    |
+| metrics.js                | calculateDuration, formatMetrics      | Metrics             |
 | file_operations.js        | validatePath, filterByExtension       | FileOperations      |
 | edit_operations.js        | findMatches, replaceAll, generateDiff | EditOperations      |
 | argument_parser.js        | parseArguments, validateArguments     | ArgumentParser      |
@@ -360,7 +360,7 @@ src/
 ```text
 .workflow-config.yaml
         ↓
-   ConfigManager.loadConfig()
+   Config.loadConfig()
         ↓
    parseYamlSync() [pure]
         ↓
@@ -396,11 +396,11 @@ Session archived
 ```text
 Operation start
      ↓
-MetricsCollector.startOperation()
+Metrics.startOperation()
      ↓
 Operation execution
      ↓
-MetricsCollector.endOperation()
+Metrics.endOperation()
      ↓
 calculateDuration() [pure]
      ↓

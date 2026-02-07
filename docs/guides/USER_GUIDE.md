@@ -153,9 +153,9 @@ import { parseVersion } from './src/core/version.js';
 
 ```javascript
 import { Config } from './src/lib/config.js';
-import { BacklogManager } from './src/lib/backlog.js';
+import { Backlog } from './src/lib/backlog.js';
 import { SessionManager } from './src/lib/session_manager.js';
-import { MetricsCollector } from './src/lib/metrics.js';
+import { Metrics } from './src/lib/metrics.js';
 ```
 
 **Phase 3: File Operations & Utilities**
@@ -314,8 +314,8 @@ Generate project reports:
 
 ```javascript
 import { FileOperations } from './src/lib/file_operations.js';
-import { BacklogManager } from './src/lib/backlog.js';
-import { MetricsCollector } from './src/lib/metrics.js';
+import { Backlog } from './src/lib/backlog.js';
+import { Metrics } from './src/lib/metrics.js';
 import { logger } from './src/core/logger.js';
 
 async function generateReport(projectPath) {
@@ -324,11 +324,11 @@ async function generateReport(projectPath) {
   await config.initialize();
 
   // Collect metrics
-  const metrics = new MetricsCollector(fileOps, config.getAllPaths());
+  const metrics = new Metrics(fileOps, config.getAllPaths());
   metrics.recordStepStart(0);
 
   // Generate report
-  const backlog = new BacklogManager(fileOps, config.getAllPaths());
+  const backlog = new Backlog(fileOps, config.getAllPaths());
   await backlog.generateSummary({
     metadata: config.getMetadata(),
     executionMode: { auto: true },
@@ -354,10 +354,10 @@ Run tests and collect results:
 ```javascript
 import { execute } from './src/core/executor.js';
 import { logger } from './src/core/logger.js';
-import { MetricsCollector } from './src/lib/metrics.js';
+import { Metrics } from './src/lib/metrics.js';
 
 async function runTests(testCommand = 'npm test') {
-  const metrics = new MetricsCollector();
+  const metrics = new Metrics();
   const startTime = Date.now();
 
   try {
@@ -464,9 +464,9 @@ logger.error('Critical failure'); // Errors
 Measure and optimize performance:
 
 ```javascript
-import { MetricsCollector } from './src/lib/metrics.js';
+import { Metrics } from './src/lib/metrics.js';
 
-const metrics = new MetricsCollector();
+const metrics = new Metrics();
 const startTime = Date.now();
 
 // Your operation

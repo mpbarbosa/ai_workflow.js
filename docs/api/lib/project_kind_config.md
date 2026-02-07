@@ -41,7 +41,7 @@ Each project kind includes:
 
 **Impure Wrapper:**
 
-- `ProjectKindConfigManager` class - Configuration management with file I/O
+- `ProjectKindConfig` class - Configuration management with file I/O
 
 ---
 
@@ -49,7 +49,7 @@ Each project kind includes:
 
 ```javascript
 import {
-  ProjectKindConfigManager,
+  ProjectKindConfig,
   parseYaml,
   extractProjectKindConfig,
   mergeConfigurations,
@@ -238,14 +238,14 @@ const testingConfig = extractConfigSection(config, 'testing');
 
 ---
 
-## ProjectKindConfigManager Class
+## ProjectKindConfig Class
 
 Wrapper class for project kind configuration management with file I/O.
 
 ### Constructor
 
 ```javascript
-const manager = new ProjectKindConfigManager(options);
+const manager = new ProjectKindConfig(options);
 ```
 
 **Options:**
@@ -258,7 +258,7 @@ const manager = new ProjectKindConfigManager(options);
 **Example:**
 
 ```javascript
-const manager = new ProjectKindConfigManager({
+const manager = new ProjectKindConfig({
   projectRoot: '/path/to/project',
   verbose: true,
 });
@@ -443,9 +443,9 @@ manager.clearCache();
 ### Loading Project Configuration
 
 ```javascript
-import { ProjectKindConfigManager } from 'ai_workflow.js/lib/project_kind_config';
+import { ProjectKindConfig } from 'ai_workflow.js/lib/project_kind_config';
 
-const manager = new ProjectKindConfigManager({
+const manager = new ProjectKindConfig({
   projectRoot: '/path/to/project',
 });
 
@@ -462,7 +462,7 @@ console.log('Linters:', config.quality.linters);
 ### Merging User Overrides
 
 ```javascript
-const manager = new ProjectKindConfigManager();
+const manager = new ProjectKindConfig();
 
 // User's custom configuration
 const userConfig = {
@@ -486,7 +486,7 @@ console.log('Max complexity:', config.quality.max_complexity); // => 15
 ```javascript
 import { validateProjectStructure } from 'ai_workflow.js/lib/project_kind_config';
 
-const manager = new ProjectKindConfigManager();
+const manager = new ProjectKindConfig();
 
 // Get validation rules
 const rules = await manager.getValidationRules('nodejs_api');
@@ -511,7 +511,7 @@ if (validation.recommendations.length > 0) {
 ### Accessing Specific Configuration Sections
 
 ```javascript
-const manager = new ProjectKindConfigManager();
+const manager = new ProjectKindConfig();
 
 // Get testing configuration
 const testing = await manager.getTestingConfig('react_spa');
@@ -534,7 +534,7 @@ console.log('Output directory:', build.output_dir);
 
 ```javascript
 import { ProjectKindDetector } from 'ai_workflow.js/lib/project_kind_detection';
-import { ProjectKindConfigManager } from 'ai_workflow.js/lib/project_kind_config';
+import { ProjectKindConfig } from 'ai_workflow.js/lib/project_kind_config';
 
 async function loadConfigForProject(projectRoot) {
   // Detect project kind
@@ -544,7 +544,7 @@ async function loadConfigForProject(projectRoot) {
   console.log(`Detected: ${detection.kind} (${detection.confidence}% confidence)`);
 
   // Load configuration for detected kind
-  const manager = new ProjectKindConfigManager({ projectRoot });
+  const manager = new ProjectKindConfig({ projectRoot });
   const config = await manager.loadConfig(detection.kind);
 
   return {
@@ -585,7 +585,7 @@ console.log('Test framework:', config.testing.framework);
 ### Configuration Caching
 
 ```javascript
-const manager = new ProjectKindConfigManager({ verbose: true });
+const manager = new ProjectKindConfig({ verbose: true });
 
 // First call - loads from disk
 const config1 = await manager.loadConfig('nodejs_api');
