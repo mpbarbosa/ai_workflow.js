@@ -1,9 +1,9 @@
 # Migration Plan: AI Workflow from Shell Script to JavaScript/Node.js
 
 **Version:** 3.0.0 - **REORGANIZED**  
-**Document Version:** 3.4.0  
-**Last Updated:** February 5, 2026  
-**Status:** Active Development - Phase 5 Complete
+**Document Version:** 3.5.0  
+**Last Updated:** February 6, 2026  
+**Status:** Active Development - Phase 7 Complete
 
 ---
 
@@ -27,6 +27,7 @@
 
 | Version | Date       | Changes                                                                                             |
 | ------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| 3.5.0   | 2026-02-06 | Updated for source v3.2.0: Git submodule support, intelligent AI model selection, Step 1 optimization. |
 | 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.            |
 | 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).   |
 | 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests). |
@@ -44,7 +45,7 @@
 
 This document outlines the migration of [ai_workflow](https://github.com/mpbarbosa/ai_workflow) from shell script to JavaScript/Node.js.
 
-**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.1.0)
+**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.2.0)
 
 **What ai_workflow Actually Is:**
 
@@ -52,8 +53,10 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 - Documentation validation, test generation, code quality analysis
 - GitHub Copilot integration with 14 specialized AI personas
 - Smart execution, parallel processing, ML optimization, AI caching
+- Intelligent model selection with 4-tier complexity analysis (NEW v3.1.1+)
+- Git submodule lifecycle management (NEW v3.2.0+)
 - Checkpoint/resume, change detection, metrics tracking
-- 67+ library modules (~30K+ lines) + 18 step modules (~7K+ lines)
+- 70+ library modules (~39K+ lines) + 16 step modules (~8K+ lines)
 
 **What ai_workflow is NOT:**
 
@@ -102,6 +105,8 @@ ai_workflow/
 │   │   ├── health_check.sh               # Health checks
 │   │   ├── incremental_analysis.sh       # Incremental analysis (NEW v3.1+)
 │   │   ├── jq_wrapper.sh                 # Safe jq wrapper (NEW v3.1+)
+│   │   ├── model_selector.sh            # AI model selection (NEW v3.1.1+)
+│   │   ├── git_submodule_helpers.sh     # Git submodule mgmt (NEW v3.2.0+)
 │   │   ├── metrics.sh                    # Metrics
 │   │   ├── metrics_validation.sh         # Metrics validation
 │   │   ├── ml_optimization.sh            # ML-driven optimization
@@ -179,7 +184,7 @@ ai_workflow/
 
 - GitHub Copilot CLI integration
 - Specialized AI personas:
-  - Documentation Expert
+  - Documentation Expert (Technical Writer)
   - Test Engineer
   - Code Quality Analyst
   - Git Specialist
@@ -189,6 +194,9 @@ ai_workflow/
   - Performance Engineer
   - And 6 more...
 - AI response caching (60-80% token reduction)
+- Intelligent model selection (4-tier complexity system) _(NEW v3.1.1+)_
+  - Fast (Haiku) → Balanced (Sonnet) → Deep (Opus 4.5) → Agentic (Opus 4.6)
+  - 30-50% token reduction with optimized selection
 - Dynamic prompt generation
 - Batch AI operations
 
@@ -197,9 +205,12 @@ ai_workflow/
 - **Smart Execution**: Change-based step skipping (40-85% faster)
 - **Parallel Execution**: Independent steps run simultaneously (33% faster)
 - **AI Caching**: Intelligent response caching (60-80% savings)
+- **Intelligent Model Selection**: Complexity-based model tier selection (30-50% token reduction) _(NEW v3.1.1+)_
+- **Incremental Analysis**: File-level hash tracking (75-96% faster for Step 1) _(NEW v3.1.1+)_
+- **Parallel Processing**: Category-based concurrent AI analysis (71% faster) _(NEW v3.1.1+)_
 - **ML Optimization**: Predictive workflow intelligence (15-30% improvement)
 - **Multi-Stage Pipeline**: Progressive validation (3 stages)
-- **Combined**: Up to 90% faster for simple changes
+- **Combined**: Up to 96% faster for simple changes
 
 ### 4. Workflow Management
 
@@ -223,6 +234,13 @@ ai_workflow/
 
 - Auto-commit workflow artifacts
 - Intelligent commit message generation
+- Git submodule lifecycle management _(NEW v3.2.0+)_
+  - Automatic detection, init, update, commit, push
+  - AI-powered commit messages for submodules
+  - Parent repository pointer updates
+- Change detection and categorization
+- Git state caching
+- `.gitignore` respect
 - Batch AI commit operations
 - Git state validation
 - Change detection and tracking
@@ -341,6 +359,7 @@ ai_workflow/
 - [ ] `lib/change_detection.js` - Smart change detection (docs-only, code-only, full)
 - [ ] `lib/auto_commit.js` - Auto-commit workflow artifacts
 - [ ] `lib/batch_ai_commit.js` - Batch AI commit message generation
+- [ ] `lib/git_submodule_helpers.js` - Git submodule lifecycle management (NEW v3.2.0+)
 
 #### Git Features:
 
@@ -348,6 +367,8 @@ ai_workflow/
 - Track file changes since last run
 - Generate meaningful commit messages
 - Cache git state for performance
+- Git submodule support (detect, init, update, commit, push) (NEW v3.2.0+)
+- Automatic submodule pointer updates in parent repository
 
 #### Success Criteria:
 
@@ -373,11 +394,13 @@ ai_workflow/
   - AI persona management (14 personas including Technical Writer)
   - Prompt template system
   - AI response parsing
+  - Intelligent model selection (NEW v3.1.1+)
 - [ ] `lib/jq_wrapper.js` - Safe JSON operations wrapper (NEW v3.1+)
 - [ ] `lib/ai_personas.js` - AI persona definitions (Documentation Expert, Test Engineer, etc.)
 - [ ] `lib/ai_prompt_builder.js` - Dynamic prompt generation (project-aware, context-aware)
 - [ ] `lib/ai_cache.js` - AI response caching (60-80% token reduction)
 - [ ] `lib/ai_validation.js` - AI validation helpers (schema validation, confidence scoring)
+- [ ] `lib/model_selector.js` - Intelligent AI model selection based on complexity (NEW v3.1.1+)
 
 #### AI Features:
 
@@ -386,6 +409,10 @@ ai_workflow/
 - Response caching with TTL
 - Batch AI operations
 - Confidence scoring
+- Intelligent model selection based on change complexity (NEW v3.1.1+)
+  - 4-tier model system (Fast, Balanced, Deep Reasoning, Agentic)
+  - Automatic complexity analysis (code, docs, tests)
+  - 30-50% token usage reduction with optimized model selection
 
 #### Success Criteria:
 
@@ -449,6 +476,8 @@ ai_workflow/
 - [ ] `lib/code_changes_optimization.js` - Smart code change detection
 - [ ] `lib/full_changes_optimization.js` - Optimization for full workflow runs
 - [ ] `lib/multi_stage_pipeline.js` - Multi-stage pipeline (quick → medium → full)
+- [ ] `lib/step1_incremental.js` - File-level hash tracking for Step 1 (NEW v3.1.1+)
+- [ ] `lib/step1_parallel.js` - Category-based parallel processing for Step 1 (NEW v3.1.1+)
 
 #### Optimization Strategy:
 
@@ -456,6 +485,8 @@ ai_workflow/
 - 33% faster with parallel execution
 - 60-80% token savings with AI caching
 - 15-30% improvement with ML optimization
+- 30-50% token reduction with intelligent model selection (NEW v3.1.1+)
+- 75-96% faster Step 1 with incremental + parallel processing (NEW v3.1.1+)
 - Combined: Up to 90% faster for docs-only
 
 #### Success Criteria:
@@ -789,43 +820,96 @@ Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ (File Ops) → Phase 4 (Project) →
 
 ---
 
-## Recent Source Changes (v3.1.0)
+## Recent Source Changes (v3.2.0)
 
-**Changes since last plan update (Feb 2, 2026):**
+**Changes since last plan update (Feb 5, 2026):**
 
-1. **New Step 0b: Bootstrap Documentation**
+### Major Features (v3.2.0 - Feb 6, 2026)
+
+1. **Git Submodule Support** (git_submodule_helpers.sh)
+   - 531 lines, 21 functions
+   - Full lifecycle management: detect, init, update, commit, push
+   - Automatic submodule pointer updates in parent repository
+   - AI-powered commit messages for submodule changes
+   - Integrated into Step 11 (Git Finalization) as Phase 1.5
+   - CLI flag: `--skip-submodules` for opt-out
+   - **Impact**: Critical for projects using `.workflow_core` as submodule
+
+### Optimization Features (v3.1.1 - Jan 28, 2026)
+
+2. **Intelligent AI Model Selection** (model_selector.sh)
+   - 788 lines, 4-tier model system
+   - Automatic complexity analysis (code, docs, tests)
+   - Cyclomatic complexity calculation
+   - Model tiers: Fast (Haiku) → Balanced (Sonnet) → Deep (Opus 4.5) → Agentic (Opus 4.6)
+   - Configuration: `.workflow_core/config/model_selection_rules.yaml`
+   - CLI flags: `--force-model`, `--show-model-plan`
+   - **Performance**: 30-50% token reduction, 15-25% faster execution
+   - **Documentation**: `docs/MODEL_SELECTION.md` (12KB guide)
+
+3. **Step 1 Optimization - Incremental Processing**
+   - File-level SHA256 hash tracking (step_01_lib/incremental.sh)
+   - Smart change detection: Skip AI for unchanged docs
+   - JSON cache: `.ai_cache/doc_hashes.json`
+   - **Performance**: 96% faster when no docs changed, 75% on partial changes
+
+4. **Step 1 Optimization - Parallel Processing**
+   - Category-based parallel analysis (5 categories)
+   - Concurrent AI with job control (max 4 jobs)
+   - Auto-threshold: ≥4 files triggers parallel mode
+   - **Performance**: 71% faster on concurrent processing
+   - **Combined Step 1 improvement**: 14.5 min → 0.5-5 min (75-96% reduction)
+
+### Bug Fixes & Infrastructure (v3.1.0 - Jan 30, 2026)
+
+5. **Step 0b: Bootstrap Documentation**
    - 524 lines, gap analysis & generation
    - Uses Technical Writer AI persona
    - Complements Step 1 (incremental) and Step 2 (consistency)
 
-2. **JQ Wrapper Module** (jq_wrapper.sh)
+6. **JQ Wrapper Module** (jq_wrapper.sh)
    - 296 lines, safe JSON operations
    - Prevents jq --argjson errors with validation
+   - Logging support with DEBUG mode
 
-3. **Modular Step Architecture**
-   - Step 1 refactored with step_01_lib/ (7 sub-modules, ~53K lines)
-   - Pattern emerging: step_XX_lib/ for complex steps
+7. **Modular Step Architecture**
+   - Step 1 refactored with step_01_lib/ (7 sub-modules)
+   - Pattern for complex steps: step_XX_lib/ directories
 
-4. **New Library Modules**
+8. **New Library Modules**
    - analysis_cache.sh (571 lines)
    - incremental_analysis.sh (238 lines)
    - version_bump.sh (415 lines)
    - precommit_hooks.sh (521 lines)
 
-5. **Bug Fixes & Enhancements**
-   - Multiple jq validation fixes
-   - ML optimization robustness
-   - AI prompt builder restoration
+**Source Statistics Update:**
+
+- **Version**: v3.1.0 → v3.2.0
+- **Steps**: 15 → 16 (added Step 0b)
+- **Library modules**: 62 → 70+ (added: jq_wrapper, model_selector, git_submodule_helpers, step optimizations)
+- **Total LOC**: ~34K → ~39K+ (15% growth)
+- **New patterns**: Modular step_XX_lib/ architecture, intelligent model selection
 
 **Impact on Migration:**
 
-- Step count: 15 → 16
-- Library count: 62 → 67+
-- Total LOC: ~34K → ~37K+
-- Modular pattern for complex steps
+1. **Priority 1 (Critical)**:
+   - `git_submodule_helpers.js` - Required for `.workflow_core` integration
+   - `model_selector.js` - Significant performance improvement (30-50% token reduction)
+
+2. **Priority 2 (High Performance)**:
+   - `step1_incremental.js` - 75-96% Step 1 speed improvement
+   - `step1_parallel.js` - Parallel processing for Step 1
+
+3. **Priority 3 (Already Implemented)**:
+   - `jq_wrapper.js` - Already completed in Phase 6 (jq_wrapper module)
+
+4. **Module Count Update**:
+   - Phase 5 (Git): 4 → 5 modules (add git_submodule_helpers)
+   - Phase 6 (AI): 6 → 7 modules (add model_selector)
+   - Phase 8 (Performance): 9 → 11 modules (add step1_incremental, step1_parallel)
 
 ---
 
-**Migration Status:** Phase 5 complete (219 tests), Phase 6 (AI Integration) next  
-**Source Version:** v3.1.0  
-**Last Updated:** February 5, 2026 (v3.4.0 - Source sync)
+**Migration Status:** Phase 7 complete (329 tests), Phase 8 (Performance Optimization) next  
+**Source Version:** v3.2.0  
+**Last Updated:** February 6, 2026 (v3.5.0 - Source sync)

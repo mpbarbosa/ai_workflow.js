@@ -1,11 +1,14 @@
 # API Reference
 
-**Version:** 1.0.0  
-**Last Updated:** February 2, 2026
+**Version:** 2.0.0  
+**Last Updated:** February 7, 2026
 
-Complete API documentation for ai_workflow.js modules (Phase 1-3).
+Complete API documentation for ai_workflow.js modules (Phase 1-7).
 
-**⚠️ Note:** API documentation for Phase 4 (Project Detection) and Phase 5 (Git Integration) modules is pending generation.
+**✅ Phase 4 Complete:** Project Detection modules now fully documented!  
+**✅ Phase 5 Complete:** Git Integration modules now fully documented!  
+**✅ Phase 6 Complete:** AI Integration modules now fully documented!  
+**✅ Phase 7 Complete:** Orchestrator modules now fully documented!
 
 ## 📦 Module Categories
 
@@ -44,27 +47,39 @@ Helper utilities:
 
 - **[errors](./utils/errors.md)** - Custom error class hierarchy for workflow errors
 
-### Library Modules - Phase 4 (Project Detection - v1.0.0)
+#### Project Detection (Phase 4 - v1.0.0)
 
-**⚠️ API documentation pending generation**
+- **[project_kind_detection](./lib/project_kind_detection.md)** - Auto-detect project type from file patterns
+- **[project_kind_config](./lib/project_kind_config.md)** - Load/parse project configs from YAML
+- **[tech_stack](./lib/tech_stack.md)** - Detect languages, frameworks, tools
+- **[third_party_exclusion](./lib/third_party_exclusion.md)** - Filter third-party files from analysis
 
-Modules implemented but documentation not yet generated:
+#### Git Integration (Phase 5 - v2.0.0)
 
-- **project_kind_detection** - Auto-detect project type from file patterns
-- **project_kind_config** - Load/parse project configs from YAML
-- **tech_stack** - Detect languages, frameworks, tools
-- **third_party_exclusion** - Filter third-party files from analysis
+- **[git_automation](./lib/git_automation.md)** - Git operations (status, diff, commit)
+- **[git_cache](./lib/git_cache.md)** - Git operation caching with invalidation
+- **[auto_commit](./lib/auto_commit.md)** - Automatic artifact commits
+- **[change_detection](./lib/change_detection.md)** - File change detection and categorization
 
-### Library Modules - Phase 5 (Git Integration - v2.0.0)
+#### AI Integration (Phase 6 - v2.0.0)
 
-**⚠️ API documentation pending generation**
+- **[jq_wrapper](./lib/jq_wrapper.md)** - JSON processing with jq CLI
+- **[ai_personas](./lib/ai_personas.md)** - AI persona management
+- **[ai_validation](./lib/ai_validation.md)** - AI response validation
+- **[ai_cache](./lib/ai_cache.md)** - AI response caching
+- **[ai_prompt_builder](./lib/ai_prompt_builder.md)** - AI prompt construction
+- **[ai_helpers](./lib/ai_helpers.md)** - AI helper utilities
 
-Modules implemented but documentation not yet generated:
+### Orchestrator Modules (Phase 7 - v2.0.0)
 
-- **git_automation** - Git operations (status, diff, commit)
-- **git_cache** - Git operation caching with invalidation
-- **auto_commit** - Automatic artifact commits
-- **change_detection** - File change detection and categorization
+Workflow orchestration and execution management:
+
+- **[workflow_engine](./orchestrator/workflow_engine.md)** - Core workflow orchestration engine
+- **[step_registry](./orchestrator/step_registry.md)** - Step definition and registration
+- **[dependency_resolver](./orchestrator/dependency_resolver.md)** - Dependency graph and topological sort
+- **[step_executor](./orchestrator/step_executor.md)** - Step execution with timeout and retry
+- **[conditional_executor](./orchestrator/conditional_executor.md)** - Conditional step execution
+- **[checkpoint_manager](./orchestrator/checkpoint_manager.md)** - Checkpoint save/resume functionality
 
 ## 🚀 Quick Reference
 
