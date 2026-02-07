@@ -66,7 +66,7 @@ export function isCacheValid(cacheEntry, ttlSeconds, currentTime) {
   }
 
   const age = currentTime - cacheEntry.timestampEpoch;
-  return age >= 0 && age <= ttlSeconds;
+  return age >= 0 && age < ttlSeconds;
 }
 
 /**

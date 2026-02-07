@@ -90,7 +90,8 @@ describe('AI Cache Module - Pure Functions', () => {
       const currentTime = 3000;
       const ttl = 2000;
 
-      expect(isCacheValid(entry, ttl, currentTime)).toBe(true);
+      // At exactly TTL seconds, cache should be expired (exclusive boundary)
+      expect(isCacheValid(entry, ttl, currentTime)).toBe(false);
     });
 
     test('returns false for negative age', () => {
@@ -141,8 +142,8 @@ describe('AI Cache Module - Pure Functions', () => {
       const stats = calculateCacheStats(entries, currentTime, ttl);
 
       expect(stats.total).toBe(3);
-      expect(stats.valid).toBe(2); // Last two within TTL (1500 and 2000)
-      expect(stats.expired).toBe(1); // First one expired (1000)
+      expect(stats.valid).toBe(1); // Only last one within TTL (age 500s < 1000s)
+      expect(stats.expired).toBe(2); // First two expired (ages 1500s and 1000s >= 1000s TTL)
       expect(stats.totalSize).toBe(600);
     });
 
