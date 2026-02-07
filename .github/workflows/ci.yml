@@ -54,7 +54,7 @@ jobs:
         run: npm run lint
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --maxWorkers=2
 
       - name: Test summary
         if: always()
@@ -91,7 +91,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit
 
       - name: Generate coverage report
-        run: npm run test:coverage
+        run: npm run test:coverage -- --maxWorkers=2
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
