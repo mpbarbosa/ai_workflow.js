@@ -73,6 +73,16 @@ export {
   isDocsOnlyChange,
   filterDocsOnlySteps,
 } from './lib/docs_only_optimization.js';
+export {
+  CodeChangesOptimizer,
+  CODE_PATTERNS,
+  ALWAYS_RUN_STEPS as CODE_ALWAYS_RUN_STEPS,
+  CONDITIONAL_STEPS,
+  isCodeFile,
+  categorizeCodeFile,
+  analyzeCodePatterns,
+  filterStepsForCode,
+} from './lib/code_changes_optimization.js';
 
 // Phase 3 exports (v2.0.0)
 export {
