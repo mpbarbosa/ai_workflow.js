@@ -42,6 +42,11 @@ export { Metrics } from './lib/metrics.js';
 
 // Phase 8 exports (v2.0.0)
 export { PerformanceTracker } from './lib/performance.js';
+export {
+  DEFAULT_THRESHOLDS,
+  ALERT_SEVERITY,
+  PerformanceMonitor,
+} from './lib/performance_monitoring.js';
 
 // Phase 3 exports (v2.0.0)
 export {
