@@ -1,29 +1,20 @@
 {
-  "workflow_run_id": "workflow_20260206_174450",
-  "generated_at": "2026-02-06T20:45:13Z",
+  "workflow_run_id": "workflow_20260207_140241",
+  "generated_at": "2026-02-07T17:02:44Z",
   "git_info": {
-    "commit": "6589441",
+    "commit": "68e9fee",
     "branch": "main"
   },
   "change_summary": {
-    "total_files": 8,
+    "total_files": 15,
     "by_category": {
-      "code": 1,
-      "documentation": 7,
+      "code": 0,
+      "documentation": 15,
       "tests": 0
     }
   },
   "complexity_analysis": {
-    "code": {
-  "score": 25,
-  "tier": "low",
-  "factors": {
-    "cyclomatic": 2,
-    "lines_changed": 59,
-    "function_depth": 1,
-    "semantic": "enhancement"
-  }
-},
+    "code": {"score":0,"tier":"low","factors":{"cyclomatic":0,"lines_changed":0,"function_depth":0,"semantic":"none"}},
     "documentation": {
   "score": 0,
   "tier": "low",
