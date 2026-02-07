@@ -47,6 +47,7 @@ export {
   ALERT_SEVERITY,
   PerformanceMonitor,
 } from './lib/performance_monitoring.js';
+export { DEFAULT_CACHE_CONFIG, INVALIDATION_REASONS, AnalysisCache } from './lib/analysis_cache.js';
 
 // Phase 3 exports (v2.0.0)
 export {
