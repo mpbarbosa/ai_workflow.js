@@ -18,6 +18,38 @@ import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
 
 // ==============================================================================
+// CONSTANTS - Magic numbers extracted for maintainability
+// ==============================================================================
+
+// Confidence score thresholds for AI response quality
+const CONFIDENCE_SCORES = {
+  LOW: 0.3, // Very short or incomplete responses
+  UNCERTAIN: 0.5, // Unclear or uncertain responses
+  SHORT_VALID: 0.7, // Short but valid responses
+  MEDIUM: 0.8, // Medium-length responses
+  HIGH: 0.9, // Detailed, comprehensive responses
+};
+
+// Content length thresholds for quality assessment
+const CONTENT_LENGTH = {
+  MIN_VALID: 10, // Minimum length for valid response
+  SHORT_THRESHOLD: 30, // Threshold between short and medium
+  DETAILED_THRESHOLD: 500, // Threshold for detailed response
+};
+
+// Default AI request parameters
+const DEFAULT_REQUEST = {
+  MODEL: 'gpt-4',
+  TEMPERATURE: 0.7,
+  MAX_TOKENS: 4000,
+  TIMEOUT_MS: 30000, // 30 seconds
+  STREAM: false,
+  MAX_RETRIES: 3,
+  BASE_DELAY_MS: 1000, // 1 second initial retry delay
+  MAX_DELAY_MS: 30000, // 30 seconds maximum retry delay
+};
+
+// ==============================================================================
 // PURE FUNCTIONS - Response Processing
 // ==============================================================================
 
@@ -51,16 +83,16 @@ export function parseAiResponse(rawResponse) {
 
     // Calculate confidence for string responses based on length and content
     let confidence;
-    if (content.length < 10) {
-      confidence = 0.3;
+    if (content.length < CONTENT_LENGTH.MIN_VALID) {
+      confidence = CONFIDENCE_SCORES.LOW;
     } else if (content.includes("I don't know") || content.includes('unclear')) {
-      confidence = 0.5;
-    } else if (content.length > 500) {
-      confidence = 0.9;
-    } else if (content.length >= 30) {
-      confidence = 0.8; // Medium to long response
+      confidence = CONFIDENCE_SCORES.UNCERTAIN;
+    } else if (content.length > CONTENT_LENGTH.DETAILED_THRESHOLD) {
+      confidence = CONFIDENCE_SCORES.HIGH;
+    } else if (content.length >= CONTENT_LENGTH.SHORT_THRESHOLD) {
+      confidence = CONFIDENCE_SCORES.MEDIUM; // Medium to long response
     } else {
-      confidence = 0.7; // Short but valid response
+      confidence = CONFIDENCE_SCORES.SHORT_VALID; // Short but valid response
     }
 
     return {
@@ -82,16 +114,16 @@ export function parseAiResponse(rawResponse) {
 
   // Basic confidence estimation based on response quality (same logic as string)
   let confidence;
-  if (content.length < 10) {
-    confidence = 0.3;
+  if (content.length < CONTENT_LENGTH.MIN_VALID) {
+    confidence = CONFIDENCE_SCORES.LOW;
   } else if (content.includes("I don't know") || content.includes('unclear')) {
-    confidence = 0.5;
-  } else if (content.length > 500) {
-    confidence = 0.9;
-  } else if (content.length >= 30) {
-    confidence = 0.8; // Medium to long response
+    confidence = CONFIDENCE_SCORES.UNCERTAIN;
+  } else if (content.length > CONTENT_LENGTH.DETAILED_THRESHOLD) {
+    confidence = CONFIDENCE_SCORES.HIGH;
+  } else if (content.length >= CONTENT_LENGTH.SHORT_THRESHOLD) {
+    confidence = CONFIDENCE_SCORES.MEDIUM; // Medium to long response
   } else {
-    confidence = 0.7; // Short but valid response
+    confidence = CONFIDENCE_SCORES.SHORT_VALID; // Short but valid response
   }
 
   return {
@@ -228,10 +260,14 @@ export function formatBatchRequests(requests) {
  * @pure
  *
  * @example
- * calculateRetryDelay(0, 1000, 10000) // => 1000
- * calculateRetryDelay(3, 1000, 10000) // => 8000
+ * calculateRetryDelay(0) // => 1000 (uses default BASE_DELAY_MS)
+ * calculateRetryDelay(3) // => 8000
  */
-export function calculateRetryDelay(attempt, baseDelay = 1000, maxDelay = 30000) {
+export function calculateRetryDelay(
+  attempt,
+  baseDelay = DEFAULT_REQUEST.BASE_DELAY_MS,
+  maxDelay = DEFAULT_REQUEST.MAX_DELAY_MS
+) {
   const delay = baseDelay * Math.pow(2, attempt);
   return Math.min(delay, maxDelay);
 }
@@ -265,11 +301,14 @@ export function shouldRetry(errorInfo, attemptCount, maxAttempts = 3) {
  */
 export function mergeRequestOptions(options = {}, defaults = {}) {
   return {
-    model: options.model || defaults.model || 'gpt-4',
+    model: options.model || defaults.model || DEFAULT_REQUEST.MODEL,
     temperature:
-      options.temperature !== undefined ? options.temperature : defaults.temperature || 0.7,
-    maxTokens: options.maxTokens || defaults.maxTokens || 4000,
-    stream: options.stream !== undefined ? options.stream : defaults.stream || false,
+      options.temperature !== undefined
+        ? options.temperature
+        : defaults.temperature || DEFAULT_REQUEST.TEMPERATURE,
+    maxTokens: options.maxTokens || defaults.maxTokens || DEFAULT_REQUEST.MAX_TOKENS,
+    stream:
+      options.stream !== undefined ? options.stream : defaults.stream || DEFAULT_REQUEST.STREAM,
     persona: options.persona || defaults.persona,
     cache:
       options.cache !== undefined
@@ -311,12 +350,12 @@ export class AiHelper {
    */
   constructor(config = {}) {
     this.config = {
-      model: config.model || 'gpt-4',
-      maxRetries: config.maxRetries || 3,
+      model: config.model || DEFAULT_REQUEST.MODEL,
+      maxRetries: config.maxRetries || DEFAULT_REQUEST.MAX_RETRIES,
       cache: config.cache !== undefined ? config.cache : true,
-      timeout: config.timeout || 30000,
-      baseDelay: config.baseDelay || 1000,
-      maxDelay: config.maxDelay || 30000,
+      timeout: config.timeout || DEFAULT_REQUEST.TIMEOUT_MS,
+      baseDelay: config.baseDelay || DEFAULT_REQUEST.BASE_DELAY_MS,
+      maxDelay: config.maxDelay || DEFAULT_REQUEST.MAX_DELAY_MS,
     };
 
     this.client = null;
