@@ -48,6 +48,14 @@ export {
   PerformanceMonitor,
 } from './lib/performance_monitoring.js';
 export { DEFAULT_CACHE_CONFIG, INVALIDATION_REASONS, AnalysisCache } from './lib/analysis_cache.js';
+export {
+  IncrementalAnalyzer,
+  DEFAULT_CONFIG as INCREMENTAL_CONFIG,
+  CHANGE_TYPES,
+  calculateFileHash,
+  detectFileChanges,
+  calculateChangeStats,
+} from './lib/incremental_analysis.js';
 
 // Phase 3 exports (v2.0.0)
 export {
