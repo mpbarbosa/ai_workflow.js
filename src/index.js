@@ -102,6 +102,18 @@ export {
   selectStagesByChanges,
   buildStagePlan,
 } from './lib/multi_stage_pipeline.js';
+export {
+  Step1IncrementalProcessor,
+  DEFAULT_CONFIG as STEP1_CONFIG,
+  DOC_CATEGORIES,
+  VALIDATION_PRIORITY,
+  calculateContentHash,
+  categorizeDocFile,
+  getValidationPriority,
+  detectDocumentationChanges,
+  filterByPriority,
+  sortByPriority,
+} from './lib/step1_incremental.js';
 
 // Phase 3 exports (v2.0.0)
 export {
