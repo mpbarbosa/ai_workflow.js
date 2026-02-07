@@ -92,6 +92,16 @@ export {
   selectOptimizationStrategy,
   determineOptimizedSteps,
 } from './lib/full_changes_optimization.js';
+export {
+  MultiStagePipeline,
+  PIPELINE_STAGES,
+  STAGE_DEFINITIONS,
+  TIME_BUDGETS,
+  groupStepsByStage,
+  selectStagesByTime,
+  selectStagesByChanges,
+  buildStagePlan,
+} from './lib/multi_stage_pipeline.js';
 
 // Phase 3 exports (v2.0.0)
 export {
