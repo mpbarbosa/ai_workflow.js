@@ -7,6 +7,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from '../core/logger.js';
 
 /**
  * PURE FUNCTIONS - All referentially transparent
@@ -176,7 +177,7 @@ export class SessionManager {
     this.sessionCleanupQueue = addToCleanupQueue(this.sessionCleanupQueue, sessionId);
 
     // Side effect isolated
-    console.log(`✓ Registered session: ${sessionId} (${description})`);
+    logger.info(`Registered session: ${sessionId} (${description})`);
   }
 
   /**
@@ -191,7 +192,7 @@ export class SessionManager {
       this.sessionCleanupQueue = removeFromCleanupQueue(this.sessionCleanupQueue, sessionId);
 
       // Side effect isolated
-      console.log(`✓ Unregistered session: ${sessionId}`);
+      logger.info(`Unregistered session: ${sessionId}`);
     }
   }
 
@@ -222,7 +223,7 @@ export class SessionManager {
       this.unregisterSession(sessionId);
     }
     // Side effect isolated
-    console.log(`✓ Cleaned up ${sessionIds.length} sessions`);
+    logger.info(`Cleaned up ${sessionIds.length} sessions`);
   }
 
   /**
