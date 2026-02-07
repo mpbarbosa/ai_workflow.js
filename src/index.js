@@ -83,6 +83,15 @@ export {
   analyzeCodePatterns,
   filterStepsForCode,
 } from './lib/code_changes_optimization.js';
+export {
+  FullChangesOptimizer,
+  OPTIMIZATION_STRATEGIES,
+  CONFIDENCE_THRESHOLDS,
+  STRATEGY_PRIORITIES,
+  analyzeOptimizationCandidates,
+  selectOptimizationStrategy,
+  determineOptimizedSteps,
+} from './lib/full_changes_optimization.js';
 
 // Phase 3 exports (v2.0.0)
 export {
