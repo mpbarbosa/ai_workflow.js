@@ -307,10 +307,11 @@ export class ProjectKindDetector {
       }
 
       // List all files for pattern detection (recursively)
+      // Note: listDirectoryRecursive returns an array of file path strings
       const allFiles = await this.fileOps.listDirectoryRecursive(projectRoot);
 
-      // Get only file paths (not directories)
-      const files = allFiles.filter((f) => f.isFile).map((f) => f.name);
+      // Extract just the file names (basename) from full paths
+      const files = allFiles.map((filePath) => path.basename(filePath));
 
       // Detect by file patterns
       const patternResult = detectByFilePatterns(files);
@@ -324,7 +325,10 @@ export class ProjectKindDetector {
       }
 
       // Get directories for structure detection
-      const directories = allFiles.filter((f) => f.isDirectory).map((f) => f.name);
+      const allDirs = await this.fileOps.listDirectoryRecursive(projectRoot, {
+        includeDirectories: true,
+      });
+      const directories = allDirs.map((dirPath) => path.basename(dirPath));
       const structureResult = detectByDirectoryStructure(directories);
       if (structureResult.kind) {
         detectionResults.push(structureResult);
