@@ -64,6 +64,15 @@ export {
   predictSkippability,
   calculateAccuracy,
 } from './lib/ml_optimization.js';
+export {
+  DocsOnlyOptimizer,
+  DOCS_PATTERNS,
+  ALWAYS_RUN_STEPS,
+  SKIPPABLE_STEPS,
+  isDocsFile,
+  isDocsOnlyChange,
+  filterDocsOnlySteps,
+} from './lib/docs_only_optimization.js';
 
 // Phase 3 exports (v2.0.0)
 export {
