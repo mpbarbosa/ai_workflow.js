@@ -114,6 +114,17 @@ export {
   filterByPriority,
   sortByPriority,
 } from './lib/step1_incremental.js';
+export {
+  Step1ParallelProcessor,
+  EXECUTION_STRATEGY,
+  TASK_STATUS,
+  createValidationTask,
+  createValidationTasks,
+  sortTasksByPriority,
+  determineExecutionStrategy,
+  splitIntoBatches,
+  mergeValidationResults,
+} from './lib/step1_parallel.js';
 
 // Phase 3 exports (v2.0.0)
 export {
