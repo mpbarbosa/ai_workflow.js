@@ -275,18 +275,20 @@ export class CleanupManager {
   }
 
   /**
-   * Clean files older than specified age
+   * PRIVATE: Unified cleanup method with filtering strategy
    * @param {string} directory - Directory to clean
-   * @param {number} maxAgeMs - Maximum age in milliseconds
+   * @param {Function} filterFn - Pure function to filter files
    * @param {Object} options - Options { recursive, pattern }
+   * @param {string} operationName - Name for logging
    * @returns {Promise<Object>} Cleanup summary
+   * @private
    */
-  async cleanByAge(directory, maxAgeMs, options = {}) {
+  async _cleanWithFilter(directory, filterFn, options = {}, operationName = 'cleanup') {
     const startTime = Date.now();
 
     try {
       if (this.verbose) {
-        logger.info(`Cleaning files older than ${formatDuration(maxAgeMs)} in ${directory}`);
+        logger.info(`Starting ${operationName} in ${directory}`);
       }
 
       // List files in directory
@@ -308,9 +310,8 @@ export class CleanupManager {
         }
       }
 
-      // Filter by age
-      const currentTime = Date.now();
-      const toDelete = filterByAge(files, currentTime, maxAgeMs);
+      // Filter files using provided pure function
+      const toDelete = filterFn(files);
 
       if (toDelete.length === 0) {
         if (this.verbose) {
@@ -340,9 +341,26 @@ export class CleanupManager {
 
       return summary;
     } catch (error) {
-      logger.error(`Cleanup by age failed: ${error.message}`);
+      logger.error(`${operationName} failed: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Clean files older than specified age
+   * @param {string} directory - Directory to clean
+   * @param {number} maxAgeMs - Maximum age in milliseconds
+   * @param {Object} options - Options { recursive, pattern }
+   * @returns {Promise<Object>} Cleanup summary
+   */
+  async cleanByAge(directory, maxAgeMs, options = {}) {
+    const currentTime = Date.now();
+    return this._cleanWithFilter(
+      directory,
+      (files) => filterByAge(files, currentTime, maxAgeMs),
+      options,
+      `cleanup by age (${formatDuration(maxAgeMs)})`
+    );
   }
 
   /**
@@ -353,66 +371,12 @@ export class CleanupManager {
    * @returns {Promise<Object>} Cleanup summary
    */
   async cleanBySize(directory, maxSizeBytes, options = {}) {
-    const startTime = Date.now();
-
-    try {
-      if (this.verbose) {
-        logger.info(`Cleaning files larger than ${formatSize(maxSizeBytes)} in ${directory}`);
-      }
-
-      // List files in directory
-      const filePaths = options.recursive
-        ? await this.fileOps.listDirectoryRecursive(directory, options)
-        : await this.fileOps.listDirectory(directory, options);
-
-      // Get metadata for each file
-      const files = [];
-      for (const filePath of filePaths) {
-        try {
-          const stats = await this.fileOps.stat(filePath);
-          files.push({ path: filePath, ...stats });
-        } catch (error) {
-          // Skip files that can't be stat'd
-          if (this.verbose) {
-            logger.warn(`Cannot stat ${filePath}: ${error.message}`);
-          }
-        }
-      }
-
-      // Filter by size
-      const toDelete = filterBySize(files, maxSizeBytes);
-
-      if (toDelete.length === 0) {
-        if (this.verbose) {
-          logger.info('No files to clean');
-        }
-        return generateCleanupSummary(0, 0, Date.now() - startTime);
-      }
-
-      // Delete files
-      let spaceFreed = 0;
-      for (const file of toDelete) {
-        spaceFreed += file.size || 0;
-        if (file.isDirectory) {
-          await this.fileOps.deleteDirectory(file.path);
-        } else {
-          await this.fileOps.deleteFile(file.path);
-        }
-      }
-
-      const summary = generateCleanupSummary(toDelete.length, spaceFreed, Date.now() - startTime);
-
-      if (this.verbose) {
-        logger.success(
-          `Cleaned ${summary.filesDeleted} files, freed ${summary.spaceFreedFormatted}`
-        );
-      }
-
-      return summary;
-    } catch (error) {
-      logger.error(`Cleanup by size failed: ${error.message}`);
-      throw error;
-    }
+    return this._cleanWithFilter(
+      directory,
+      (files) => filterBySize(files, maxSizeBytes),
+      options,
+      `cleanup by size (${formatSize(maxSizeBytes)})`
+    );
   }
 
   /**

@@ -54,6 +54,27 @@ const DEFAULT_REQUEST = {
 // ==============================================================================
 
 /**
+ * Calculate confidence score based on content length and quality (PURE)
+ * @param {string} content - Response content
+ * @returns {number} Confidence score (0.0-1.0)
+ * @pure
+ * @private
+ */
+function calculateConfidenceScore(content) {
+  if (content.length < CONTENT_LENGTH.MIN_VALID) {
+    return CONFIDENCE_SCORES.LOW;
+  } else if (content.includes("I don't know") || content.includes('unclear')) {
+    return CONFIDENCE_SCORES.UNCERTAIN;
+  } else if (content.length > CONTENT_LENGTH.DETAILED_THRESHOLD) {
+    return CONFIDENCE_SCORES.HIGH;
+  } else if (content.length >= CONTENT_LENGTH.SHORT_THRESHOLD) {
+    return CONFIDENCE_SCORES.MEDIUM;
+  } else {
+    return CONFIDENCE_SCORES.SHORT_VALID;
+  }
+}
+
+/**
  * Parses raw AI response into structured data.
  * Extracts content, metadata, and handles various response formats.
  *
@@ -80,25 +101,10 @@ export function parseAiResponse(rawResponse) {
   // Handle string responses
   if (typeof rawResponse === 'string') {
     const content = rawResponse.trim();
-
-    // Calculate confidence for string responses based on length and content
-    let confidence;
-    if (content.length < CONTENT_LENGTH.MIN_VALID) {
-      confidence = CONFIDENCE_SCORES.LOW;
-    } else if (content.includes("I don't know") || content.includes('unclear')) {
-      confidence = CONFIDENCE_SCORES.UNCERTAIN;
-    } else if (content.length > CONTENT_LENGTH.DETAILED_THRESHOLD) {
-      confidence = CONFIDENCE_SCORES.HIGH;
-    } else if (content.length >= CONTENT_LENGTH.SHORT_THRESHOLD) {
-      confidence = CONFIDENCE_SCORES.MEDIUM; // Medium to long response
-    } else {
-      confidence = CONFIDENCE_SCORES.SHORT_VALID; // Short but valid response
-    }
-
     return {
       content,
       metadata: {},
-      confidence,
+      confidence: calculateConfidenceScore(content),
       success: true,
     };
   }
@@ -112,24 +118,10 @@ export function parseAiResponse(rawResponse) {
     ...(rawResponse.metadata || {}),
   };
 
-  // Basic confidence estimation based on response quality (same logic as string)
-  let confidence;
-  if (content.length < CONTENT_LENGTH.MIN_VALID) {
-    confidence = CONFIDENCE_SCORES.LOW;
-  } else if (content.includes("I don't know") || content.includes('unclear')) {
-    confidence = CONFIDENCE_SCORES.UNCERTAIN;
-  } else if (content.length > CONTENT_LENGTH.DETAILED_THRESHOLD) {
-    confidence = CONFIDENCE_SCORES.HIGH;
-  } else if (content.length >= CONTENT_LENGTH.SHORT_THRESHOLD) {
-    confidence = CONFIDENCE_SCORES.MEDIUM; // Medium to long response
-  } else {
-    confidence = CONFIDENCE_SCORES.SHORT_VALID; // Short but valid response
-  }
-
   return {
     content: content.trim(),
     metadata,
-    confidence,
+    confidence: calculateConfidenceScore(content),
     success: true,
   };
 }
