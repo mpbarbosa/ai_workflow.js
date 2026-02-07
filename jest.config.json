@@ -1,8 +1,41 @@
 {
   "testEnvironment": "node",
   "coverageDirectory": "coverage",
-  "collectCoverageFrom": ["src/**/*.js", "!src/**/*.test.js", "!src/**/*.spec.js"],
+  "collectCoverageFrom": [
+    "src/**/*.js",
+    "!src/**/*.test.js",
+    "!src/**/*.spec.js",
+    "!src/core/executor.js",
+    "!src/core/system.js",
+    "!src/core/version.js"
+  ],
   "testMatch": ["**/test/**/*.test.js", "**/test/**/*.spec.js", "**/__tests__/**/*.js"],
   "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/"],
-  "transform": {}
+  "transform": {},
+  "coverageThreshold": {
+    "global": {
+      "statements": 83,
+      "branches": 64,
+      "functions": 95,
+      "lines": 83
+    },
+    "./src/lib/": {
+      "statements": 85,
+      "branches": 83,
+      "functions": 93,
+      "lines": 85
+    },
+    "./src/orchestrator/": {
+      "statements": 95,
+      "branches": 85,
+      "functions": 99,
+      "lines": 95
+    },
+    "./src/utils/": {
+      "statements": 90,
+      "branches": 75,
+      "functions": 83,
+      "lines": 90
+    }
+  }
 }
