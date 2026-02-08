@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 5/20 steps complete (25%)
+// Status: 6/20 steps complete (30%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -457,3 +457,22 @@ export {
   checkConfigBestPractices,
   formatConfigReport,
 } from './steps/step_04_config_validation.js';
+
+// Step 5: Directory Structure Validation
+export {
+  Step5DirectoryAnalyzer,
+  DIR_CATEGORIES,
+  CATEGORY_PATTERNS,
+  CATEGORY_DIRS,
+  ROOT_ALLOWED_FILES,
+  EXCLUDED_DIRS,
+  shouldStayInRoot,
+  categorizeMisplacedDoc,
+  getTargetDir,
+  shouldIncludeDir,
+  extractCriticalDirs,
+  getDefaultCriticalDirs,
+  isDirectoryDocumented,
+  validateDirectoryStructure,
+  formatDirectoryReport,
+} from './steps/step_05_directory.js';
