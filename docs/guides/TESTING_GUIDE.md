@@ -317,6 +317,32 @@ npm test -- --testNamePattern="calculateDuration"
 npm test -- test/lib/
 ```
 
+### Test Splitting Strategy
+
+For optimized CI/CD performance, tests are split into fast and slow categories. See [TEST_SPLITTING.md](./TEST_SPLITTING.md) for complete details.
+
+**Fast Tests (Unit - ~3 seconds):**
+
+```bash
+npm run test:fast
+```
+
+Runs unit tests for library modules without integration tests.
+
+**Slow Tests (Integration - ~30 seconds):**
+
+```bash
+npm run test:slow
+```
+
+Runs orchestrator integration tests with full workflow coordination.
+
+**Test Categories:**
+
+- **Fast**: 1,328 tests across 23 test suites (lib/)
+- **Slow**: 366 tests across 6 test suites (orchestrator/)
+- **Total**: 1,694+ tests (Phase 1-7 modules)
+
 ### Jest CLI Options
 
 ```bash

@@ -593,5 +593,5 @@ More examples coming soon:
 
 ---
 
-**Last Updated:** 2026-02-01  
-**Version:** 1.0.0
+**Last Updated:** 2026-02-08  
+**Version:** 1.1.0
