@@ -157,17 +157,17 @@ export function determineChangeScope(counts, totalModified) {
   }
 
   // Documentation only
-  if (docs > 0 && tests === 0 && src === 0) {
+  if (docs > 0 && tests === 0 && src === 0 && cfg === 0) {
     return CHANGE_SCOPE.DOCUMENTATION_ONLY;
   }
 
   // Tests only
-  if (tests > 0 && docs === 0 && src === 0) {
+  if (tests > 0 && docs === 0 && src === 0 && cfg === 0) {
     return CHANGE_SCOPE.TESTS_ONLY;
   }
 
   // Source code only
-  if (src > 0 && tests === 0 && docs === 0) {
+  if (src > 0 && tests === 0 && docs === 0 && cfg === 0) {
     return CHANGE_SCOPE.SOURCE_CODE;
   }
 
@@ -348,7 +348,7 @@ export class Step0Analyzer {
    */
   async execute(projectRoot) {
     try {
-      logger.step(0, 'Pre-Analysis - Analyzing Recent Changes');
+      logger.info('Step 0: Pre-Analysis - Analyzing Recent Changes');
 
       // Get git state
       const commitsAhead = await this.gitOps.getCommitsAhead();

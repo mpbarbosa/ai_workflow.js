@@ -388,3 +388,20 @@ export {
   isValidCacheType as isValidDependencyCacheType,
   getCacheFilePaths as getDependencyCacheFilePaths,
 } from './lib/dependency_cache.js';
+
+// ============================================================================
+// Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
+// Status: 1/20 steps complete (5%)
+// ============================================================================
+
+// Step 0: Pre-Analysis
+export {
+  Step0Analyzer,
+  CHANGE_SCOPE,
+  FILE_CATEGORY,
+  classifyFile,
+  classifyFiles,
+  determineChangeScope,
+  formatAnalysisSummary,
+  createBacklogContent,
+} from './steps/step_00_analyze.js';
