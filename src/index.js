@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 9/20 steps complete (45%)
+// Status: 10/20 steps complete (50%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -526,3 +526,21 @@ export {
   determineTestStatus,
   formatTestReport as formatTestExecutionReport,
 } from './steps/step_08_test_exec.js';
+
+// Step 9: Dependency Validation
+export {
+  Step9DependencyValidator,
+  DEPENDENCY_FILES,
+  AUDIT_COMMANDS,
+  OUTDATED_COMMANDS,
+  SEVERITY,
+  getDependencyFiles,
+  getAuditCommand,
+  getOutdatedCommand,
+  supportsDependencyValidation,
+  parsePackageJson,
+  parseNpmAudit,
+  parseNpmOutdated,
+  determineSeverity,
+  formatDependencyReport,
+} from './steps/step_09_dependencies.js';
