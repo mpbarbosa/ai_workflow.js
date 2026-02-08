@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 11/20 steps complete (55%)
+// Status: 12/20 steps complete (60%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -562,3 +562,18 @@ export {
   determineQualityRating,
   formatQualityReport,
 } from './steps/step_10_code_quality.js';
+
+// Step 11: Context Analysis
+export {
+  Step11ContextAnalyzer,
+  IMPACT_THRESHOLDS,
+  COMPLETION_THRESHOLDS,
+  calculateCompletionRate,
+  determineCompletionStatus,
+  calculateImpactScore,
+  determineImpactLevel,
+  aggregateIssues,
+  calculateDuration,
+  formatDuration as formatContextDuration,
+  formatContextReport,
+} from './steps/step_11_context.js';
