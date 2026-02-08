@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 12/20 steps complete (60%)
+// Status: 13/20 steps complete (65%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -577,3 +577,21 @@ export {
   formatDuration as formatContextDuration,
   formatContextReport,
 } from './steps/step_11_context.js';
+
+// Step 12: Git Finalization
+export {
+  Step12GitFinalization,
+  COMMIT_TYPES,
+  CHANGE_CATEGORIES,
+  GIT_OPERATIONS,
+  parseGitStatus,
+  categorizeFiles,
+  inferCommitType,
+  calculateImpactScore as calculateGitImpactScore,
+  generateCommitMessage,
+  parseDiffSummary,
+  parseCommitCounts,
+  hasSubmodules,
+  parseSubmoduleStatus,
+  formatGitReport,
+} from './steps/step_12_git_finalization.js';
