@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 10/20 steps complete (50%)
+// Status: 11/20 steps complete (55%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -544,3 +544,21 @@ export {
   determineSeverity,
   formatDependencyReport,
 } from './steps/step_09_dependencies.js';
+
+// Step 10: Code Quality Analysis
+export {
+  Step10CodeQualityAnalyzer,
+  LINTER_COMMANDS,
+  SOURCE_EXTENSIONS,
+  QUALITY_THRESHOLDS,
+  getLinterCommand,
+  getSourceExtensions,
+  isSourceFile,
+  extractLinterCommand,
+  parseEslintOutput,
+  parseFlake8Output,
+  parseLinterOutput,
+  calculateIssueRate,
+  determineQualityRating,
+  formatQualityReport,
+} from './steps/step_10_code_quality.js';
