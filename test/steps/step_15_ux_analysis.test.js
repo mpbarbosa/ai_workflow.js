@@ -1,0 +1,427 @@
+/**
+ * Tests for Step 15: UX Analysis
+ * @group steps
+ */
+
+import { jest } from '@jest/globals';
+import {
+  Step15UxAnalysis,
+  shouldRunUxAnalysis,
+  shouldExcludeFile,
+  isUiFile,
+  categorizeUiFile,
+  filterUiFiles,
+  groupUiFilesByType,
+  buildUxAnalysisPrompt,
+  calculateSeverityScore,
+  parseUxAnalysisResult,
+  formatUxAnalysisReport,
+} from '../../src/steps/step_15_ux_analysis.js';
+
+describe('Step 15: UX Analysis', () => {
+  // ========================================================================
+  // PURE FUNCTIONS - UI Detection
+  // ========================================================================
+
+  describe('shouldRunUxAnalysis', () => {
+    test('returns true for react_spa', () => {
+      expect(shouldRunUxAnalysis('react_spa')).toBe(true);
+    });
+
+    test('returns true for vue_spa', () => {
+      expect(shouldRunUxAnalysis('vue_spa')).toBe(true);
+    });
+
+    test('returns true for static_website', () => {
+      expect(shouldRunUxAnalysis('static_website')).toBe(true);
+    });
+
+    test('returns false for nodejs_api', () => {
+      expect(shouldRunUxAnalysis('nodejs_api')).toBe(false);
+    });
+
+    test('normalizes hyphens to underscores', () => {
+      expect(shouldRunUxAnalysis('react-spa')).toBe(true);
+      expect(shouldRunUxAnalysis('static-website')).toBe(true);
+    });
+  });
+
+  describe('shouldExcludeFile', () => {
+    test('excludes node_modules', () => {
+      expect(shouldExcludeFile('src/node_modules/package/file.js')).toBe(true);
+      expect(shouldExcludeFile('node_modules/package/file.js')).toBe(true);
+    });
+
+    test('excludes .git directory', () => {
+      expect(shouldExcludeFile('src/.git/config')).toBe(true);
+      expect(shouldExcludeFile('.git/config')).toBe(true);
+    });
+
+    test('excludes dist and build', () => {
+      expect(shouldExcludeFile('dist/bundle.js')).toBe(true);
+      expect(shouldExcludeFile('src/build/output.js')).toBe(true);
+    });
+
+    test('includes normal files', () => {
+      expect(shouldExcludeFile('src/components/App.jsx')).toBe(false);
+      expect(shouldExcludeFile('public/index.html')).toBe(false);
+    });
+  });
+
+  describe('isUiFile', () => {
+    test('identifies React files', () => {
+      expect(isUiFile('src/App.jsx')).toBe(true);
+      expect(isUiFile('src/App.tsx')).toBe(true);
+    });
+
+    test('identifies Vue files', () => {
+      expect(isUiFile('src/App.vue')).toBe(true);
+    });
+
+    test('identifies HTML files', () => {
+      expect(isUiFile('public/index.html')).toBe(true);
+    });
+
+    test('identifies CSS files', () => {
+      expect(isUiFile('src/styles.css')).toBe(true);
+      expect(isUiFile('src/styles.scss')).toBe(true);
+    });
+
+    test('rejects non-UI files', () => {
+      expect(isUiFile('src/utils.js')).toBe(false);
+      expect(isUiFile('README.md')).toBe(false);
+    });
+  });
+
+  describe('categorizeUiFile', () => {
+    test('categorizes React files', () => {
+      expect(categorizeUiFile('src/App.jsx')).toBe('react');
+      expect(categorizeUiFile('src/App.tsx')).toBe('react');
+    });
+
+    test('categorizes Vue files', () => {
+      expect(categorizeUiFile('src/App.vue')).toBe('vue');
+    });
+
+    test('categorizes HTML files', () => {
+      expect(categorizeUiFile('public/index.html')).toBe('html');
+    });
+
+    test('categorizes CSS files', () => {
+      expect(categorizeUiFile('src/styles.css')).toBe('css');
+      expect(categorizeUiFile('src/styles.scss')).toBe('css');
+    });
+
+    test('returns null for non-UI files', () => {
+      expect(categorizeUiFile('src/utils.js')).toBeNull();
+    });
+  });
+
+  describe('filterUiFiles', () => {
+    test('filters to only UI files', () => {
+      const files = [
+        'src/App.jsx',
+        'src/utils.js',
+        'src/styles.css',
+        'node_modules/package/file.js',
+        'public/index.html',
+        'README.md',
+      ];
+      const result = filterUiFiles(files);
+      expect(result).toEqual(['src/App.jsx', 'src/styles.css', 'public/index.html']);
+    });
+
+    test('returns empty array for no UI files', () => {
+      const files = ['src/utils.js', 'README.md', 'package.json'];
+      expect(filterUiFiles(files)).toEqual([]);
+    });
+  });
+
+  describe('groupUiFilesByType', () => {
+    test('groups files by UI type', () => {
+      const files = [
+        'src/App.jsx',
+        'src/Button.tsx',
+        'src/Home.vue',
+        'public/index.html',
+        'src/styles.css',
+      ];
+      const groups = groupUiFilesByType(files);
+      expect(groups.react).toEqual(['src/App.jsx', 'src/Button.tsx']);
+      expect(groups.vue).toEqual(['src/Home.vue']);
+      expect(groups.html).toEqual(['public/index.html']);
+      expect(groups.css).toEqual(['src/styles.css']);
+    });
+
+    test('returns empty groups for no files', () => {
+      const groups = groupUiFilesByType([]);
+      expect(groups.react).toEqual([]);
+      expect(groups.vue).toEqual([]);
+      expect(groups.html).toEqual([]);
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - UX Analysis Prompt Building
+  // ========================================================================
+
+  describe('buildUxAnalysisPrompt', () => {
+    test('builds prompt with all context', () => {
+      const context = {
+        projectType: 'react_spa',
+        fileCount: 25,
+        fileSample: ['src/App.jsx', 'src/Button.tsx'],
+        fileGroups: { react: ['src/App.jsx'], vue: [], html: [] },
+      };
+      const prompt = buildUxAnalysisPrompt(context);
+      expect(prompt).toContain('Project Type: react_spa');
+      expect(prompt).toContain('UI Files Found: 25');
+      expect(prompt).toContain('src/App.jsx');
+      expect(prompt).toContain('... and 23 more files');
+      expect(prompt).toContain('react: 1 files');
+      expect(prompt).toContain('Accessibility Issues');
+      expect(prompt).toContain('WCAG 2.1');
+    });
+
+    test('handles small file counts', () => {
+      const context = {
+        projectType: 'static_website',
+        fileCount: 3,
+        fileSample: ['index.html', 'about.html', 'styles.css'],
+        fileGroups: { html: ['index.html', 'about.html'], css: ['styles.css'] },
+      };
+      const prompt = buildUxAnalysisPrompt(context);
+      expect(prompt).toContain('UI Files Found: 3');
+      expect(prompt).not.toContain('... and');
+    });
+  });
+
+  describe('calculateSeverityScore', () => {
+    test('scores critical accessibility issues highest', () => {
+      const issue = { category: 'accessibility', severity: 'critical' };
+      expect(calculateSeverityScore(issue)).toBe(15); // 10 * 1.5
+    });
+
+    test('scores critical usability issues', () => {
+      const issue = { category: 'usability', severity: 'critical' };
+      expect(calculateSeverityScore(issue)).toBe(13); // 10 * 1.3
+    });
+
+    test('scores warnings lower', () => {
+      const issue = { category: 'accessibility', severity: 'warning' };
+      expect(calculateSeverityScore(issue)).toBe(8); // 5 * 1.5, rounded
+    });
+
+    test('scores suggestions lowest', () => {
+      const issue = { category: 'visual', severity: 'suggestion' };
+      expect(calculateSeverityScore(issue)).toBe(2); // 2 * 1.0
+    });
+  });
+
+  describe('parseUxAnalysisResult', () => {
+    test('parses critical issues', () => {
+      const text = `## Critical Issues
+### Issue 1
+**Severity**: Critical
+### Issue 2
+**Severity**: Critical`;
+      const result = parseUxAnalysisResult(text);
+      expect(result.criticalCount).toBe(2);
+    });
+
+    test('parses warnings', () => {
+      const text = `## Warnings
+### Warning 1
+**Severity**: Warning`;
+      const result = parseUxAnalysisResult(text);
+      expect(result.warningCount).toBe(1);
+    });
+
+    test('parses improvement suggestions', () => {
+      const text = `## Improvement Suggestions
+### Suggestion 1
+### Suggestion 2
+### Suggestion 3`;
+      const result = parseUxAnalysisResult(text);
+      expect(result.suggestionCount).toBe(3);
+    });
+
+    test('calculates total issues', () => {
+      const text = `**Severity**: Critical
+**Severity**: Critical
+**Severity**: Warning
+## Improvement Suggestions
+### Suggestion 1`;
+      const result = parseUxAnalysisResult(text);
+      expect(result.totalIssues).toBe(4); // 2 critical + 1 warning + 1 suggestion
+    });
+  });
+
+  describe('formatUxAnalysisReport', () => {
+    test('formats complete report', () => {
+      const data = {
+        projectType: 'react_spa',
+        fileCount: 25,
+        analysisResult: '# Analysis\n\nSome findings...',
+        issueCounts: {
+          criticalCount: 2,
+          warningCount: 3,
+          suggestionCount: 5,
+          totalIssues: 10,
+        },
+        timestamp: '2026-02-08 13:15:00',
+      };
+      const report = formatUxAnalysisReport(data);
+      expect(report).toContain('Step 15: UX Analysis Report');
+      expect(report).toContain('Project Type**: react_spa');
+      expect(report).toContain('UI Files Analyzed**: 25');
+      expect(report).toContain('Critical Issues**: 2');
+      expect(report).toContain('Warnings**: 3');
+      expect(report).toContain('Improvement Suggestions**: 5');
+      expect(report).toContain('Total Findings**: 10');
+      expect(report).toContain('# Analysis');
+    });
+  });
+
+  // ========================================================================
+  // STEP15UXANALYSIS - Integration Tests
+  // ========================================================================
+
+  describe('Step15UxAnalysis', () => {
+    let mockFileOps;
+    let mockBacklog;
+    let mockLogger;
+
+    beforeEach(() => {
+      mockFileOps = {
+        listFiles: jest.fn(),
+      };
+      mockBacklog = {
+        saveStepSummary: jest.fn(),
+        saveStepIssues: jest.fn(),
+      };
+      mockLogger = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        success: jest.fn(),
+      };
+    });
+
+    test('constructs with default options', () => {
+      const step = new Step15UxAnalysis();
+      expect(step).toBeInstanceOf(Step15UxAnalysis);
+      expect(step.dryRun).toBe(false);
+    });
+
+    test('constructs with custom options', () => {
+      const step = new Step15UxAnalysis({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        logger: mockLogger,
+        dryRun: true,
+        projectRoot: '/custom/root',
+      });
+      expect(step.fileOps).toBe(mockFileOps);
+      expect(step.dryRun).toBe(true);
+      expect(step.projectRoot).toBe('/custom/root');
+    });
+
+    test('executes dry-run mode', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        dryRun: true,
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      expect(result.dryRun).toBe(true);
+      expect(mockLogger.info).toHaveBeenCalledWith('[DRY RUN] UX analysis preview:');
+    });
+
+    test('skips for non-UI project type', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      const result = await step.execute({ projectType: 'nodejs_api' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('project type not eligible');
+      expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
+        '15',
+        'UX_Analysis',
+        expect.stringContaining('Skipped'),
+        '⏭️'
+      );
+    });
+
+    test('skips when no UI files found', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      // Mock discoverFiles to return empty array
+      step.discoverFiles = jest.fn().mockResolvedValue([]);
+
+      const result = await step.execute({ projectType: 'react_spa' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('no UI files found');
+    });
+
+    test('executes successful analysis', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      // Mock discoverFiles to return UI files
+      step.discoverFiles = jest
+        .fn()
+        .mockResolvedValue(['src/App.jsx', 'src/Button.tsx', 'src/styles.css']);
+
+      // Mock performAnalysis to return mock result
+      step.performAnalysis = jest.fn().mockResolvedValue(`
+**Severity**: Critical
+**Severity**: Warning
+## Improvement Suggestions
+### Suggestion 1
+      `);
+
+      const result = await step.execute({ projectType: 'react_spa' });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(3);
+      expect(result.issueCounts).toBeDefined();
+      expect(result.issueCounts.criticalCount).toBe(1);
+      expect(result.issueCounts.warningCount).toBe(1);
+      expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
+      expect(mockLogger.success).toHaveBeenCalledWith(
+        expect.stringContaining('Step 15: UX Analysis completed')
+      );
+    });
+
+    test('handles errors gracefully', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      step.discoverFiles = jest.fn().mockRejectedValue(new Error('File system error'));
+
+      const result = await step.execute({ projectType: 'react_spa' });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('File system error');
+      expect(mockBacklog.saveStepIssues).toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+});

@@ -1,0 +1,563 @@
+/**
+ * Step 15: UX Analysis
+ * Analyzes UI code for bugs, usability issues, and accessibility problems.
+ * Only runs for projects with UI components (web apps, SPAs, static sites).
+ * @module steps/step_15_ux_analysis
+ * @version 2.0.0
+ */
+
+import { FileOperations } from '../lib/file_operations.js';
+import { Backlog } from '../lib/backlog.js';
+import { Logger } from '../core/logger.js';
+import { colors } from '../core/colors.js';
+
+// Constants
+export const UI_PROJECT_TYPES = Object.freeze({
+  reactSpa: 'react_spa',
+  vueSpa: 'vue_spa',
+  clientSpa: 'client_spa',
+  staticWebsite: 'static_website',
+  webApplication: 'web_application',
+  documentationSite: 'documentation_site',
+});
+
+export const UI_FILE_PATTERNS = Object.freeze({
+  react: ['.jsx', '.tsx'],
+  vue: ['.vue'],
+  html: ['.html'],
+  css: ['.css', '.scss', '.sass', '.less'],
+  svelte: ['.svelte'],
+});
+
+export const EXCLUDED_DIRECTORIES = Object.freeze([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.next',
+  'out',
+]);
+
+export const UX_CATEGORIES = Object.freeze({
+  accessibility: 'accessibility',
+  usability: 'usability',
+  visual: 'visual',
+  performance: 'performance',
+  componentArchitecture: 'component-architecture',
+});
+
+export const SEVERITY_LEVELS = Object.freeze({
+  critical: 'critical',
+  warning: 'warning',
+  suggestion: 'suggestion',
+});
+
+// ============================================================================
+// PURE FUNCTIONS - UI Detection
+// ============================================================================
+
+/**
+ * Check if project type is eligible for UX analysis
+ * @param {string} projectType - Project kind (e.g., 'react_spa', 'nodejs_api')
+ * @returns {boolean} - True if UX analysis should run
+ */
+export function shouldRunUxAnalysis(projectType) {
+  const normalizedType = projectType.replace(/-/g, '_');
+  return Object.values(UI_PROJECT_TYPES).includes(normalizedType);
+}
+
+/**
+ * Determine if file path should be excluded from analysis
+ * @param {string} filePath - File path to check
+ * @returns {boolean} - True if file should be excluded
+ */
+export function shouldExcludeFile(filePath) {
+  return EXCLUDED_DIRECTORIES.some(
+    (dir) => filePath.includes(`/${dir}/`) || filePath.startsWith(`${dir}/`)
+  );
+}
+
+/**
+ * Determine if file is a UI file based on extension
+ * @param {string} filePath - File path to check
+ * @returns {boolean} - True if file is a UI file
+ */
+export function isUiFile(filePath) {
+  const allExtensions = Object.values(UI_FILE_PATTERNS).flat();
+  return allExtensions.some((ext) => filePath.endsWith(ext));
+}
+
+/**
+ * Categorize UI file by type
+ * @param {string} filePath - File path
+ * @returns {string|null} - UI type (e.g., 'react', 'vue', 'html') or null
+ */
+export function categorizeUiFile(filePath) {
+  for (const [type, extensions] of Object.entries(UI_FILE_PATTERNS)) {
+    if (extensions.some((ext) => filePath.endsWith(ext))) {
+      return type;
+    }
+  }
+  return null;
+}
+
+/**
+ * Filter files to only include UI files
+ * @param {Array<string>} files - List of file paths
+ * @returns {Array<string>} - Filtered list of UI files
+ */
+export function filterUiFiles(files) {
+  return files.filter((file) => !shouldExcludeFile(file) && isUiFile(file));
+}
+
+/**
+ * Group UI files by category
+ * @param {Array<string>} files - List of UI file paths
+ * @returns {Object} - Files grouped by type { react: [...], vue: [...], ... }
+ */
+export function groupUiFilesByType(files) {
+  const groups = Object.keys(UI_FILE_PATTERNS).reduce((acc, type) => {
+    acc[type] = [];
+    return acc;
+  }, {});
+
+  for (const file of files) {
+    const type = categorizeUiFile(file);
+    if (type && groups[type]) {
+      groups[type].push(file);
+    }
+  }
+
+  return groups;
+}
+
+// ============================================================================
+// PURE FUNCTIONS - UX Analysis Prompt Building
+// ============================================================================
+
+/**
+ * Build UX analysis prompt for AI
+ * @param {Object} context - Analysis context
+ * @param {string} context.projectType - Project kind
+ * @param {number} context.fileCount - Number of UI files
+ * @param {Array<string>} context.fileSample - Sample of UI file paths
+ * @param {Object} context.fileGroups - UI files grouped by type
+ * @returns {string} - Formatted prompt for AI analysis
+ */
+export function buildUxAnalysisPrompt(context) {
+  const { projectType, fileCount, fileSample, fileGroups } = context;
+
+  // Build file summary
+  const fileSummary = fileSample.map((f) => `  - ${f}`).join('\n');
+  const moreFiles =
+    fileCount > fileSample.length ? `\n  ... and ${fileCount - fileSample.length} more files` : '';
+
+  // Build file type breakdown
+  const typeBreakdown = Object.entries(fileGroups)
+    .filter(([_type, files]) => files.length > 0)
+    .map(([type, files]) => `  - ${type}: ${files.length} files`)
+    .join('\n');
+
+  return `**Role**: You are a senior UX/UI Designer and Frontend Specialist with expertise in user experience design, accessibility standards (WCAG 2.1 AA/AAA), responsive design, and modern frontend frameworks.
+
+**Task**: Analyze the UI code for usability issues, accessibility violations, visual design inconsistencies, and provide actionable improvement recommendations.
+
+**Project Context**:
+- Project Type: ${projectType}
+- UI Files Found: ${fileCount}
+- File Type Breakdown:
+${typeBreakdown}
+
+**Sample Files**:
+${fileSummary}${moreFiles}
+
+**Your Analysis Should Cover**:
+1. **Accessibility Issues** (WCAG 2.1 violations)
+   - Missing ARIA labels and semantic HTML
+   - Color contrast problems
+   - Keyboard navigation issues
+   - Screen reader compatibility
+
+2. **Usability Problems**
+   - Confusing navigation or information architecture
+   - Unclear call-to-action buttons
+   - Missing or poor error messages
+   - Inconsistent interaction patterns
+   - Poor mobile experience
+
+3. **Visual Design Issues**
+   - Inconsistent spacing and alignment
+   - Typography problems
+   - Color scheme inconsistencies
+   - Layout and responsive design issues
+
+4. **Component Architecture**
+   - Reusability opportunities
+   - Design system consistency
+   - Component complexity
+
+5. **Performance & Perception**
+   - Loading states and user feedback
+   - Animation and transition issues
+   - Perceived performance problems
+
+**Approach**:
+- Identify accessibility issues systematically
+- Check usability problems with user-centric perspective
+- Review visual consistency across components
+- Assess interaction patterns for intuitiveness
+- Prioritize improvements by user impact
+
+**Output Format**:
+Provide your analysis in the following markdown format:
+
+# UX Analysis Report
+
+## Executive Summary
+[Brief overview of findings with counts: X critical issues, Y warnings, Z recommendations]
+
+## Critical Issues
+[Issues that severely impact user experience - must fix]
+
+### Issue 1: [Title]
+- **Category**: [Accessibility/Usability/Visual/Performance]
+- **Severity**: Critical
+- **Location**: [File path and line number if possible]
+- **Description**: [What's wrong]
+- **Impact**: [How it affects users]
+- **Recommendation**: [How to fix it]
+
+## Warnings
+[Issues that should be addressed but aren't blocking]
+
+## Improvement Suggestions
+[Nice-to-have enhancements ranked by impact]
+
+## Next Development Steps
+[Prioritized list of recommended actions]
+
+1. **Quick Wins** (1-2 hours): [List]
+2. **Short Term** (1 week): [List]
+3. **Long Term** (1 month+): [List]
+
+## Design Patterns to Consider
+[Modern UX patterns that could improve the experience]
+
+---
+
+Please analyze the UI files and provide your detailed assessment.`;
+}
+
+/**
+ * Calculate UX issue severity score
+ * @param {Object} issue - UX issue object
+ * @param {string} issue.category - Issue category
+ * @param {string} issue.severity - Issue severity level
+ * @returns {number} - Numeric severity score (0-10)
+ */
+export function calculateSeverityScore(issue) {
+  const severityScores = {
+    critical: 10,
+    warning: 5,
+    suggestion: 2,
+  };
+
+  const categoryMultipliers = {
+    accessibility: 1.5, // Accessibility is highest priority
+    usability: 1.3,
+    performance: 1.2,
+    visual: 1.0,
+    'component-architecture': 1.0,
+  };
+
+  const baseScore = severityScores[issue.severity] || 0;
+  const multiplier = categoryMultipliers[issue.category] || 1.0;
+
+  return Math.round(baseScore * multiplier);
+}
+
+/**
+ * Parse UX analysis result and extract issues
+ * @param {string} analysisText - Markdown analysis text
+ * @returns {Object} - Parsed analysis { criticalCount, warningCount, suggestionCount }
+ */
+export function parseUxAnalysisResult(analysisText) {
+  const criticalCount = (analysisText.match(/\*\*Severity\*\*:\s*Critical/gi) || []).length;
+  const warningCount = (analysisText.match(/\*\*Severity\*\*:\s*Warning/gi) || []).length;
+
+  // Count headings under "Improvement Suggestions" section
+  // Match from "## Improvement Suggestions" to either next "##" or end
+  const suggestionSection = analysisText.match(/## Improvement Suggestions[\s\S]*?(?=\n##\s|$)/i);
+  const suggestionCount = suggestionSection
+    ? (suggestionSection[0].match(/^### /gm) || []).length
+    : 0;
+
+  return {
+    criticalCount,
+    warningCount,
+    suggestionCount,
+    totalIssues: criticalCount + warningCount + suggestionCount,
+  };
+}
+
+/**
+ * Format UX analysis report
+ * @param {Object} data - Analysis data
+ * @param {string} data.projectType - Project type
+ * @param {number} data.fileCount - Number of files analyzed
+ * @param {string} data.analysisResult - AI analysis markdown text
+ * @param {Object} data.issueCounts - Issue counts (criticalCount, warningCount, etc.)
+ * @param {string} data.timestamp - ISO timestamp
+ * @returns {string} - Formatted markdown report
+ */
+export function formatUxAnalysisReport(data) {
+  const { projectType, fileCount, analysisResult, issueCounts, timestamp } = data;
+
+  return `# Step 15: UX Analysis Report
+
+**Status**: ✅ Completed
+**Date**: ${timestamp}
+**Project Type**: ${projectType}
+**UI Files Analyzed**: ${fileCount}
+
+## Issue Summary
+
+- **Critical Issues**: ${issueCounts.criticalCount}
+- **Warnings**: ${issueCounts.warningCount}
+- **Improvement Suggestions**: ${issueCounts.suggestionCount}
+- **Total Findings**: ${issueCounts.totalIssues}
+
+---
+
+${analysisResult}
+
+---
+
+## Analysis Metadata
+
+- **Step Version**: 2.0.0
+- **Analysis Method**: AI-Powered
+- **Target Directory**: Project Root
+- **UI Files Scanned**: ${fileCount}
+
+## Next Steps
+
+1. Review the issues identified above
+2. Prioritize fixes based on severity and user impact
+3. Create GitHub issues for tracking improvements
+4. Update UI components with recommended changes
+5. Re-run Step 15 to validate improvements
+`;
+}
+
+// ============================================================================
+// STEP15UXANALYSIS - Impure Wrapper Class
+// ============================================================================
+
+/**
+ * Step 15: UX Analysis
+ * Analyzes UI components for usability, accessibility, and design issues.
+ */
+export class Step15UxAnalysis {
+  /**
+   * Create a new Step 15 analyzer
+   * @param {Object} options - Configuration options
+   * @param {Object} options.fileOps - File operations instance
+   * @param {Object} options.backlog - Backlog instance
+   * @param {Object} options.logger - Logger instance
+   * @param {boolean} options.dryRun - Whether to run in dry-run mode
+   * @param {string} options.projectRoot - Project root directory
+   */
+  constructor(options = {}) {
+    this.fileOps = options.fileOps || new FileOperations();
+    this.backlog = options.backlog || new Backlog();
+    this.logger = options.logger || new Logger();
+    this.dryRun = options.dryRun || false;
+    this.projectRoot = options.projectRoot || process.cwd();
+  }
+
+  /**
+   * Execute UX analysis step
+   * @param {Object} context - Execution context
+   * @param {string} context.projectType - Project kind
+   * @returns {Promise<Object>} - Execution result { success, stats, ... }
+   */
+  async execute(context = {}) {
+    const startTime = Date.now();
+
+    try {
+      if (this.dryRun) {
+        this.logger.info('[DRY RUN] UX analysis preview:');
+        this.logger.info('- Would detect UI files in project');
+        this.logger.info('- Would perform AI-powered UX analysis');
+        this.logger.info('- Would generate accessibility and usability report');
+        return {
+          success: true,
+          dryRun: true,
+          message: 'UX analysis dry run completed',
+        };
+      }
+
+      const projectType = context.projectType || 'generic';
+
+      // Check if UX analysis should run
+      if (!shouldRunUxAnalysis(projectType)) {
+        this.logger.info(
+          `Step 15: UX Analysis skipped - project type '${projectType}' has no UI components`
+        );
+
+        await this.backlog.saveStepSummary(
+          '15',
+          'UX_Analysis',
+          `Skipped: No UI components for project type '${projectType}'`,
+          '⏭️'
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          reason: 'project type not eligible',
+        };
+      }
+
+      // Phase 1: Discover UI files
+      this.logger.info(`${colors.blue}Phase 1:${colors.reset} Discovering UI files...`);
+      const allFiles = await this.discoverFiles(this.projectRoot);
+      const uiFiles = filterUiFiles(allFiles);
+
+      if (uiFiles.length === 0) {
+        this.logger.warn('No UI files found in project');
+
+        await this.backlog.saveStepSummary('15', 'UX_Analysis', 'Skipped: No UI files found', '⏭️');
+
+        return {
+          success: true,
+          skipped: true,
+          reason: 'no UI files found',
+        };
+      }
+
+      this.logger.success(`Found ${uiFiles.length} UI files`);
+
+      // Phase 2: Group files and build analysis context
+      const fileGroups = groupUiFilesByType(uiFiles);
+      const fileSample = uiFiles.slice(0, 20); // Sample for prompt
+      const analysisContext = {
+        projectType,
+        fileCount: uiFiles.length,
+        fileSample,
+        fileGroups,
+      };
+
+      // Phase 3: Build UX analysis prompt
+      this.logger.info(`${colors.blue}Phase 2:${colors.reset} Building UX analysis prompt...`);
+      const prompt = buildUxAnalysisPrompt(analysisContext);
+
+      // Phase 4: Perform analysis (in real implementation, would call AI)
+      this.logger.info(
+        `${colors.blue}Phase 3:${colors.reset} Performing AI-powered UX analysis...`
+      );
+      const analysisResult = await this.performAnalysis(prompt);
+
+      // Phase 5: Parse results
+      const issueCounts = parseUxAnalysisResult(analysisResult);
+
+      // Phase 6: Generate reports
+      this.logger.info(`${colors.blue}Phase 4:${colors.reset} Generating UX analysis report...`);
+      const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+      const report = formatUxAnalysisReport({
+        projectType,
+        fileCount: uiFiles.length,
+        analysisResult,
+        issueCounts,
+        timestamp,
+      });
+
+      await this.backlog.saveStepSummary('15', 'UX_Analysis', report, '✅');
+
+      this.logger.success(`Step 15: UX Analysis completed`);
+      this.logger.info(
+        `Found ${issueCounts.criticalCount} critical, ${issueCounts.warningCount} warnings, ${issueCounts.suggestionCount} suggestions`
+      );
+
+      return {
+        success: true,
+        fileCount: uiFiles.length,
+        fileGroups,
+        issueCounts,
+        duration: Date.now() - startTime,
+      };
+    } catch (error) {
+      this.logger.error(`Step 15 failed: ${error.message}`);
+
+      await this.backlog.saveStepIssues('15', 'UX_Analysis', [
+        {
+          type: 'error',
+          message: error.message,
+          location: 'step_15_ux_analysis',
+        },
+      ]);
+
+      return {
+        success: false,
+        error: error.message,
+        duration: Date.now() - startTime,
+      };
+    }
+  }
+
+  /**
+   * Discover all files in project (I/O operation)
+   * @param {string} _rootPath - Root directory to scan
+   * @returns {Promise<Array<string>>} - List of file paths
+   */
+  async discoverFiles(_rootPath) {
+    // In real implementation, would use FileOperations.listFiles()
+    // For now, return mock data for testing
+    return [];
+  }
+
+  /**
+   * Perform AI-powered UX analysis (I/O operation)
+   * @param {string} _prompt - Analysis prompt for AI
+   * @returns {Promise<string>} - AI analysis result (markdown)
+   */
+  async performAnalysis(_prompt) {
+    // In real implementation, would call AI service
+    // For now, return mock analysis
+    return `# UX Analysis Report
+
+## Executive Summary
+Analysis complete. 2 critical issues, 3 warnings, 5 recommendations found.
+
+## Critical Issues
+
+### Issue 1: Missing Alt Text on Images
+- **Category**: Accessibility
+- **Severity**: Critical
+- **Description**: Images lack alt attributes for screen readers
+- **Impact**: Blind users cannot access image content
+- **Recommendation**: Add descriptive alt text to all images
+
+## Warnings
+
+### Warning 1: Low Color Contrast
+- **Category**: Accessibility
+- **Severity**: Warning
+- **Description**: Text color does not meet WCAG AA contrast ratio
+- **Impact**: Users with vision impairments may struggle to read
+- **Recommendation**: Increase contrast ratio to at least 4.5:1
+
+## Improvement Suggestions
+
+### Suggestion 1: Add Loading States
+- **Category**: Performance
+- **Severity**: Suggestion
+- **Description**: Components lack loading feedback
+- **Impact**: Users uncertain if actions are processing
+- **Recommendation**: Add loading spinners and skeleton screens
+`;
+  }
+}

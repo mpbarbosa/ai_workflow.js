@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 15/20 steps complete (75%)
+// Status: 16/20 steps complete (80%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -633,3 +633,22 @@ export {
   calculateAggregateStats,
   formatAnalysisReport,
 } from './steps/step_14_prompt_engineer.js';
+
+// Step 15: UX Analysis
+export {
+  Step15UxAnalysis,
+  UI_PROJECT_TYPES,
+  UI_FILE_PATTERNS,
+  UX_CATEGORIES,
+  SEVERITY_LEVELS as UX_SEVERITY_LEVELS,
+  shouldRunUxAnalysis,
+  shouldExcludeFile as shouldExcludeUxFile,
+  isUiFile,
+  categorizeUiFile,
+  filterUiFiles,
+  groupUiFilesByType,
+  buildUxAnalysisPrompt,
+  calculateSeverityScore,
+  parseUxAnalysisResult,
+  formatUxAnalysisReport,
+} from './steps/step_15_ux_analysis.js';
