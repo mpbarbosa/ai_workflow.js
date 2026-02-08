@@ -372,3 +372,19 @@ export {
   getAllProfiles as getAllWorkflowProfiles,
   formatProfileInfo,
 } from './lib/workflow_profiles.js';
+
+export {
+  DependencyCache,
+  DEPENDENCY_CACHE_CONFIG,
+  CACHE_TYPE as DEPENDENCY_CACHE_TYPE,
+  generateCacheKey as generateDependencyCacheKey,
+  isCacheValid as isDependencyCacheValid,
+  calculateCacheAge as calculateDependencyCacheAge,
+  formatCacheAge as formatDependencyCacheAge,
+  calculateCacheStats as calculateDependencyCacheStats,
+  filterExpiredEntries as filterExpiredDependencyCacheEntries,
+  createCacheEntry as createDependencyCacheEntry,
+  createCacheIndex as createDependencyCacheIndex,
+  isValidCacheType as isValidDependencyCacheType,
+  getCacheFilePaths as getDependencyCacheFilePaths,
+} from './lib/dependency_cache.js';
