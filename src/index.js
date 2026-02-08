@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 14/20 steps complete (70%)
+// Status: 15/20 steps complete (75%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -617,3 +617,19 @@ export {
   formatLintReport,
   determineLintStatus,
 } from './steps/step_13_markdown_lint.js';
+
+// Step 14: Prompt Engineer Analysis
+export {
+  Step14PromptEngineer,
+  PROJECT_TYPES,
+  PROMPT_QUALITY_CRITERIA,
+  QUALITY_THRESHOLDS as PROMPT_QUALITY_THRESHOLDS,
+  shouldRunPromptAnalysis,
+  extractPersonaNames,
+  extractPromptContent,
+  calculatePromptQuality,
+  determineQualityRating as determinePromptQualityRating,
+  identifyImprovements,
+  calculateAggregateStats,
+  formatAnalysisReport,
+} from './steps/step_14_prompt_engineer.js';
