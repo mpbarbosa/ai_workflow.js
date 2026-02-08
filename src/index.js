@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 2/20 steps complete (10%)
+// Status: 3/20 steps complete (15%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -414,3 +414,17 @@ export {
   classifyChangedFiles,
   shouldRunAiAnalysis,
 } from './steps/step_01_documentation.js';
+
+// Step 2: Consistency Analysis
+export {
+  Step2ConsistencyAnalyzer,
+  validateSemver,
+  extractVersions,
+  checkVersionConsistency,
+  extractLinks,
+  isFileReference,
+  normalizeFilePath,
+  validateFileReferences,
+  formatConsistencyReport,
+  ISSUE_TYPE,
+} from './steps/step_02_consistency.js';
