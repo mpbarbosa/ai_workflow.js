@@ -411,10 +411,10 @@ NEW: npm run test:ci  # Runs fast, then slow with coverage
 
 ## References
 
-- [Jest Configuration](../jest.config.json)
-- [Package Scripts](../package.json)
-- [CI Workflow](../.github/workflows/ci.yml)
-- [Testing Guide](../docs/guides/TESTING_GUIDE.md)
+- [Jest Configuration](../../jest.config.json)
+- [Package Scripts](../../package.json)
+- [CI Workflow](../../.github/workflows/ci.yml)
+- [Testing Guide](./TESTING_GUIDE.md)
 
 ---
 

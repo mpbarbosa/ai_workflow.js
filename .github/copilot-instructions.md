@@ -30,7 +30,7 @@
 - **Cross-Platform**: Works on Linux, macOS, and Windows via Node.js
 - **Modern JavaScript**: ES6+ modules, async/await, pure functional patterns
 - **Referentially Transparent**: v2.0.0 modules follow functional programming principles
-- **Comprehensive Testing**: 2320 of 2340 tests passing (18 skipped, 2 jq_wrapper failures) ✅
+- **Comprehensive Testing**: 3416 of 3435 tests passing (18 skipped, 1 known failure) ✅
 
 **Version**: 1.2.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5, 7 modules)  
 **License**: MIT  
@@ -910,10 +910,10 @@ When updating documentation:
 
 - A Node.js implementation of AI workflow automation
 - Complete migration from shell-based ai_workflow to JavaScript
-- 35 modules (5 Core + 1 Utils + 23 Library + 6 Orchestrator) with all 1694 tests passing
+- 46 modules (5 Core + 1 Utils + 34 Library + 6 Orchestrator) + 17 workflow steps with 3416 of 3435 tests passing
 - Referentially transparent architecture (pure functions + impure wrappers)
 - Comprehensive documentation (48+ files in docs/ directory)
-- Active development with 7 of 13 phases complete (Phases 1-7 done)
+- Active development with 7 of 13 phases complete (Phases 1-7 done) + 17 Phase 9 steps
 
 **What this repository IS NOT:**
 
@@ -984,13 +984,14 @@ Always clarify which context applies to the current task.
 
 **This repository contains:**
 
-- **Source code** (36 modules in `src/`):
+- **Source code** (46 modules + 17 workflow steps in `src/`):
   - Core foundation (5 modules: colors, logger, system, version, executor)
   - Utils layer (1 module: errors)
-  - Library modules (24 modules: config, backlog, session_manager, metrics, file operations, git automation, AI integration, step1_parallel, etc.)
+  - Library modules (34 modules: config, backlog, session_manager, metrics, file operations, git automation, AI integration, step1_parallel, etc.)
   - Orchestrator modules (6 modules: workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager)
+  - Step implementations (17 workflow steps)
   - Entry point (1 module: index.js)
-- **Comprehensive test suite** (30 test files in `test/`): 2320 of 2340 tests passing (18 skipped, 2 failures) ⚠️
+- **Comprehensive test suite** (67 test files in `test/`): 3416 of 3435 tests passing (18 skipped, 1 known failure) ⚠️
 - **Documentation** (48 files in `docs/`): API reference, guides, architecture, reference, examples
 - **Configuration files**: `.workflow-config.yaml`, `package.json`, `jest.config.json`, `eslint.config.mjs`
 - **GitHub integration**: `.github/copilot-instructions.md`, workflows

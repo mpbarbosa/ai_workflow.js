@@ -556,7 +556,7 @@ node --max-old-space-size=4096 workflow.js
 - **Documentation:** [docs/](../)
 - **API Reference:** [docs/api/](../api/)
 - **Issues:** [GitHub Issues](https://github.com/mpbarbosa/ai_workflow.js/issues)
-- **Examples:** See [examples/](../../examples/) directory
+- **Examples:** See [examples/](../examples/) directory
 
 ---
 
@@ -588,7 +588,7 @@ More examples coming soon:
 1. **Complete the tutorial:** [FIRST_WORKFLOW.md](../getting-started/FIRST_WORKFLOW.md)
 2. **Explore API docs:** [API Documentation](../api/)
 3. **Read configuration guide:** [CONFIGURATION_GUIDE.md](./CONFIGURATION_GUIDE.md)
-4. **Check out examples:** [examples/](../../examples/)
+4. **Check out examples:** [examples/](../examples/)
 5. **Join the community:** [GitHub Discussions](https://github.com/mpbarbosa/ai_workflow.js/discussions)
 
 ---

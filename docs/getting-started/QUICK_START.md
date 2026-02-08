@@ -37,7 +37,7 @@ node --version  # Should be >= 18.0.0
 # Run tests to verify everything works
 npm test
 
-# Expected output: 1694 tests, all passing ✅
+# Expected output: 3416 of 3435 tests passing ✅ (18 skipped, 1 known failure)
 ```
 
 ## Basic Usage
