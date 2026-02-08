@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 6/20 steps complete (30%)
+// Status: 7/20 steps complete (35%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -476,3 +476,18 @@ export {
   validateDirectoryStructure,
   formatDirectoryReport,
 } from './steps/step_05_directory.js';
+
+// Step 6: Test Review
+export {
+  Step6TestReviewer,
+  TEST_PATTERNS,
+  COVERAGE_PATHS,
+  getTestPatterns,
+  getCoveragePaths,
+  isTestFile,
+  categorizeTestFiles,
+  parseCoveragePercentage,
+  getCoverageStatus,
+  calculateTestStatistics,
+  formatTestReport,
+} from './steps/step_06_test_review.js';
