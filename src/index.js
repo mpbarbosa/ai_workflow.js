@@ -672,3 +672,19 @@ export {
   calculateUpdateStats,
   formatVersionUpdateReport,
 } from './steps/step_16_version_update.js';
+
+// Step 0b: Bootstrap Documentation
+export {
+  Step0bBootstrapDocs,
+  DOC_TYPES,
+  DOC_THRESHOLDS,
+  SOURCE_EXTENSIONS as DOC_SOURCE_EXTENSIONS,
+  shouldBootstrapDocs,
+  identifyMissingDocs,
+  categorizeMissingDocs,
+  filterSourceFiles,
+  countFilesByExtension,
+  determinePrimaryLanguage,
+  buildTechnicalWriterPrompt as buildBootstrapDocPrompt,
+  formatGapAnalysisReport,
+} from './steps/step_0b_bootstrap_docs.js';
