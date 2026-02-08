@@ -66,6 +66,7 @@ Practical usage examples:
 
 - **[Functional Requirements](./FUNCTIONAL_REQUIREMENTS.md)** - Module requirements
 - **[Migration Plan](./reports/implementation/MIGRATION_PLAN.md)** - Migration strategy
+- **[Workflow Templates](../.workflow_core/workflow-templates/README.md)** - GitHub Actions workflow templates
 
 ## 🚀 Current Status
 
