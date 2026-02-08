@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 1/20 steps complete (5%)
+// Status: 2/20 steps complete (10%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -405,3 +405,12 @@ export {
   formatAnalysisSummary,
   createBacklogContent,
 } from './steps/step_00_analyze.js';
+
+// Step 1: Documentation Validation
+export {
+  Step1DocumentationAnalyzer,
+  validateDocumentationCounts,
+  checkVersionReferences,
+  classifyChangedFiles,
+  shouldRunAiAnalysis,
+} from './steps/step_01_documentation.js';
