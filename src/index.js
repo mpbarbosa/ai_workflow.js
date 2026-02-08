@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 16/20 steps complete (80%)
+// Status: 17/20 steps complete (85%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -652,3 +652,23 @@ export {
   parseUxAnalysisResult,
   formatUxAnalysisReport,
 } from './steps/step_15_ux_analysis.js';
+
+// Step 16: Version Update
+export {
+  Step16VersionUpdate,
+  SEMVER_PATTERN,
+  VERSION_PATTERN_REGEX,
+  BUMP_TYPES,
+  METADATA_FILES,
+  HEURISTIC_THRESHOLDS,
+  extractVersion,
+  parseVersion as parseSemanticVersion,
+  incrementVersion,
+  detectVersionPatterns,
+  replaceVersion,
+  determineHeuristicBumpType,
+  parseAiBumpRecommendation,
+  buildVersionBumpPrompt,
+  calculateUpdateStats,
+  formatVersionUpdateReport,
+} from './steps/step_16_version_update.js';
