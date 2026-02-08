@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 7/20 steps complete (35%)
+// Status: 8/20 steps complete (40%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -491,3 +491,20 @@ export {
   calculateTestStatistics,
   formatTestReport,
 } from './steps/step_06_test_review.js';
+
+// Step 7: Test Generation
+export {
+  Step7TestGenerator,
+  SOURCE_PATTERNS,
+  TEST_FILE_PATTERNS,
+  EXCLUDE_FILES,
+  EXCLUDE_DIRS,
+  getSourcePatterns,
+  getTestPatterns as getTestFilePatterns,
+  shouldExcludeFile,
+  hasCorrespondingTest,
+  findUntestedFiles,
+  calculateCoverage,
+  categorizeUntestedFiles,
+  formatTestGenerationReport,
+} from './steps/step_07_test_gen.js';
