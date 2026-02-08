@@ -23,6 +23,10 @@ In-depth guides for developers and users:
 - **[User Guide](./guides/USER_GUIDE.md)** - End-user documentation
 - **[Configuration Guide](./guides/CONFIGURATION_GUIDE.md)** - Configuration options and patterns
 - **[Testing Guide](./guides/TESTING_GUIDE.md)** - Testing patterns and best practices
+- **[Validation Scripts](./guides/VALIDATION_SCRIPTS.md)** - Automated validation tools
+- **[Cleanup Artifacts Guide](./guides/CLEANUP_ARTIFACTS.md)** - Artifact management and disk space cleanup
+- **[Conditional Execution](./guides/CONDITIONAL_EXECUTION.md)** - CI/CD optimization strategies
+- **[Test Splitting](./guides/TEST_SPLITTING.md)** - Fast/slow test separation
 
 ### API Reference
 

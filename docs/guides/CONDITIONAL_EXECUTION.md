@@ -321,7 +321,153 @@ Track execution time by strategy:
 
 ## Troubleshooting
 
-### Issue: Tests Skipped When They Shouldn't Be
+### Script Execution Issues
+
+#### Issue: "Cannot find module" or "MODULE_NOT_FOUND"
+
+**Symptom:**
+
+```
+Error: Cannot find module '../src/lib/git_automation.js'
+```
+
+**Cause:** Missing dependencies or script run from wrong directory
+
+**Solution:**
+
+```bash
+# Install dependencies first
+npm install
+
+# Run from repository root
+cd /path/to/ai_workflow.js
+npm run analyze:changes
+
+# Or use absolute path
+node /path/to/ai_workflow.js/scripts/analyze-change-impact.js
+```
+
+#### Issue: "Permission denied" when executing script
+
+**Symptom:**
+
+```
+bash: ./scripts/analyze-change-impact.js: Permission denied
+```
+
+**Cause:** Script lacks executable permissions
+
+**Solution:**
+
+```bash
+# Add executable permission
+chmod +x scripts/analyze-change-impact.js
+
+# Verify permission
+ls -la scripts/analyze-change-impact.js
+# Should show: -rwxrwxr-x
+
+# Alternative: run with node directly
+node scripts/analyze-change-impact.js
+```
+
+#### Issue: Script hangs or times out
+
+**Symptom:**
+Script runs indefinitely without output
+
+**Cause:** Git operation waiting for credentials or large repository
+
+**Solution:**
+
+```bash
+# Check git status first
+git status
+git fetch origin main
+
+# Run with timeout
+timeout 30s node scripts/analyze-change-impact.js
+
+# Enable verbose logging
+DEBUG=1 node scripts/analyze-change-impact.js
+```
+
+### Git Detection Issues
+
+#### Issue: "Could not detect git changes"
+
+**Symptom:**
+
+```
+Error: Could not detect git changes. Ensure you're in a git repository.
+```
+
+**Cause:** Not in git repository or missing .git directory
+
+**Solution:**
+
+```bash
+# Check if in git repository
+git rev-parse --git-dir
+
+# If not, initialize or navigate to correct directory
+cd /path/to/ai_workflow.js
+git status
+
+# Verify origin/main exists
+git branch -a | grep main
+```
+
+#### Issue: "No changes detected" when files are modified
+
+**Symptom:**
+
+```
+Strategy: skip
+Reason: No changes detected
+```
+
+**Cause:** Files not staged or committed to branch
+
+**Solution:**
+
+```bash
+# Stage your changes first
+git add .
+
+# Or compare with uncommitted changes
+git diff --name-only HEAD
+
+# If in CI, ensure fetch-depth is 0
+git fetch --depth=0 origin main
+```
+
+#### Issue: "Shallow clone detected" in CI
+
+**Symptom:**
+
+```
+Warning: Shallow clone detected. History may be incomplete.
+```
+
+**Cause:** GitHub Actions default checkout is shallow
+
+**Solution:**
+Update `.github/workflows/ci.yml`:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # Fetch all history
+    ref: ${{ github.head_ref }} # Fetch correct branch
+```
+
+### Pattern Matching Issues
+
+#### Issue: Tests Skipped When They Shouldn't Be
+
+**Symptom:**
+Expected unit tests to run, but they were skipped
 
 **Solution 1:** Check pattern matching
 
@@ -337,7 +483,21 @@ git diff --name-only origin/main...HEAD
 # Ensure paths match your patterns
 ```
 
-**Solution 3:** Force full run
+**Solution 3:** Check glob patterns in script
+
+```javascript
+// In scripts/analyze-change-impact.js
+const STEP_PATTERNS = {
+  'unit-tests': {
+    patterns: [
+      'src/lib/**/*.js', // Make sure this matches your changed files
+      'test/lib/**/*.test.js',
+    ],
+  },
+};
+```
+
+**Solution 4:** Force full run
 
 ```bash
 # Touch a CI config file to trigger run-all
@@ -345,7 +505,7 @@ touch .github/workflows/ci.yml
 git add .github/workflows/ci.yml
 ```
 
-### Issue: Too Many Steps Running
+#### Issue: Too Many Steps Running
 
 **Symptom:** Expected docs-only, got unit-only
 
@@ -356,23 +516,70 @@ git add .github/workflows/ci.yml
 ```bash
 npm run analyze:changes:verbose
 # Check "Changed files" section
+
+# If package.json changed unintentionally, unstage it
+git restore --staged package.json
+
+# Or accept run-all strategy for safety
 ```
 
-### Issue: Integration Tests Not Running on Main
+#### Issue: Wrong strategy selected
+
+**Symptom:**
+
+```
+Strategy: run-all
+Reason: Large changeset (150 files)
+```
+
+**Cause:** Threshold too low or legitimate large change
+
+**Solution:**
+
+```bash
+# Check if threshold is appropriate
+# In scripts/analyze-change-impact.js, look for:
+if (changedFiles.length > 100) {
+  return 'run-all'; // Adjust this threshold
+}
+
+# For large refactoring, accept run-all as appropriate
+# Or split into smaller commits
+```
+
+### CI/CD Integration Issues
+
+#### Issue: Integration Tests Not Running on Main
+
+**Symptom:**
+Integration tests skipped on main branch
 
 **Cause:** Change analysis says skip + branch policy conflict
 
 **Solution:** Check both conditions
 
 ```yaml
-if: |
-  needs.analyze-changes.outputs.run_integration_tests == 'true' &&
-  (github.ref == 'refs/heads/main' || github.base_ref == 'main')
+# In .github/workflows/ci.yml
+integration-tests:
+  if: |
+    needs.analyze-changes.outputs.run_integration_tests == 'true' &&
+    (github.ref == 'refs/heads/main' || github.base_ref == 'main')
 ```
 
-### Issue: Analysis Fails in CI
+**Debug:**
 
-**Symptom:** "Could not detect git changes"
+```bash
+# Check branch detection
+echo "Branch: ${GITHUB_REF}"
+echo "Base branch: ${GITHUB_BASE_REF}"
+
+# Always run on main regardless of analysis
+if: github.ref == 'refs/heads/main'
+```
+
+#### Issue: Analysis Fails in CI
+
+**Symptom:** "Could not detect git changes" in CI environment
 
 **Cause:** Shallow clone missing history
 
@@ -382,7 +589,202 @@ if: |
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0 # Fetch all history
+
+- name: Fetch main branch
+  run: |
+    git fetch origin main:main
+    git branch -a
 ```
+
+#### Issue: "ANALYSIS variable is empty" in CI
+
+**Symptom:**
+
+```
+Error: ANALYSIS is empty. Script may have failed.
+```
+
+**Cause:** Script error not caught or JSON parsing issue
+
+**Solution:**
+
+```yaml
+- name: Analyze change impact
+  id: analyze
+  run: |
+    set -e  # Exit on error
+    ANALYSIS=$(node scripts/analyze-change-impact.js --json) || exit 1
+    echo "Analysis output: $ANALYSIS"
+
+    # Validate JSON
+    echo "$ANALYSIS" | jq empty || exit 1
+
+    # Extract values...
+```
+
+### Output Formatting Issues
+
+#### Issue: JSON output not parseable
+
+**Symptom:**
+
+```
+Error: Unexpected token in JSON at position 0
+```
+
+**Cause:** Script outputting non-JSON text before JSON
+
+**Solution:**
+
+```bash
+# Use --json flag for clean JSON output
+node scripts/analyze-change-impact.js --json
+
+# Or redirect stderr to hide debug messages
+node scripts/analyze-change-impact.js --json 2>/dev/null
+
+# Validate JSON output
+node scripts/analyze-change-impact.js --json | jq .
+```
+
+#### Issue: Colors breaking CI logs
+
+**Symptom:**
+Weird characters like `\033[0;32m` in CI logs
+
+**Cause:** ANSI color codes not stripped in CI
+
+**Solution:**
+
+```bash
+# Disable colors in CI environment
+NO_COLOR=1 node scripts/analyze-change-impact.js
+
+# Or use --no-color flag
+node scripts/analyze-change-impact.js --no-color --json
+```
+
+### Performance Issues
+
+#### Issue: Script is slow (>10 seconds)
+
+**Symptom:**
+Change analysis takes longer than actual test execution
+
+**Cause:** Large repository or inefficient git operations
+
+**Solution:**
+
+```bash
+# Cache git operations
+# In scripts/analyze-change-impact.js, add caching:
+const changedFiles = await getCachedChangedFiles();
+
+# Or limit comparison scope
+git diff --name-only origin/main...HEAD | head -100
+
+# Consider moving to background job
+```
+
+### Debug Mode
+
+Enable detailed logging for troubleshooting:
+
+```bash
+# Set DEBUG environment variable
+DEBUG=1 npm run analyze:changes
+
+# Or modify script to add verbose flag
+node scripts/analyze-change-impact.js --verbose
+
+# Output should show:
+# - Git commands executed
+# - Files matched per pattern
+# - Impact calculations
+# - Strategy decision logic
+```
+
+### Common Workarounds
+
+#### Workaround 1: Always Run Specific Steps
+
+Force certain steps to always run regardless of analysis:
+
+```yaml
+# In .github/workflows/ci.yml
+linting:
+  if: always() # Run even if analysis says skip
+  run: npm run lint
+```
+
+#### Workaround 2: Manual Override
+
+Add manual trigger to override analysis:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      force_full_run:
+        description: 'Force full test suite'
+        required: false
+        default: 'false'
+
+jobs:
+  analyze:
+    if: github.event.inputs.force_full_run != 'true'
+    # ... analysis steps
+```
+
+#### Workaround 3: Disable Conditional Execution Temporarily
+
+```bash
+# Set environment variable to disable analysis
+export SKIP_CONDITIONAL_EXECUTION=1
+npm test
+
+# Or in CI
+- name: Run tests
+  env:
+    SKIP_CONDITIONAL_EXECUTION: 1
+  run: npm test
+```
+
+### Getting Help
+
+If troubleshooting doesn't resolve your issue:
+
+1. **Check script version:**
+
+   ```bash
+   head -20 scripts/analyze-change-impact.js | grep "Version:"
+   ```
+
+2. **Review recent changes:**
+
+   ```bash
+   git log --oneline scripts/analyze-change-impact.js | head -5
+   ```
+
+3. **Run with full debugging:**
+
+   ```bash
+   DEBUG=1 NODE_OPTIONS='--trace-warnings' node scripts/analyze-change-impact.js --verbose
+   ```
+
+4. **Check related documentation:**
+   - [Validation Scripts](./VALIDATION_SCRIPTS.md)
+   - [Developer Guide](./DEVELOPER_GUIDE.md)
+   - [CI/CD Configuration](../../.github/workflows/ci.yml)
+
+5. **Report issue with context:**
+   ```bash
+   # Collect debug information
+   node --version
+   npm --version
+   git --version
+   node scripts/analyze-change-impact.js --verbose > debug.log 2>&1
+   ```
 
 ## Related Documentation
 

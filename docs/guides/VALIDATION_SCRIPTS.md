@@ -348,3 +348,345 @@ version: v1.2.0
 | Version | Date       | Changes                                   |
 | ------- | ---------- | ----------------------------------------- |
 | 1.0.0   | 2026-02-07 | Initial validation scripts implementation |
+
+---
+
+## Workflow Core Submodule Scripts
+
+The `.workflow_core/` submodule contains additional Python validation scripts for documentation quality checks. These scripts are maintained separately and shared across ai_workflow projects.
+
+### Location
+
+```
+.workflow_core/
+└── scripts/
+    ├── validate_context_blocks.py
+    └── validate_structure.py
+```
+
+### Python Requirements
+
+```bash
+# Python 3.8+ required
+python3 --version
+
+# No external dependencies - uses standard library only
+```
+
+### 1. Context Block Validator (`validate_context_blocks.py`)
+
+**Purpose**: Validate XML-like context blocks in documentation files
+
+**Problem Solved**:
+
+- Detects unclosed context tags (e.g., `<context>` without `</context>`)
+- Finds mismatched tags (e.g., `<summary>` closed with `</overview>`)
+- Identifies malformed XML structures in markdown documentation
+- Prevents broken metadata that confuses documentation parsers
+
+**Usage**:
+
+```bash
+# Validate all documentation
+python3 .workflow_core/scripts/validate_context_blocks.py docs/
+
+# Validate specific file
+python3 .workflow_core/scripts/validate_context_blocks.py docs/guides/USER_GUIDE.md
+
+# Verbose output
+python3 .workflow_core/scripts/validate_context_blocks.py docs/ --verbose
+
+# JSON output for CI integration
+python3 .workflow_core/scripts/validate_context_blocks.py docs/ --json
+```
+
+**Output (Success)**:
+
+```
+✓ Validating context blocks in documentation...
+
+Checked 62 files
+Found 0 errors
+
+✓ All context blocks are valid
+```
+
+**Output (Errors)**:
+
+```
+✗ Validation errors found:
+
+docs/guides/EXAMPLE.md:45
+  ❌ Unclosed tag: <context>
+
+docs/api/config.md:102
+  ❌ Mismatched tags: <summary> closed with </overview>
+
+✗ 2 error(s) found in 2 file(s)
+```
+
+**Common Context Blocks**:
+
+```xml
+<context>
+  <!-- Project-specific context information -->
+</context>
+
+<summary>
+  <!-- Brief overview or summary -->
+</summary>
+
+<technical_details>
+  <!-- Technical implementation details -->
+</technical_details>
+
+<code_example>
+  <!-- Code examples with annotations -->
+</code_example>
+```
+
+**Validation Rules**:
+
+1. **Balanced Tags**: Every opening tag must have a matching closing tag
+2. **Nesting**: Tags must be properly nested (no overlapping)
+3. **Case Sensitivity**: Tags are case-sensitive (`<Context>` ≠ `<context>`)
+4. **No Attributes**: Context blocks don't support attributes
+
+**Features**:
+
+- Parses markdown files for XML-like context blocks
+- Maintains tag stack for nesting validation
+- Reports line numbers for errors
+- Supports multiple documentation directories
+- Exit code: 0 = valid, 1 = errors found
+
+### 2. Structure Validator (`validate_structure.py`)
+
+**Purpose**: Validate documentation structure and organization
+
+**Problem Solved**:
+
+- Detects missing required documentation files
+- Verifies directory structure matches conventions
+- Checks for broken documentation hierarchy
+- Ensures consistency across documentation sections
+
+**Usage**:
+
+```bash
+# Validate documentation structure
+python3 .workflow_core/scripts/validate_structure.py docs/
+
+# Check specific sections
+python3 .workflow_core/scripts/validate_structure.py docs/ --section api
+
+# Verbose mode with suggestions
+python3 .workflow_core/scripts/validate_structure.py docs/ --verbose
+
+# JSON output for automation
+python3 .workflow_core/scripts/validate_structure.py docs/ --json
+```
+
+**Output (Success)**:
+
+```
+✓ Validating documentation structure...
+
+Directory structure: ✓ Valid
+Required files: ✓ All present
+Section organization: ✓ Consistent
+
+✓ Documentation structure is valid
+```
+
+**Output (Warnings)**:
+
+```
+⚠ Structure validation completed with warnings:
+
+docs/api/
+  ⚠ Missing README.md index file
+
+docs/guides/
+  ✓ All sections present
+
+docs/examples/
+  ❌ Missing required directory
+
+⚠ 2 warning(s), 1 error(s) found
+```
+
+**Validated Structure**:
+
+```
+docs/
+├── README.md                    # ✓ Required
+├── api/                         # ✓ Required
+│   ├── README.md                # ✓ Required
+│   ├── core/                    # ✓ Required
+│   ├── lib/                     # ✓ Required
+│   └── orchestrator/            # ✓ Required
+├── guides/                      # ✓ Required
+│   ├── DEVELOPER_GUIDE.md       # ✓ Required
+│   ├── USER_GUIDE.md            # ✓ Required
+│   └── TESTING_GUIDE.md         # ✓ Required
+├── architecture/                # ✓ Required
+│   └── OVERVIEW.md              # ✓ Required
+├── examples/                    # ⚠ Optional
+└── reference/                   # ⚠ Optional
+```
+
+**Features**:
+
+- Checks for required files and directories
+- Validates naming conventions (UPPERCASE vs lowercase)
+- Detects empty directories
+- Suggests missing sections
+- Exit code: 0 = valid, 1 = errors (warnings don't fail)
+
+### NPM Scripts Integration
+
+Add to `package.json`:
+
+```json
+{
+  "scripts": {
+    "validate": "npm run validate:exports && npm run validate:versions && npm run validate:docs",
+    "validate:docs": "npm run validate:context && npm run validate:structure",
+    "validate:context": "python3 .workflow_core/scripts/validate_context_blocks.py docs/",
+    "validate:structure": "python3 .workflow_core/scripts/validate_structure.py docs/"
+  }
+}
+```
+
+**Usage**:
+
+```bash
+# Run all validations (JS + Python)
+npm run validate
+
+# Run documentation validations only
+npm run validate:docs
+
+# Run individually
+npm run validate:context
+npm run validate:structure
+```
+
+### CI/CD Integration
+
+Add to `.github/workflows/validate-docs.yml`:
+
+```yaml
+name: Validate Documentation
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - '.workflow_core/**'
+  pull_request:
+    paths:
+      - 'docs/**'
+
+jobs:
+  validate-structure:
+    name: Validate Docs Structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true # Fetch .workflow_core submodule
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Validate context blocks
+        run: python3 .workflow_core/scripts/validate_context_blocks.py docs/
+
+      - name: Validate documentation structure
+        run: python3 .workflow_core/scripts/validate_structure.py docs/
+        continue-on-error: true # Warnings don't fail CI
+```
+
+### Troubleshooting
+
+#### Issue: "Python not found"
+
+**Solution**:
+
+```bash
+# Install Python 3
+sudo apt-get install python3  # Ubuntu/Debian
+brew install python3           # macOS
+
+# Verify installation
+python3 --version
+```
+
+#### Issue: "Module not found"
+
+**Solution**:
+
+```bash
+# Ensure submodule is initialized
+git submodule init
+git submodule update
+
+# Verify scripts exist
+ls -la .workflow_core/scripts/
+```
+
+#### Issue: "Permission denied"
+
+**Solution**:
+
+```bash
+# Add executable permission
+chmod +x .workflow_core/scripts/*.py
+
+# Or run with python3 explicitly
+python3 .workflow_core/scripts/validate_context_blocks.py docs/
+```
+
+### When to Run
+
+**During Development**:
+
+- Before committing documentation changes
+- After adding new context blocks
+- When restructuring documentation
+
+**Automated (CI/CD)**:
+
+- On every documentation change (via paths filter)
+- On pull requests affecting docs/
+- Before releases
+
+### Performance
+
+| Script                     | Files Checked | Typical Duration | Exit on Error |
+| -------------------------- | ------------- | ---------------- | ------------- |
+| validate_context_blocks.py | ~60 .md files | <2 seconds       | Yes           |
+| validate_structure.py      | docs/ tree    | <1 second        | Partial       |
+| Combined                   | ~60+ files    | <3 seconds       | Partial       |
+
+### Related Documentation
+
+- [Developer Guide](./DEVELOPER_GUIDE.md) - Development workflow
+- [Submodule Integration](../architecture/SUBMODULE_INTEGRATION.md) - Workflow core usage
+- [Documentation Standards](../reference/DOCUMENTATION_STANDARDS.md) - Style guide
+
+---
+
+**Script Versions:**
+
+- `validate_context_blocks.py`: 1.0.0
+- `validate_structure.py`: 1.0.0
+
+**Maintained By:** AI Workflow Core Team  
+**Repository:** [.workflow_core](../../.workflow_core/)  
+**Last Validated:** 2026-02-08
