@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 13/20 steps complete (65%)
+// Status: 14/20 steps complete (70%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -595,3 +595,25 @@ export {
   parseSubmoduleStatus,
   formatGitReport,
 } from './steps/step_12_git_finalization.js';
+
+// Step 13: Markdown Linting
+export {
+  Step13MarkdownLint,
+  MARKDOWN_PATTERNS,
+  ANTI_PATTERNS,
+  LINTER_COMMANDS as MARKDOWN_LINTER_COMMANDS,
+  SEVERITY_LEVELS,
+  filterMarkdownFiles,
+  shouldExcludePath,
+  parseMdlOutput,
+  groupIssuesByFile,
+  groupIssuesByRule,
+  calculateLintStats,
+  checkMissingSpaceAfterHash,
+  checkMalformedBold,
+  checkTrailingWhitespace,
+  checkMultipleBlankLines,
+  detectAntiPatterns,
+  formatLintReport,
+  determineLintStatus,
+} from './steps/step_13_markdown_lint.js';
