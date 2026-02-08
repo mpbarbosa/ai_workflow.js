@@ -1,9 +1,9 @@
 # Migration Plan: AI Workflow from Shell Script to JavaScript/Node.js
 
 **Version:** 3.0.0 - **REORGANIZED**  
-**Document Version:** 3.5.0  
-**Last Updated:** February 6, 2026  
-**Status:** Active Development - Phase 7 Complete
+**Document Version:** 3.6.0  
+**Last Updated:** February 8, 2026  
+**Status:** Active Development - Phase 7 Complete, Phase 8 In Progress
 
 ---
 
@@ -25,19 +25,20 @@
 
 ## Document Version History
 
-| Version | Date       | Changes                                                                                             |
-| ------- | ---------- | --------------------------------------------------------------------------------------------------- |
-| 3.5.0   | 2026-02-06 | Updated for source v3.2.0: Git submodule support, intelligent AI model selection, Step 1 optimization. |
-| 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.            |
-| 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).   |
-| 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests). |
-| 3.1.0   | 2026-01-30 | Phase 3 complete. All 5 File Operations modules implemented with v2.0.0 architecture (354 tests).   |
-| 3.0.0   | 2026-01-30 | **REORGANIZATION**: Phases reordered by dependency. File Ops → Project Detection → Git → AI → Steps |
-| 2.1.0   | 2026-01-30 | Phase 2.1 complete. Added semantic versioning to all files. Updated status.                         |
-| 2.0.0   | 2026-01-30 | **MAJOR CORRECTION**: Complete rewrite based on actual source analysis                              |
-| 1.2.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                              |
-| 1.1.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                              |
-| 1.0.0   | 2026-01-27 | ❌ INCORRECT - contained wrong package manager content                                              |
+| Version | Date       | Changes                                                                                                     |
+| ------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| 3.6.0   | 2026-02-08 | Updated for source v3.2.7: Workflow profiles, Step 2.5 doc optimization, ML skip prediction, doc templates. |
+| 3.5.0   | 2026-02-06 | Updated for source v3.2.0: Git submodule support, intelligent AI model selection, Step 1 optimization.      |
+| 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.                    |
+| 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).           |
+| 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests).         |
+| 3.1.0   | 2026-01-30 | Phase 3 complete. All 5 File Operations modules implemented with v2.0.0 architecture (354 tests).           |
+| 3.0.0   | 2026-01-30 | **REORGANIZATION**: Phases reordered by dependency. File Ops → Project Detection → Git → AI → Steps         |
+| 2.1.0   | 2026-01-30 | Phase 2.1 complete. Added semantic versioning to all files. Updated status.                                 |
+| 2.0.0   | 2026-01-30 | **MAJOR CORRECTION**: Complete rewrite based on actual source analysis                                      |
+| 1.2.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                      |
+| 1.1.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                      |
+| 1.0.0   | 2026-01-27 | ❌ INCORRECT - contained wrong package manager content                                                      |
 
 ---
 
@@ -45,18 +46,22 @@
 
 This document outlines the migration of [ai_workflow](https://github.com/mpbarbosa/ai_workflow) from shell script to JavaScript/Node.js.
 
-**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.2.0)
+**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.2.7)
 
 **What ai_workflow Actually Is:**
 
-- **16-step AI-powered workflow automation for software development projects**
+- **20-step AI-powered workflow automation for software development projects**
 - Documentation validation, test generation, code quality analysis
-- GitHub Copilot integration with 14 specialized AI personas
+- GitHub Copilot integration with 15 specialized AI personas
 - Smart execution, parallel processing, ML optimization, AI caching
 - Intelligent model selection with 4-tier complexity analysis (NEW v3.1.1+)
 - Git submodule lifecycle management (NEW v3.2.0+)
+- Workflow profiles with auto-detection and time estimation (NEW v3.2.7+)
+- Step 2.5 documentation optimization with duplicate detection (NEW v3.2.7+)
+- ML-powered skip prediction engine (Phase 1 foundation) (NEW v3.2.7+)
+- Documentation templates and drift checker (NEW v3.2.7+)
 - Checkpoint/resume, change detection, metrics tracking
-- 70+ library modules (~39K+ lines) + 16 step modules (~8K+ lines)
+- 73 library modules (~32.7K+ lines) + 20 step modules (~8.2K+ lines)
 
 **What ai_workflow is NOT:**
 
@@ -67,16 +72,121 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 ---
 
+## Recent Changes in Source Repository (v3.2.0 → v3.2.7)
+
+### Major Additions (7 New Features)
+
+**1. Workflow Profiles (v3.2.7)** - Intelligent execution customization
+
+- New module: `workflow_profiles.sh` (11,301 bytes)
+- 5 predefined profiles: docs_only, code_changes, test_changes, infrastructure, full_validation
+- Auto-detection based on git change patterns
+- Manual profile override support via `WORKFLOW_PROFILE` env variable
+- Time estimation and savings calculation (30-43% time savings)
+- **Impact**: 71-121 minutes/day saved for 10 workflow runs
+- Documentation: `docs/WORKFLOW_PROFILES.md`
+
+**2. Step 2.5: Documentation Optimization (v3.2.7)** - NEW STEP MODULE
+
+- New step module: `step_02_5_doc_optimize.sh` (13,141 bytes)
+- 6 submodules in `step_02_5_lib/`: heuristics, git_analysis, version_analysis, ai_analyzer, consolidation, reporting
+- **Purpose**: Reduce documentation size and AI prompt context costs
+- **Features**:
+  - Exact duplicate detection using SHA256 hashing (100% confidence)
+  - Similarity analysis with multi-factor scoring (title, content, size)
+  - Git history analysis to identify abandoned/outdated files
+  - Version reference extraction and gap analysis
+  - Safe archiving to `docs/.archive/` with timestamps
+  - Comprehensive optimization reporting with metrics
+- **Configuration**: Via `.workflow-config.yaml` (threshold tuning, exclude patterns)
+- **Safety**: Dry-run mode, user confirmation for deletions, all changes archived
+- **Impact**: Expected 10-15% size reduction, ~5,000-10,000 token savings
+- **Performance**: Analyzes 200 files in 2-3 minutes
+- Documentation: `docs/guides/DOC_OPTIMIZATION.md` (7,756 bytes)
+
+**3. ML-Powered Skip Prediction (v3.2.7)** - Phase 1 Foundation
+
+- New modules: `skip_predictor.sh` (650+ lines), `test_skip_predictor.sh`
+- Automatic analysis of git changes (code/documentation/tests)
+- Cyclomatic complexity calculation for code files
+- Semantic analysis of commit messages
+- Predictive intelligence for workflow optimization
+- Future: 15-30% additional time savings
+
+**4. Documentation Templates & Drift Checker (v3.2.7)**
+
+- New modules: `doc_section_mapper.sh`, `doc_section_extractor.sh`
+- Template-based documentation generation
+- Drift detection between templates and actual docs
+- Automated section extraction and mapping
+- **Impact**: Ensures documentation consistency and completeness
+
+**5. Dependency Caching (v3.2.7)** - Step 8 Optimization
+
+- New module: `dependency_cache.sh` (350+ lines)
+- Caches npm audit and npm outdated results
+- **Performance**: Reduces Step 8 from ~6-7 minutes to <10 seconds on cache hits
+- Cache TTL: 1 hour (dependencies change more frequently than code)
+- Automatic cache cleanup of expired entries
+- Cache stored in `src/workflow/.dependency_cache/`
+- Cache statistics via `get_dependency_cache_stats()`
+
+**6. Enhanced Step 3 Auto-Skip (v2.2.0)** - Project Type Awareness
+
+- Automatic project type detection to skip step for non-shell projects
+- Auto-skips for Node.js/JavaScript projects (nodejs_api, nodejs_cli, react_spa, vue_spa)
+- Auto-skips for Python projects (python_api, python_cli, python_library)
+- Auto-skips for static/documentation projects
+- Only runs for shell_automation projects or projects with src/workflow directory
+- Clear skip reasons in workflow output and summaries
+
+**7. Enhanced Step 8 Caching (v2.2.0)** - See #5 above
+
+### Module Count Update
+
+- **73 library modules** (was 67+): +6 new modules
+  - `dependency_cache.sh`
+  - `doc_section_extractor.sh`
+  - `doc_section_mapper.sh`
+  - `skip_predictor.sh`
+  - `test_skip_predictor.sh`
+  - `workflow_optimization.sh`
+  - `workflow_profiles.sh`
+- **20 step modules** (was 18): +2 new modules
+  - `step_02_5_doc_optimize.sh` (with 6 submodules)
+  - Step 3 v2.1.0 → v2.2.0 (enhanced)
+  - Step 8 v2.1.0 → v2.2.0 (enhanced)
+
+### Migration Impact Assessment
+
+**High Priority for Migration:**
+
+1. ✅ **Workflow Profiles** - Already partially implemented via `conditional_executor.js` (Phase 7)
+2. ⚠️ **Step 2.5 Doc Optimization** - NEW, requires Phase 9 implementation
+3. ⚠️ **Dependency Caching** - Pattern similar to `git_cache.js` (Phase 5), can reuse architecture
+4. ⚠️ **ML Skip Prediction** - Advanced feature, defer to Phase 10+
+5. ⚠️ **Doc Templates/Drift** - Support infrastructure, defer to Phase 9+
+
+**Medium Priority:**
+
+- Step 3/8 enhancements can be integrated into existing step implementations (Phase 9)
+
+**Low Priority:**
+
+- ML Skip Prediction is Phase 1 foundation only, can be implemented later
+
+---
+
 ## Source Repository Structure - ACTUAL
 
 ```
 ai_workflow/
 ├── src/workflow/
 │   ├── execute_tests_docs_workflow.sh    # Main orchestrator (2,672 lines)
-│   ├── lib/                              # 67+ library modules (30,000+ lines)
+│   ├── lib/                              # 73 library modules (32,723 lines)
 │   │   ├── ai_cache.sh                   # AI response caching
 │   │   ├── ai_helpers.sh                 # AI integration (~3,500 lines!)
-│   │   ├── ai_personas.sh                # 14 AI persona definitions
+│   │   ├── ai_personas.sh                # 15 AI persona definitions
 │   │   ├── ai_prompt_builder.sh          # Dynamic prompt generation
 │   │   ├── ai_validation.sh              # AI validation
 │   │   ├── analysis_cache.sh             # Analysis caching
@@ -93,7 +203,10 @@ ai_workflow/
 │   │   ├── config.sh                     # Configuration
 │   │   ├── config_wizard.sh              # Interactive config
 │   │   ├── dashboard.sh                  # Dashboard
+│   │   ├── dependency_cache.sh           # Dependency caching (NEW v3.2.7+)
 │   │   ├── dependency_graph.sh           # Dependency analysis
+│   │   ├── doc_section_extractor.sh      # Doc section extraction (NEW v3.2.7+)
+│   │   ├── doc_section_mapper.sh         # Doc section mapping (NEW v3.2.7+)
 │   │   ├── doc_template_validator.sh     # Doc validation
 │   │   ├── docs_only_optimization.sh     # Docs optimizations
 │   │   ├── edit_operations.sh            # File editing
@@ -102,32 +215,36 @@ ai_workflow/
 │   │   ├── full_changes_optimization.sh  # Full optimizations
 │   │   ├── git_automation.sh             # Git automation
 │   │   ├── git_cache.sh                  # Git caching
+│   │   ├── git_submodule_helpers.sh      # Git submodule mgmt (NEW v3.2.0+)
 │   │   ├── health_check.sh               # Health checks
 │   │   ├── incremental_analysis.sh       # Incremental analysis (NEW v3.1+)
 │   │   ├── jq_wrapper.sh                 # Safe jq wrapper (NEW v3.1+)
-│   │   ├── model_selector.sh            # AI model selection (NEW v3.1.1+)
-│   │   ├── git_submodule_helpers.sh     # Git submodule mgmt (NEW v3.2.0+)
 │   │   ├── metrics.sh                    # Metrics
 │   │   ├── metrics_validation.sh         # Metrics validation
 │   │   ├── ml_optimization.sh            # ML-driven optimization
+│   │   ├── model_selector.sh             # AI model selection (NEW v3.1.1+)
 │   │   ├── multi_stage_pipeline.sh       # Multi-stage pipeline
 │   │   ├── performance.sh                # Performance tracking
 │   │   ├── performance_monitoring.sh     # Performance monitoring
+│   │   ├── precommit_hooks.sh            # Pre-commit hooks (NEW v3.1+)
 │   │   ├── project_kind_config.sh        # Project config
 │   │   ├── project_kind_detection.sh     # Project detection
 │   │   ├── session_manager.sh            # Session management
+│   │   ├── skip_predictor.sh             # ML skip prediction (NEW v3.2.7+)
 │   │   ├── step_adaptation.sh            # Step adaptation
 │   │   ├── step_execution.sh             # Step execution
 │   │   ├── step_metadata.sh              # Step metadata
 │   │   ├── step_validation_cache.sh      # Validation cache
 │   │   ├── summary.sh                    # Summaries
 │   │   ├── tech_stack.sh                 # Tech stack detection
+│   │   ├── test_skip_predictor.sh        # Test skip predictor (NEW v3.2.7+)
 │   │   ├── third_party_exclusion.sh      # Third-party exclusion
 │   │   ├── utils.sh                      # Utilities
 │   │   ├── version_bump.sh               # Version bumping (NEW v3.1+)
-│   │   ├── precommit_hooks.sh            # Pre-commit hooks (NEW v3.1+)
+│   │   ├── workflow_optimization.sh      # Workflow optimization (NEW v3.2.7+)
+│   │   ├── workflow_profiles.sh          # Workflow profiles (NEW v3.2.7+)
 │   │   └── ... (and more)
-│   └── steps/                            # 18 step modules (7,000+ lines)
+│   └── steps/                            # 20 step modules (8,186 lines)
 │       ├── step_00_analyze.sh            # Project analysis
 │       ├── step_01_documentation.sh      # Documentation validation (refactored v3.1+)
 │       ├── step_01_lib/                  # Step 1 sub-modules (NEW v3.1+)
@@ -137,6 +254,14 @@ ai_workflow/
 │       │   ├── incremental.sh            # Incremental processing (10K lines)
 │       │   └── validation.sh             # Validation (10.6K lines)
 │       ├── step_02_consistency.sh        # Consistency checks
+│       ├── step_02_5_doc_optimize.sh     # Doc optimization (NEW v3.2.7+)
+│       ├── step_02_5_lib/                # Step 2.5 sub-modules (NEW v3.2.7+)
+│       │   ├── ai_analyzer.sh            # AI analysis for edge cases
+│       │   ├── consolidation.sh          # File consolidation
+│       │   ├── git_analysis.sh           # Git history analysis
+│       │   ├── heuristics.sh             # Duplicate detection heuristics
+│       │   ├── reporting.sh              # Optimization reporting
+│       │   └── version_analysis.sh       # Version reference extraction
 │       ├── step_03_script_refs.sh        # Script references
 │       ├── step_04_directory.sh          # Directory validation
 │       ├── step_05_test_review.sh        # Test review
@@ -161,26 +286,27 @@ ai_workflow/
 
 ## Key Features to Migrate
 
-### 1. 16-Step Workflow Pipeline
+### 1. 20-Step Workflow Pipeline
 
 - **Step 0:** Project analysis and context detection
 - **Step 0b:** Bootstrap documentation (gap analysis and generation) _(NEW v3.1+)_
-- **Step 1:** Documentation validation and enhancement
+- **Step 1:** Documentation validation and enhancement (optimized v3.2.0+)
 - **Step 2:** Consistency checking across files
-- **Step 3:** Script reference validation
+- **Step 2.5:** Documentation optimization (duplicate detection, archiving) _(NEW v3.2.7+)_
+- **Step 3:** Script reference validation (auto-skip for non-shell projects v2.2.0+)
 - **Step 4:** Directory structure validation
 - **Step 5:** Test review and analysis
 - **Step 6:** Test generation
 - **Step 7:** Test execution
-- **Step 8:** Dependency analysis
+- **Step 8:** Dependency analysis (with result caching v2.2.0+)
 - **Step 9:** Code quality assessment
 - **Step 10:** Context management
-- **Step 11:** Git automation and validation
+- **Step 11:** Git automation and validation (with submodule support v2.3.0+)
 - **Step 12:** Markdown linting
 - **Step 13:** Prompt engineering
 - **Step 14:** UX and accessibility analysis
 
-### 2. AI Integration (14 Personas)
+### 2. AI Integration (15 Personas)
 
 - GitHub Copilot CLI integration
 - Specialized AI personas:
@@ -192,6 +318,7 @@ ai_workflow/
   - Prompt Engineer
   - Security Expert
   - Performance Engineer
+  - Documentation Optimizer (NEW v3.2.7+)
   - And 6 more...
 - AI response caching (60-80% token reduction)
 - Intelligent model selection (4-tier complexity system) _(NEW v3.1.1+)_
@@ -208,6 +335,16 @@ ai_workflow/
 - **Intelligent Model Selection**: Complexity-based model tier selection (30-50% token reduction) _(NEW v3.1.1+)_
 - **Incremental Analysis**: File-level hash tracking (75-96% faster for Step 1) _(NEW v3.1.1+)_
 - **Parallel Processing**: Category-based concurrent AI analysis (71% faster) _(NEW v3.1.1+)_
+- **Workflow Profiles**: Auto-detection and time estimation (NEW v3.2.7+)
+  - docs_only: 60% faster (~10 min saved)
+  - code_changes: 20% faster (~5 min saved)
+  - test_changes: 35% faster (~8 min saved)
+  - infrastructure: Full validation (safety-first)
+  - Expected savings: 30-43% time reduction (71-121 min/day for 10 runs)
+- **Dependency Caching**: npm audit/outdated result caching (NEW v3.2.7+)
+  - Reduces Step 8 from ~6-7 minutes to <10 seconds on cache hits
+  - 1-hour TTL for fresh dependency data
+- **ML Skip Prediction**: Intelligent skip prediction engine (Phase 1 foundation) (NEW v3.2.7+)
 - **ML Optimization**: Predictive workflow intelligence (15-30% improvement)
 - **Multi-Stage Pipeline**: Progressive validation (3 stages)
 - **Combined**: Up to 96% faster for simple changes
@@ -506,43 +643,55 @@ ai_workflow/
 **Depends on**: Phase 6 (AI), Phase 7 (step engine), Phase 8 (optimization)  
 **Priority**: **HIGH** - Core functionality
 
-#### 16 Step Modules:
+#### 20 Step Modules (1 complete, 19 planned):
 
 - [ ] `steps/step_00_analyze.js` - Project analysis (detect tech stack, project kind)
 - [ ] `steps/step_0b_bootstrap_docs.js` - Bootstrap documentation (gap analysis, generation) _(NEW v3.1+)_
-- [ ] `steps/step_01_documentation.js` - Documentation validation (completeness, accuracy)
+- [x] `steps/step_01_documentation.js` (v2.0.0) - Documentation validation (completeness, accuracy) - ✅ Incremental & Parallel processing implemented
 - [ ] `steps/step_02_consistency.js` - Consistency checks (naming, formatting, structure)
-- [ ] `steps/step_03_script_refs.js` - Script reference validation
+- [ ] `steps/step_02_5_doc_optimize.js` - Documentation optimization (duplicate detection, archiving) _(NEW v3.2.7+)_
+  - 6 submodules: heuristics, git_analysis, version_analysis, ai_analyzer, consolidation, reporting
+  - **Purpose**: Reduce doc size by 10-15%, save 5K-10K tokens
+  - **Features**: SHA256 duplicate detection, similarity scoring, git history analysis, safe archiving
+- [ ] `steps/step_03_script_refs.js` - Script reference validation (v2.2.0: auto-skip for non-shell projects)
 - [ ] `steps/step_04_directory.js` - Directory structure validation
 - [ ] `steps/step_05_test_review.js` - Test review (coverage, quality, best practices)
 - [ ] `steps/step_06_test_gen.js` - Test generation (AI-powered test creation)
 - [ ] `steps/step_07_test_exec.js` - Test execution (run tests, report results)
-- [ ] `steps/step_08_dependencies.js` - Dependency analysis (security, updates, licenses)
+- [ ] `steps/step_08_dependencies.js` - Dependency analysis (security, updates, licenses) (v2.2.0: result caching)
 - [ ] `steps/step_09_code_quality.js` - Code quality assessment (linting, complexity)
 - [ ] `steps/step_10_context.js` - Context management (workflow context tracking)
-- [ ] `steps/step_11_git.js` - Git operations (commit artifacts, push changes)
+- [ ] `steps/step_11_git.js` - Git operations (commit artifacts, push changes) (v2.3.0: submodule support)
 - [ ] `steps/step_12_markdown_lint.js` - Markdown linting (style, formatting)
 - [ ] `steps/step_13_prompt_engineer.js` - Prompt engineering (optimize AI prompts)
 - [ ] `steps/step_14_ux_analysis.js` - UX/accessibility analysis
+- [ ] `steps/step_15_version_update.js` - Version update
 
 #### Implementation Strategy:
 
 - Build steps incrementally (2-3 per week)
 - Each step has comprehensive tests
-- Steps use AI personas where appropriate (e.g., Technical Writer for Step 0b)
-- Steps adapt to project kind
-- Complex steps use modular architecture (step_XX_lib/) _(NEW v3.1+)_
+- Steps use AI personas where appropriate (e.g., Technical Writer for Step 0b, Documentation Optimizer for Step 2.5)
+- Steps adapt to project kind (e.g., Step 3 auto-skips for non-shell projects)
+- Complex steps use modular architecture (step*XX_lib/) *(NEW v3.1+)\_
+- **NEW**: Step 2.5 is a significant addition (13,141 bytes + 6 submodules)
 
 #### Success Criteria:
 
-- All 16 steps functional (including Step 0b)
+- All 20 steps functional (including Step 0b and Step 2.5)
 - Each step thoroughly tested
 - AI integration works correctly
 - Steps adapt to project type
 - Modular step architecture implemented for complex steps
+- Step 2.5 doc optimization provides 10-15% size reduction
+- Step 3 auto-skip logic works for all project types
+- Step 8 dependency caching reduces time by 90%+
+- Step 11 git submodule support fully functional
 - 95%+ test coverage per step
 
-**Provides**: Full 16-step workflow automation capability
+**Provides**: Full 20-step workflow automation capability
+
+**Status**: 🚧 **PLANNED** - Phase 8 must complete first
 
 ---
 
