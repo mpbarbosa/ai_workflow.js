@@ -12,7 +12,7 @@ This directory contains automated CI/CD workflows for the ai_workflow.js project
 
 1. **Test Matrix** - Tests on Node.js 18.x, 20.x, 22.x
    - ✅ Lint check with ESLint
-   - ✅ Full test suite (1694 tests)
+   - ✅ Full test suite (3417 passing of 3435 total, 18 skipped)
    - ✅ Node modules caching (60% faster)
 
 2. **Coverage Report** - Generates and uploads coverage to Codecov

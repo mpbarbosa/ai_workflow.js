@@ -97,7 +97,7 @@ Jest's auto mode (no `maxWorkers` specified) uses all available CPU cores:
 
 - Sweet spot: 2-4 workers
 - Beyond 4 workers: diminishing returns
-- Test suite size (1694 tests across 29 files) doesn't justify 8+ workers
+- Test suite size (3435 tests across 67 files) benefits from parallelization
 
 **CI vs Local:**
 
@@ -147,8 +147,8 @@ Jest's auto mode (no `maxWorkers` specified) uses all available CPU cores:
 
 | Metric                | Value             | Impact on Parallelization     |
 | --------------------- | ----------------- | ----------------------------- |
-| **Test Files**        | 29 files          | Small suite (high overhead)   |
-| **Total Tests**       | 1694 tests        | Medium complexity             |
+| **Test Files**        | 67 files          | Medium suite                  |
+| **Total Tests**       | 3435 tests        | High complexity               |
 | **Average File Time** | ~200ms            | Fast tests (overhead matters) |
 | **Test Distribution** | Even across files | Good for parallelization      |
 

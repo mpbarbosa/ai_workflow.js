@@ -1473,7 +1473,9 @@ For functional requirements related to:
 - Phase 5: 219 tests, 100% passing
 - Phase 6: 424 tests (421 passing, 3 failures)
 - Phase 7: 329 tests, 100% passing
-- Combined: 1694 tests (1692 passing, 2 known failures)
+- Phase 8: 646 tests (628 passing, 18 skipped)
+- Phase 9: ~1100+ tests, 100% passing
+- Combined: 3435 tests (3417 passing, 18 skipped)
 
 ---
 

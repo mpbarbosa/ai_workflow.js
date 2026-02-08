@@ -715,7 +715,7 @@ npm publish    # Future
    - Change impact analysis reduces CI time by 40-60%
    - Conditional execution based on file patterns
    - Multi-version Node.js testing (18.x, 20.x, 22.x)
-   - Comprehensive test suite (1694 tests passing)
+   - Comprehensive test suite (3417 passing of 3435 total, 18 skipped)
 
 4. **Clear Separation of Concerns**
    - Validation scripts separate from test scripts
