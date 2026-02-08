@@ -688,3 +688,106 @@ export {
   buildTechnicalWriterPrompt as buildBootstrapDocPrompt,
   formatGapAnalysisReport,
 } from './steps/step_0b_bootstrap_docs.js';
+
+// Step 02_5: Documentation Optimization
+// Main orchestrator
+export {
+  DocumentationOptimizer,
+  DEFAULT_CONFIG as DOC_OPTIMIZE_DEFAULT_CONFIG,
+  PHASES as DOC_OPTIMIZE_PHASES,
+  mergeConfig as mergeDocOptimizeConfig,
+  validateConfig as validateDocOptimizeConfig,
+  createInitialState as createDocOptimizeState,
+  updateState as updateDocOptimizeState,
+  aggregateResults as aggregateDocOptimizeResults,
+  calculateExecutionTime as calculateDocOptimizeExecutionTime,
+} from './steps/step_02_5_doc_optimize.js';
+
+// Step 02_5 submodules
+export {
+  HeuristicsAnalyzer,
+  SIMILARITY_THRESHOLDS,
+  calculateFileHash as calculateDocFileHash,
+  findExactDuplicates,
+  levenshteinDistance,
+  extractDocumentTitle,
+  normalizeTitle,
+  calculateTitleSimilarity,
+  extractSignificantWords,
+  calculateJaccardSimilarity,
+  calculateContentSimilarity,
+  calculateSizeSimilarity,
+  calculateCombinedSimilarity,
+  findRedundantPairs,
+} from './steps/step_02_5_lib/heuristics.js';
+
+export {
+  GitAnalyzer,
+  STALENESS_LEVELS,
+  STALENESS_THRESHOLDS as GIT_STALENESS_THRESHOLDS,
+  parseGitLog as parseGitLogForDocs,
+  extractCommitMetadata,
+  calculateAgeMonths,
+  isRecentlyModified,
+  determineStalenessLevel,
+  calculateStalenessScore,
+  countFileReferences,
+  analyzeCommitFrequency,
+} from './steps/step_02_5_lib/git_analysis.js';
+
+export {
+  VersionAnalyzer,
+  VERSION_PATTERNS,
+  VERSION_STALENESS_THRESHOLDS,
+  extractVersionReferences,
+  parseVersion as parseDocVersion,
+  compareVersions as compareDocVersions,
+  calculateVersionGap,
+  isVersionOutdated,
+  calculateVersionStaleness,
+  findOutdatedReferences,
+} from './steps/step_02_5_lib/version_analysis.js';
+
+export {
+  ConsolidationManager,
+  ARCHIVE_STRUCTURE,
+  selectKeepFile,
+  buildConsolidationPlan,
+  generateArchivePath,
+  generateArchiveDirectories,
+  calculateConsolidationStats,
+  formatConsolidationAction,
+} from './steps/step_02_5_lib/consolidation.js';
+
+export {
+  ReportingManager,
+  REPORT_SECTIONS,
+  DEFAULT_RECOMMENDATIONS as DOC_OPTIMIZE_RECOMMENDATIONS,
+  calculateTotalSize as calculateDocTotalSize,
+  calculateSizeSavings,
+  estimateTokenSavings,
+  calculateOptimizationMetrics,
+  formatTimestamp as formatDocTimestamp,
+  formatFileList,
+  formatRedundantPairs,
+  formatSummarySection,
+  formatActionsSection,
+  formatRecommendationsSection,
+  formatArchiveSection,
+  generateOptimizationReport,
+  formatConsoleSummary as formatDocConsoleSummary,
+} from './steps/step_02_5_lib/reporting.js';
+
+export {
+  AiAnalyzer,
+  CONFIDENCE_THRESHOLDS as AI_CONFIDENCE_THRESHOLDS,
+  ANALYSIS_RESULT,
+  isEdgeCase,
+  filterEdgeCases,
+  countEdgeCases,
+  buildRedundancyPrompt,
+  parseAiResponse as parseAiRedundancyResponse,
+  calculateConfidenceBoost,
+  applyAiAnalysis,
+  generateAnalysisSummary as generateAiAnalysisSummary,
+} from './steps/step_02_5_lib/ai_analyzer.js';
