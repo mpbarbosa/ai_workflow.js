@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 3/20 steps complete (15%)
+// Status: 4/20 steps complete (20%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -428,3 +428,16 @@ export {
   formatConsistencyReport,
   ISSUE_TYPE,
 } from './steps/step_02_consistency.js';
+
+// Step 3: Script Reference Validation
+export {
+  Step3ScriptAnalyzer,
+  getScriptPatterns,
+  getScriptDirectories,
+  extractScriptReferences,
+  validateScriptReferences,
+  validateShebang,
+  isScriptDocumented,
+  formatScriptReport,
+  SCRIPT_ISSUE_TYPE,
+} from './steps/step_03_script_refs.js';
