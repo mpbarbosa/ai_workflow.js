@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 4/20 steps complete (20%)
+// Status: 5/20 steps complete (25%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -441,3 +441,19 @@ export {
   formatScriptReport,
   SCRIPT_ISSUE_TYPE,
 } from './steps/step_03_script_refs.js';
+
+// Step 4: Configuration Validation
+export {
+  Step4ConfigAnalyzer,
+  CONFIG_PATTERNS,
+  SECRET_PATTERNS,
+  CONFIG_ISSUE_TYPE,
+  isConfigFile,
+  getConfigType,
+  validateJsonSyntax,
+  validateYamlSyntax,
+  validateConfigSyntax,
+  scanForSecrets,
+  checkConfigBestPractices,
+  formatConfigReport,
+} from './steps/step_04_config_validation.js';
