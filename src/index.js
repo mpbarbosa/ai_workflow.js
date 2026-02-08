@@ -391,7 +391,7 @@ export {
 
 // ============================================================================
 // Phase 9: Workflow Steps Implementation (20 steps) 🚧 IN PROGRESS
-// Status: 8/20 steps complete (40%)
+// Status: 9/20 steps complete (45%)
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -508,3 +508,21 @@ export {
   categorizeUntestedFiles,
   formatTestGenerationReport,
 } from './steps/step_07_test_gen.js';
+
+// Step 8: Test Execution
+export {
+  Step8TestExecutor,
+  TEST_COMMANDS,
+  COVERAGE_FILES,
+  TEST_RESULT_PATTERNS,
+  getTestCommand,
+  getCoverageFiles,
+  hasTestScript,
+  extractTestCommand,
+  parseJestOutput,
+  parsePytestOutput,
+  parseTestOutput,
+  parseJestCoverage,
+  determineTestStatus,
+  formatTestReport as formatTestExecutionReport,
+} from './steps/step_08_test_exec.js';
