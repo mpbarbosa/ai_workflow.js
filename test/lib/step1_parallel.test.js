@@ -36,12 +36,15 @@ describe('Step 1 Parallel Processing', () => {
       expect(task.error).toBeNull();
     });
 
-    test('generates unique task IDs', async () => {
-      const task1 = createValidationTask('api', ['file1.md'], 1);
-      await new Promise((resolve) => setTimeout(resolve, 1)); // 1ms delay
-      const task2 = createValidationTask('api', ['file2.md'], 1);
+    test('generates unique task IDs', () => {
+      const timestamp1 = 1000;
+      const timestamp2 = 2000;
+      const task1 = createValidationTask('api', ['file1.md'], 1, timestamp1, 0);
+      const task2 = createValidationTask('api', ['file2.md'], 1, timestamp2, 0);
 
       expect(task1.id).not.toBe(task2.id);
+      expect(task1.id).toBe('task_api_1000_0');
+      expect(task2.id).toBe('task_api_2000_0');
     });
   });
 
@@ -50,7 +53,7 @@ describe('Step 1 Parallel Processing', () => {
       const files = ['README.md', 'docs/api/index.md', 'docs/guide.md'];
       const getPriority = () => VALIDATION_PRIORITY.MEDIUM;
 
-      const tasks = createValidationTasks(files, getPriority);
+      const tasks = createValidationTasks(files, getPriority, 1000);
 
       expect(tasks.length).toBeGreaterThan(0);
       expect(tasks.every((t) => t.files.length > 0)).toBe(true);
@@ -60,7 +63,7 @@ describe('Step 1 Parallel Processing', () => {
       const files = ['README.md'];
       const getPriority = () => VALIDATION_PRIORITY.MEDIUM;
 
-      const tasks = createValidationTasks(files, getPriority);
+      const tasks = createValidationTasks(files, getPriority, 1000);
 
       // Only README category should have files
       expect(tasks.length).toBe(1);
@@ -72,7 +75,7 @@ describe('Step 1 Parallel Processing', () => {
       const getPriority = (cat) =>
         cat === DOC_CATEGORIES.README ? VALIDATION_PRIORITY.CRITICAL : VALIDATION_PRIORITY.LOW;
 
-      const tasks = createValidationTasks(files, getPriority);
+      const tasks = createValidationTasks(files, getPriority, 1000);
 
       const readmeTask = tasks.find((t) => t.category === DOC_CATEGORIES.README);
       expect(readmeTask.priority).toBe(VALIDATION_PRIORITY.CRITICAL);

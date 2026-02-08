@@ -355,3 +355,20 @@ export {
   filterCheckpointsByWorkflow,
   sortCheckpointsByTime,
 } from './orchestrator/checkpoint_manager.js';
+
+// Phase 8: Performance Optimization (v2.0.0) - IN PROGRESS
+export {
+  WorkflowProfileManager,
+  WORKFLOW_PROFILES,
+  PROFILE_PATTERNS,
+  matchesPattern as matchesWorkflowPattern,
+  categorizeChanges,
+  selectProfile,
+  getProfile as getWorkflowProfile,
+  getSkipSteps as getWorkflowSkipSteps,
+  getFocusSteps as getWorkflowFocusSteps,
+  calculateSavings as calculateWorkflowSavings,
+  isValidProfile as isValidWorkflowProfile,
+  getAllProfiles as getAllWorkflowProfiles,
+  formatProfileInfo,
+} from './lib/workflow_profiles.js';

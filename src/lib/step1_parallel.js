@@ -64,11 +64,13 @@ export const TASK_STATUS = {
  * @param {string} category - Category from DOC_CATEGORIES
  * @param {Array<string>} files - Files in this category
  * @param {number} priority - Validation priority
+ * @param {number} timestamp - Current timestamp for ID generation
+ * @param {number} sequence - Sequence number for uniqueness
  * @returns {Object} Task object
  */
-export function createValidationTask(category, files, priority) {
+export function createValidationTask(category, files, priority, timestamp, sequence = 0) {
   return {
-    id: `task_${category}_${Date.now()}`,
+    id: `task_${category}_${timestamp}_${sequence}`,
     category,
     files,
     priority,
@@ -86,16 +88,18 @@ export function createValidationTask(category, files, priority) {
  * @pure
  * @param {Array<string>} files - Documentation files
  * @param {Function} getPriority - Function to get priority for category
+ * @param {number} timestamp - Current timestamp for ID generation
  * @returns {Array<Object>} Validation tasks
  */
-export function createValidationTasks(files, getPriority) {
+export function createValidationTasks(files, getPriority, timestamp) {
   const grouped = groupByCategory(files);
   const tasks = [];
 
+  let sequence = 0;
   for (const [category, categoryFiles] of Object.entries(grouped)) {
     if (categoryFiles.length > 0) {
       const priority = getPriority(category);
-      tasks.push(createValidationTask(category, categoryFiles, priority));
+      tasks.push(createValidationTask(category, categoryFiles, priority, timestamp, sequence++));
     }
   }
 
@@ -321,7 +325,7 @@ export class Step1ParallelProcessor {
     } = options;
 
     // Create tasks
-    this.tasks = createValidationTasks(files, getPriority);
+    this.tasks = createValidationTasks(files, getPriority, Date.now());
 
     if (this.tasks.length === 0) {
       logger.info('Step1Parallel: No files to validate');
