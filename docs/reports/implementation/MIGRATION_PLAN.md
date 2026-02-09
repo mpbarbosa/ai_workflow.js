@@ -1,9 +1,9 @@
 # Migration Plan: AI Workflow from Shell Script to JavaScript/Node.js
 
 **Version:** 3.0.0 - **REORGANIZED**  
-**Document Version:** 3.6.0  
-**Last Updated:** February 8, 2026  
-**Status:** Active Development - Phase 7 Complete, Phase 8 In Progress
+**Document Version:** 3.7.0  
+**Last Updated:** February 9, 2026  
+**Status:** Active Development - Phase 8 Complete, Phase 9 In Progress
 
 ---
 
@@ -25,20 +25,21 @@
 
 ## Document Version History
 
-| Version | Date       | Changes                                                                                                     |
-| ------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
-| 3.6.0   | 2026-02-08 | Updated for source v3.2.7: Workflow profiles, Step 2.5 doc optimization, ML skip prediction, doc templates. |
-| 3.5.0   | 2026-02-06 | Updated for source v3.2.0: Git submodule support, intelligent AI model selection, Step 1 optimization.      |
-| 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.                    |
-| 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).           |
-| 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests).         |
-| 3.1.0   | 2026-01-30 | Phase 3 complete. All 5 File Operations modules implemented with v2.0.0 architecture (354 tests).           |
-| 3.0.0   | 2026-01-30 | **REORGANIZATION**: Phases reordered by dependency. File Ops → Project Detection → Git → AI → Steps         |
-| 2.1.0   | 2026-01-30 | Phase 2.1 complete. Added semantic versioning to all files. Updated status.                                 |
-| 2.0.0   | 2026-01-30 | **MAJOR CORRECTION**: Complete rewrite based on actual source analysis                                      |
-| 1.2.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                      |
-| 1.1.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                      |
-| 1.0.0   | 2026-01-27 | ❌ INCORRECT - contained wrong package manager content                                                      |
+| Version | Date       | Changes                                                                                                              |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| 3.7.0   | 2026-02-09 | Updated for source v4.0.0: Configuration-driven step execution, named steps, step registry system. Phase 8 complete. |
+| 3.6.0   | 2026-02-08 | Updated for source v3.2.7: Workflow profiles, Step 2.5 doc optimization, ML skip prediction, doc templates.          |
+| 3.5.0   | 2026-02-06 | Updated for source v3.2.0: Git submodule support, intelligent AI model selection, Step 1 optimization.               |
+| 3.4.0   | 2026-02-05 | Updated for source v3.1.0 changes: Step 0b added, jq_wrapper, modular step architecture.                             |
+| 3.3.0   | 2026-02-02 | Phase 5 complete. All 4 Git Integration modules implemented with v2.0.0 architecture (219 tests).                    |
+| 3.2.0   | 2026-02-01 | Phase 4 complete. All 4 Project Detection modules implemented with v1.0.0 architecture (167 tests).                  |
+| 3.1.0   | 2026-01-30 | Phase 3 complete. All 5 File Operations modules implemented with v2.0.0 architecture (354 tests).                    |
+| 3.0.0   | 2026-01-30 | **REORGANIZATION**: Phases reordered by dependency. File Ops → Project Detection → Git → AI → Steps                  |
+| 2.1.0   | 2026-01-30 | Phase 2.1 complete. Added semantic versioning to all files. Updated status.                                          |
+| 2.0.0   | 2026-01-30 | **MAJOR CORRECTION**: Complete rewrite based on actual source analysis                                               |
+| 1.2.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                               |
+| 1.1.0   | 2026-01-29 | ❌ INCORRECT - contained wrong package manager content                                                               |
+| 1.0.0   | 2026-01-27 | ❌ INCORRECT - contained wrong package manager content                                                               |
 
 ---
 
@@ -46,22 +47,25 @@
 
 This document outlines the migration of [ai_workflow](https://github.com/mpbarbosa/ai_workflow) from shell script to JavaScript/Node.js.
 
-**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v3.2.7)
+**Source Repository:** https://github.com/mpbarbosa/ai_workflow (v4.0.0)
 
 **What ai_workflow Actually Is:**
 
 - **20-step AI-powered workflow automation for software development projects**
+- **Configuration-driven step execution** with named steps (NEW v4.0.0)
+- **Step registry system** with YAML parser and topological sort (NEW v4.0.0)
+- **Dynamic step loader** with on-demand module loading (NEW v4.0.0)
 - Documentation validation, test generation, code quality analysis
 - GitHub Copilot integration with 15 specialized AI personas
 - Smart execution, parallel processing, ML optimization, AI caching
-- Intelligent model selection with 4-tier complexity analysis (NEW v3.1.1+)
-- Git submodule lifecycle management (NEW v3.2.0+)
-- Workflow profiles with auto-detection and time estimation (NEW v3.2.7+)
-- Step 2.5 documentation optimization with duplicate detection (NEW v3.2.7+)
-- ML-powered skip prediction engine (Phase 1 foundation) (NEW v3.2.7+)
-- Documentation templates and drift checker (NEW v3.2.7+)
+- Intelligent model selection with 4-tier complexity analysis (v3.1.1+)
+- Git submodule lifecycle management (v3.2.0+)
+- Workflow profiles with auto-detection and time estimation (v3.2.7+)
+- Step 2.5 documentation optimization with duplicate detection (v3.2.7+)
+- ML-powered skip prediction engine (Phase 1 foundation) (v3.2.7+)
+- Documentation templates and drift checker (v3.2.7+)
 - Checkpoint/resume, change detection, metrics tracking
-- 73 library modules (~32.7K+ lines) + 20 step modules (~8.2K+ lines)
+- 75+ library modules (~35K+ lines) + 20 step modules (~8.5K+ lines)
 
 **What ai_workflow is NOT:**
 
@@ -72,7 +76,51 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 ---
 
-## Recent Changes in Source Repository (v3.2.0 → v3.2.7)
+## Recent Changes in Source Repository (v4.0.0 - MAJOR UPDATE)
+
+### 🚀 Breaking Changes - Configuration-Driven Step Execution
+
+**Release Date**: 2026-02-08  
+**Impact**: Major architecture overhaul (100% backward compatible)
+
+**1. Step Files Renamed to Descriptive Names**
+
+- All 21 step files renamed: `step_01_documentation.sh` → `documentation_updates.sh`
+- Function names updated to match: `step1_update_documentation` → `documentation_updates`
+- Library directories renamed: `step_01_lib/` → `documentation_updates_lib/`
+- See [Migration Guide v4.0](https://github.com/mpbarbosa/ai_workflow/blob/main/docs/MIGRATION_GUIDE_v4.0.md)
+
+**2. Configuration-Driven Execution**
+
+- **New**: Define step order in `.workflow-config.yaml` instead of hardcoded
+- **New**: Step registry system with YAML parser (17KB, 10 functions)
+  - Topological sort using Kahn's algorithm
+  - Circular dependency detection
+  - Bidirectional name/index lookup
+- **New**: Dynamic step loader (11KB, 9 functions)
+  - On-demand module loading
+  - Execution wrapper with metrics
+  - Runtime dependency validation
+
+**3. CLI Enhancements**
+
+- `--steps` accepts names: `--steps documentation_updates,test_execution`
+- Mixed syntax supported: `--steps 0,documentation_updates,8`
+- Old numeric indices still work (backward compatible)
+
+**4. Infrastructure Updates**
+
+- All orchestrators refactored (validation, quality, finalization)
+- All 8 optimization modules updated (49 function calls replaced)
+- Execution engine redesigned (registry-driven vs 200+ line case statement)
+
+**5. Migration Support**
+
+- Automated migration script: `scripts/migrate_to_named_steps.sh`
+- 100% backward compatible (legacy mode auto-activates)
+- No forced changes - use v4.0 features when ready
+
+### Previous Changes (v3.2.0 → v3.2.7)
 
 ### Major Additions (7 New Features)
 
@@ -142,24 +190,36 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 **7. Enhanced Step 8 Caching (v2.2.0)** - See #5 above
 
-### Module Count Update
+### Module Count Update (v4.0.0)
 
-- **73 library modules** (was 67+): +6 new modules
-  - `dependency_cache.sh`
-  - `doc_section_extractor.sh`
-  - `doc_section_mapper.sh`
-  - `skip_predictor.sh`
-  - `test_skip_predictor.sh`
-  - `workflow_optimization.sh`
-  - `workflow_profiles.sh`
-- **20 step modules** (was 18): +2 new modules
-  - `step_02_5_doc_optimize.sh` (with 6 submodules)
-  - Step 3 v2.1.0 → v2.2.0 (enhanced)
-  - Step 8 v2.1.0 → v2.2.0 (enhanced)
+- **75+ library modules** (was 73): +2 new modules
+  - `step_registry.sh` - Step registry and YAML parser (17KB, 10 functions)
+  - `step_loader.sh` - Dynamic step loader (11KB, 9 functions)
+- **20 step modules** (all renamed to descriptive names)
+  - All files renamed: `step_XX_*.sh` → `descriptive_name.sh`
+  - 21 files affected, 8 library directories renamed
+  - Functions renamed to match file names
 
-### Migration Impact Assessment
+### Migration Impact Assessment (v4.0.0 Update)
 
-**High Priority for Migration:**
+**Critical for Phase 9 (Step Implementations):**
+
+1. ✅ **Named Steps** - Must implement with descriptive names from start
+   - Use `documentation_updates.js` instead of `step_01.js`
+   - Match source v4.0.0 naming convention
+   - Plan: Implement step registry in Phase 9
+2. ✅ **Step Registry System** - Core infrastructure for Phase 9
+   - YAML parser for workflow configuration
+   - Topological sort with circular dependency detection
+   - Bidirectional name/index lookup
+   - Plan: Implement as `step_registry.js` in Phase 9
+3. ✅ **Dynamic Step Loader** - Complements step registry
+   - On-demand module loading
+   - Execution wrapper with metrics
+   - Runtime dependency validation
+   - Plan: Implement as `step_loader.js` in Phase 9
+
+**High Priority from Previous (v3.2.7):**
 
 1. ✅ **Workflow Profiles** - Already partially implemented via `conditional_executor.js` (Phase 7)
 2. ⚠️ **Step 2.5 Doc Optimization** - NEW, requires Phase 9 implementation
