@@ -216,7 +216,7 @@ See: [Referential Transparency Guide](../.github/REFERENTIAL_TRANSPARENCY.md)
 ## 🔗 External Links
 
 - **GitHub Repository:** [mpbarbosa/ai_workflow.js](https://github.com/mpbarbosa/ai_workflow.js)
-- **Source Repository:** [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell v3.0.0)
+- **Source Repository:** [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell v4.0.0 - config-driven execution)
 - **Issue Tracker:** [GitHub Issues](https://github.com/mpbarbosa/ai_workflow.js/issues)
 - **npm Package:** _(Coming soon)_
 

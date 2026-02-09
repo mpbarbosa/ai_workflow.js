@@ -12,7 +12,7 @@
 
 This document outlines requirements for the **Workflow Engine** (Phase 7), which will orchestrate the 15-step AI-powered development workflow pipeline. The engine will coordinate between configuration, project analysis, AI integration, and execution steps.
 
-**Note:** The JavaScript workflow engine is planned but not yet implemented. The source shell-based workflow (mpbarbosa/ai_workflow v3.0.0) provides the reference implementation.
+**Note:** The JavaScript workflow engine is planned but not yet implemented. The source shell-based workflow (mpbarbosa/ai_workflow v4.0.0) provides the reference implementation with config-driven step execution.
 
 ---
 
@@ -360,7 +360,7 @@ parallel_steps:
 
 ### Source Reference
 
-**Repository:** mpbarbosa/ai_workflow v3.0.0  
+**Repository:** mpbarbosa/ai_workflow v4.0.0  
 **Language:** Bash  
 **Structure:**
 
@@ -413,7 +413,7 @@ parallel_steps:
 
 ## References
 
-- **Source Implementation:** [ai_workflow v3.0.0](https://github.com/mpbarbosa/ai_workflow) (orchestrator.sh)
+- **Source Implementation:** [ai_workflow v4.0.0](https://github.com/mpbarbosa/ai_workflow) (workflow_engine.sh with config-driven steps)
 - **Phase 1-5 Modules:** Already implemented with referential transparency
 - **Configuration:** `.workflow-config.yaml` structure defined
 - **Metrics:** `Metrics` class ready for integration
