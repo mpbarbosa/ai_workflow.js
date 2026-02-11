@@ -2,10 +2,10 @@
 
 AI Workflow Automation (in JavaScript)
 
-**Version:** 1.3.0  
-**Document Version:** 1.8.0  
-**Last Updated:** February 9, 2026  
-**Status:** Active Development - Phase 9 Complete (20 Workflow Steps)
+**Version:** 1.4.0  
+**Document Version:** 2.0.0  
+**Last Updated:** February 11, 2026  
+**Status:** Phase 11 COMPLETE! ✅ CLI Layer Fully Implemented
 
 ---
 
@@ -13,6 +13,7 @@ AI Workflow Automation (in JavaScript)
 
 | Version | Date       | Changes                                                                                                                                                                                                                   |
 | ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.9.0   | 2026-02-11 | Updated status to Phase 11 complete. CLI layer fully implemented with 6 commands and 4 utilities (~2,977 lines). Interactive prompts, progress indicators, colored output. 3644 tests passing (19 skipped).               |
 | 1.8.0   | 2026-02-09 | Updated status to Phase 9 complete. All 20 workflow steps implemented (~10,310 lines). Source ai_workflow updated to v4.0.0 (config-driven execution). 3417 tests passing (18 skipped).                                   |
 | 1.7.0   | 2026-02-09 | Updated status to Phase 8 complete. All 11 performance optimization modules implemented (performance, monitoring, ML optimization, caching, incremental analysis, multi-stage pipeline). 3417 tests passing (18 skipped). |
 | 1.6.0   | 2026-02-08 | Updated test statistics: 3417 of 3435 tests passing (18 skipped, 0 failures). Phase 9 step count corrected from 17 to 19 workflow steps.                                                                                  |
@@ -37,7 +38,7 @@ This project is a Node.js implementation of the [ai_workflow](https://github.com
 
 ✅ **Copilot SDK Support:** This project is now supported by **GitHub Copilot SDK**, enabling advanced AI-powered development assistance, code generation, and workflow automation.
 
-**Status:** 🚧 **Development Phase 9 Complete** - All 20 workflow steps implemented (step_00 through step_16, including step_0b and step_02_5) with comprehensive test coverage (~10,310 lines of step code). Performance optimization modules complete. **3417 of 3435 tests passing** ✅ (18 skipped). Next: Phase 10 - Main Orchestrator Integration.
+**Status:** ✅ **Phase 11 COMPLETE!** - CLI layer fully implemented with all 6 commands (run, resume, status, init, config, clean) and 4 utility modules (prompts, progress, output, help). **3,644 of 3,663 tests passing** ✅ (19 skipped). Production-ready CLI with interactive prompts, progress indicators, and colored output. Next: Phase 12 - Monitoring & Observability.
 
 ## Source Repository
 
@@ -217,19 +218,81 @@ git submodule update --init --recursive
 # 2. Install dependencies
 npm install
 
-# 3. Run tests
+# 3. Install CLI globally (optional)
+npm link
+
+# 4. Run tests
 npm test
 
-# 4. Run linter
+# 5. Run linter
 npm run lint
 
-# 5. Format check
+# 6. Format check
 npm run format:check
 ```
 
-### Available Commands
+---
 
-- `npm test` - Run Jest test suite (3435 tests, 3417 passing ✅, 18 skipped)
+## CLI Usage
+
+The `ai-workflow` CLI provides a user-friendly command-line interface for workflow automation.
+
+### Installation
+
+```bash
+# Install globally from npm (when published)
+npm install -g ai-workflow
+
+# Or install from source
+npm link
+```
+
+### Quick Start with CLI
+
+```bash
+# Initialize a new project
+ai-workflow init --interactive
+
+# Run quick validation
+ai-workflow run --stage quick
+
+# View status
+ai-workflow status
+
+# Run full workflow
+ai-workflow run
+```
+
+### Available CLI Commands
+
+| Command  | Description            | Example                             |
+| -------- | ---------------------- | ----------------------------------- |
+| `run`    | Execute workflow       | `ai-workflow run --stage quick`     |
+| `resume` | Resume from checkpoint | `ai-workflow resume --latest`       |
+| `status` | Show workflow status   | `ai-workflow status`                |
+| `init`   | Initialize project     | `ai-workflow init --interactive`    |
+| `config` | Manage configuration   | `ai-workflow config show`           |
+| `clean`  | Clean artifacts        | `ai-workflow clean --all --dry-run` |
+
+### CLI Documentation
+
+- **Usage Guide**: [CLI_USAGE_GUIDE.md](./docs/guides/CLI_USAGE_GUIDE.md) - Complete CLI documentation
+- **Quick Reference**: [CLI_QUICK_REFERENCE.md](./docs/guides/CLI_QUICK_REFERENCE.md) - Command cheat sheet
+
+### CLI Features
+
+- ✅ **Interactive Prompts**: Configuration wizard with validation
+- ✅ **Progress Indicators**: Real-time spinners and progress bars
+- ✅ **Colored Output**: Clear visual feedback (green=success, red=error)
+- ✅ **Checkpoint Management**: Resume workflows from interruptions
+- ✅ **Help System**: Built-in examples and use cases
+- ✅ **Dry Run Mode**: Preview operations without execution
+
+---
+
+## Development Commands
+
+- `npm test` - Run Jest test suite (3663 tests, 3644 passing ✅, 19 skipped)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
@@ -254,10 +317,10 @@ This project is being developed incrementally following the migration plan phase
 7. **Phase 7**: Workflow Orchestration ✅ (Complete)
 8. **Phase 8**: Performance Optimization ✅ (Complete - 11 modules: performance, monitoring, ML optimization, caching, incremental, multi-stage pipeline)
 9. **Phase 9**: Workflow Steps Implementation ✅ (Complete - All 20 steps: step_00 through step_16, including step_0b and step_02_5, ~10,310 lines)
-10. **Phase 10**: Main Orchestrator Integration 📋 (Next - WorkflowOrchestrator class, health checks, progress tracking)
-11. **Phase 11**: CLI & User Interface 📋 (Planned - interactive CLI, configuration wizard)
-12. **Phase 12**: Testing & Quality Assurance 📋 (Planned - comprehensive validation)
-13. **Phase 13**: Documentation & Packaging 📋 (Planned - complete docs, npm package)
+10. **Phase 10**: Main Orchestrator Integration ✅ (Complete - WorkflowOrchestrator class, health checks, progress tracking)
+11. **Phase 11**: CLI & User Interface ✅ (Complete - 6 commands, 4 utilities, 134 tests, 2,977 lines)
+12. **Phase 12**: Monitoring & Observability 📋 (Next - Real-time metrics, error tracking, dashboards)
+13. **Phase 13**: Documentation & Packaging 📋 (Planned - Complete docs, npm package)
 
 ## Contributing
 

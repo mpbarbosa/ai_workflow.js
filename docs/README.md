@@ -23,6 +23,9 @@ In-depth guides for developers and users:
 - **[User Guide](./guides/USER_GUIDE.md)** - End-user documentation
 - **[Configuration Guide](./guides/CONFIGURATION_GUIDE.md)** - Configuration options and patterns
 - **[Testing Guide](./guides/TESTING_GUIDE.md)** - Testing patterns and best practices
+- **[CLI Usage Guide](./guides/CLI_USAGE_GUIDE.md)** ✨ NEW - Complete CLI documentation
+- **[CLI Quick Reference](./guides/CLI_QUICK_REFERENCE.md)** ✨ NEW - Command cheat sheet
+- **[CLI Examples](./guides/CLI_EXAMPLES.md)** ✨ NEW - Practical CLI examples
 - **[Validation Scripts](./guides/VALIDATION_SCRIPTS.md)** - Automated validation tools
 - **[Cleanup Artifacts Guide](./guides/CLEANUP_ARTIFACTS.md)** - Artifact management and disk space cleanup
 - **[Conditional Execution](./guides/CONDITIONAL_EXECUTION.md)** - CI/CD optimization strategies

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-10
+
+### Added
+
+- **✅ Phase 9 COMPLETE!** - Step 17: Workflow Summary Implementation
+  - `steps/step_17_summary.js` (715 lines) - Workflow summary and reporting
+    - Pure functions for result aggregation and metrics calculation
+    - Execution timeline generation with phase grouping
+    - Bottleneck detection and cache efficiency analysis
+    - Improvement recommendations engine
+    - Markdown report formatting with executive summary
+    - Integration tests with end-to-end workflow validation
+  - 56 comprehensive tests (all passing)
+    - 46 pure function tests
+    - 10 integration tests
+    - Edge case coverage
+  - Complete v2.0.0 referential transparency architecture
+  - WorkflowSummary class for file I/O orchestration
+  - Support for dry-run mode and custom workflow directories
+
+### Changed
+
+- Test suite expanded from 3,417 to 3,473 passing tests (56 new tests for Step 17)
+- All 20 workflow steps now complete (~11,025 total lines of step code)
+- Migration plan updated to Phase 9 COMPLETE status
+- README updated with Phase 9 completion milestone
+- Project version bumped to 1.4.0
+
+### Status
+
+- **Phase 1-9**: COMPLETE ✅ (67 modules, 3,473 tests, 100% passing)
+- **Phase 10**: Main Orchestrator - NEXT
+- **Test Coverage**: 99.5% pass rate (18 skipped tests)
+
 ## [1.3.0] - 2026-02-09
 
 ### Completed

@@ -1,11 +1,11 @@
 {
   "name": "ai-workflow",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "AI-powered workflow automation for software development (Node.js)",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "ai-workflow": "src/cli/index.js"
+    "ai-workflow": "bin/ai-workflow.js"
   },
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
@@ -47,7 +47,11 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@github/copilot-sdk": "^0.1.18"
+    "@github/copilot-sdk": "^0.1.18",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "inquirer": "^13.2.2",
+    "ora": "^9.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

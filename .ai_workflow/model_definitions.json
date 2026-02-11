@@ -1,20 +1,29 @@
 {
-  "workflow_run_id": "workflow_20260208_150819",
-  "generated_at": "2026-02-08T18:08:23Z",
+  "workflow_run_id": "workflow_20260210_223330",
+  "generated_at": "2026-02-11T01:33:34Z",
   "git_info": {
-    "commit": "fa8fdf6",
+    "commit": "78ccd70",
     "branch": "main"
   },
   "change_summary": {
-    "total_files": 10,
+    "total_files": 38,
     "by_category": {
-      "code": 0,
-      "documentation": 10,
-      "tests": 0
+      "code": 13,
+      "documentation": 12,
+      "tests": 13
     }
   },
   "complexity_analysis": {
-    "code": {"score":0,"tier":"low","factors":{"cyclomatic":0,"lines_changed":0,"function_depth":0,"semantic":"none"}},
+    "code": {
+  "score": 50,
+  "tier": "medium",
+  "factors": {
+    "cyclomatic": 0,
+    "lines_changed": 0,
+    "function_depth": 0,
+    "semantic": "architectural_change"
+  }
+},
     "documentation": {
   "score": 0,
   "tier": "low",
@@ -25,56 +34,130 @@
     "primary_doc": false
   }
 },
-    "tests": {"score":0,"tier":"low","factors":{"test_cases":0,"lines_changed":0,"coverage_impact":"none"}}
+    "tests": {
+  "score": 10,
+  "tier": "low",
+  "factors": {
+    "test_cases": 0,
+    "lines_changed": 0,
+    "coverage_impact": "minor_update"
+  }
+}
   },
   "model_definitions": {
-    "step_01_documentation": {
+    "version_update": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Medium complexity version analysis changes - balanced model recommended",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "bootstrap_docs": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Documentation generation from scratch requires reasoning",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "documentation": {
       "model": "claude-haiku-4.5",
       "reason": "Low complexity documentation changes - fast model sufficient",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_02_consistency": {
+    "consistency": {
       "model": "claude-haiku-4.5",
       "reason": "Low complexity documentation validation changes - fast model sufficient",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_03_script_refs": {
+    "script_refs": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Medium complexity script analysis changes - balanced model recommended",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "directory": {
       "model": "claude-haiku-4.5",
-      "reason": "Low complexity script analysis changes - fast model sufficient",
+      "reason": "Low complexity directory validation changes - fast model sufficient",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_05_test_review": {
+    "test_review": {
       "model": "claude-haiku-4.5",
       "reason": "Low complexity test analysis changes - fast model sufficient",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_06_test_gen": {
-      "model": "claude-sonnet-4.5",
+    "test_gen": {
+      "model": "claude-haiku-4.5",
       "reason": "Test generation (tier adjusted: low → higher)",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_09_code_quality": {
+    "test_exec": {
       "model": "claude-haiku-4.5",
-      "reason": "Low complexity code analysis changes - fast model sufficient",
+      "reason": "Low complexity test execution changes - fast model sufficient",
       "tier": "low",
       "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
     },
-    "step_13_prompt_engineer": {
+    "dependencies": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Medium complexity dependency analysis changes - balanced model recommended",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "code_quality": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Medium complexity code analysis changes - balanced model recommended",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "deployment_gate": {
+      "model": "claude-opus-4.5",
+      "reason": "Deployment readiness requires careful analysis",
+      "tier": "high",
+      "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
+    },
+    "context": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Context building for AI workflows",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
+    },
+    "frontend_dev": {
+      "model": "claude-opus-4.5",
+      "reason": "Frontend development analysis requires UI expertise",
+      "tier": "high",
+      "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
+    },
+    "git_finalization": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity git operations changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "markdown_lint": {
+      "model": "claude-haiku-4.5",
+      "reason": "Low complexity markdown validation changes - fast model sufficient",
+      "tier": "low",
+      "alternatives": ["gpt-5-mini", "gemini-3-flash" ]
+    },
+    "prompt_engineer": {
       "model": "claude-opus-4.5",
       "reason": "Prompt engineering requires deep reasoning",
       "tier": "high",
       "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
     },
-    "step_14_ux_analysis": {
-      "model": "claude-opus-4.5",
+    "ux_analysis": {
+      "model": "claude-sonnet-4.5",
       "reason": "UX analysis (forced tier: high for UI reasoning)",
       "tier": "high",
       "alternatives": ["gpt-5.2", "claude-sonnet-4.0", "gemini-3-pro" ]
+    },
+    "final_version_update": {
+      "model": "claude-sonnet-4.5",
+      "reason": "Medium complexity version finalization changes - balanced model recommended",
+      "tier": "medium",
+      "alternatives": ["gpt-5.1-codex", "gpt-5-mini" ]
     }
   },
   "override": null
