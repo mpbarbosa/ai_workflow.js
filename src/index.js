@@ -723,29 +723,29 @@ export {
 
 export {
   GitAnalyzer,
-  STALENESS_LEVELS,
-  STALENESS_THRESHOLDS as GIT_STALENESS_THRESHOLDS,
+  GIT_THRESHOLDS,
   parseGitLog as parseGitLogForDocs,
-  extractCommitMetadata,
+  extractLastModified,
+  countRecentCommits,
   calculateAgeMonths,
   isRecentlyModified,
   determineStalenessLevel,
   calculateStalenessScore,
   countFileReferences,
-  analyzeCommitFrequency,
+  findReferencingFiles,
 } from './steps/step_02_5_lib/git_analysis.js';
 
 export {
   VersionAnalyzer,
-  VERSION_PATTERNS,
-  VERSION_STALENESS_THRESHOLDS,
+  VERSION_THRESHOLDS,
   extractVersionReferences,
   parseVersion as parseDocVersion,
   compareVersions as compareDocVersions,
   calculateVersionGap,
   isVersionOutdated,
   calculateVersionStaleness,
-  findOutdatedReferences,
+  findOldestVersion,
+  findNewestVersion,
 } from './steps/step_02_5_lib/version_analysis.js';
 
 export {
