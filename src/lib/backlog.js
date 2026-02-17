@@ -245,6 +245,36 @@ export class Backlog {
       throw error;
     }
   }
+
+  /**
+   * Save step summary to backlog (IMPURE wrapper)
+   * @param {string|number} stepNumber - Step number (e.g., '0b', 0, 1)
+   * @param {string} stepName - Step name (e.g., 'Bootstrap_Docs')
+   * @param {string} summary - Summary content
+   * @param {string} status - Status emoji (e.g., '✅', '❌')
+   * @returns {Promise<string>} Path to summary file
+   */
+  async saveStepSummary(stepNumber, stepName, summary, status = '✅') {
+    const reportData = {
+      name: stepName,
+      status,
+      summary,
+      details: summary,
+    };
+    return this.createStepReport(stepNumber, reportData);
+  }
+
+  /**
+   * Save step issues/details to backlog (IMPURE wrapper)
+   * Alias for saveStepSummary for backward compatibility
+   * @param {string|number} stepNumber - Step number
+   * @param {string} stepName - Step name
+   * @param {string} content - Content to save
+   * @returns {Promise<string>} Path to issues file
+   */
+  async saveStepIssues(stepNumber, stepName, content) {
+    return this.saveStepSummary(stepNumber, stepName, content, '✅');
+  }
 }
 
 export default Backlog;

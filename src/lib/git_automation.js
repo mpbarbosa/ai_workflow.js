@@ -38,7 +38,10 @@ export function parseGitStatus(output) {
     return { staged: [], unstaged: [], untracked: [] };
   }
 
-  const lines = output.trim().split('\n').filter(line => line.length > 0);
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
   const staged = [];
   const unstaged = [];
   const untracked = [];
@@ -60,7 +63,7 @@ export function parseGitStatus(output) {
     if (stagedStatus !== ' ' && stagedStatus !== '?') {
       staged.push({
         file: filePath,
-        status: categorizeGitStatus(stagedStatus)
+        status: categorizeGitStatus(stagedStatus),
       });
     }
 
@@ -68,7 +71,7 @@ export function parseGitStatus(output) {
     if (unstagedStatus !== ' ' && unstagedStatus !== '?') {
       unstaged.push({
         file: filePath,
-        status: categorizeGitStatus(unstagedStatus)
+        status: categorizeGitStatus(unstagedStatus),
       });
     }
   }
@@ -115,8 +118,7 @@ export function parseGitDiff(output) {
       if (currentFile) {
         changes.push({ file: currentFile, type: 'addition', line: line.substring(1) });
       }
-    }
-    else if (line.startsWith('-') && !line.startsWith('---')) {
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
       deletions++;
       if (currentFile) {
         changes.push({ file: currentFile, type: 'deletion', line: line.substring(1) });
@@ -141,7 +143,10 @@ export function parseGitLog(output) {
     return [];
   }
 
-  const lines = output.trim().split('\n').filter(line => line.length > 0);
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
   const commits = [];
 
   for (const line of lines) {
@@ -149,7 +154,7 @@ export function parseGitLog(output) {
     if (match) {
       commits.push({
         hash: match[1],
-        message: match[2]
+        message: match[2],
       });
     }
   }
@@ -171,7 +176,10 @@ export function parseGitBranch(output) {
     return { current: null, all: [] };
   }
 
-  const lines = output.trim().split('\n').filter(line => line.length > 0);
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
   let current = null;
   const all = [];
 
@@ -202,7 +210,10 @@ export function parseGitRemote(output) {
     return [];
   }
 
-  const lines = output.trim().split('\n').filter(line => line.length > 0);
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
   const remotes = [];
   const seen = new Set();
 
@@ -211,7 +222,7 @@ export function parseGitRemote(output) {
     if (match) {
       const [, name, url, type] = match;
       const key = `${name}:${url}`;
-      
+
       if (!seen.has(key)) {
         remotes.push({ name, url, type });
         seen.add(key);
@@ -233,7 +244,7 @@ export function parseGitRemote(output) {
  * // => 'git status --porcelain --untracked-files=all'
  */
 export function buildGitCommand(operation, args = []) {
-  const safeArgs = args.filter(arg => typeof arg === 'string' && arg.length > 0);
+  const safeArgs = args.filter((arg) => typeof arg === 'string' && arg.length > 0);
   return `git ${operation} ${safeArgs.join(' ')}`.trim();
 }
 
@@ -268,7 +279,7 @@ export function validateGitOutput(output, expected = {}) {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -319,10 +330,7 @@ export function normalizeFilePath(path) {
     return '';
   }
 
-  return path
-    .replace(/\\/g, '/')
-    .replace(/\/+$/, '')
-    .trim();
+  return path.replace(/\\/g, '/').replace(/\/+$/, '').trim();
 }
 
 /**
@@ -337,13 +345,13 @@ export function normalizeFilePath(path) {
  */
 export function categorizeGitStatus(code) {
   const statusMap = {
-    'M': 'modified',
-    'A': 'added',
-    'D': 'deleted',
-    'R': 'renamed',
-    'C': 'copied',
-    'U': 'unmerged',
-    '?': 'untracked'
+    M: 'modified',
+    A: 'added',
+    D: 'deleted',
+    R: 'renamed',
+    C: 'copied',
+    U: 'unmerged',
+    '?': 'untracked',
   };
 
   return statusMap[code] || 'unknown';
@@ -392,7 +400,7 @@ export function calculateDiffStats(diff) {
     files,
     insertions,
     deletions,
-    netChange: insertions - deletions
+    netChange: insertions - deletions,
   };
 }
 
@@ -428,7 +436,8 @@ export function validateCommitMessage(message) {
   }
 
   // Check for conventional commit format (optional)
-  const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\s.+/;
+  const conventionalPattern =
+    /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\s.+/;
   if (!conventionalPattern.test(trimmed)) {
     // This is a warning, not an error
     // errors.push('Message does not follow conventional commit format');
@@ -436,7 +445,7 @@ export function validateCommitMessage(message) {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -533,13 +542,13 @@ export class GitAutomation {
         encoding: 'utf8',
         timeout: this.timeout,
         maxBuffer: this.maxBuffer,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch (error) {
-      throw new ExecutionError(
-        `Git command failed: ${command}\n${error.message}`,
-        { command, stderr: error.stderr }
-      );
+      throw new ExecutionError(`Git command failed: ${command}\n${error.message}`, {
+        command,
+        stderr: error.stderr,
+      });
     }
   }
 
@@ -561,11 +570,11 @@ export class GitAutomation {
    */
   async diff(options = {}) {
     const args = [];
-    
+
     if (options.staged) {
       args.push('--cached');
     }
-    
+
     if (options.files && options.files.length > 0) {
       args.push('--', ...options.files);
     }
@@ -584,11 +593,11 @@ export class GitAutomation {
    */
   async log(options = {}) {
     const args = ['--oneline'];
-    
+
     if (options.limit) {
       args.push(`-${options.limit}`);
     }
-    
+
     if (options.since) {
       args.push(`--since="${options.since}"`);
     }
@@ -627,7 +636,7 @@ export class GitAutomation {
     }
 
     const args = ['-m', `"${message}"`];
-    
+
     if (options.allowEmpty) {
       args.push('--allow-empty');
     }
@@ -638,7 +647,7 @@ export class GitAutomation {
     // Get the commit hash
     const logOutput = this._exec('git log -1 --oneline');
     const hash = extractCommitHash(logOutput);
-    
+
     logger.info(`Created commit: ${hash} - ${message.substring(0, 50)}`);
     return hash;
   }
@@ -676,9 +685,7 @@ export class GitAutomation {
    */
   async hasChanges() {
     const status = await this.status();
-    return status.staged.length > 0 || 
-           status.unstaged.length > 0 || 
-           status.untracked.length > 0;
+    return status.staged.length > 0 || status.unstaged.length > 0 || status.untracked.length > 0;
   }
 
   /**
@@ -688,6 +695,93 @@ export class GitAutomation {
   async getLastCommit() {
     const commits = await this.log({ limit: 1 });
     return commits.length > 0 ? commits[0] : null;
+  }
+
+  /**
+   * Get number of commits ahead of remote
+   * @param {string} remoteBranch - Remote branch to compare (defaults to 'origin/main' or 'origin/master')
+   * @returns {Promise<number>} Number of commits ahead
+   */
+  async getCommitsAhead(remoteBranch = null) {
+    try {
+      const currentBranch = await this.getCurrentBranch();
+
+      // If no remote branch specified, try origin/main then origin/master
+      if (!remoteBranch) {
+        const remotes = await this.getRemotes();
+        if (remotes.includes('origin')) {
+          // Try main first, then master
+          remoteBranch = 'origin/main';
+          const branchExists = await this.executor.execute(
+            `git rev-parse --verify ${remoteBranch}`,
+            { cwd: this.repoPath, suppressErrors: true }
+          );
+          if (!branchExists.success) {
+            remoteBranch = 'origin/master';
+          }
+        } else {
+          return 0; // No origin remote
+        }
+      }
+
+      const result = await this.executor.execute(
+        `git rev-list --count ${remoteBranch}..${currentBranch}`,
+        { cwd: this.repoPath }
+      );
+
+      if (result.success) {
+        return parseInt(result.stdout.trim(), 10) || 0;
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Get total number of changed files
+   * @returns {Promise<number>} Number of changed files
+   */
+  async getTotalChanges() {
+    try {
+      const statusResult = await this.status();
+      const total =
+        statusResult.staged.length + statusResult.unstaged.length + statusResult.untracked.length;
+      return total;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Get list of modified files
+   * @returns {Promise<Array<string>>} List of modified file paths
+   */
+  async getModifiedFiles() {
+    try {
+      const statusResult = await this.status();
+      const files = [
+        ...statusResult.staged.map((f) => f.file),
+        ...statusResult.unstaged.map((f) => f.file),
+        ...statusResult.untracked,
+      ];
+      return [...new Set(files)]; // Remove duplicates
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Get raw git status output
+   * @returns {Promise<string>} Raw git status output
+   */
+  async getStatusOutput() {
+    try {
+      const result = await this.executor.execute('git status', { cwd: this.repoPath });
+      return result.success ? result.stdout : '';
+    } catch {
+      return '';
+    }
   }
 }
 
