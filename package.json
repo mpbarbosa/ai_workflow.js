@@ -1,12 +1,27 @@
 {
   "name": "ai-workflow",
-  "version": "1.4.0",
-  "description": "AI-powered workflow automation for software development (Node.js)",
+  "version": "1.0.0",
+  "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./core/*": "./src/core/*.js",
+    "./lib/*": "./src/lib/*.js",
+    "./orchestrator/*": "./src/orchestrator/*.js",
+    "./steps/*": "./src/steps/*.js",
+    "./cli/*": "./src/cli/*.js"
+  },
   "bin": {
     "ai-workflow": "bin/ai-workflow.js"
   },
+  "files": [
+    "src/**/*.js",
+    "bin/**/*.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "npm test -- --watch",
@@ -26,7 +41,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prepublishOnly": "npm run validate && npm run lint && npm run test:ci",
+    "prepack": "npm run validate:exports"
   },
   "keywords": [
     "workflow",
@@ -35,16 +52,34 @@
     "cli",
     "automation-framework",
     "github-copilot",
-    "workflow-automation"
+    "workflow-automation",
+    "devops",
+    "ci-cd",
+    "code-quality",
+    "testing",
+    "documentation",
+    "git-automation"
   ],
-  "author": "mpbarbosa",
+  "author": {
+    "name": "mpbarbosa",
+    "url": "https://github.com/mpbarbosa"
+  },
   "license": "MIT",
+  "homepage": "https://github.com/mpbarbosa/ai_workflow.js#readme",
+  "bugs": {
+    "url": "https://github.com/mpbarbosa/ai_workflow.js/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mpbarbosa/ai_workflow.js.git"
+    "url": "git+https://github.com/mpbarbosa/ai_workflow.js.git"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.18",

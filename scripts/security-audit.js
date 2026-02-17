@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
  * Security Audit Script
- * 
+ *
  * Performs automated security checks on the codebase:
  * - Hardcoded secrets/credentials
  * - Command injection vulnerabilities
  * - Path traversal risks
  * - Input validation issues
  * - Dependency vulnerabilities
- * 
+ *
  * Usage: node scripts/security-audit.js
  */
 
@@ -209,7 +209,7 @@ async function checkDependencies() {
         });
       }
     }
-  } catch (error) {
+  } catch {
     console.log(`  ${colors.yellow}⚠${colors.reset} npm audit failed or found issues`);
   }
 
@@ -245,10 +245,7 @@ function generateReport() {
   console.log(`${colors.cyan}═══════════════════════════════════${colors.reset}\n`);
 
   const totalIssues =
-    findings.critical.length +
-    findings.high.length +
-    findings.medium.length +
-    findings.low.length;
+    findings.critical.length + findings.high.length + findings.medium.length + findings.low.length;
 
   if (totalIssues === 0) {
     console.log(`${colors.green}✓ No security issues found!${colors.reset}\n`);

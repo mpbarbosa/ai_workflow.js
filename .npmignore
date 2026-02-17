@@ -1,0 +1,72 @@
+# Test files
+test/
+*.test.js
+coverage/
+.nyc_output/
+__tests__/
+
+# Development files
+.github/
+.husky/
+.vscode/
+.idea/
+scripts/
+docs/
+examples/
+
+# Documentation source (keep only README, LICENSE, CHANGELOG)
+*.md
+!README.md
+!CHANGELOG.md
+
+# Configuration files
+.eslintrc*
+.prettierrc*
+eslint.config.mjs
+jest.config.json
+.editorconfig
+.gitattributes
+
+# Environment and local files
+.env
+.env.*
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.tgz
+
+# Workflow artifacts
+.ai_workflow/
+.workflow-config.yaml
+.workflow_core/
+
+# Git files
+.git/
+.gitignore
+.gitmodules
+
+# CI/CD
+.travis.yml
+.circleci/
+.gitlab-ci.yml
+
+# Package manager
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Session state
+.copilot/
