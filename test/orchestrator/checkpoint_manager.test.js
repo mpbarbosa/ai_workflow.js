@@ -483,6 +483,15 @@ describe('checkpoint_manager - CheckpointManager Class', () => {
   let manager;
 
   beforeEach(async () => {
+    // Clean up before test to ensure isolation
+    try {
+      await fs.rm(TEST_DIR, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+    // Small delay to ensure filesystem cleanup completes
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
     manager = new CheckpointManager({ checkpointDir: TEST_DIR, autoCleanup: false });
     await fs.mkdir(TEST_DIR, { recursive: true });
   });
@@ -610,9 +619,12 @@ describe('checkpoint_manager - CheckpointManager Class', () => {
     });
 
     test('filters checkpoints by workflowId', async () => {
-      await manager.save({ id: 'wf1' }, {});
-      await manager.save({ id: 'wf2' }, {});
-      await manager.save({ id: 'wf1' }, {});
+      // Add small delays to ensure unique timestamps
+      await manager.save({ id: 'wf1' }, { timestamp: Date.now() });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await manager.save({ id: 'wf2' }, { timestamp: Date.now() });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await manager.save({ id: 'wf1' }, { timestamp: Date.now() });
 
       const checkpoints = await manager.list({ workflowId: 'wf1' });
 

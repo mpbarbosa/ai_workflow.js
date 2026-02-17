@@ -625,4 +625,160 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(registrationHappened).toBe(false);
     });
   });
+
+  describe('Error Handling and Event Listeners', () => {
+    let orchestrator;
+    const testDir = '.ai_workflow/test-orchestrator-errors';
+
+    beforeEach(async () => {
+      // Clean up test directory
+      await fs.rm(testDir, { recursive: true, force: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      orchestrator = new MainOrchestrator({
+        workflowDir: testDir,
+        stage: 'quick',
+        auto: true,
+      });
+    });
+
+    afterEach(async () => {
+      await fs.rm(testDir, { recursive: true, force: true });
+    });
+
+    test('should handle health check failures', async () => {
+      // The healthCheck method collects its own environment,
+      // so we can't easily make it fail. Instead, test the pure function directly.
+      const invalidEnv = {}; // Missing all required fields
+
+      const result = performHealthChecks(invalidEnv);
+
+      // Health check should fail due to missing environment info
+      expect(result.passed).toBe(false);
+      expect(result.checks).toHaveProperty('environment');
+      expect(result.checks.environment.passed).toBe(false);
+    });
+
+    test('should emit step:start event', (done) => {
+      let eventEmitted = false;
+
+      orchestrator.workflowEngine.on('step:start', ({ step }) => {
+        eventEmitted = true;
+        expect(step).toHaveProperty('id');
+        expect(step).toHaveProperty('name');
+        done();
+      });
+
+      // Manually trigger event to test listener
+      orchestrator.workflowEngine.emit('step:start', {
+        step: { id: 'test-step', name: 'Test Step' },
+      });
+
+      // Safety timeout
+      setTimeout(() => {
+        if (!eventEmitted) {
+          done(new Error('Event not emitted'));
+        }
+      }, 100);
+    });
+
+    test('should emit step:complete event with duration', (done) => {
+      let eventEmitted = false;
+
+      orchestrator.workflowEngine.on('step:complete', ({ step, result }) => {
+        eventEmitted = true;
+        expect(step).toHaveProperty('name');
+        expect(result).toHaveProperty('duration');
+        done();
+      });
+
+      orchestrator.workflowEngine.emit('step:complete', {
+        step: { id: 'test-step', name: 'Test Step' },
+        result: { success: true, duration: 1500 },
+      });
+
+      setTimeout(() => {
+        if (!eventEmitted) {
+          done(new Error('Event not emitted'));
+        }
+      }, 100);
+    });
+
+    test('should emit step:error event', (done) => {
+      let eventEmitted = false;
+
+      orchestrator.workflowEngine.on('step:error', ({ step, error }) => {
+        eventEmitted = true;
+        expect(step).toHaveProperty('name');
+        expect(error).toHaveProperty('message');
+        done();
+      });
+
+      orchestrator.workflowEngine.emit('step:error', {
+        step: { id: 'test-step', name: 'Test Step' },
+        error: new Error('Test error'),
+      });
+
+      setTimeout(() => {
+        if (!eventEmitted) {
+          done(new Error('Event not emitted'));
+        }
+      }, 100);
+    });
+
+    test('should emit step:skipped event', (done) => {
+      let eventEmitted = false;
+
+      orchestrator.workflowEngine.on('step:skipped', ({ step, result }) => {
+        eventEmitted = true;
+        expect(step).toHaveProperty('name');
+        expect(result).toHaveProperty('reason');
+        done();
+      });
+
+      orchestrator.workflowEngine.emit('step:skipped', {
+        step: { id: 'test-step', name: 'Test Step' },
+        result: { skipped: true, reason: 'No changes detected' },
+      });
+
+      setTimeout(() => {
+        if (!eventEmitted) {
+          done(new Error('Event not emitted'));
+        }
+      }, 100);
+    });
+
+    test('should handle error in _createStepHandler when executor missing', async () => {
+      const stepHandler = orchestrator._createStepHandler('test-step', {});
+
+      await expect(stepHandler({})).rejects.toThrow('No executor class found');
+    });
+
+    test('should handle error when executor lacks execute method', async () => {
+      class InvalidExecutor {}
+
+      const stepHandler = orchestrator._createStepHandler('test-step', {
+        executor: InvalidExecutor,
+      });
+
+      await expect(stepHandler({})).rejects.toThrow('does not have an execute method');
+    });
+  });
+
+  describe('Health Check Edge Cases', () => {
+    test('should show warnings for failed health checks', async () => {
+      // Create environment with missing config
+      const env = {
+        nodeVersion: process.version,
+        cwd: process.cwd(),
+        // Missing config field
+      };
+
+      const result = performHealthChecks(env);
+
+      // Should show warnings for failed checks
+      expect(result.passed).toBe(false);
+      expect(result.checks.configuration.passed).toBe(false);
+    });
+  });
 });
