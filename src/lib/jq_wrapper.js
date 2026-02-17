@@ -362,8 +362,10 @@ class JqWrapper {
    */
   validateJsonWithJq(jsonString) {
     try {
-      execSync("echo '" + jsonString + "' | jq -e . >/dev/null 2>&1", {
-        stdio: 'ignore',
+      // Use stdin to avoid command injection
+      execSync('jq -e . >/dev/null 2>&1', {
+        input: jsonString,
+        stdio: ['pipe', 'ignore', 'ignore'],
         shell: '/bin/bash',
       });
       return true;
