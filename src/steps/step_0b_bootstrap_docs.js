@@ -23,6 +23,7 @@ import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
+import { Step0bStateCache } from '../lib/step0b_state_cache.js';
 
 // Constants
 export const DOC_TYPES = Object.freeze({
@@ -418,6 +419,12 @@ export class Step0bBootstrapDocs {
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir });
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
+    this.stateCache =
+      options.stateCache ||
+      new Step0bStateCache({
+        cacheDir: options.cacheDir,
+        ttlSeconds: options.cacheTtlSeconds,
+      });
   }
 
   /**
@@ -544,6 +551,24 @@ export class Step0bBootstrapDocs {
         this.logger.info(
           `${colors.blue}Phase 4:${colors.reset} Generating documentation with AI...`
         );
+
+        // Doc-state cache check — skip AI if nothing changed since last 0-file run
+        const existingDocFiles = await this.listExistingDocs();
+        const docEntries = await this._readDocEntries(existingDocFiles);
+        const cacheResult = await this.stateCache.check(docEntries);
+        if (cacheResult.skip) {
+          this.logger.info('Step 0b: cached result valid — no files generated (token savings)');
+          return {
+            success: true,
+            missingDocs,
+            categorized,
+            stats,
+            generated: [],
+            cachedSkip: true,
+            duration: Date.now() - startTime,
+          };
+        }
+
         this.logger.debug('Initializing AI Helper...');
         const aiAvailable = await this.aiHelper.initialize();
         if (!aiAvailable) {
@@ -609,6 +634,13 @@ export class Step0bBootstrapDocs {
               }
             }
             this.logger.success(`Step 0b: Generated ${generated.length} documentation files`);
+            if (generated.length === 0) {
+              // AI ran but produced nothing — cache this state to skip next time
+              await this.stateCache.persist(docEntries, cacheResult.fingerprint);
+            } else {
+              // Files were generated — next run must re-evaluate
+              await this.stateCache.invalidate();
+            }
           }
         }
       }
@@ -719,5 +751,24 @@ export class Step0bBootstrapDocs {
     return allFiles
       .map((f) => path.relative(this.projectRoot, f))
       .filter((f) => f.endsWith('.md') || path.basename(f).toLowerCase() === 'license');
+  }
+
+  /**
+   * Read content for a list of relative doc file paths, returning entries
+   * suitable for fingerprinting via Step0bStateCache.
+   * @param {string[]} relativePaths - Relative paths from listExistingDocs()
+   * @returns {Promise<Array<{path: string, content: string}>>}
+   */
+  async _readDocEntries(relativePaths) {
+    const entries = [];
+    for (const relPath of relativePaths) {
+      try {
+        const content = await this.fileOps.readFile(path.join(this.projectRoot, relPath));
+        entries.push({ path: relPath, content });
+      } catch {
+        // Unreadable file — skip, it will register as a change if it appears later
+      }
+    }
+    return entries;
   }
 }
