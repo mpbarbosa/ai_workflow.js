@@ -406,9 +406,14 @@ technical_writer_prompt:
       expect(extractGitignoreDirNames(content)).toEqual(['dist']);
     });
 
-    test('skips path patterns with intermediate slashes', () => {
+    test('extracts top-level directory from path patterns', () => {
       const content = 'src/generated/\nfoo/bar\ndist\n';
-      expect(extractGitignoreDirNames(content)).toEqual(['dist']);
+      expect(extractGitignoreDirNames(content)).toEqual(['src', 'foo', 'dist']);
+    });
+
+    test('deduplicates top-level directories from multiple subdirectory patterns', () => {
+      const content = '.ai_workflow/backlog/\n.ai_workflow/logs/\n.ai_workflow/metrics/\ndist\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['.ai_workflow', 'dist']);
     });
 
     test('includes dot-prefixed names like .ai_workflow', () => {

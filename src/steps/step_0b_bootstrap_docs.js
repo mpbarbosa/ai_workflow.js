@@ -376,19 +376,20 @@ export function extractGitignoreDirNames(gitignoreContent) {
   if (!gitignoreContent || typeof gitignoreContent !== 'string') {
     return [];
   }
-  const names = [];
+  const nameSet = new Set();
   for (const line of gitignoreContent.split('\n')) {
     const trimmed = line.trim();
     // Skip empty lines, comments, and negations
     if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) continue;
     // Skip patterns with wildcards or glob chars
     if (trimmed.includes('*') || trimmed.includes('?') || trimmed.includes('[')) continue;
-    // Strip trailing slash then reject anything with remaining slashes (path patterns)
+    // Strip trailing slash
     const name = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
-    if (name.includes('/')) continue;
-    if (name) names.push(name);
+    // For path patterns (e.g. .ai_workflow/backlog/), extract the top-level directory
+    const topLevel = name.includes('/') ? name.split('/')[0] : name;
+    if (topLevel) nameSet.add(topLevel);
   }
-  return names;
+  return [...nameSet];
 }
 
 // ============================================================================
