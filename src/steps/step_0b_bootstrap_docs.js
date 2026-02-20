@@ -7,7 +7,16 @@
  */
 
 import path from 'path';
+import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
+
+const __filename = fileURLToPath(import.meta.url);
+const __packageStepsDir = path.dirname(__filename);
+// Resolves to: ai_workflow.js/.workflow_core/config/ai_helpers.yaml
+export const AI_HELPERS_PATH = path.resolve(
+  __packageStepsDir,
+  '../../.workflow_core/config/ai_helpers.yaml'
+);
 import { FileOperations } from '../lib/file_operations.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
@@ -182,7 +191,7 @@ export function determinePrimaryLanguage(extensionCounts) {
 export function parseAiDocResponse(responseText) {
   const results = [];
   const sectionRegex = /^## (.+?)\s*$/gm;
-  const contentBlockRegex = /### Content:\s*\n```(?:markdown|md)?\n([\s\S]*?)\n```/;
+  const contentBlockRegex = /### Content:[^\n]*\n```(?:\w+)?\n([\s\S]*?)\n```/;
 
   let match;
   const sections = [];
@@ -542,11 +551,8 @@ export class Step0bBootstrapDocs {
         } else {
           this.logger.debug('AI Helper is initialized.');
 
-          // Load ai_helpers.yaml for the prompt template
-          const aiHelpersPath = path.join(
-            this.projectRoot,
-            '.workflow_core/config/ai_helpers.yaml'
-          );
+          // Load ai_helpers.yaml from the ai_workflow.js package .workflow_core directory
+          const aiHelpersPath = AI_HELPERS_PATH;
           let promptConfig = null;
           try {
             promptConfig = await this.fileOps.readFile(aiHelpersPath);
@@ -587,6 +593,11 @@ export class Step0bBootstrapDocs {
           });
           if (response.success && response.content) {
             const parsedDocs = parseAiDocResponse(response.content);
+            if (parsedDocs.length === 0) {
+              this.logger.debug(
+                `AI response not parsed (0 docs). Raw response:\n${response.content}`
+              );
+            }
             for (const { filename, content } of parsedDocs) {
               const filePath = path.join(this.projectRoot, filename);
               if (this.dryRun) {

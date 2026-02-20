@@ -7,6 +7,7 @@ import { jest } from '@jest/globals';
 import {
   Step0bBootstrapDocs,
   DOC_TYPES,
+  AI_HELPERS_PATH,
   shouldBootstrapDocs,
   identifyMissingDocs,
   categorizeMissingDocs,
@@ -320,6 +321,52 @@ technical_writer_prompt:
       const response = '## `README.md`\n\n### Content:\n```markdown\n# Hi\n```\n';
       const results = parseAiDocResponse(response);
       expect(results[0].filename).toBe('README.md');
+    });
+
+    test('parses content block with non-markdown fence language (text)', () => {
+      const response = '## CHANGELOG.md\n\n### Content:\n```text\n# Changelog\n```\n';
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].filename).toBe('CHANGELOG.md');
+      expect(results[0].content).toContain('# Changelog');
+    });
+
+    test('parses content block with bash fence language', () => {
+      const response =
+        '## docs/GETTING_STARTED.md\n\n### Content:\n```bash\n# Getting Started\n```\n';
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].filename).toBe('docs/GETTING_STARTED.md');
+    });
+
+    test('parses content block with yaml fence language', () => {
+      const response = '## .workflow-config.yaml\n\n### Content:\n```yaml\nkey: value\n```\n';
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].content).toBe('key: value');
+    });
+
+    test('parses content block with bare (no-language) fence', () => {
+      const response = '## CONTRIBUTING.md\n\n### Content:\n```\n# Contributing\n```\n';
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].content).toContain('# Contributing');
+    });
+  });
+
+  // ========================================================================
+  // CONSTANTS - AI_HELPERS_PATH
+  // ========================================================================
+
+  describe('AI_HELPERS_PATH', () => {
+    test('points to the ai_workflow.js package .workflow_core directory (not projectRoot)', () => {
+      expect(AI_HELPERS_PATH).toMatch(/\.workflow_core[/\\]config[/\\]ai_helpers\.yaml$/);
+      expect(AI_HELPERS_PATH).not.toContain('undefined');
+    });
+
+    test('AI_HELPERS_PATH resolves to an existing file', async () => {
+      const { existsSync } = await import('fs');
+      expect(existsSync(AI_HELPERS_PATH)).toBe(true);
     });
   });
 
