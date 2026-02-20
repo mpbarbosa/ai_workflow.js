@@ -268,8 +268,8 @@ export class MainOrchestrator {
     }
 
     // Initialize components
-    this.configManager = new Config(this.workflowDir);
-    this.metricsCollector = new Metrics(this.workflowDir);
+    this.configManager = new Config(this.projectRoot);
+    this.metricsCollector = new Metrics(this.configManager);
     this.checkpointManager = new CheckpointManager(this.workflowDir);
     this.stepRegistry = new StepRegistry();
     this.workflowEngine = new WorkflowEngine({
