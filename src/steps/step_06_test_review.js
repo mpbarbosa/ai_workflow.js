@@ -6,6 +6,7 @@
  * Reviews existing tests, analyzes coverage, and identifies gaps.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -299,6 +300,8 @@ export function formatTestReport(results) {
  * Step 6 analyzer for test review
  */
 export class Step6TestReviewer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -320,8 +323,17 @@ export class Step6TestReviewer {
       logger.info(`Detected language: ${language}`);
 
       // Phase 2: Discover test files
-      const testFiles = await this.discoverTestFiles(projectRoot, language);
+      let testFiles = await this.discoverTestFiles(projectRoot, language);
       logger.info(`Found ${testFiles.length} test file(s)`);
+
+      // Fallback: if no test files found for detected language, try bash patterns
+      if (testFiles.length === 0 && language !== 'bash') {
+        const bashFiles = await this.discoverTestFiles(projectRoot, 'bash');
+        if (bashFiles.length > 0) {
+          logger.info(`Fallback: found ${bashFiles.length} bash test file(s) instead`);
+          testFiles = bashFiles;
+        }
+      }
 
       if (testFiles.length === 0) {
         logger.warn('No test files found!');

@@ -18,6 +18,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '../core/logger.js';
+import { STEP_KIND } from './step_contract.js';
 import { colors } from '../core/colors.js';
 
 // ============================================================================
@@ -645,6 +646,8 @@ export function capitalize(str) {
  * Handles file I/O and orchestrates summary generation
  */
 export class WorkflowSummary {
+  static stepKind = STEP_KIND.CONTEXT;
+
   constructor(workflowDir = '.ai_workflow') {
     this.workflowDir = workflowDir;
     this.metricsDir = path.join(workflowDir, 'metrics');
@@ -662,7 +665,9 @@ export class WorkflowSummary {
 
       // Read workflow artifacts
       const metrics = await this.readMetrics();
-      const workflowRunId = metrics.workflow_run_id || `workflow_${Date.now()}`;
+      // Prefer the caller-supplied runId over what's stored in the (possibly stale) metrics file
+      const workflowRunId =
+        options.workflowRunId || metrics.workflow_run_id || `workflow_${Date.now()}`;
 
       // Aggregate and calculate
       const stepResults = aggregateStepResults(metrics);

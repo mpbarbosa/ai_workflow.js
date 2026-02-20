@@ -16,11 +16,18 @@
 
 import { logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
+import executorModule from '../core/executor.js';
+import { STEP_KIND } from '../steps/step_contract.js';
 import { WorkflowEngine } from './workflow_engine.js';
 import { StepRegistry } from './step_registry.js';
 import { CheckpointManager } from './checkpoint_manager.js';
 import { Config } from '../lib/config.js';
+import path from 'path';
 import { Metrics } from '../lib/metrics.js';
+import { Backlog } from '../lib/backlog.js';
+import { GitAutomation } from '../lib/git_automation.js';
+import { ProjectKindDetector } from '../lib/project_kind_detection.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import { WorkflowSummary } from '../steps/step_17_summary.js';
 
 // Import all workflow steps
@@ -246,6 +253,7 @@ export class MainOrchestrator {
     this.projectRoot = options.projectRoot || process.cwd();
     this.stage = options.stage || WORKFLOW_STAGES.FULL;
     this.auto = options.auto || false;
+    this.noParallel = options.noParallel || false;
     this.resumeFromCheckpoint = options.resumeFromCheckpoint || null;
 
     // Validate config
@@ -263,6 +271,10 @@ export class MainOrchestrator {
       projectRoot: this.projectRoot,
     });
     this.summaryGenerator = new WorkflowSummary(this.workflowDir);
+    this.backlogManager = new Backlog(this.configManager); // Pass Config instance, not string
+    this.gitOps = new GitAutomation(this.projectRoot);
+    this.projectDetection = new ProjectKindDetector(this.projectRoot);
+    this.techStackDetection = new TechStackDetector(this.projectRoot);
 
     // State
     this.currentStep = null;
@@ -381,6 +393,7 @@ export class MainOrchestrator {
         description: 'Finalize git operations',
         class: Step12GitFinalization,
         dependencies: ['step_11'],
+        critical: false,
       },
       {
         id: 'step_13',
@@ -423,9 +436,10 @@ export class MainOrchestrator {
       this.stepRegistry.register(step.id, {
         name: step.name,
         description: step.description,
-        executor: step.class,
+        handler: step.class,
         dependencies: step.dependencies,
         required: true,
+        critical: step.critical !== undefined ? step.critical : true,
       });
     }
 
@@ -464,6 +478,14 @@ export class MainOrchestrator {
   }
 
   /**
+   * Abort the running workflow (e.g. on SIGINT). The current step finishes,
+   * then execution stops cleanly.
+   */
+  abort() {
+    this.workflowEngine.abort();
+  }
+
+  /**
    * Execute the workflow
    * @param {Object} context - Execution context
    * @returns {Promise<Object>} Workflow results
@@ -471,6 +493,15 @@ export class MainOrchestrator {
   async execute(context = {}) {
     try {
       this.startTime = Date.now();
+
+      // Open log file for this run so all logger output is persisted
+      const logsRunDir = path.join(
+        this.projectRoot,
+        '.ai_workflow',
+        'logs',
+        this.configManager.workflowRunId
+      );
+      logger.setLogFile(path.join(logsRunDir, 'workflow.log'));
 
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
       logger.info(`${colors.blue}  AI Workflow Automation - Starting${colors.reset}`);
@@ -503,6 +534,7 @@ export class MainOrchestrator {
             name: stepDef.name,
             dependencies: stepDef.dependencies || [],
             handler: this._createStepHandler(stepId, stepDef),
+            critical: stepDef.critical !== false,
           };
         }),
       };
@@ -518,22 +550,28 @@ export class MainOrchestrator {
       };
 
       // Setup event listeners for progress tracking
+      const stepsLogDir = path.join(logsRunDir, 'steps');
       this.workflowEngine.on('step:start', ({ step }) => {
         this.currentStep = step.id;
+        logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
         logger.info(`\n${colors.cyan}→ Starting: ${step.name}${colors.reset}`);
       });
 
       this.workflowEngine.on('step:complete', ({ step, result }) => {
         const durationStr = result.duration ? `(${Math.round(result.duration / 1000)}s)` : '';
         logger.info(`${colors.green}✓ Completed: ${step.name}${colors.reset} ${durationStr}`);
+        logger.closeStepLogFile();
       });
 
       this.workflowEngine.on('step:error', ({ step, error }) => {
         logger.error(`${colors.red}✗ Failed: ${step.name} - ${error.message}${colors.reset}`);
+        logger.closeStepLogFile();
       });
 
       this.workflowEngine.on('step:skipped', ({ step, result }) => {
+        logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
         logger.info(`${colors.yellow}⊘ Skipped: ${step.name} - ${result.reason}${colors.reset}`);
+        logger.closeStepLogFile();
       });
 
       // Load and execute workflow
@@ -554,16 +592,27 @@ export class MainOrchestrator {
       };
 
       // Save checkpoint
-      await this.checkpointManager.save(workflow.id, {
-        workflowId: workflow.id,
+      await this.checkpointManager.save(workflow, {
         stage: this.stage,
-        results: this.results,
+        results: this.results.steps,
+        context: executionContext,
+        completedSteps: Object.keys(this.results.steps).filter(
+          (stepId) => this.results.steps[stepId].status === 'success'
+        ),
+        failedSteps: Object.keys(this.results.steps).filter(
+          (stepId) => this.results.steps[stepId].status === 'failed'
+        ),
+        skippedSteps: Object.keys(this.results.steps).filter(
+          (stepId) => this.results.steps[stepId].status === 'skipped'
+        ),
         timestamp: Date.now(),
       });
 
-      // Generate summary
+      // Generate summary — pass the current run ID explicitly to avoid reading a stale metrics file
       logger.info(`\n${colors.blue}Generating workflow summary...${colors.reset}`);
-      const summary = await this.summaryGenerator.generateSummary();
+      const summary = await this.summaryGenerator.generateSummary({
+        workflowRunId: this.configManager.workflowRunId,
+      });
 
       // Calculate metrics
       const duration = Date.now() - this.startTime;
@@ -579,6 +628,8 @@ export class MainOrchestrator {
       );
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
 
+      logger.closeLogFile();
+
       return {
         success: engineResult.success,
         workflow,
@@ -588,6 +639,7 @@ export class MainOrchestrator {
       };
     } catch (error) {
       logger.error(`${colors.red}✗ Workflow failed: ${error.message}${colors.reset}`);
+      logger.closeLogFile();
 
       return {
         success: false,
@@ -609,20 +661,43 @@ export class MainOrchestrator {
     return async (context) => {
       try {
         // Get executor class
-        const ExecutorClass = stepDef.executor;
+        const ExecutorClass = stepDef.handler;
         if (!ExecutorClass) {
           throw new Error(`No executor class found for step: ${stepId}`);
         }
 
-        // Create executor instance
-        const executor = new ExecutorClass();
+        // Build common dependencies for all steps
+        const commonDeps = {
+          executor: executorModule,
+          gitOps: this.gitOps,
+          projectDetection: this.projectDetection,
+          techStackDetection: this.techStackDetection,
+          configManager: this.configManager,
+          backlogManager: this.backlogManager,
+          metricsCollector: this.metricsCollector,
+          logger, // ensure steps using options.logger write to the run log file
+          enableParallel: !this.noParallel,
+        };
+
+        // Create executor instance with dependencies
+        const executor = new ExecutorClass(commonDeps);
 
         // Execute step
         if (typeof executor.execute !== 'function') {
           throw new Error(`Executor for ${stepId} does not have an execute method`);
         }
 
-        const result = await executor.execute(context);
+        // Ensure projectRoot is always defined (fallback to this.projectRoot)
+        const projectRoot = context.projectRoot || this.projectRoot || process.cwd();
+
+        // Dispatch by step kind:
+        //   ProjectStep → execute(projectRoot: string)
+        //   ContextStep → execute(context: { projectRoot, ... })
+        const kind = ExecutorClass.stepKind ?? STEP_KIND.PROJECT;
+        const result =
+          kind === STEP_KIND.CONTEXT
+            ? await executor.execute({ projectRoot, ...context })
+            : await executor.execute(projectRoot);
 
         return result;
       } catch (error) {

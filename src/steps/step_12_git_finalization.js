@@ -16,6 +16,11 @@
  * - Impure wrapper class for I/O operations
  */
 
+import { STEP_KIND } from './step_contract.js';
+import { promises as fsPromises } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -362,6 +367,8 @@ export function formatGitReport(data) {
 // ============================================================================
 
 export class Step12GitFinalization {
+  static stepKind = STEP_KIND.CONTEXT;
+
   constructor(options = {}) {
     this.executor = options.executor || null;
     this.backlogManager = options.backlogManager || null;
@@ -598,7 +605,14 @@ export class Step12GitFinalization {
    */
   async _commitChanges(message) {
     this.logger.info('Creating commit...');
-    await this._executeGit(`git commit -m "${message.replace(/"/g, '\\"')}"`);
+    // Write message to a temp file to avoid shell-parsing issues with multiline strings
+    const tmpFile = join(tmpdir(), `workflow_commit_${Date.now()}.txt`);
+    try {
+      await fsPromises.writeFile(tmpFile, message, 'utf-8');
+      await this._executeGit(`git commit -F "${tmpFile}"`);
+    } finally {
+      await fsPromises.unlink(tmpFile).catch(() => {});
+    }
     this.logger.info('Changes committed successfully');
   }
 

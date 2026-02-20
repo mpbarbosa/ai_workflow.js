@@ -7,6 +7,18 @@
  */
 
 import { colorize, colors } from './colors.js';
+import fs from 'fs';
+import path from 'path';
+
+/**
+ * Strip ANSI escape codes from a string so log files are plain text.
+ * @param {string} str
+ * @returns {string}
+ */
+export function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1B\[[0-9;]*m/g, '');
+}
 
 /**
  * Log levels with corresponding colors
@@ -27,6 +39,59 @@ export class Logger {
     this.quiet = options.quiet || false;
     this.verbose = options.verbose || false;
     this.prefix = options.prefix || '';
+    this._logStream = null;
+    this._stepLogStream = null;
+  }
+
+  /**
+   * Open a per-step secondary log file. All log lines are written to both
+   * the main workflow log and this step log until closeStepLogFile() is called.
+   * @param {string} filePath - Absolute path to the step log file
+   */
+  openStepLogFile(filePath) {
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      if (this._stepLogStream) {
+        this._stepLogStream.end();
+      }
+      this._stepLogStream = fs.createWriteStream(filePath, { flags: 'a' });
+    } catch {
+      // Best-effort; do not crash the workflow
+    }
+  }
+
+  /** Close the per-step log file stream. */
+  closeStepLogFile() {
+    if (this._stepLogStream) {
+      this._stepLogStream.end();
+      this._stepLogStream = null;
+    }
+  }
+
+  /**
+   * Configure file logging. Creates the directory if needed and opens an
+   * append stream to the given file path. All subsequent log calls will
+   * be written there (without ANSI codes) in addition to the console.
+   * @param {string} filePath - Absolute path to the log file
+   */
+  setLogFile(filePath) {
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      if (this._logStream) {
+        this._logStream.end();
+      }
+      this._logStream = fs.createWriteStream(filePath, { flags: 'a' });
+    } catch {
+      // File logging is best-effort; do not crash the workflow
+    }
+  }
+
+  /** Close the log file stream (call at end of workflow run). */
+  closeLogFile() {
+    if (this._logStream) {
+      this._logStream.end();
+      this._logStream = null;
+    }
   }
 
   /**
@@ -36,6 +101,7 @@ export class Logger {
     if (this.verbose && !this.quiet) {
       const formatted = this._format(message, 'debug');
       console.log(formatted);
+      this._writeFile(formatted);
     }
   }
 
@@ -47,6 +113,7 @@ export class Logger {
       const formatted = this._format(message, 'info');
       console.log(formatted);
     }
+    this._writeFile(this._format(message, 'info'));
   }
 
   /**
@@ -57,6 +124,7 @@ export class Logger {
       const formatted = this._format(message, 'success');
       console.log(formatted);
     }
+    this._writeFile(this._format(message, 'success'));
   }
 
   /**
@@ -65,6 +133,7 @@ export class Logger {
   warn(message) {
     const formatted = this._format(message, 'warn');
     console.warn(formatted);
+    this._writeFile(formatted);
   }
 
   /**
@@ -73,6 +142,7 @@ export class Logger {
   error(message) {
     const formatted = this._format(message, 'error');
     console.error(formatted);
+    this._writeFile(formatted);
   }
 
   /**
@@ -94,6 +164,21 @@ export class Logger {
         return colorize(`✗ ${prefix}${message}`, colors.red);
       default:
         return `${prefix}${message}`;
+    }
+  }
+
+  /**
+   * Write a plain-text line to the log file (best-effort, no throw).
+   * @param {string} formatted - Already-formatted (possibly ANSI) string
+   */
+  _writeFile(formatted) {
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] ${stripAnsi(formatted)}\n`;
+    if (this._logStream) {
+      try { this._logStream.write(line); } catch { /* ignore */ }
+    }
+    if (this._stepLogStream) {
+      try { this._stepLogStream.write(line); } catch { /* ignore */ }
     }
   }
 }

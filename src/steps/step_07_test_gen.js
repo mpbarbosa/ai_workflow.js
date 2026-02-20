@@ -6,6 +6,7 @@
  * Identifies untested code files and generates test coverage gaps report.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -27,6 +28,8 @@ export const SOURCE_PATTERNS = {
   java: ['src/**/*.java'],
   ruby: ['lib/**/*.rb', 'app/**/*.rb'],
   rust: ['src/**/*.rs'],
+  bash: ['**/*.sh'],
+  shell: ['**/*.sh'],
 };
 
 /**
@@ -40,6 +43,8 @@ export const TEST_FILE_PATTERNS = {
   java: ['Test.java', 'Tests.java', '/test/'],
   ruby: ['_spec.rb', '_test.rb', '/spec/'],
   rust: ['/tests/', '_test.rs'],
+  bash: ['.bats', 'test_'],
+  shell: ['.bats', 'test_'],
 };
 
 /**
@@ -293,6 +298,8 @@ export function formatTestGenerationReport(results) {
  * Step 7 analyzer for test generation
  */
 export class Step7TestGenerator {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -314,8 +321,18 @@ export class Step7TestGenerator {
       logger.info(`Detected language: ${language}`);
 
       // Phase 2: Discover source and test files
-      const sourceFiles = await this.discoverSourceFiles(projectRoot, language);
-      const testFiles = await this.discoverTestFiles(projectRoot, language);
+      let sourceFiles = await this.discoverSourceFiles(projectRoot, language);
+      let testFiles = await this.discoverTestFiles(projectRoot, language);
+
+      // Fallback: if no source/test files found for detected language, try bash
+      if (sourceFiles.length === 0 && language !== 'bash') {
+        const bashSources = await this.discoverSourceFiles(projectRoot, 'bash');
+        if (bashSources.length > 0) {
+          logger.info(`Fallback: found ${bashSources.length} bash source file(s) instead`);
+          sourceFiles = bashSources;
+          testFiles = await this.discoverTestFiles(projectRoot, 'bash');
+        }
+      }
 
       logger.info(`Found ${sourceFiles.length} source file(s), ${testFiles.length} test file(s)`);
 

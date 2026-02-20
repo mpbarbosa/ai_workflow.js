@@ -6,6 +6,7 @@
  * Analyzes code quality using linters and static analysis tools.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -337,6 +338,8 @@ export function formatQualityReport(results) {
  * Step 10 analyzer for code quality
  */
 export class Step10CodeQualityAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.executor = options.executor || executor;
     this.fileOps = options.fileOps || new FileOperations();
@@ -359,17 +362,28 @@ export class Step10CodeQualityAnalyzer {
       logger.info(`Detected language: ${language}`);
 
       // Phase 2: Count source files
-      const sourceFileCount = await this.countSourceFiles(projectRoot, language);
+      let effectiveLanguage = language;
+      let sourceFileCount = await this.countSourceFiles(projectRoot, language);
       logger.info(`Found ${sourceFileCount} source file(s)`);
 
+      // Fallback: if 0 source files for detected language, try bash/shell
+      if (sourceFileCount === 0 && language !== 'bash') {
+        const bashCount = await this.countSourceFiles(projectRoot, 'bash');
+        if (bashCount > 0) {
+          logger.info(`Fallback: found ${bashCount} bash source file(s) instead`);
+          effectiveLanguage = 'bash';
+          sourceFileCount = bashCount;
+        }
+      }
+
       // Phase 3: Determine linter command
-      const linterCommand = await this.determineLinterCommand(projectRoot, language);
+      const linterCommand = await this.determineLinterCommand(projectRoot, effectiveLanguage);
 
       if (!linterCommand) {
         logger.warn('No linter configured');
 
         const report = formatQualityReport({
-          language,
+          language: effectiveLanguage,
           sourceFileCount,
           skipped: true,
         });
@@ -378,7 +392,7 @@ export class Step10CodeQualityAnalyzer {
 
         return {
           success: true,
-          language,
+          language: effectiveLanguage,
           sourceFileCount,
           skipped: true,
         };
@@ -387,7 +401,7 @@ export class Step10CodeQualityAnalyzer {
       logger.info(`Linter command: ${linterCommand}`);
 
       // Phase 4: Run linter
-      const linterResults = await this.runLinter(projectRoot, linterCommand, language);
+      const linterResults = await this.runLinter(projectRoot, linterCommand, effectiveLanguage);
 
       if (linterResults.totalIssues > 0) {
         logger.warn(`Found ${linterResults.totalIssues} code quality issue(s)`);
@@ -403,7 +417,7 @@ export class Step10CodeQualityAnalyzer {
 
       // Phase 6: Generate report
       const results = {
-        language,
+        language: effectiveLanguage,
         sourceFileCount,
         linterResults,
         issueRate,

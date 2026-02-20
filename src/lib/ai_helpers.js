@@ -12,7 +12,10 @@
  * @version 2.0.0
  */
 
-import { CopilotClient } from '@github/copilot-sdk';
+import fs from 'fs/promises';
+import path from 'path';
+import { CopilotClient, defineTool } from '@github/copilot-sdk';
+export { defineTool };
 import { logger } from '../core/logger.js';
 import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
@@ -39,7 +42,7 @@ const CONTENT_LENGTH = {
 
 // Default AI request parameters
 const DEFAULT_REQUEST = {
-  MODEL: 'gpt-4',
+  MODEL: 'gpt-4.1',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 4000,
   TIMEOUT_MS: 30000, // 30 seconds
@@ -313,6 +316,147 @@ export function mergeRequestOptions(options = {}, defaults = {}) {
 }
 
 // ==============================================================================
+// PURE FUNCTION - Production Consistency Validation
+// ==============================================================================
+
+// Valid model identifiers accepted by the Copilot SDK
+const VALID_MODELS = [
+  'gpt-4.1',
+  'gpt-4o',
+  'gpt-4-turbo',
+  'gpt-4',
+  'gpt-3.5-turbo',
+  'claude-3-5-sonnet',
+];
+
+// Timeout bounds considered safe for production (ms)
+const TIMEOUT_BOUNDS = { MIN: 1_000, MAX: 300_000 };
+
+/**
+ * Validates that an AiHelper config + runtime state is consistent for production.
+ *
+ * Checks three groups of invariants:
+ *  - **config**: All configuration values are within acceptable production ranges.
+ *  - **state**:  Runtime flags are coherent (e.g. authenticated ⇒ available,
+ *                available ⇒ client and session are non-null).
+ *  - **combined**: Cross-cutting rules that span both groups.
+ *
+ * This function is **pure** — it reads the supplied arguments and returns a
+ * plain result object; it never mutates state or triggers I/O.
+ *
+ * @param {Object} config - The helper's `this.config` object
+ * @param {Object} state  - Runtime state snapshot
+ * @param {boolean} state.initialized      - Whether initialize() has been called
+ * @param {boolean} state.available        - Whether the SDK is usable
+ * @param {boolean} state.authenticated    - Whether Copilot auth succeeded
+ * @param {*}       state.client           - CopilotClient instance (or null)
+ * @param {*}       state.session          - Active SDK session (or null)
+ * @param {number}  state._promptCounter   - Number of prompts issued so far
+ * @returns {{ consistent: boolean, issues: string[], config: Object, state: Object }}
+ *
+ * @pure
+ */
+export function validateAiHelperState(config, state) {
+  const configIssues = [];
+  const stateIssues = [];
+
+  // ── Config checks ───────────────────────────────────────────────────────────
+  if (!config.model || typeof config.model !== 'string' || config.model.trim() === '') {
+    configIssues.push('config.model must be a non-empty string');
+  } else if (!VALID_MODELS.includes(config.model)) {
+    configIssues.push(
+      `config.model "${config.model}" is not a recognised production model (expected one of: ${VALID_MODELS.join(', ')})`
+    );
+  }
+
+  if (!Number.isInteger(config.maxRetries) || config.maxRetries < 1) {
+    configIssues.push('config.maxRetries must be a positive integer (≥ 1)');
+  }
+
+  if (typeof config.cache !== 'boolean') {
+    configIssues.push('config.cache must be a boolean');
+  }
+
+  if (typeof config.timeout !== 'number' || config.timeout < TIMEOUT_BOUNDS.MIN) {
+    configIssues.push(
+      `config.timeout must be a number ≥ ${TIMEOUT_BOUNDS.MIN}ms (got ${config.timeout})`
+    );
+  } else if (config.timeout > TIMEOUT_BOUNDS.MAX) {
+    configIssues.push(
+      `config.timeout is unreasonably high (${config.timeout}ms > ${TIMEOUT_BOUNDS.MAX}ms)`
+    );
+  }
+
+  if (typeof config.baseDelay !== 'number' || config.baseDelay < 0) {
+    configIssues.push('config.baseDelay must be a non-negative number');
+  }
+
+  if (typeof config.maxDelay !== 'number' || config.maxDelay < 0) {
+    configIssues.push('config.maxDelay must be a non-negative number');
+  } else if (
+    typeof config.baseDelay === 'number' &&
+    config.baseDelay >= 0 &&
+    config.maxDelay < config.baseDelay
+  ) {
+    configIssues.push(
+      `config.maxDelay (${config.maxDelay}ms) must be ≥ config.baseDelay (${config.baseDelay}ms)`
+    );
+  }
+
+  if (config.promptsDir !== null && typeof config.promptsDir !== 'string') {
+    configIssues.push('config.promptsDir must be null or a non-empty string');
+  } else if (typeof config.promptsDir === 'string' && config.promptsDir.trim() === '') {
+    configIssues.push('config.promptsDir must not be an empty string (use null to disable)');
+  }
+
+  // ── State checks ────────────────────────────────────────────────────────────
+  if (typeof state.initialized !== 'boolean') {
+    stateIssues.push('state.initialized must be a boolean');
+  }
+
+  if (typeof state.available !== 'boolean') {
+    stateIssues.push('state.available must be a boolean');
+  }
+
+  if (typeof state.authenticated !== 'boolean') {
+    stateIssues.push('state.authenticated must be a boolean');
+  }
+
+  if (!Number.isInteger(state._promptCounter) || state._promptCounter < 0) {
+    stateIssues.push('state._promptCounter must be a non-negative integer');
+  }
+
+  // Coherence: authenticated implies available
+  if (state.authenticated === true && state.available !== true) {
+    stateIssues.push('state is incoherent: authenticated is true but available is false');
+  }
+
+  // Coherence: available requires client and session
+  if (state.available === true) {
+    if (state.client === null || state.client === undefined) {
+      stateIssues.push('state is incoherent: available is true but client is null');
+    }
+    if (state.session === null || state.session === undefined) {
+      stateIssues.push('state is incoherent: available is true but session is null');
+    }
+  }
+
+  // Coherence: not initialized means session must be null
+  if (state.initialized === false && state.session !== null && state.session !== undefined) {
+    stateIssues.push('state is incoherent: not initialized but session is non-null');
+  }
+
+  const allIssues = [...configIssues, ...stateIssues];
+
+  return {
+    consistent: allIssues.length === 0,
+    issues: allIssues,
+    config: { valid: configIssues.length === 0, issues: configIssues },
+    state: { valid: stateIssues.length === 0, issues: stateIssues },
+  };
+}
+
+// ==============================================================================
 // IMPURE WRAPPER CLASS - SDK Integration
 // ==============================================================================
 
@@ -348,6 +492,7 @@ export class AiHelper {
       timeout: config.timeout || DEFAULT_REQUEST.TIMEOUT_MS,
       baseDelay: config.baseDelay || DEFAULT_REQUEST.BASE_DELAY_MS,
       maxDelay: config.maxDelay || DEFAULT_REQUEST.MAX_DELAY_MS,
+      promptsDir: config.promptsDir || null,
     };
 
     this.client = null;
@@ -355,6 +500,11 @@ export class AiHelper {
     this.initialized = false;
     this.available = false;
     this.authenticated = false;
+    this.availableModels = [];
+    this._promptCounter = 0;
+    // Serialize concurrent SDK session requests; the SDK session does not
+    // support simultaneous sendAndWait calls on the same session object.
+    this._requestQueue = Promise.resolve();
   }
 
   /**
@@ -402,12 +552,12 @@ export class AiHelper {
       // Create client
       this.client = new CopilotClient();
 
-      // Try to connect via stdio (standard SDK initialization)
-      await this.client.connectViaStdio();
+      // Start the CLI server and establish connection
+      await this.client.start();
 
       // Test authentication by getting status
       const status = await this.client.getAuthStatus();
-      this.authenticated = status?.authenticated || false;
+      this.authenticated = status?.isAuthenticated ?? false;
 
       if (!this.authenticated) {
         logger.warn('GitHub Copilot not authenticated');
@@ -415,6 +565,22 @@ export class AiHelper {
       } else {
         logger.success('GitHub Copilot SDK initialized successfully');
         this.available = true;
+
+        // Fetch available models and log them
+        try {
+          this.availableModels = await this.client.listModels();
+          const modelIds = this.availableModels.map((m) => m.id);
+          logger.info(`Available Copilot models (${modelIds.length}): ${modelIds.join(', ')}`);
+
+          // Warn if configured model is not in the available list
+          if (modelIds.length > 0 && !modelIds.includes(this.config.model)) {
+            logger.warn(
+              `Configured model "${this.config.model}" not in available models — using it anyway`
+            );
+          }
+        } catch (modelErr) {
+          logger.warn(`Could not fetch available models: ${modelErr.message}`);
+        }
 
         // Create session
         this.session = await this.client.createSession({
@@ -513,7 +679,46 @@ export class AiHelper {
   }
 
   /**
-   * Executes single AI request with retries and error handling.
+   * Returns the list of available Copilot models fetched during initialization.
+   * Returns an empty array if not yet initialized or if the fetch failed.
+   *
+   * @returns {Array<Object>} Array of ModelInfo objects from the SDK
+   */
+  getAvailableModels() {
+    return this.availableModels;
+  }
+
+  /**
+   * Checks whether this AiHelper instance is internally consistent and
+   * suitable for use in a production environment.
+   *
+   * Delegates all logic to the pure {@link validateAiHelperState} function,
+   * passing the current config and runtime state as plain data.  The result
+   * is safe to log or surface to health-check endpoints.
+   *
+   * @returns {{ consistent: boolean, issues: string[], config: Object, state: Object }}
+   *   `consistent` is `true` only when **all** config values are within
+   *   production-acceptable ranges AND the runtime state is coherent.
+   *
+   * @example
+   * const helper = new AiHelper({ model: 'gpt-4', cache: true });
+   * const check = helper.checkConsistency();
+   * if (!check.consistent) {
+   *   console.error('AiHelper issues:', check.issues);
+   * }
+   */
+  checkConsistency() {
+    return validateAiHelperState(this.config, {
+      initialized: this.initialized,
+      available: this.available,
+      authenticated: this.authenticated,
+      client: this.client,
+      session: this.session,
+      _promptCounter: this._promptCounter,
+    });
+  }
+
+  /**
    *
    * @param {string} prompt - The prompt to send
    * @param {Object} [options={}] - Request options
@@ -537,6 +742,12 @@ export class AiHelper {
 
     // Merge options with defaults
     const requestOptions = mergeRequestOptions(options, this.config);
+    const persona = requestOptions.persona || this.config.persona || 'default';
+    const model = requestOptions.model || this.config.model || 'default';
+
+    logger.info(
+      `[AI] SDK call starting — persona: ${persona}, model: ${model}, prompt_chars: ${prompt.length}`
+    );
 
     let lastError = null;
     let attempt = 0;
@@ -544,12 +755,17 @@ export class AiHelper {
     while (attempt < this.config.maxRetries) {
       try {
         logger.debug(`Executing AI request (attempt ${attempt + 1}/${this.config.maxRetries})`);
+        const callStart = Date.now();
 
         // Execute request via SDK
         const rawResponse = await this._sendRequest(prompt, requestOptions);
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);
+        const callMs = Date.now() - callStart;
+        logger.info(
+          `[AI] SDK call completed — persona: ${persona}, model: ${model}, response_chars: ${(parsed.content || '').length}, latency: ${callMs}ms`
+        );
 
         // Validate if requested
         if (requestOptions.validate !== false) {
@@ -566,17 +782,20 @@ export class AiHelper {
         }
 
         logger.success('AI request completed successfully');
+        await this._logPrompt(prompt, options, parsed);
         return parsed;
       } catch (error) {
         lastError = error;
         const errorInfo = parseErrorResponse(error);
 
-        logger.warn(`AI request failed: ${errorInfo.message}`);
+        logger.warn(
+          `[AI] SDK call failed — persona: ${persona}, model: ${model}, error: ${errorInfo.message}`
+        );
 
         // Check if we should retry
         if (shouldRetry(errorInfo, attempt, this.config.maxRetries)) {
           const delay = calculateRetryDelay(attempt, this.config.baseDelay, this.config.maxDelay);
-          logger.info(`Retrying in ${delay}ms...`);
+          logger.info(`[AI] Retrying in ${delay}ms (attempt ${attempt + 2}/${this.config.maxRetries})...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
           attempt++;
         } else {
@@ -594,7 +813,48 @@ export class AiHelper {
   }
 
   /**
-   * Executes multiple AI requests in batch.
+   * Save prompt and response to the prompts log directory.
+   * @param {string} prompt - The prompt sent
+   * @param {Object} options - Request options (includes persona if set)
+   * @param {Object} response - Parsed AI response
+   * @returns {Promise<void>}
+   */
+  async _logPrompt(prompt, options, response) {
+    if (!this.config.promptsDir) return;
+    try {
+      await fs.mkdir(this.config.promptsDir, { recursive: true });
+      this._promptCounter += 1;
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const persona = options.persona || 'default';
+      const filename = `${ts}_${String(this._promptCounter).padStart(4, '0')}_${persona}.md`;
+      const filePath = path.join(this.config.promptsDir, filename);
+      const content = [
+        `# Prompt Log`,
+        ``,
+        `**Timestamp:** ${new Date().toISOString()}`,
+        `**Persona:** ${persona}`,
+        `**Model:** ${options.model || this.config.model}`,
+        ``,
+        `## Prompt`,
+        ``,
+        `\`\`\``,
+        prompt,
+        `\`\`\``,
+        ``,
+        `## Response`,
+        ``,
+        `\`\`\``,
+        response.content || JSON.stringify(response),
+        `\`\`\``,
+      ].join('\n');
+      await fs.writeFile(filePath, content, 'utf8');
+      logger.debug(`Prompt logged to: ${filename}`);
+    } catch (err) {
+      logger.debug(`Prompt logging failed (non-fatal): ${err.message}`);
+    }
+  }
+
+  /**
    *
    * @param {Array<Object>} requests - Array of request objects
    * @param {Object} [options={}] - Batch options
@@ -677,15 +937,34 @@ export class AiHelper {
       throw new SystemError('No active session. Call initialize() first.');
     }
 
-    // Use SDK to send message to session
-    const response = await this.session.sendMessage({
-      content: prompt,
-      model: options.model,
-      temperature: options.temperature,
-      max_tokens: options.maxTokens,
-    });
+    // The SDK session does not support concurrent sendAndWait calls; queue them.
+    const result = this._requestQueue.then(() => this._doSendRequest(prompt, options));
+    // Advance the queue regardless of success/failure so later requests aren't blocked.
+    this._requestQueue = result.catch(() => {});
+    return result;
+  }
 
-    return response;
+  /**
+   * Performs a single serialized SDK request.
+   *
+   * @private
+   * @param {string} prompt - The prompt
+   * @param {Object} options - Request options
+   * @returns {Promise<Object>} Raw SDK response
+   */
+  async _doSendRequest(prompt, options) {
+    const model = options.model || this.config.model;
+    logger.info(
+      `[Copilot SDK] Calling sendMessage — model: ${model}, prompt_length: ${prompt.length} chars`
+    );
+
+    // Use SDK to send message to session (model is set at session creation)
+    const timeout = options.timeout || this.config.timeout;
+    const event = await this.session.sendAndWait({ prompt: prompt }, timeout);
+
+    logger.info(`[Copilot SDK] sendAndWait returned — model: ${model}`);
+
+    return event?.data ?? { content: '', success: false };
   }
 
   /**
@@ -696,7 +975,7 @@ export class AiHelper {
   async cleanup() {
     try {
       if (this.session) {
-        await this.client.deleteSession(this.session.id);
+        await this.session.destroy();
         this.session = null;
       }
 
