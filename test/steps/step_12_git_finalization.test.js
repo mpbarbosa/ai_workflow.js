@@ -488,6 +488,7 @@ describe('Step 12: Git Finalization', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        step: jest.fn(),
       };
     });
 

@@ -161,6 +161,7 @@ async function getLatestCheckpointId(workflowDir) {
  */
 export async function resumeCommand(checkpointId, options) {
   let spinner = null;
+  let onSigint = null;
 
   try {
     // Validate options
@@ -204,6 +205,14 @@ export async function resumeCommand(checkpointId, options) {
       projectRoot: options.projectRoot || process.cwd(),
     });
 
+    // Handle Ctrl+C: abort gracefully after the current step finishes
+    onSigint = () => {
+      console.log(chalk.yellow('\n\n⚠ Interrupt received — stopping after current step...'));
+      if (spinner) spinner.warn('Stopping...');
+      orchestrator.abort();
+    };
+    process.once('SIGINT', onSigint);
+
     // Setup spinner
     if (!options.verbose) {
       spinner = ora('Loading checkpoint...').start();
@@ -212,9 +221,14 @@ export async function resumeCommand(checkpointId, options) {
     // Resume workflow
     const result = await orchestrator.resume(checkpointId);
 
+    // Remove SIGINT listener — workflow has finished
+    process.removeListener('SIGINT', onSigint);
+
     // Stop spinner
     if (spinner) {
-      if (result.success) {
+      if (result.aborted) {
+        spinner.warn('Workflow stopped by user');
+      } else if (result.success) {
         spinner.succeed('Workflow resumed and completed');
       } else {
         spinner.fail('Workflow failed');
@@ -223,7 +237,9 @@ export async function resumeCommand(checkpointId, options) {
 
     // Display result
     console.log();
-    if (result.success) {
+    if (result.aborted) {
+      console.log(chalk.yellow('⚠ Workflow stopped by user (Ctrl+C)'));
+    } else if (result.success) {
       console.log(chalk.green(`✓ Workflow completed successfully`));
       if (result.duration) {
         const durationSec = Math.round(result.duration / 1000);
@@ -238,8 +254,11 @@ export async function resumeCommand(checkpointId, options) {
     console.log();
 
     // Exit with appropriate code
-    process.exit(result.success ? 0 : 1);
+    process.exit(result.aborted ? 130 : result.success ? 0 : 1);
   } catch (error) {
+    // Remove SIGINT listener on error path
+    process.removeListener('SIGINT', onSigint);
+
     // Stop spinner on error
     if (spinner) {
       spinner.fail('Resume failed');

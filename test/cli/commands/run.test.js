@@ -86,6 +86,60 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(result.auto).toBe(false);
       expect(result.dryRun).toBe(false);
     });
+
+    test('should handle custom project root path', () => {
+      const cliOptions = {
+        projectRoot: '/home/user/my-project',
+      };
+
+      const result = createOrchestratorOptions(cliOptions);
+
+      expect(result.projectRoot).toBe('/home/user/my-project');
+      expect(result.workflowDir).toBe('.ai_workflow'); // Uses default
+    });
+
+    test('should handle custom workflow directory', () => {
+      const cliOptions = {
+        workflowDir: '.custom_ai_workflow',
+      };
+
+      const result = createOrchestratorOptions(cliOptions);
+
+      expect(result.workflowDir).toBe('.custom_ai_workflow');
+      expect(result.projectRoot).toBe(process.cwd()); // Uses default
+    });
+
+    test('should handle both custom project root and workflow dir', () => {
+      const cliOptions = {
+        projectRoot: '/path/to/project',
+        workflowDir: '.custom_workflow',
+      };
+
+      const result = createOrchestratorOptions(cliOptions);
+
+      expect(result.projectRoot).toBe('/path/to/project');
+      expect(result.workflowDir).toBe('.custom_workflow');
+    });
+
+    test('should handle relative project root paths', () => {
+      const cliOptions = {
+        projectRoot: './my-project',
+      };
+
+      const result = createOrchestratorOptions(cliOptions);
+
+      expect(result.projectRoot).toBe('./my-project');
+    });
+
+    test('should handle absolute workflow directory paths', () => {
+      const cliOptions = {
+        workflowDir: '/tmp/workflow_artifacts',
+      };
+
+      const result = createOrchestratorOptions(cliOptions);
+
+      expect(result.workflowDir).toBe('/tmp/workflow_artifacts');
+    });
   });
 
   describe('formatWorkflowResult', () => {

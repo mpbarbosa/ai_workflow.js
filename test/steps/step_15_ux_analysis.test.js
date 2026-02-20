@@ -305,6 +305,7 @@ describe('Step 15: UX Analysis', () => {
         warn: jest.fn(),
         error: jest.fn(),
         success: jest.fn(),
+        step: jest.fn(),
       };
     });
 

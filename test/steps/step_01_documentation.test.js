@@ -254,10 +254,15 @@ describe('Step 1: Documentation Validation', () => {
       };
 
       mockParallelProcessor = {
-        processDocumentation: () =>
+        validate: () =>
           Promise.resolve({
-            stats: { processed: 0, totalTime: 0 },
+            validatedFiles: 0,
+            totalFiles: 0,
+            categories: {},
+            errors: [],
+            success: true,
           }),
+        getStatistics: () => ({ totalDuration: 0, speedup: null }),
       };
 
       analyzer = new Step1DocumentationAnalyzer({
@@ -282,10 +287,15 @@ describe('Step 1: Documentation Validation', () => {
     test('executes successfully with changes', async () => {
       mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'src/index.js']);
       mockIncrementalProcessor.detectChangedDocs = () => Promise.resolve(['README.md']);
-      mockParallelProcessor.processDocumentation = () =>
+      mockParallelProcessor.validate = () =>
         Promise.resolve({
-          stats: { processed: 1, totalTime: 100 },
+          validatedFiles: 1,
+          totalFiles: 1,
+          categories: {},
+          errors: [],
+          success: true,
         });
+      mockParallelProcessor.getStatistics = () => ({ totalDuration: 100, speedup: null });
 
       const result = await analyzer.execute('/project');
 
@@ -352,10 +362,18 @@ describe('Step 1: Documentation Validation', () => {
     test('handles parallel processing', async () => {
       mockGitOps.getModifiedFiles = () => Promise.resolve(['docs/a.md', 'docs/b.md']);
       mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files); // All changed
-      mockParallelProcessor.processDocumentation = () =>
+      mockParallelProcessor.validate = () =>
         Promise.resolve({
-          stats: { processed: 2, totalTime: 200, speedup: 1.8 },
+          validatedFiles: 2,
+          totalFiles: 2,
+          categories: {},
+          errors: [],
+          success: true,
         });
+      mockParallelProcessor.getStatistics = () => ({
+        totalDuration: 200,
+        speedup: { speedup: 1.8 },
+      });
 
       const result = await analyzer.execute('/project', { enableParallel: true });
 

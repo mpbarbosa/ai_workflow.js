@@ -314,7 +314,7 @@ export class Step7TestGenerator {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 7: Test Generation');
+      logger.step('Step 7: Test Generation');
 
       // Phase 1: Detect primary language
       const language = await this.detectLanguage(projectRoot);

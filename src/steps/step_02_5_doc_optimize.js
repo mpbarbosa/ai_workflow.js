@@ -5,6 +5,15 @@
  * Architecture: Referential transparency (pure functions + impure wrapper)
  */
 
+import { STEP_KIND } from './step_contract.js';
+import { FileOperations } from '../lib/file_operations.js';
+import { HeuristicsAnalyzer } from './step_02_5_lib/heuristics.js';
+import { GitAnalyzer } from './step_02_5_lib/git_analysis.js';
+import { VersionAnalyzer } from './step_02_5_lib/version_analysis.js';
+import { ConsolidationManager } from './step_02_5_lib/consolidation.js';
+import { ReportingManager } from './step_02_5_lib/reporting.js';
+import defaultLogger from '../core/logger.js';
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -155,15 +164,24 @@ export function calculateExecutionTime(startTime, endTime) {
  * Coordinates all submodules and manages workflow execution
  */
 export class DocumentationOptimizer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
-    this.fileOps = options.fileOps; // FileOperations instance
-    this.heuristics = options.heuristics; // HeuristicsAnalyzer instance
-    this.gitAnalyzer = options.gitAnalyzer; // GitAnalyzer instance
-    this.versionAnalyzer = options.versionAnalyzer; // VersionAnalyzer instance
-    this.consolidation = options.consolidation; // ConsolidationManager instance
-    this.reporting = options.reporting; // ReportingManager instance
-    this.aiAnalyzer = options.aiAnalyzer; // AiAnalyzer instance (optional)
-    this.logger = options.logger || console;
+    this.logger = options.logger || defaultLogger;
+
+    const fileOps = options.fileOps || new FileOperations({ logger: this.logger });
+    const gitAutomation = options.gitOps || options.gitAutomation;
+
+    this.fileOps = fileOps;
+    this.heuristics = options.heuristics || new HeuristicsAnalyzer({ logger: this.logger });
+    this.gitAnalyzer =
+      options.gitAnalyzer || new GitAnalyzer({ gitAutomation, fileOps, logger: this.logger });
+    this.versionAnalyzer =
+      options.versionAnalyzer || new VersionAnalyzer({ fileOps, logger: this.logger });
+    this.consolidation =
+      options.consolidation || new ConsolidationManager({ fileOps, logger: this.logger });
+    this.reporting = options.reporting || new ReportingManager({ fileOps, logger: this.logger });
+    this.aiAnalyzer = options.aiAnalyzer || null; // optional
 
     this.state = null;
   }
@@ -195,7 +213,7 @@ export class DocumentationOptimizer {
     const { docsDir, minFiles } = this.state.config;
 
     // Check if directory exists
-    const exists = await this.fileOps.directoryExists(docsDir);
+    const exists = await this.fileOps.exists(docsDir);
     if (!exists) {
       return { skip: true, reason: `Documentation directory not found: ${docsDir}` };
     }
@@ -435,6 +453,8 @@ export class DocumentationOptimizer {
 
     this.state = updateState(this.state, { startTime });
 
+    this.logger.step('Step 2.5: Documentation Optimization');
+
     try {
       // Check if should skip
       const skipCheck = await this.shouldSkip();
@@ -502,6 +522,15 @@ export class DocumentationOptimizer {
     // This is a simplified version - in reality, we'd need file hashes
     // For now, just return as single group
     return duplicates.length > 0 ? [duplicates] : [];
+  }
+
+  /**
+   * Execute step (orchestrator interface)
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<Object>} - Step result
+   */
+  async execute(projectRoot) {
+    return this.run({ projectRoot });
   }
 
   /**

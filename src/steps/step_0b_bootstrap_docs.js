@@ -456,7 +456,7 @@ export class Step0bBootstrapDocs {
         };
       }
 
-      this.logger.info('Step 0b: Starting documentation gap analysis and generation');
+      this.logger.step('Step 0b: Documentation Gap Analysis and Generation');
       // Phase 1: Gather project statistics
       this.logger.info(`${colors.blue}Phase 1:${colors.reset} Gathering project statistics...`);
       const stats = await this.gatherProjectStats();

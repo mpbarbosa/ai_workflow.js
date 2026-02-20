@@ -316,7 +316,7 @@ export class Step6TestReviewer {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 6: Test Review');
+      logger.step('Step 6: Test Review');
 
       // Phase 1: Detect primary language
       const language = await this.detectLanguage(projectRoot);

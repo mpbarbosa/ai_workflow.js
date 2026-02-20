@@ -3,7 +3,12 @@
  * @module test/cli/index
  */
 
-import { createProgramConfig, validateCliArgs, createProgram } from '../../src/cli/index.js';
+import {
+  createProgramConfig,
+  validateCliArgs,
+  createProgram,
+  applyGlobalOptions,
+} from '../../src/cli/index.js';
 
 describe('CLI Index - Pure Functions', () => {
   describe('createProgramConfig', () => {
@@ -79,5 +84,41 @@ describe('CLI Index - Integration Tests', () => {
       expect(commands).toContain('config');
       expect(commands).toContain('clean');
     });
+  });
+});
+
+describe('CLI Index - applyGlobalOptions', () => {
+  let mockLogger;
+
+  beforeEach(() => {
+    mockLogger = { verbose: false, quiet: false };
+  });
+
+  test('should set verbose to true when opts.verbose is true', () => {
+    applyGlobalOptions({ verbose: true, quiet: false }, mockLogger);
+    expect(mockLogger.verbose).toBe(true);
+  });
+
+  test('should set quiet to true when opts.quiet is true', () => {
+    applyGlobalOptions({ verbose: false, quiet: true }, mockLogger);
+    expect(mockLogger.quiet).toBe(true);
+  });
+
+  test('should set both verbose and quiet when both are true', () => {
+    applyGlobalOptions({ verbose: true, quiet: true }, mockLogger);
+    expect(mockLogger.verbose).toBe(true);
+    expect(mockLogger.quiet).toBe(true);
+  });
+
+  test('should default verbose and quiet to false when not provided', () => {
+    applyGlobalOptions({}, mockLogger);
+    expect(mockLogger.verbose).toBe(false);
+    expect(mockLogger.quiet).toBe(false);
+  });
+
+  test('should reset verbose to false when opts.verbose is falsy', () => {
+    mockLogger.verbose = true;
+    applyGlobalOptions({ verbose: false }, mockLogger);
+    expect(mockLogger.verbose).toBe(false);
   });
 });

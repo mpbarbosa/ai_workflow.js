@@ -45,7 +45,7 @@ const DEFAULT_REQUEST = {
   MODEL: 'gpt-4.1',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 4000,
-  TIMEOUT_MS: 30000, // 30 seconds
+  TIMEOUT_MS: 120000, // 120 seconds
   STREAM: false,
   MAX_RETRIES: 3,
   BASE_DELAY_MS: 1000, // 1 second initial retry delay
@@ -482,7 +482,7 @@ export class AiHelper {
    * @param {string} [config.model='gpt-4'] - Default model to use
    * @param {number} [config.maxRetries=3] - Maximum retry attempts
    * @param {boolean} [config.cache=true] - Enable response caching
-   * @param {number} [config.timeout=30000] - Request timeout in ms
+   * @param {number} [config.timeout=120000] - Request timeout in ms
    */
   constructor(config = {}) {
     this.config = {
@@ -495,6 +495,7 @@ export class AiHelper {
       promptsDir: config.promptsDir || null,
     };
 
+    this.logger = config.logger || logger;
     this.client = null;
     this.session = null;
     this.initialized = false;
@@ -742,8 +743,11 @@ export class AiHelper {
 
     // Merge options with defaults
     const requestOptions = mergeRequestOptions(options, this.config);
+    this.logger.debug(`Request Options: ${requestOptions}`);
     const persona = requestOptions.persona || this.config.persona || 'default';
+    this.logger.debug(`Persona: ${persona}`);
     const model = requestOptions.model || this.config.model || 'default';
+    this.logger.debug(`Model: ${model}`);
 
     logger.info(
       `[AI] SDK call starting — persona: ${persona}, model: ${model}, prompt_chars: ${prompt.length}`
@@ -775,7 +779,7 @@ export class AiHelper {
             schema: requestOptions.schema,
           });
 
-          if (!validation.isValid) {
+          if (!validation.valid) {
             logger.warn(`Response validation failed: ${validation.errors.join(', ')}`);
             parsed.validation = validation;
           }
@@ -795,8 +799,22 @@ export class AiHelper {
         // Check if we should retry
         if (shouldRetry(errorInfo, attempt, this.config.maxRetries)) {
           const delay = calculateRetryDelay(attempt, this.config.baseDelay, this.config.maxDelay);
-          logger.info(`[AI] Retrying in ${delay}ms (attempt ${attempt + 2}/${this.config.maxRetries})...`);
+          logger.info(
+            `[AI] Retrying in ${delay}ms (attempt ${attempt + 2}/${this.config.maxRetries})...`
+          );
           await new Promise((resolve) => setTimeout(resolve, delay));
+          // Recreate the session before retrying — a timed-out session is left
+          // in a non-idle state and will immediately time out again if reused.
+          await this._recreateSession();
+          // If the failure was a timeout, double the allowed wait time for the
+          // next attempt (capped at TIMEOUT_BOUNDS.MAX = 300 s).
+          if (/timeout/i.test(errorInfo.message)) {
+            const currentTimeout = requestOptions.timeout || this.config.timeout;
+            requestOptions.timeout = Math.min(currentTimeout * 2, TIMEOUT_BOUNDS.MAX);
+            logger.info(
+              `[AI] Timeout detected — increasing timeout to ${requestOptions.timeout}ms for retry`
+            );
+          }
           attempt++;
         } else {
           break;
@@ -925,6 +943,26 @@ export class AiHelper {
   }
 
   /**
+   * Destroys the current SDK session and creates a fresh one.
+   * Called before each retry so a timed-out session is never reused.
+   * @private
+   */
+  async _recreateSession() {
+    try {
+      if (this.session) {
+        await this.session.destroy();
+        this.session = null;
+      }
+      this.session = await this.client.createSession({ model: this.config.model });
+      // Reset the request queue so the fresh session isn't blocked by stale entries.
+      this._requestQueue = Promise.resolve();
+      logger.info('[AI] Session recreated for retry');
+    } catch (error) {
+      logger.warn(`[AI] Session recreation failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Internal method to send request via SDK.
    *
    * @private
@@ -933,6 +971,7 @@ export class AiHelper {
    * @returns {Promise<Object>} Raw SDK response
    */
   async _sendRequest(prompt, options) {
+    this.logger.debug('AiHelper._sendRequest called');
     if (!this.session) {
       throw new SystemError('No active session. Call initialize() first.');
     }
@@ -960,6 +999,7 @@ export class AiHelper {
 
     // Use SDK to send message to session (model is set at session creation)
     const timeout = options.timeout || this.config.timeout;
+    this.logger.debug('Sending prompt...');
     const event = await this.session.sendAndWait({ prompt: prompt }, timeout);
 
     logger.info(`[Copilot SDK] sendAndWait returned — model: ${model}`);

@@ -440,6 +440,8 @@ technical_writer_prompt:
         warn: jest.fn(),
         error: jest.fn(),
         success: jest.fn(),
+        debug: jest.fn(),
+        step: jest.fn(),
       };
     });
 

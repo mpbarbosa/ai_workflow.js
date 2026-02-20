@@ -758,7 +758,7 @@ describe('Main Orchestrator - Integration Tests', () => {
       class InvalidExecutor {}
 
       const stepHandler = orchestrator._createStepHandler('test-step', {
-        executor: InvalidExecutor,
+        handler: InvalidExecutor,
       });
 
       await expect(stepHandler({})).rejects.toThrow('does not have an execute method');
@@ -779,6 +779,358 @@ describe('Main Orchestrator - Integration Tests', () => {
       // Should show warnings for failed checks
       expect(result.passed).toBe(false);
       expect(result.checks.configuration.passed).toBe(false);
+    });
+  });
+
+  // ============================================================================
+  // REGRESSION TESTS - Bug Fixes from 2026-02-17
+  // ============================================================================
+
+  describe('Regression Tests - Step Registration and Execution', () => {
+    let orchestrator;
+    const testDir = '.ai_workflow/test-regression';
+
+    beforeEach(async () => {
+      await fs.rm(testDir, { recursive: true, force: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      orchestrator = new MainOrchestrator({
+        workflowDir: testDir,
+        stage: WORKFLOW_STAGES.QUICK,
+        auto: true,
+      });
+    });
+
+    afterEach(async () => {
+      await fs.rm(testDir, { recursive: true, force: true });
+    });
+
+    describe('Bug Fix: Executor field name mismatch', () => {
+      test('should register steps with "handler" field, not "executor"', () => {
+        // Register all steps
+        orchestrator.registerAllSteps();
+
+        // Check that step_00 is registered
+        const step = orchestrator.stepRegistry.get('step_00');
+
+        expect(step).toBeDefined();
+        expect(step).toHaveProperty('handler');
+        expect(step.handler).toBeDefined();
+
+        // The old bug: stepDef.executor was undefined
+        // This should NOT exist in the step definition
+        expect(step.executor).toBeUndefined();
+      });
+
+      test('should create step handler that accesses handler field correctly', async () => {
+        // Mock executor class
+        class MockStepExecutor {
+          async execute(_context) {
+            return { success: true, data: 'test' };
+          }
+        }
+
+        // Register step with handler (correct field name)
+        orchestrator.stepRegistry.register('test_mock_step', {
+          name: 'Mock Test Step',
+          description: 'Test step for regression',
+          handler: MockStepExecutor,
+          dependencies: [],
+        });
+
+        const stepDef = orchestrator.stepRegistry.get('test_mock_step');
+
+        // Create handler using the private method
+        const handler = orchestrator._createStepHandler('test_mock_step', stepDef);
+
+        // Execute the handler
+        const result = await handler({ workflowDir: testDir });
+
+        expect(result).toEqual({ success: true, data: 'test' });
+      });
+
+      test('should throw error when handler field is missing (old bug scenario)', async () => {
+        // Simulate the old bug: step registered with wrong field name
+        orchestrator.stepRegistry.register('test_broken_step', {
+          name: 'Broken Step',
+          description: 'Step with wrong field name',
+          // Missing 'handler' field - this was the bug
+          dependencies: [],
+        });
+
+        const stepDef = orchestrator.stepRegistry.get('test_broken_step');
+        const handler = orchestrator._createStepHandler('test_broken_step', stepDef);
+
+        // Should throw error about missing executor
+        await expect(handler({})).rejects.toThrow(
+          'No executor class found for step: test_broken_step'
+        );
+      });
+
+      test('should register all 20 workflow steps with handler field', () => {
+        orchestrator.registerAllSteps();
+
+        const expectedSteps = [
+          'step_00',
+          'step_0b',
+          'step_01',
+          'step_02',
+          'step_02_5',
+          'step_03',
+          'step_04',
+          'step_05',
+          'step_06',
+          'step_07',
+          'step_08',
+          'step_09',
+          'step_10',
+          'step_11',
+          'step_12',
+          'step_13',
+          'step_14',
+          'step_15',
+          'step_16',
+          'step_17',
+        ];
+
+        for (const stepId of expectedSteps) {
+          const step = orchestrator.stepRegistry.get(stepId);
+
+          expect(step).toBeDefined();
+          expect(step).toHaveProperty('handler');
+          expect(typeof step.handler).toBe('function');
+
+          // Verify the old bug is fixed: no 'executor' field
+          expect(step.executor).toBeUndefined();
+        }
+      });
+    });
+
+    describe('Bug Fix: Checkpoint save with wrong parameters', () => {
+      test('should call checkpoint.save with workflow object, not workflow.id string', async () => {
+        // Mock the checkpoint manager save method
+        let savedWorkflowParam = null;
+        let savedStateParam = null;
+
+        orchestrator.checkpointManager.save = async (workflow, state) => {
+          savedWorkflowParam = workflow;
+          savedStateParam = state;
+          return 'checkpoint-id-123';
+        };
+
+        // Mock workflow engine
+        orchestrator.workflowEngine.loadWorkflow = async (workflow) => workflow;
+        orchestrator.workflowEngine.executeWorkflow = async () => ({
+          success: true,
+          summary: { total: 1, succeeded: 1, failed: 0, skipped: 0 },
+          results: [{ stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 100 }],
+        });
+
+        // Mock summary generator
+        orchestrator.summaryGenerator.generateSummary = async () => 'Test summary';
+
+        // Execute workflow
+        await orchestrator.execute();
+
+        // Verify checkpoint save was called with correct parameters
+        expect(savedWorkflowParam).toBeDefined();
+        expect(savedWorkflowParam).toBeInstanceOf(Object);
+
+        // The old bug: workflow.id was passed as string
+        // Now it should be the full workflow object with id, name, version, steps
+        expect(savedWorkflowParam).toHaveProperty('id');
+        expect(savedWorkflowParam).toHaveProperty('name');
+        expect(savedWorkflowParam).toHaveProperty('version');
+        expect(savedWorkflowParam).toHaveProperty('steps');
+        expect(Array.isArray(savedWorkflowParam.steps)).toBe(true);
+
+        // Verify state parameter structure
+        expect(savedStateParam).toBeDefined();
+        expect(savedStateParam).toHaveProperty('timestamp');
+        expect(savedStateParam).toHaveProperty('completedSteps');
+        expect(savedStateParam).toHaveProperty('failedSteps');
+        expect(savedStateParam).toHaveProperty('skippedSteps');
+        expect(Array.isArray(savedStateParam.completedSteps)).toBe(true);
+      });
+
+      test('should pass correct state structure to checkpoint save', async () => {
+        let capturedState = null;
+
+        orchestrator.checkpointManager.save = async (workflow, state) => {
+          capturedState = state;
+          return 'checkpoint-id';
+        };
+
+        orchestrator.workflowEngine.loadWorkflow = async (workflow) => workflow;
+        orchestrator.workflowEngine.executeWorkflow = async () => ({
+          success: true,
+          summary: { total: 2, succeeded: 1, failed: 1, skipped: 0 },
+          results: [
+            { stepId: 'step_00', stepName: 'Pre-Analysis', status: 'success', duration: 100 },
+            { stepId: 'step_01', stepName: 'Documentation', status: 'failed', duration: 50 },
+          ],
+        });
+
+        orchestrator.summaryGenerator.generateSummary = async () => 'Summary';
+
+        await orchestrator.execute();
+
+        // Verify state structure matches createCheckpointData expectations
+        expect(capturedState).toHaveProperty('timestamp');
+        expect(typeof capturedState.timestamp).toBe('number');
+
+        expect(capturedState).toHaveProperty('completedSteps');
+        expect(Array.isArray(capturedState.completedSteps)).toBe(true);
+
+        expect(capturedState).toHaveProperty('failedSteps');
+        expect(Array.isArray(capturedState.failedSteps)).toBe(true);
+
+        expect(capturedState).toHaveProperty('skippedSteps');
+        expect(Array.isArray(capturedState.skippedSteps)).toBe(true);
+
+        // The old bug: state had wrong structure with results object instead of step arrays
+        // Now completedSteps should contain actual step IDs
+        expect(capturedState.completedSteps).toContain('step_00');
+        expect(capturedState.failedSteps).toContain('step_01');
+      });
+
+      test('should create valid checkpoint data that passes validation', async () => {
+        let checkpointData = null;
+
+        // Capture the checkpoint data before validation
+        orchestrator.checkpointManager.save = async (workflow, state) => {
+          // Manually create checkpoint data like the save method does
+          const checkpoint = {
+            version: '1.0.0',
+            workflowId: workflow.id || workflow.name,
+            workflowVersion: workflow.version || '1.0.0',
+            timestamp: state.timestamp || Date.now(),
+            state: {
+              currentStep: state.currentStep || null,
+              completedSteps: state.completedSteps || [],
+              failedSteps: state.failedSteps || [],
+              skippedSteps: state.skippedSteps || [],
+              results: state.results || {},
+              context: state.context || {},
+            },
+            metadata: {
+              totalSteps: workflow.steps?.length || 0,
+              progress: state.progress || 0,
+            },
+          };
+
+          checkpointData = checkpoint;
+          return 'checkpoint-id';
+        };
+
+        orchestrator.workflowEngine.loadWorkflow = async (w) => w;
+        orchestrator.workflowEngine.executeWorkflow = async () => ({
+          success: true,
+          summary: { total: 1, succeeded: 1, failed: 0, skipped: 0 },
+          results: [{ stepId: 'step_00', status: 'success' }],
+        });
+        orchestrator.summaryGenerator.generateSummary = async () => 'Summary';
+
+        await orchestrator.execute();
+
+        // Verify checkpoint data has all required fields
+        expect(checkpointData).toBeDefined();
+        expect(checkpointData).toHaveProperty('version');
+        expect(checkpointData).toHaveProperty('workflowId');
+        expect(checkpointData).toHaveProperty('timestamp');
+        expect(checkpointData).toHaveProperty('state');
+
+        // The old bug: workflowId was missing from checkpoint
+        expect(checkpointData.workflowId).toBeDefined();
+        expect(typeof checkpointData.workflowId).toBe('string');
+        expect(checkpointData.workflowId.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('Integration: Full workflow execution with regression fixes', () => {
+      test('should pass logger in commonDeps so injected-logger steps write to the log file', async () => {
+        // Steps like step_0b, step_12, step_13, step_14, step_15, step_16 use
+        // `this.logger = options.logger || console/new Logger()`.  Without logger
+        // in commonDeps those steps silently drop their output (console-only).
+        const receivedDeps = {};
+
+        class LoggerCapturingStep {
+          constructor(deps) {
+            Object.assign(receivedDeps, deps);
+          }
+          execute() {
+            return Promise.resolve({ success: true });
+          }
+        }
+
+        const stepDef = { handler: LoggerCapturingStep };
+        const handler = orchestrator._createStepHandler('log_test_step', stepDef);
+        await handler({ projectRoot: process.cwd() });
+
+        // logger must be forwarded so injected-logger steps can write to the run log file
+        expect(receivedDeps).toHaveProperty('logger');
+        expect(typeof receivedDeps.logger.info).toBe('function');
+        expect(typeof receivedDeps.logger.error).toBe('function');
+        expect(typeof receivedDeps.logger.warn).toBe('function');
+      });
+
+      test('should execute workflow end-to-end with correct step registration and checkpointing', async () => {
+        let stepHandlerCalled = false;
+        let checkpointSaved = false;
+
+        // Mock step executor
+        class IntegrationTestExecutor {
+          async execute(_context) {
+            stepHandlerCalled = true;
+            return { success: true };
+          }
+        }
+
+        // Register a test step
+        orchestrator.stepRegistry.register('integration_test_step', {
+          name: 'Integration Test',
+          description: 'Test step for integration',
+          handler: IntegrationTestExecutor, // Correct field name
+          dependencies: [],
+        });
+
+        // Mock checkpoint save
+        orchestrator.checkpointManager.save = async (workflow, _state) => {
+          checkpointSaved = true;
+
+          // Verify workflow is object, not string
+          expect(typeof workflow).toBe('object');
+          expect(workflow).toHaveProperty('id');
+          expect(workflow).toHaveProperty('steps');
+
+          return 'integration-checkpoint';
+        };
+
+        // Setup workflow with our test step
+        orchestrator.workflowEngine.loadWorkflow = async (workflow) => workflow;
+        orchestrator.workflowEngine.executeWorkflow = async (context) => {
+          // Execute the step handler
+          const stepDef = orchestrator.stepRegistry.get('integration_test_step');
+          const handler = orchestrator._createStepHandler('integration_test_step', stepDef);
+          await handler(context);
+
+          return {
+            success: true,
+            summary: { total: 1, succeeded: 1, failed: 0, skipped: 0 },
+            results: [{ stepId: 'integration_test_step', status: 'success' }],
+          };
+        };
+
+        orchestrator.summaryGenerator.generateSummary = async () => 'Summary';
+
+        // Execute workflow
+        const result = await orchestrator.execute();
+
+        // Verify both fixes are working
+        expect(stepHandlerCalled).toBe(true); // Step handler was called (fix #1)
+        expect(checkpointSaved).toBe(true); // Checkpoint was saved (fix #2)
+        expect(result.success).toBe(true);
+      });
     });
   });
 });

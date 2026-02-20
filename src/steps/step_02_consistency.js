@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -293,6 +294,8 @@ export function formatConsistencyReport(results) {
  * Step 2 analyzer for documentation consistency
  */
 export class Step2ConsistencyAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -306,7 +309,7 @@ export class Step2ConsistencyAnalyzer {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 2: Documentation Consistency Analysis');
+      logger.step('Step 2: Documentation Consistency Analysis');
 
       // Phase 1: Discover documentation files
       const docFiles = await this.discoverDocumentationFiles(projectRoot);

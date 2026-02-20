@@ -6,6 +6,7 @@
  * Executes test suites and analyzes results with coverage metrics.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -325,6 +326,8 @@ export function formatTestReport(results) {
  * Step 8 executor for test execution
  */
 export class Step8TestExecutor {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.executor = options.executor || executor;
     this.fileOps = options.fileOps || new FileOperations();
@@ -344,7 +347,7 @@ export class Step8TestExecutor {
     const startTime = Date.now();
 
     try {
-      logger.info('Step 8: Test Execution');
+      logger.step('Step 8: Test Execution');
 
       // Phase 1: Detect language and test command
       const language = await this.detectLanguage(projectRoot);

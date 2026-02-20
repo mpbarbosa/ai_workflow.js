@@ -42,6 +42,7 @@ function buildLogger() {
     error: jest.fn(),
     success: jest.fn(),
     debug: jest.fn(),
+    step: jest.fn(),
   };
 }
 

@@ -8,6 +8,7 @@
 
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
+import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
 
@@ -332,6 +333,8 @@ ${updatesSection}
  * Updates versions in modified files and project metadata.
  */
 export class Step16VersionUpdate {
+  static stepKind = STEP_KIND.CONTEXT;
+
   /**
    * Create a new Step 16 version updater
    * @param {Object} options - Configuration options
@@ -359,7 +362,13 @@ export class Step16VersionUpdate {
   async execute(context = {}) {
     const startTime = Date.now();
 
+    // Use projectRoot from context if provided (overrides constructor default)
+    if (context.projectRoot) {
+      this.projectRoot = context.projectRoot;
+    }
+
     try {
+      this.logger.step('Step 16: Version Update');
       if (this.dryRun) {
         this.logger.info('[DRY RUN] Version update preview:');
         this.logger.info('- Would detect current version in project files');

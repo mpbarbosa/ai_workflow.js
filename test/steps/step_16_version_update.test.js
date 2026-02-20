@@ -291,6 +291,7 @@ Confidence: high`;
         warn: jest.fn(),
         error: jest.fn(),
         success: jest.fn(),
+        step: jest.fn(),
       };
     });
 

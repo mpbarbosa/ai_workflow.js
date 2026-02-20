@@ -15,7 +15,9 @@
  * @since 2026-02-08
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
+import { runSdkSmokeTest } from '../lib/sdk_smoke_test.js';
 
 /**
  * Change scope classifications
@@ -323,21 +325,24 @@ ${gitStatus}
  * @class
  */
 export class Step0Analyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   /**
    * Create Step0Analyzer instance
    * @param {Object} deps - Dependencies
    * @param {Object} deps.gitOps - GitAutomation instance
    * @param {Object} deps.projectDetection - ProjectKindDetection instance
    * @param {Object} deps.techStackDetection - TechStackDetection instance
-   * @param {Object} deps.configManager - ConfigManager instance
+   * @param {Object} deps.projectKindConfig - ProjectKindConfigManager instance
    * @param {Object} deps.backlogManager - BacklogManager instance
    */
   constructor(deps = {}) {
     this.gitOps = deps.gitOps;
     this.projectDetection = deps.projectDetection;
     this.techStackDetection = deps.techStackDetection;
-    this.configManager = deps.configManager;
+    this.projectKindConfig = deps.projectKindConfig;
     this.backlogManager = deps.backlogManager;
+    this.sdkSmokeTest = deps.sdkSmokeTest || false;
   }
 
   /**
@@ -348,7 +353,7 @@ export class Step0Analyzer {
    */
   async execute(projectRoot) {
     try {
-      logger.info('Step 0: Pre-Analysis - Analyzing Recent Changes');
+      logger.step('Step 0: Pre-Analysis - Analyzing Recent Changes');
 
       // Get git state
       const commitsAhead = await this.gitOps.getCommitsAhead();
@@ -368,26 +373,30 @@ export class Step0Analyzer {
       let projectKind = null;
       if (this.projectDetection) {
         // Try config first
-        const configKind = await this.configManager.getProjectKind();
+        const configKind = this.projectKindConfig
+          ? await this.projectKindConfig.getProjectKind()
+          : null;
         if (configKind && configKind !== 'null') {
           projectKind = {
             kind: configKind,
             confidence: 100,
             source: 'config',
-            description: await this.projectDetection.getKindDescription(configKind),
+            // Note: description will come from project kind config or be set to kind
+            description: configKind,
           };
           logger.success(`Project kind from config: ${projectKind.description} (configured)`);
         } else {
           // Auto-detect
           logger.info('No project kind in config, auto-detecting...');
-          const detected = await this.projectDetection.detect(projectRoot);
+          const detected = await this.projectDetection.detectProjectKind(projectRoot);
           projectKind = {
             ...detected,
             source: 'auto-detected',
+            description: detected.description || detected.kind,
           };
           if (detected.kind !== 'unknown' && detected.confidence > 50) {
             logger.info(
-              `Auto-detected project kind: ${detected.description} (${detected.confidence}% confidence)`
+              `Auto-detected project kind: ${projectKind.description} (${detected.confidence}% confidence)`
             );
           } else {
             logger.info('Project kind: Could not determine with confidence');
@@ -398,7 +407,7 @@ export class Step0Analyzer {
       // Tech stack detection
       let techStack = null;
       if (this.techStackDetection) {
-        techStack = await this.techStackDetection.detect(projectRoot);
+        techStack = await this.techStackDetection.detectTechStack(projectRoot);
         if (techStack.primaryLanguage) {
           logger.info(`Detected language: ${techStack.primaryLanguage}`);
           logger.info(`Build system: ${techStack.buildSystem || 'none'}`);
@@ -406,8 +415,19 @@ export class Step0Analyzer {
         }
       }
 
-      // Test infrastructure smoke test (TODO: Implement in future)
-      const smokeTest = null;
+      // SDK smoke test (runs when --sdk-smoke-test flag is set)
+      let smokeTest = null;
+      if (this.sdkSmokeTest) {
+        smokeTest = await runSdkSmokeTest();
+        if (!smokeTest.success) {
+          logger.error(`Step 0: SDK smoke test failed — ${smokeTest.details}`);
+          return {
+            success: false,
+            error: `SDK smoke test failed: ${smokeTest.details}`,
+          };
+        }
+        logger.success('Step 0: SDK smoke test passed');
+      }
 
       // Build analysis result
       const analysis = {

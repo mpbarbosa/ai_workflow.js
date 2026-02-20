@@ -357,6 +357,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        step: jest.fn(),
       };
     });
 

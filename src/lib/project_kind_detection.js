@@ -126,18 +126,28 @@ export function detectByFilePatterns(files) {
     htmlFiles: 0,
     yamlFiles: 0,
     mdFiles: 0,
+    awsConfigJson: 0,
     totalFiles: files.length,
   };
 
   files.forEach((file) => {
     const ext = path.extname(file).toLowerCase();
+    const basename = path.basename(file).toLowerCase();
     if (ext === '.sh' || ext === '.bash') fileStats.shellScripts++;
     if (ext === '.js' || ext === '.jsx' || ext === '.ts' || ext === '.tsx') fileStats.jsFiles++;
     if (ext === '.py') fileStats.pyFiles++;
     if (ext === '.html' || ext === '.htm') fileStats.htmlFiles++;
     if (ext === '.yaml' || ext === '.yml') fileStats.yamlFiles++;
     if (ext === '.md') fileStats.mdFiles++;
+    if (basename === 'aws-config.json') fileStats.awsConfigJson++;
   });
+
+  // AWS LBS backend (aws-config.json + shell scripts + Lambda JS functions)
+  if (fileStats.awsConfigJson > 0 && fileStats.shellScripts > 0 && fileStats.jsFiles > 0) {
+    indicators.push('aws_config_json');
+    indicators.push('aws_lambda_js');
+    return { kind: 'aws_lbs_backend_setup', confidence: 85, indicators };
+  }
 
   // Shell script automation (high shell script percentage)
   if (fileStats.shellScripts > 0 && fileStats.shellScripts / fileStats.totalFiles > 0.3) {
@@ -184,6 +194,16 @@ export function detectByDirectoryStructure(directories) {
   const hasDocs = dirSet.has('docs');
   const hasConfig = dirSet.has('config');
   const hasExamples = dirSet.has('examples');
+
+  const hasLambda = dirSet.has('lambda');
+  const hasScripts = dirSet.has('scripts');
+
+  // AWS LBS backend (Lambda + scripts directories under src)
+  if (hasLambda && hasSrc && hasScripts) {
+    indicators.push('lambda_structure');
+    indicators.push('scripts_structure');
+    return { kind: 'aws_lbs_backend_setup', confidence: 80, indicators };
+  }
 
   // Configuration library pattern
   if (hasConfig && hasDocs && hasExamples && !hasSrc) {

@@ -276,7 +276,7 @@ export class MainOrchestrator {
     this.backlogManager = new Backlog(this.configManager); // Pass Config instance, not string
     this.gitOps = new GitAutomation(this.projectRoot);
     this.projectDetection = new ProjectKindDetector(this.projectRoot);
-    this.projectKindConfig = new ProjectKindConfigManager(this.projectRoot);
+    this.projectKindConfig = new ProjectKindConfigManager({ projectRoot: this.projectRoot });
     this.techStackDetection = new TechStackDetector(this.projectRoot);
 
     // State

@@ -334,6 +334,7 @@ step2_consistency_prompt:
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        step: jest.fn(),
       };
     });
 

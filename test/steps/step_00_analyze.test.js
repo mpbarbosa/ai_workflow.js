@@ -434,7 +434,7 @@ describe('Step 0: Pre-Analysis', () => {
     let mockGitOps;
     let mockProjectDetection;
     let mockTechStackDetection;
-    let mockConfigManager;
+    let mockProjectKindConfig;
     let mockBacklogManager;
     let analyzer;
 
@@ -460,7 +460,7 @@ describe('Step 0: Pre-Analysis', () => {
       };
 
       mockProjectDetection = {
-        detect: () =>
+        detectProjectKind: () =>
           Promise.resolve({
             kind: 'nodejs_api',
             description: 'Node.js API Server',
@@ -470,7 +470,7 @@ describe('Step 0: Pre-Analysis', () => {
       };
 
       mockTechStackDetection = {
-        detect: () =>
+        detectTechStack: () =>
           Promise.resolve({
             primaryLanguage: 'javascript',
             buildSystem: 'npm',
@@ -479,7 +479,7 @@ describe('Step 0: Pre-Analysis', () => {
           }),
       };
 
-      mockConfigManager = {
+      mockProjectKindConfig = {
         getProjectKind: () => Promise.resolve(null),
       };
 
@@ -492,7 +492,7 @@ describe('Step 0: Pre-Analysis', () => {
         gitOps: mockGitOps,
         projectDetection: mockProjectDetection,
         techStackDetection: mockTechStackDetection,
-        configManager: mockConfigManager,
+        projectKindConfig: mockProjectKindConfig,
         backlogManager: mockBacklogManager,
       });
     });
@@ -513,9 +513,7 @@ describe('Step 0: Pre-Analysis', () => {
 
     test('uses configured project kind if available', async () => {
       // Override mock for this test
-      analyzer.configManager.getProjectKind = () => Promise.resolve('react_spa');
-      analyzer.projectDetection.getKindDescription = () =>
-        Promise.resolve('React Single Page Application');
+      analyzer.projectKindConfig.getProjectKind = () => Promise.resolve('react_spa');
 
       const result = await analyzer.execute('/test/project');
 

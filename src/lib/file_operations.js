@@ -6,6 +6,18 @@
  * Part of: AI Workflow Automation v1.1.0
  */
 
+// Directories that are never traversed by default (can be overridden with options.allowAll)
+const NEVER_TRAVERSE_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.svn',
+  '.hg',
+  '__pycache__',
+  '.pytest_cache',
+  '.tox',
+  '.mypy_cache',
+]);
+
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '../core/logger.js';
@@ -289,6 +301,11 @@ export class FileOperations {
    * List directory recursively
    * @param {string} dirPath - Directory path
    * @param {Object} options - List options
+   * @param {string[]} [options.exclude] - Additional directory names to skip
+   * @param {boolean} [options.allowAll] - If true, skip default NEVER_TRAVERSE_DIRS exclusions
+   * @param {string[]} [options.extensions] - Filter results by file extension
+   * @param {string} [options.pattern] - Filter results by glob pattern
+   * @param {boolean} [options.includeDirectories] - Include directory paths in results
    * @returns {Promise<string[]>} List of all file paths
    */
   async listDirectoryRecursive(dirPath, options = {}) {
@@ -299,6 +316,11 @@ export class FileOperations {
 
     const results = [];
 
+    const callerExcludeSet = new Set(options.exclude || []);
+    const excludeSet = options.allowAll
+      ? callerExcludeSet
+      : new Set([...NEVER_TRAVERSE_DIRS, ...callerExcludeSet]);
+
     async function traverse(currentPath) {
       const entries = await fs.readdir(currentPath, { withFileTypes: true });
 
@@ -306,6 +328,9 @@ export class FileOperations {
         const fullPath = path.join(currentPath, entry.name);
 
         if (entry.isDirectory()) {
+          if (excludeSet.has(entry.name)) {
+            continue;
+          }
           if (options.includeDirectories) {
             results.push(fullPath);
           }

@@ -282,7 +282,15 @@ export {
   shouldRetry,
   mergeRequestOptions,
   AiHelper,
+  defineTool,
 } from './lib/ai_helpers.js';
+
+export {
+  buildSmokeTestPrompt,
+  validateSmokeTestResponse,
+  formatSmokeTestResult,
+  runSdkSmokeTest,
+} from './lib/sdk_smoke_test.js';
 
 export {
   validateWorkflowConfig,

@@ -71,10 +71,8 @@ function buildOptimizer({
 
   const consolidation = {
     generateTimestamp: () => 'ts-test',
-    consolidateDuplicates: () =>
-      Promise.resolve({ archived: [], errors: [] }),
-    archiveOutdatedFiles: () =>
-      Promise.resolve({ archived: [], errors: [] }),
+    consolidateDuplicates: () => Promise.resolve({ archived: [], errors: [] }),
+    archiveOutdatedFiles: () => Promise.resolve({ archived: [], errors: [] }),
     ...extraOptions.consolidation,
   };
 
@@ -88,6 +86,7 @@ function buildOptimizer({
     info: () => {},
     warn: () => {},
     error: () => {},
+    step: () => {},
   };
 
   return new DocumentationOptimizer({

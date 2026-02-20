@@ -16,6 +16,8 @@
  * - Impure wrapper class for I/O operations
  */
 
+import { STEP_KIND } from './step_contract.js';
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -368,6 +370,8 @@ export function formatAnalysisReport(data) {
 // ============================================================================
 
 export class Step14PromptEngineer {
+  static stepKind = STEP_KIND.CONTEXT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || null;
     this.backlogManager = options.backlogManager || null;
@@ -382,7 +386,7 @@ export class Step14PromptEngineer {
    * @returns {Promise<Object>} Analysis results
    */
   async execute(context = {}) {
-    this.logger.info('Step 14: Prompt Engineer Analysis');
+    this.logger.step('Step 14: Prompt Engineer Analysis');
 
     if (this.dryRun) {
       return this._executeDryRun();

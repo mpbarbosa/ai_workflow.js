@@ -8,6 +8,7 @@
 
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
+import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
 
@@ -360,6 +361,8 @@ ${analysisResult}
  * Analyzes UI components for usability, accessibility, and design issues.
  */
 export class Step15UxAnalysis {
+  static stepKind = STEP_KIND.CONTEXT;
+
   /**
    * Create a new Step 15 analyzer
    * @param {Object} options - Configuration options
@@ -386,7 +389,13 @@ export class Step15UxAnalysis {
   async execute(context = {}) {
     const startTime = Date.now();
 
+    // Use projectRoot from context if provided (overrides constructor default)
+    if (context.projectRoot) {
+      this.projectRoot = context.projectRoot;
+    }
+
     try {
+      this.logger.step('Step 15: UX Analysis');
       if (this.dryRun) {
         this.logger.info('[DRY RUN] UX analysis preview:');
         this.logger.info('- Would detect UI files in project');

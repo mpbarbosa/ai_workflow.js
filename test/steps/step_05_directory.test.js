@@ -409,7 +409,7 @@ describe('Step 5: Directory Structure Validation', () => {
     beforeEach(() => {
       mockFileOps = {
         readFile: () => Promise.resolve(''),
-        glob: () => Promise.resolve([]),
+        listDirectory: () => Promise.resolve([]),
       };
 
       mockBacklog = {
@@ -430,14 +430,16 @@ describe('Step 5: Directory Structure Validation', () => {
         gitOps: mockGitOps,
         config: mockConfig,
       });
+
+      // Default: no subdirectories
+      analyzer._listDirsRecursive = () => Promise.resolve([]);
     });
 
     test('executes successfully with no misplaced docs', async () => {
-      mockFileOps.glob = (pattern) => {
-        if (pattern === '*.md') return Promise.resolve(['README.md']);
-        if (pattern === '**/') return Promise.resolve(['src/', 'docs/', 'test/']);
-        return Promise.resolve([]);
-      };
+      mockFileOps.listDirectory = () =>
+        Promise.resolve(['/project/README.md', '/project/package.json']);
+      analyzer._listDirsRecursive = () =>
+        Promise.resolve(['/project/src', '/project/docs', '/project/test']);
 
       mockFileOps.readFile = () => Promise.resolve('Project has src, docs, and test directories');
 
@@ -454,11 +456,14 @@ describe('Step 5: Directory Structure Validation', () => {
     });
 
     test('detects misplaced documentation', async () => {
-      mockFileOps.glob = (pattern) => {
-        if (pattern === '*.md') return Promise.resolve(['README.md', 'GUIDE.md', 'ANALYSIS.md']);
-        if (pattern === '**/') return Promise.resolve(['src/']);
-        return Promise.resolve([]);
-      };
+      mockFileOps.listDirectory = () =>
+        Promise.resolve([
+          '/project/README.md',
+          '/project/GUIDE.md',
+          '/project/ANALYSIS.md',
+          '/project/package.json',
+        ]);
+      analyzer._listDirsRecursive = () => Promise.resolve(['/project/src']);
 
       const result = await analyzer.execute('/project');
 
@@ -467,11 +472,8 @@ describe('Step 5: Directory Structure Validation', () => {
     });
 
     test('detects missing critical directories', async () => {
-      mockFileOps.glob = (pattern) => {
-        if (pattern === '*.md') return Promise.resolve([]);
-        if (pattern === '**/') return Promise.resolve(['src/']);
-        return Promise.resolve([]);
-      };
+      mockFileOps.listDirectory = () => Promise.resolve([]);
+      analyzer._listDirsRecursive = () => Promise.resolve(['/project/src']);
 
       mockConfig.load = () =>
         Promise.resolve({
@@ -491,15 +493,14 @@ describe('Step 5: Directory Structure Validation', () => {
         return Promise.resolve();
       };
 
-      mockFileOps.glob = () => Promise.resolve([]);
-
       await analyzer.execute('/project');
 
       expect(savedTitle).toBe('Directory Structure Validation');
     });
 
     test('handles errors gracefully', async () => {
-      mockFileOps.glob = () => Promise.reject(new Error('File system error'));
+      mockFileOps.listDirectory = () => Promise.reject(new Error('File system error'));
+      analyzer._listDirsRecursive = () => Promise.reject(new Error('File system error'));
 
       // The execute method catches the error in organizeMisplacedDocs
       // and returns success: false would need to be re-thrown

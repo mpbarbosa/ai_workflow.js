@@ -389,6 +389,16 @@ export class AiCache {
       // Update access count in index
       await this._updateAccessCount(cacheKey);
 
+      // Deserialize JSON objects that were stored as strings
+      try {
+        const parsed = JSON.parse(response);
+        if (parsed !== null && typeof parsed === 'object') {
+          return parsed;
+        }
+      } catch {
+        // Not JSON, return raw string
+      }
+
       return response;
     } catch (error) {
       this.metrics.misses++;
@@ -415,8 +425,11 @@ export class AiCache {
     const cacheFile = path.join(this.cacheDir, `${cacheKey}.txt`);
     const metaFile = path.join(this.cacheDir, `${cacheKey}.meta`);
 
+    // Serialize response to string if it's an object
+    const serialized = typeof response === 'string' ? response : JSON.stringify(response);
+
     // Save response
-    await fs.writeFile(cacheFile, response);
+    await fs.writeFile(cacheFile, serialized);
 
     // Save metadata
     const currentTime = Math.floor(Date.now() / 1000);
@@ -424,7 +437,7 @@ export class AiCache {
       cacheKey,
       metadata.prompt || '',
       metadata.context || '',
-      Buffer.byteLength(response),
+      Buffer.byteLength(serialized),
       currentTime,
       metadata
     );

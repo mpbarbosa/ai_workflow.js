@@ -6,6 +6,7 @@
  * Validates project dependencies, checks for vulnerabilities and outdated packages.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -305,6 +306,8 @@ export function formatDependencyReport(results) {
  * Step 9 validator for dependency validation
  */
 export class Step9DependencyValidator {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.executor = options.executor || executor;
     this.fileOps = options.fileOps || new FileOperations();
@@ -320,7 +323,7 @@ export class Step9DependencyValidator {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 9: Dependency Validation');
+      logger.step('Step 9: Dependency Validation');
 
       // Phase 1: Detect language
       const language = await this.detectLanguage(projectRoot);

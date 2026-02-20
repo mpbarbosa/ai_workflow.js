@@ -15,6 +15,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { logger } from '../core/logger.js';
 import { runCommand } from './commands/run.js';
 import { resumeCommand } from './commands/resume.js';
 import { statusCommand } from './commands/status.js';
@@ -74,6 +75,18 @@ export function validateCliArgs(args) {
 // ============================================================================
 
 /**
+ * Apply global CLI options to the logger instance
+ * @pure
+ * @param {Object} opts - Global program options (from program.opts())
+ * @param {Object} loggerInstance - Logger instance to configure
+ * @returns {void}
+ */
+export function applyGlobalOptions(opts, loggerInstance) {
+  loggerInstance.verbose = opts.verbose || false;
+  loggerInstance.quiet = opts.quiet || false;
+}
+
+/**
  * Create and configure the CLI program
  * @returns {Command} Configured commander program
  */
@@ -95,6 +108,11 @@ export function createProgram() {
     .option('--no-color', 'Disable colored output')
     .option('--config <path>', 'Path to configuration file', '.workflow-config.yaml');
 
+  // Apply global options to logger before any command action
+  program.hook('preAction', () => {
+    applyGlobalOptions(program.opts(), logger);
+  });
+
   // Run command
   program
     .command('run')
@@ -102,6 +120,10 @@ export function createProgram() {
     .option('--stage <stage>', 'Workflow stage (quick, medium, full)', 'full')
     .option('--auto', 'Run in automatic mode without prompts', false)
     .option('--dry-run', 'Preview execution without running', false)
+    .option('--project-root <path>', 'Project root directory')
+    .option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
+    .option('--no-parallel', 'Disable parallel step execution')
+    .option('--sdk-smoke-test', 'Run a Copilot API smoke test before starting the workflow', false)
     .action((options) => {
       const globalOpts = program.opts();
       runCommand({ ...options, ...globalOpts });
@@ -198,4 +220,4 @@ export async function cli(argv) {
   }
 }
 
-export default { cli, createProgram, createProgramConfig, validateCliArgs };
+export default { cli, createProgram, createProgramConfig, validateCliArgs, applyGlobalOptions };

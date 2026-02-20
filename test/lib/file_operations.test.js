@@ -385,6 +385,12 @@ describe('FileOperations Integration Tests', () => {
       });
       expect(entries.length).toBeGreaterThan(4);
     });
+
+    test('excludes specified directories', async () => {
+      await fileOps.writeFile(path.join(tempDir, 'node_modules', 'pkg', 'index.js'), 'content');
+      const files = await fileOps.listDirectoryRecursive(tempDir, { exclude: ['node_modules'] });
+      expect(files.every((f) => !f.includes('node_modules'))).toBe(true);
+    });
   });
 
   describe('copyFile', () => {

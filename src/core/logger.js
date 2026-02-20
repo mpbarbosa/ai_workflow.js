@@ -6,7 +6,7 @@
  * Part of: AI Workflow Automation v1.0.0
  */
 
-import { colorize, colors } from './colors.js';
+import { colorize, colors, supportsColor } from './colors.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -95,6 +95,32 @@ export class Logger {
   }
 
   /**
+   * Log a step header - visually prominent banner marking the start of a workflow step.
+   * Always written to file; respects the quiet flag for console output.
+   * @param {string} title - Step title (e.g. 'Step 1: AI-Powered Documentation Updates')
+   */
+  step(title) {
+    const separator = '═'.repeat(60);
+    const headerText = `🔷  ${title}`;
+    if (!this.quiet) {
+      if (supportsColor()) {
+        const sep = `${colors.bold}${colors.brightMagenta}${separator}${colors.reset}`;
+        const hdr = `${colors.bold}${colors.brightMagenta}${headerText}${colors.reset}`;
+        console.log(sep);
+        console.log(hdr);
+        console.log(sep);
+      } else {
+        console.log(separator);
+        console.log(headerText);
+        console.log(separator);
+      }
+    }
+    this._writeFile(separator);
+    this._writeFile(headerText);
+    this._writeFile(separator);
+  }
+
+  /**
    * Log debug message (only in verbose mode)
    */
   debug(message) {
@@ -175,10 +201,18 @@ export class Logger {
     const timestamp = new Date().toISOString();
     const line = `[${timestamp}] ${stripAnsi(formatted)}\n`;
     if (this._logStream) {
-      try { this._logStream.write(line); } catch { /* ignore */ }
+      try {
+        this._logStream.write(line);
+      } catch {
+        /* ignore */
+      }
     }
     if (this._stepLogStream) {
-      try { this._stepLogStream.write(line); } catch { /* ignore */ }
+      try {
+        this._stepLogStream.write(line);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

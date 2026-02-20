@@ -6,6 +6,7 @@
  * Analyzes workflow context and provides strategic recommendations.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -293,6 +294,8 @@ export function formatContextReport(context) {
  * Step 11 analyzer for context analysis
  */
 export class Step11ContextAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -308,7 +311,7 @@ export class Step11ContextAnalyzer {
    */
   async execute(projectRoot, workflowContext = {}) {
     try {
-      logger.info('Step 11: Context Analysis');
+      logger.step('Step 11: Context Analysis');
 
       // Phase 1: Analyze workflow completion
       const { completedSteps = 0, totalSteps = 11 } = workflowContext;

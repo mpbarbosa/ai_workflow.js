@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "created": "2026-02-20T21:00:57.000Z",
+  "createdEpoch": 1771621257,
+  "lastCleanup": "2026-02-20T21:00:57.000Z",
+  "lastCleanupEpoch": 1771621257,
+  "entries": [
+    {
+      "cacheKey": "5324f4b5dffa296ff153ac54f91f09ed2a29e7711366f3ee18df4947a01244a0",
+      "created": "2026-02-20T21:27:45.000Z",
+      "lastAccessed": "2026-02-20T21:27:45.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "83cdcc7f3343cd31941462aea6175b5d6a7970399413712505cfdac3f06ac4d0",
+      "created": "2026-02-20T21:27:48.000Z",
+      "lastAccessed": "2026-02-20T21:27:48.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "684e6e53351b1cba586406f368e60151828d331191c65ceb2b5edca1a6b2d610",
+      "created": "2026-02-20T22:24:28.000Z",
+      "lastAccessed": "2026-02-20T22:24:28.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "45a9e2f1f4926886d5b61071216f1dcfedc52ea7085cff5aa5808424add20a6f",
+      "created": "2026-02-20T22:24:32.000Z",
+      "lastAccessed": "2026-02-20T22:24:32.000Z",
+      "accessCount": 1
+    }
+  ]
+}

@@ -16,6 +16,8 @@
  * - Impure wrapper class for I/O operations
  */
 
+import { STEP_KIND } from './step_contract.js';
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -379,6 +381,8 @@ export function determineLintStatus(stats) {
 // ============================================================================
 
 export class Step13MarkdownLint {
+  static stepKind = STEP_KIND.CONTEXT;
+
   constructor(options = {}) {
     this.executor = options.executor || null;
     this.fileOps = options.fileOps || null;
@@ -393,7 +397,7 @@ export class Step13MarkdownLint {
    * @returns {Promise<Object>} Linting results
    */
   async execute(_context = {}) {
-    this.logger.info('Step 13: Markdown Linting');
+    this.logger.step('Step 13: Markdown Linting');
 
     if (this.dryRun) {
       return this._executeDryRun();

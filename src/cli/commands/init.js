@@ -14,12 +14,12 @@
  * @since 2026-02-10
  */
 
+import path from 'path';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import yaml from 'js-yaml';
 import { logger } from '../../core/logger.js';
 import { FileOperations } from '../../lib/file_operations.js';
-import { Config } from '../../lib/config.js';
 import { TechStackDetector } from '../../lib/tech_stack.js';
 import { ProjectKindDetector } from '../../lib/project_kind_detection.js';
 
@@ -455,7 +455,7 @@ async function createWorkflowDirectories(projectRoot) {
   ];
 
   for (const dir of directories) {
-    await fileOps.createDirectory(dir, { recursive: true });
+    await fileOps.createDirectory(path.join(projectRoot, dir), { recursive: true });
   }
 }
 
@@ -559,8 +559,8 @@ export async function initCommand(options) {
     }
 
     // Write config file
-    const configManager = new Config(configPath);
-    await configManager.save(config);
+    const yamlContent = yaml.dump(config, { lineWidth: -1, noRefs: true });
+    await fileOps.writeFile(configPath, yamlContent);
     console.log(chalk.green(`✓ Created ${configPath}`));
 
     // Create directories

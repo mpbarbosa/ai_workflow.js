@@ -479,6 +479,17 @@ export class Step1IncrementalProcessor {
   }
 
   /**
+   * Detect documentation files that have changed since last run
+   * @async
+   * @param {Array<string>} files - Current documentation files
+   * @returns {Promise<Array<string>>} Changed (added/modified) file paths
+   */
+  async detectChangedDocs(files) {
+    const result = await this.getFilesToValidate(files);
+    return result.files;
+  }
+
+  /**
    * Get cache statistics
    * @returns {Object} Cache statistics
    */

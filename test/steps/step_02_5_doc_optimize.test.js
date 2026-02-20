@@ -178,7 +178,7 @@ describe('DocumentationOptimizer - Integration', () => {
       consolidation: mockConsolidation,
       reporting: mockReporting,
       aiAnalyzer: mockAiAnalyzer,
-      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), step: jest.fn() },
     });
   });
 

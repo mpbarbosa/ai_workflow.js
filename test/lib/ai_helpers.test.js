@@ -11,6 +11,8 @@ import {
   calculateRetryDelay,
   shouldRetry,
   mergeRequestOptions,
+  validateAiHelperState,
+  AiHelper,
 } from '../../src/lib/ai_helpers.js';
 
 describe('AI Helpers Module - Pure Functions', () => {
@@ -343,7 +345,7 @@ describe('AI Helpers Module - Pure Functions', () => {
     test('uses defaults for missing options', () => {
       const result = mergeRequestOptions();
 
-      expect(result.model).toBe('gpt-4');
+      expect(result.model).toBe('gpt-4.1');
       expect(result.temperature).toBe(0.7);
       expect(result.maxTokens).toBe(4000);
     });
@@ -403,3 +405,277 @@ describe('AI Helpers Module - Pure Functions', () => {
 
 // Note: AiHelper class integration tests are skipped due to SDK mocking complexity
 // The class will be tested via integration tests with real or stubbed SDK in Phase 6 Day 10
+
+// ==============================================================================
+// validateAiHelperState — pure function tests
+// ==============================================================================
+
+// Minimal valid inputs used as baselines across all tests
+const validConfig = {
+  model: 'gpt-4',
+  maxRetries: 3,
+  cache: true,
+  timeout: 30_000,
+  baseDelay: 1_000,
+  maxDelay: 30_000,
+  promptsDir: null,
+};
+
+const freshState = {
+  initialized: false,
+  available: false,
+  authenticated: false,
+  client: null,
+  session: null,
+  _promptCounter: 0,
+};
+
+const readyState = {
+  initialized: true,
+  available: true,
+  authenticated: true,
+  client: { id: 'client-1' },
+  session: { id: 'session-1' },
+  _promptCounter: 0,
+};
+
+describe('validateAiHelperState (pure)', () => {
+  describe('returns consistent for valid inputs', () => {
+    test('fresh (uninitialized) state passes', () => {
+      const result = validateAiHelperState(validConfig, freshState);
+      expect(result.consistent).toBe(true);
+      expect(result.issues).toHaveLength(0);
+      expect(result.config.valid).toBe(true);
+      expect(result.state.valid).toBe(true);
+    });
+
+    test('fully initialized and authenticated state passes', () => {
+      const result = validateAiHelperState(validConfig, readyState);
+      expect(result.consistent).toBe(true);
+      expect(result.issues).toHaveLength(0);
+    });
+
+    test('promptsDir as a non-empty string passes', () => {
+      const cfg = { ...validConfig, promptsDir: '/logs/prompts' };
+      const result = validateAiHelperState(cfg, freshState);
+      expect(result.consistent).toBe(true);
+    });
+
+    test('all valid alternate models pass', () => {
+      for (const model of ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-5-sonnet']) {
+        const result = validateAiHelperState({ ...validConfig, model }, freshState);
+        expect(result.consistent).toBe(true);
+      }
+    });
+  });
+
+  describe('config validation', () => {
+    test('rejects missing model', () => {
+      const result = validateAiHelperState({ ...validConfig, model: '' }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.valid).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('model'))).toBe(true);
+    });
+
+    test('rejects non-string model', () => {
+      const result = validateAiHelperState({ ...validConfig, model: 42 }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('model'))).toBe(true);
+    });
+
+    test('rejects unknown model name', () => {
+      const result = validateAiHelperState({ ...validConfig, model: 'unknown-model' }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('unknown-model'))).toBe(true);
+    });
+
+    test('rejects maxRetries of 0', () => {
+      const result = validateAiHelperState({ ...validConfig, maxRetries: 0 }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('maxRetries'))).toBe(true);
+    });
+
+    test('rejects non-integer maxRetries', () => {
+      const result = validateAiHelperState({ ...validConfig, maxRetries: 1.5 }, freshState);
+      expect(result.consistent).toBe(false);
+    });
+
+    test('rejects non-boolean cache', () => {
+      const result = validateAiHelperState({ ...validConfig, cache: 'yes' }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('cache'))).toBe(true);
+    });
+
+    test('rejects timeout below minimum', () => {
+      const result = validateAiHelperState({ ...validConfig, timeout: 500 }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('timeout'))).toBe(true);
+    });
+
+    test('rejects timeout above maximum', () => {
+      const result = validateAiHelperState({ ...validConfig, timeout: 400_000 }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('timeout'))).toBe(true);
+    });
+
+    test('rejects maxDelay less than baseDelay', () => {
+      const result = validateAiHelperState(
+        { ...validConfig, baseDelay: 5_000, maxDelay: 1_000 },
+        freshState
+      );
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('maxDelay'))).toBe(true);
+    });
+
+    test('rejects empty string promptsDir', () => {
+      const result = validateAiHelperState({ ...validConfig, promptsDir: '' }, freshState);
+      expect(result.consistent).toBe(false);
+      expect(result.config.issues.some((i) => i.includes('promptsDir'))).toBe(true);
+    });
+
+    test('rejects non-string non-null promptsDir', () => {
+      const result = validateAiHelperState({ ...validConfig, promptsDir: 123 }, freshState);
+      expect(result.consistent).toBe(false);
+    });
+
+    test('accumulates multiple config issues', () => {
+      const result = validateAiHelperState(
+        { ...validConfig, model: '', maxRetries: 0, cache: 'yes' },
+        freshState
+      );
+      expect(result.config.issues.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('state validation', () => {
+    test('rejects authenticated=true when available=false', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...freshState,
+        initialized: true,
+        authenticated: true,
+        available: false,
+      });
+      expect(result.consistent).toBe(false);
+      expect(result.state.issues.some((i) => i.includes('authenticated'))).toBe(true);
+    });
+
+    test('rejects available=true with null client', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...readyState,
+        client: null,
+      });
+      expect(result.consistent).toBe(false);
+      expect(result.state.issues.some((i) => i.includes('client'))).toBe(true);
+    });
+
+    test('rejects available=true with null session', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...readyState,
+        session: null,
+      });
+      expect(result.consistent).toBe(false);
+      expect(result.state.issues.some((i) => i.includes('session'))).toBe(true);
+    });
+
+    test('rejects non-initialized state with a live session', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...freshState,
+        initialized: false,
+        session: { id: 'ghost' },
+      });
+      expect(result.consistent).toBe(false);
+      expect(result.state.issues.some((i) => i.includes('not initialized'))).toBe(true);
+    });
+
+    test('rejects negative _promptCounter', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...freshState,
+        _promptCounter: -1,
+      });
+      expect(result.consistent).toBe(false);
+      expect(result.state.issues.some((i) => i.includes('_promptCounter'))).toBe(true);
+    });
+
+    test('rejects non-integer _promptCounter', () => {
+      const result = validateAiHelperState(validConfig, {
+        ...freshState,
+        _promptCounter: 2.5,
+      });
+      expect(result.consistent).toBe(false);
+    });
+  });
+
+  describe('result structure', () => {
+    test('always returns the four expected keys', () => {
+      const result = validateAiHelperState(validConfig, freshState);
+      expect(result).toHaveProperty('consistent');
+      expect(result).toHaveProperty('issues');
+      expect(result).toHaveProperty('config');
+      expect(result).toHaveProperty('state');
+    });
+
+    test('config and state sub-objects have valid and issues', () => {
+      const result = validateAiHelperState(validConfig, freshState);
+      expect(result.config).toHaveProperty('valid');
+      expect(result.config).toHaveProperty('issues');
+      expect(result.state).toHaveProperty('valid');
+      expect(result.state).toHaveProperty('issues');
+    });
+
+    test('top-level issues is union of config and state issues', () => {
+      const badConfig = { ...validConfig, model: '' };
+      const badState = { ...freshState, _promptCounter: -1 };
+      const result = validateAiHelperState(badConfig, badState);
+      expect(result.issues.length).toBe(result.config.issues.length + result.state.issues.length);
+    });
+
+    test('is deterministic — same inputs always produce same output', () => {
+      const r1 = validateAiHelperState(validConfig, freshState);
+      const r2 = validateAiHelperState(validConfig, freshState);
+      expect(r1).toEqual(r2);
+    });
+  });
+});
+
+// ==============================================================================
+// AiHelper#checkConsistency — instance method tests (no SDK, no I/O)
+// ==============================================================================
+
+describe('AiHelper#checkConsistency', () => {
+  test('returns consistent for a freshly constructed instance', () => {
+    const helper = new AiHelper({ model: 'gpt-4' });
+    const result = helper.checkConsistency();
+    expect(result.consistent).toBe(true);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  test('reflects config issue when constructed with an invalid model', () => {
+    const helper = new AiHelper({ model: 'unsupported-model-xyz' });
+    const result = helper.checkConsistency();
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('unsupported-model-xyz'))).toBe(true);
+  });
+
+  test('reflects config issue when maxRetries is corrupted to 0 after construction', () => {
+    const helper = new AiHelper({ model: 'gpt-4' });
+    helper.config.maxRetries = 0; // simulate config corruption at runtime
+    const result = helper.checkConsistency();
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('maxRetries'))).toBe(true);
+  });
+
+  test('state is coherent before initialize() is called', () => {
+    const helper = new AiHelper({ model: 'gpt-4' });
+    const result = helper.checkConsistency();
+    expect(result.state.valid).toBe(true);
+  });
+
+  test('returns same structure as validateAiHelperState', () => {
+    const helper = new AiHelper({ model: 'gpt-4' });
+    const result = helper.checkConsistency();
+    expect(result).toHaveProperty('consistent');
+    expect(result).toHaveProperty('issues');
+    expect(result).toHaveProperty('config');
+    expect(result).toHaveProperty('state');
+  });
+});

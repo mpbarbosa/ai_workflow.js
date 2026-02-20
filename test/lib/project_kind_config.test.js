@@ -493,4 +493,41 @@ project_kinds:
     manager.clearCache();
     expect(manager.configCache.size).toBe(0);
   });
+
+  it('should get project kind from .workflow-config.yaml', async () => {
+    // Create a test .workflow-config.yaml in project root
+    const configPath = path.join(tempDir, '.workflow-config.yaml');
+    const configContent = `project:
+  name: 'test-project'
+  kind: 'cli_tool'
+  version: '1.0.0'`;
+
+    await fs.writeFile(configPath, configContent, 'utf-8');
+
+    const projectKind = await manager.getProjectKind();
+    expect(projectKind).toBe('cli_tool');
+
+    // Cleanup
+    await fs.unlink(configPath);
+  });
+
+  it('should return null when .workflow-config.yaml does not exist', async () => {
+    const projectKind = await manager.getProjectKind();
+    expect(projectKind).toBeNull();
+  });
+
+  it('should return null when project.kind is not in config', async () => {
+    const configPath = path.join(tempDir, '.workflow-config.yaml');
+    const configContent = `project:
+  name: 'test-project'
+  version: '1.0.0'`;
+
+    await fs.writeFile(configPath, configContent, 'utf-8');
+
+    const projectKind = await manager.getProjectKind();
+    expect(projectKind).toBeNull();
+
+    // Cleanup
+    await fs.unlink(configPath);
+  });
 });

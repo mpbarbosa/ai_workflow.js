@@ -428,4 +428,37 @@ export class ProjectKindConfigManager {
 
     return Object.keys(parsed.project_kinds);
   }
+
+  /**
+   * Get project kind from .workflow-config.yaml
+   * @returns {Promise<string|null>} Project kind or null if not found/configured
+   */
+  async getProjectKind() {
+    const configPath = path.join(this.projectRoot, '.workflow-config.yaml');
+
+    try {
+      const exists = await this.fileOps.exists(configPath);
+      if (!exists) {
+        if (this.verbose) {
+          logger.info('.workflow-config.yaml not found, project kind not configured');
+        }
+        return null;
+      }
+
+      const content = await this.fileOps.readFile(configPath);
+      const parsed = parseYaml(content);
+
+      if (!parsed || !parsed.project || !parsed.project.kind) {
+        if (this.verbose) {
+          logger.info('project.kind not found in .workflow-config.yaml');
+        }
+        return null;
+      }
+
+      return parsed.project.kind;
+    } catch (error) {
+      logger.error(`Error reading .workflow-config.yaml: ${error.message}`);
+      return null;
+    }
+  }
 }

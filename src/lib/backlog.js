@@ -179,6 +179,10 @@ export class Backlog {
    * @returns {Promise<string>} Path to summary file
    */
   async createWorkflowSummary({ workflowStatus, analysisContext, dryRun = false }) {
+    if (!this.config?.backlogRunDir) {
+      return null;
+    }
+
     const summaryFile = path.join(this.config.backlogRunDir, 'WORKFLOW_SUMMARY.md');
 
     if (dryRun) {
@@ -213,6 +217,10 @@ export class Backlog {
    * @returns {Promise<string>} Path to report file
    */
   async createStepReport(stepNumber, reportData) {
+    if (!this.config?.backlogRunDir) {
+      return null;
+    }
+
     const reportFile = path.join(
       this.config.backlogRunDir,
       `step_${String(stepNumber).padStart(2, '0')}.md`
@@ -233,6 +241,10 @@ export class Backlog {
    * @returns {Promise<Array>} List of workflow run IDs
    */
   async listWorkflowRuns() {
+    if (!this.config?.backlogDir) {
+      return [];
+    }
+
     try {
       const entries = await fs.readdir(this.config.backlogDir, {
         withFileTypes: true,

@@ -179,7 +179,7 @@ export class Step1DocumentationAnalyzer {
    */
   async execute(projectRoot, options = {}) {
     try {
-      logger.info('Step 1: AI-Powered Documentation Updates');
+      logger.step('Step 1: AI-Powered Documentation Updates');
 
       // Phase 1: Detect changes
       const changedFiles = await this.gitOps.getModifiedFiles();

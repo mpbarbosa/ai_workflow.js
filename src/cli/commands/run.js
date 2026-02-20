@@ -61,6 +61,8 @@ export function createOrchestratorOptions(cliOptions) {
     stage: cliOptions.stage || WORKFLOW_STAGES.FULL,
     auto: cliOptions.auto || false,
     dryRun: cliOptions.dryRun || false,
+    noParallel: cliOptions.parallel === false,
+    sdkSmokeTest: cliOptions.sdkSmokeTest || false,
   };
 }
 
@@ -99,6 +101,7 @@ export function formatWorkflowResult(result) {
  */
 export async function runCommand(options) {
   let spinner = null;
+  let onSigint = null;
 
   try {
     // Validate options
@@ -126,6 +129,14 @@ export async function runCommand(options) {
     const orchestratorOptions = createOrchestratorOptions(options);
     const orchestrator = new MainOrchestrator(orchestratorOptions);
 
+    // Handle Ctrl+C: abort gracefully after the current step finishes
+    onSigint = () => {
+      console.log(chalk.yellow('\n\n⚠ Interrupt received — stopping after current step...'));
+      if (spinner) spinner.warn('Stopping...');
+      orchestrator.abort();
+    };
+    process.once('SIGINT', onSigint);
+
     // Setup spinner for non-verbose mode
     if (!options.verbose && !options.dryRun) {
       spinner = ora('Initializing workflow...').start();
@@ -134,9 +145,14 @@ export async function runCommand(options) {
     // Execute workflow
     const result = await orchestrator.execute();
 
+    // Remove SIGINT listener — workflow has finished
+    process.removeListener('SIGINT', onSigint);
+
     // Stop spinner
     if (spinner) {
-      if (result.success) {
+      if (result.aborted) {
+        spinner.warn('Workflow stopped by user');
+      } else if (result.success) {
         spinner.succeed('Workflow completed');
       } else {
         spinner.fail('Workflow failed');
@@ -145,13 +161,17 @@ export async function runCommand(options) {
 
     // Display result
     console.log();
-    const resultMessage = formatWorkflowResult(result);
-    if (result.success) {
-      console.log(chalk.green(`✓ ${resultMessage}`));
+    if (result.aborted) {
+      console.log(chalk.yellow('⚠ Workflow stopped by user (Ctrl+C)'));
     } else {
-      console.log(chalk.red(`✗ ${resultMessage}`));
-      if (result.error) {
-        console.log(chalk.red(`  Error: ${result.error}`));
+      const resultMessage = formatWorkflowResult(result);
+      if (result.success) {
+        console.log(chalk.green(`✓ ${resultMessage}`));
+      } else {
+        console.log(chalk.red(`✗ ${resultMessage}`));
+        if (result.error) {
+          console.log(chalk.red(`  Error: ${result.error}`));
+        }
       }
     }
 
@@ -165,8 +185,11 @@ export async function runCommand(options) {
     console.log();
 
     // Exit with appropriate code
-    process.exit(result.success ? 0 : 1);
+    process.exit(result.aborted ? 130 : result.success ? 0 : 1);
   } catch (error) {
+    // Remove SIGINT listener on error path
+    process.removeListener('SIGINT', onSigint);
+
     // Stop spinner on error
     if (spinner) {
       spinner.fail('Workflow failed');

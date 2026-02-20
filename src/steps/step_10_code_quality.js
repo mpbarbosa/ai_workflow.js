@@ -355,7 +355,7 @@ export class Step10CodeQualityAnalyzer {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 10: Code Quality Analysis');
+      logger.step('Step 10: Code Quality Analysis');
 
       // Phase 1: Detect language
       const language = await this.detectLanguage(projectRoot);

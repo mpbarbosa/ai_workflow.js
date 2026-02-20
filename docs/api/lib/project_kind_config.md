@@ -1,7 +1,7 @@
 # Project Kind Configuration API
 
 **Module:** `lib/project_kind_config`  
-**Version:** 1.0.0  
+**Version:** 2.0.0  
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -11,7 +11,7 @@ The Project Kind Configuration module loads and manages project kind configurati
 ### Key Features
 
 - **YAML Configuration**: Loads from `.workflow_core/config/project_kinds.yaml`
-- **8 Project Kinds**: Complete configuration for all supported project types
+- **9 Project Kinds**: Complete configuration for all supported project types
 - **Configuration Merging**: Combines base config with user overrides
 - **Section Extraction**: Access specific config sections (validation, testing, quality, etc.)
 - **Validation Rules**: Project structure validation against expected patterns
@@ -41,7 +41,7 @@ Each project kind includes:
 
 **Impure Wrapper:**
 
-- `ProjectKindConfig` class - Configuration management with file I/O
+- `ProjectKindConfigManager` class - Configuration management with file I/O
 
 ---
 
@@ -49,7 +49,7 @@ Each project kind includes:
 
 ```javascript
 import {
-  ProjectKindConfig,
+  ProjectKindConfigManager,
   parseYaml,
   extractProjectKindConfig,
   mergeConfigurations,
@@ -182,9 +182,9 @@ Validates project structure against validation rules.
 **Returns:** Object with:
 
 - `valid` (boolean) - True if all required items present
-- `missing` (Array<string>) - Missing required items
-- `recommendations` (Array<string>) - Missing recommended items
-- `unexpected` (Array<string>) - Present but not expected
+- `missingFiles` (Array<string>) - Missing required files
+- `missingDirs` (Array<string>) - Missing required directories
+- `errors` (Array<string>) - Validation errors
 
 **Pure:** ✅ Deterministic, no side effects
 
@@ -202,9 +202,9 @@ const rules = {
 const result = validateProjectStructure(files, dirs, rules);
 // => {
 //   valid: true,
-//   missing: [],
-//   recommendations: ['LICENSE'],
-//   unexpected: []
+//   missingFiles: [],
+//   missingDirs: [],
+//   errors: []
 // }
 ```
 
@@ -238,14 +238,14 @@ const testingConfig = extractConfigSection(config, 'testing');
 
 ---
 
-## ProjectKindConfig Class
+## ProjectKindConfigManager Class
 
 Wrapper class for project kind configuration management with file I/O.
 
 ### Constructor
 
 ```javascript
-const manager = new ProjectKindConfig(options);
+const manager = new ProjectKindConfigManager(options);
 ```
 
 **Options:**
@@ -258,7 +258,7 @@ const manager = new ProjectKindConfig(options);
 **Example:**
 
 ```javascript
-const manager = new ProjectKindConfig({
+const manager = new ProjectKindConfigManager({
   projectRoot: '/path/to/project',
   verbose: true,
 });
@@ -402,23 +402,118 @@ console.log('Coverage:', testing.coverage_threshold); // => 80
 
 ---
 
-#### `async getQualityConfig(projectKind)`
+#### `async getQualityStandards(projectKind)`
 
-Gets quality configuration for project kind.
+Gets quality standards for project kind.
 
 **Parameters:**
 
 - `projectKind` (string) - Project kind identifier
 
-**Returns:** Promise<Object | null> - Quality configuration section
+**Returns:** Promise<Object | null> - Quality standards section
 
 **Example:**
 
 ```javascript
-const quality = await manager.getQualityConfig('nodejs_api');
+const quality = await manager.getQualityStandards('nodejs_api');
 
 console.log('Linters:', quality.linters); // => ['eslint']
 console.log('Formatters:', quality.formatters); // => ['prettier']
+```
+
+---
+
+#### `async getAIGuidance(projectKind)`
+
+Gets AI guidance for project kind.
+
+**Parameters:**
+
+- `projectKind` (string) - Project kind identifier
+
+**Returns:** Promise<Object | null> - AI guidance section
+
+**Example:**
+
+```javascript
+const aiGuidance = await manager.getAIGuidance('nodejs_api');
+
+console.log('Focus areas:', aiGuidance.focus_areas);
+console.log('Best practices:', aiGuidance.best_practices);
+```
+
+---
+
+#### `async getDeploymentConfig(projectKind)`
+
+Gets deployment configuration for project kind.
+
+**Parameters:**
+
+- `projectKind` (string) - Project kind identifier
+
+**Returns:** Promise<Object | null> - Deployment configuration section
+
+**Example:**
+
+```javascript
+const deployment = await manager.getDeploymentConfig('nodejs_api');
+
+console.log('Platform:', deployment.platform);
+console.log('Scripts:', deployment.scripts);
+```
+
+---
+
+#### `async validateProject(projectKind)`
+
+Validates project structure against project kind rules.
+
+**Parameters:**
+
+- `projectKind` (string) - Project kind identifier
+
+**Returns:** Promise<Object> - Validation result with `{ valid, missingFiles, missingDirs, errors }` or `{ valid: false, error }`
+
+**Side Effects:**
+
+- Reads project directory structure from disk
+- Filters excluded patterns (node_modules, .git, dist, build, .ai_workflow, .workflow_core)
+
+**Example:**
+
+```javascript
+const result = await manager.validateProject('nodejs_api');
+
+if (result.valid) {
+  console.log('✓ Project structure is valid');
+} else if (result.error) {
+  console.error('✗ Validation error:', result.error);
+} else {
+  console.log('✗ Missing files:', result.missingFiles);
+  console.log('✗ Missing directories:', result.missingDirs);
+}
+```
+
+---
+
+#### `async getSupportedProjectKinds()`
+
+Gets all supported project kinds from project_kinds.yaml.
+
+**Returns:** Promise<Array<string>> - List of project kind names
+
+**Side Effects:**
+
+- Reads project_kinds.yaml from disk
+
+**Example:**
+
+```javascript
+const kinds = await manager.getSupportedProjectKinds();
+
+console.log('Supported project kinds:', kinds);
+// => ['nodejs_api', 'react_spa', 'python_app', 'shell_script_automation', ...]
 ```
 
 ---
@@ -438,14 +533,59 @@ manager.clearCache();
 
 ---
 
+#### `getProjectKind()`
+
+Gets the project kind from `.workflow-config.yaml`.
+
+**Returns:** Promise<string|null> - Project kind or null if not found/configured
+
+**Side Effects:** Reads `.workflow-config.yaml` from disk
+
+**Example:**
+
+```javascript
+const projectKind = await manager.getProjectKind();
+if (projectKind) {
+  console.log('Project kind:', projectKind);
+  // => "cli_tool"
+} else {
+  console.log('Project kind not configured');
+}
+```
+
+**Configuration File Format:**
+
+The `.workflow-config.yaml` file should have the following structure:
+
+```yaml
+project:
+  name: 'my-project'
+  kind: 'cli_tool' # Project kind identifier
+  version: '1.0.0'
+```
+
+**Supported Project Kinds:**
+
+- `nodejs_api` - Node.js REST API
+- `react_spa` - React Single Page Application
+- `python_app` - Python Application
+- `shell_script_automation` - Shell Script Automation
+- `static_website` - Static Website
+- `client_spa` - Client-Side Single Page Application
+- `configuration_library` - Configuration Library
+- `cli_tool` - Command Line Interface Tool
+- `generic` - Generic Project
+
+---
+
 ## Usage Examples
 
 ### Loading Project Configuration
 
 ```javascript
-import { ProjectKindConfig } from 'ai_workflow.js/lib/project_kind_config';
+import { ProjectKindConfigManager } from 'ai_workflow.js/lib/project_kind_config';
 
-const manager = new ProjectKindConfig({
+const manager = new ProjectKindConfigManager({
   projectRoot: '/path/to/project',
 });
 
@@ -462,7 +602,7 @@ console.log('Linters:', config.quality.linters);
 ### Merging User Overrides
 
 ```javascript
-const manager = new ProjectKindConfig();
+const manager = new ProjectKindConfigManager();
 
 // User's custom configuration
 const userConfig = {
@@ -486,7 +626,7 @@ console.log('Max complexity:', config.quality.max_complexity); // => 15
 ```javascript
 import { validateProjectStructure } from 'ai_workflow.js/lib/project_kind_config';
 
-const manager = new ProjectKindConfig();
+const manager = new ProjectKindConfigManager();
 
 // Get validation rules
 const rules = await manager.getValidationRules('nodejs_api');
@@ -500,26 +640,23 @@ const validation = validateProjectStructure(files, dirs, rules);
 if (validation.valid) {
   console.log('✓ Project structure is valid');
 } else {
-  console.log('✗ Missing required items:', validation.missing);
-}
-
-if (validation.recommendations.length > 0) {
-  console.log('⚠ Recommended items:', validation.recommendations);
+  console.log('✗ Missing required files:', validation.missingFiles);
+  console.log('✗ Missing required directories:', validation.missingDirs);
 }
 ```
 
 ### Accessing Specific Configuration Sections
 
 ```javascript
-const manager = new ProjectKindConfig();
+const manager = new ProjectKindConfigManager();
 
 // Get testing configuration
 const testing = await manager.getTestingConfig('react_spa');
 console.log('Test framework:', testing.framework);
 console.log('Coverage threshold:', testing.coverage_threshold);
 
-// Get quality configuration
-const quality = await manager.getQualityConfig('react_spa');
+// Get quality standards
+const quality = await manager.getQualityStandards('react_spa');
 console.log('Linters:', quality.linters);
 console.log('Formatters:', quality.formatters);
 
@@ -534,7 +671,7 @@ console.log('Output directory:', build.output_dir);
 
 ```javascript
 import { ProjectKindDetector } from 'ai_workflow.js/lib/project_kind_detection';
-import { ProjectKindConfig } from 'ai_workflow.js/lib/project_kind_config';
+import { ProjectKindConfigManager } from 'ai_workflow.js/lib/project_kind_config';
 
 async function loadConfigForProject(projectRoot) {
   // Detect project kind
@@ -544,7 +681,7 @@ async function loadConfigForProject(projectRoot) {
   console.log(`Detected: ${detection.kind} (${detection.confidence}% confidence)`);
 
   // Load configuration for detected kind
-  const manager = new ProjectKindConfig({ projectRoot });
+  const manager = new ProjectKindConfigManager({ projectRoot });
   const config = await manager.loadConfig(detection.kind);
 
   return {
@@ -585,7 +722,7 @@ console.log('Test framework:', config.testing.framework);
 ### Configuration Caching
 
 ```javascript
-const manager = new ProjectKindConfig({ verbose: true });
+const manager = new ProjectKindConfigManager({ verbose: true });
 
 // First call - loads from disk
 const config1 = await manager.loadConfig('nodejs_api');
@@ -623,5 +760,5 @@ const config3 = await manager.loadConfig('nodejs_api');
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-20  
 **Author:** AI Workflow Team

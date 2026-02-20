@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -348,6 +349,8 @@ export function formatConfigReport(results) {
  * Step 4 analyzer for configuration validation
  */
 export class Step4ConfigAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -362,7 +365,7 @@ export class Step4ConfigAnalyzer {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 4: Configuration Validation');
+      logger.step('Step 4: Configuration Validation');
 
       // Phase 1: Discover configuration files
       const configFiles = await this.discoverConfigFiles(projectRoot);

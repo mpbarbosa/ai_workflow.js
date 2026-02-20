@@ -128,6 +128,28 @@ describe('Project Kind Detection - Pure Functions', () => {
   });
 
   describe('detectByFilePatterns', () => {
+    it('should detect aws_lbs_backend_setup from aws-config.json + shell + JS', () => {
+      const files = [
+        'setup-aws-lbs.sh',
+        'deploy-backend.sh',
+        'setup-aws-infrastructure.sh',
+        'index.js',
+        'index.js',
+        'aws-config.json',
+        'package.json',
+        'package.json',
+        'README.md',
+        'README.md',
+      ];
+
+      const result = detectByFilePatterns(files);
+
+      expect(result.kind).toBe('aws_lbs_backend_setup');
+      expect(result.confidence).toBeGreaterThanOrEqual(80);
+      expect(result.indicators).toContain('aws_config_json');
+      expect(result.indicators).toContain('aws_lambda_js');
+    });
+
     it('should detect shell script automation from high shell percentage', () => {
       const files = ['script1.sh', 'script2.sh', 'script3.sh', 'utils.sh', 'README.md'];
 
@@ -181,6 +203,17 @@ describe('Project Kind Detection - Pure Functions', () => {
   });
 
   describe('detectByDirectoryStructure', () => {
+    it('should detect aws_lbs_backend_setup from lambda + scripts + src directories', () => {
+      const directories = ['src', 'lambda', 'scripts', 'geocode-reverse', 'map-credentials'];
+
+      const result = detectByDirectoryStructure(directories);
+
+      expect(result.kind).toBe('aws_lbs_backend_setup');
+      expect(result.confidence).toBeGreaterThanOrEqual(75);
+      expect(result.indicators).toContain('lambda_structure');
+      expect(result.indicators).toContain('scripts_structure');
+    });
+
     it('should detect configuration library from config + docs + examples', () => {
       const directories = ['config', 'docs', 'examples', 'scripts'];
 

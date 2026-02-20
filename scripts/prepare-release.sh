@@ -93,7 +93,7 @@ main() {
     
     # Run all tests
     log_info "Running test suite..."
-    if npm run test:ci; then
+    if npm test; then
         log_success "All tests passed"
     else
         log_error "Tests failed"

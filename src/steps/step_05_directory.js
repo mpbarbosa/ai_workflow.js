@@ -7,12 +7,14 @@
  * and verifies architecture consistency.
  */
 
+import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { Config } from '../lib/config.js';
 import path from 'path';
+import fs from 'fs/promises';
 
 // ============================================================================
 // CONSTANTS
@@ -335,11 +337,40 @@ export function formatDirectoryReport(results) {
  * Step 5 analyzer for directory structure validation
  */
 export class Step5DirectoryAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.gitOps = options.gitOps || new GitAutomation();
     this.config = options.config || new Config();
+  }
+
+  /**
+   * Recursively enumerate directories only (excludes files).
+   * Returns absolute paths.
+   * @param {string} dirPath - Root to scan
+   * @returns {Promise<string[]>}
+   */
+  async _listDirsRecursive(dirPath) {
+    const results = [];
+    async function traverse(current) {
+      let entries;
+      try {
+        entries = await fs.readdir(current, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const full = path.join(current, entry.name);
+          results.push(full);
+          await traverse(full);
+        }
+      }
+    }
+    await traverse(dirPath);
+    return results;
   }
 
   /**
@@ -350,7 +381,7 @@ export class Step5DirectoryAnalyzer {
    */
   async execute(projectRoot, _options = {}) {
     try {
-      logger.info('Step 5: Directory Structure Validation');
+      logger.step('Step 5: Directory Structure Validation');
 
       // Phase 1: Organize misplaced documentation
       const { misplacedDocs, organizedDocs } = await this.organizeMisplacedDocs(projectRoot);
@@ -403,10 +434,10 @@ export class Step5DirectoryAnalyzer {
   async organizeMisplacedDocs(projectRoot) {
     try {
       // Find markdown files in project root
-      const rootFiles = await this.fileOps.glob('*.md', {
-        cwd: projectRoot,
-        absolute: false,
-      });
+      const allRootFiles = await this.fileOps.listDirectory(projectRoot);
+      const rootFiles = allRootFiles
+        .filter((f) => f.endsWith('.md'))
+        .map((f) => path.relative(projectRoot, f));
 
       // Filter out allowed files
       const misplaced = rootFiles.filter((file) => !shouldStayInRoot(path.basename(file)));
@@ -442,15 +473,10 @@ export class Step5DirectoryAnalyzer {
   async validateStructure(projectRoot) {
     try {
       // Get existing directories
-      const allDirs = await this.fileOps.glob('**/', {
-        cwd: projectRoot,
-        absolute: false,
-        ignore: EXCLUDED_DIRS.map((dir) => `**/${dir}/**`),
-      });
+      const allDirsAbsolute = await this._listDirsRecursive(projectRoot);
+      const allDirs = allDirsAbsolute.map((d) => path.relative(projectRoot, d));
 
-      const existingDirs = allDirs
-        .map((dir) => dir.replace(/\/$/, ''))
-        .filter((dir) => shouldIncludeDir(dir));
+      const existingDirs = allDirs.filter((dir) => shouldIncludeDir(dir));
 
       // Get critical directories from config
       let criticalDirs = [];
@@ -507,11 +533,8 @@ export class Step5DirectoryAnalyzer {
    */
   async countDirectories(projectRoot) {
     try {
-      const dirs = await this.fileOps.glob('**/', {
-        cwd: projectRoot,
-        absolute: false,
-        ignore: EXCLUDED_DIRS.map((dir) => `**/${dir}/**`),
-      });
+      const allDirsAbsolute = await this._listDirsRecursive(projectRoot);
+      const dirs = allDirsAbsolute.map((d) => path.relative(projectRoot, d));
 
       return dirs.filter((dir) => shouldIncludeDir(dir)).length;
     } catch {

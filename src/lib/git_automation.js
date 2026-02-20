@@ -763,7 +763,7 @@ export class GitAutomation {
       const files = [
         ...statusResult.staged.map((f) => f.file),
         ...statusResult.unstaged.map((f) => f.file),
-        ...statusResult.untracked,
+        ...statusResult.untracked.map((f) => f.file),
       ];
       return [...new Set(files)]; // Remove duplicates
     } catch {

@@ -385,7 +385,7 @@ export class Step12GitFinalization {
    * @returns {Promise<Object>} Finalization results
    */
   async execute(context = {}) {
-    this.logger.info('Step 12: Git Finalization');
+    this.logger.step('Step 12: Git Finalization');
 
     if (this.dryRun) {
       return this._executeDryRun();

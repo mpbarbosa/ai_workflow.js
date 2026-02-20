@@ -663,6 +663,7 @@ export class WorkflowSummary {
    */
   async generateSummary(options = {}) {
     try {
+      logger.step('Step 17: Workflow Summary');
       logger.info('Generating workflow summary report...');
 
       // Read workflow artifacts

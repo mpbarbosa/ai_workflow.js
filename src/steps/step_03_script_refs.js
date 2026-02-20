@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -274,6 +275,8 @@ export function formatScriptReport(results) {
  * Step 3 analyzer for script reference validation
  */
 export class Step3ScriptAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
@@ -288,7 +291,7 @@ export class Step3ScriptAnalyzer {
    */
   async execute(projectRoot, options = {}) {
     try {
-      logger.info('Step 3: Script Reference Validation');
+      logger.step('Step 3: Script Reference Validation');
 
       // Phase 1: Detect language and script patterns
       const language = options.language || (await this.detectLanguage(projectRoot));

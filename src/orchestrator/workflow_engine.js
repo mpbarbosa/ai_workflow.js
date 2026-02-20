@@ -400,6 +400,18 @@ export class WorkflowEngine extends EventEmitter {
     this.context = null;
     this.currentStep = null;
     this.results = [];
+    this.aborted = false;
+  }
+
+  /**
+   * Abort workflow execution. The currently-running step will finish, then
+   * the loop exits cleanly. Safe to call multiple times.
+   */
+  abort() {
+    if (!this.aborted) {
+      this.aborted = true;
+      this.emit('workflow:aborted', { currentStep: this.currentStep });
+    }
   }
 
   /**
@@ -469,6 +481,7 @@ export class WorkflowEngine extends EventEmitter {
     });
 
     this.results = [];
+    this.aborted = false;
 
     this.emit('workflow:start', { workflow: this.workflow, context: this.context });
 
@@ -490,6 +503,12 @@ export class WorkflowEngine extends EventEmitter {
         // Update context state
         this.context.results.push(result);
 
+        // Check if workflow was aborted (e.g. via Ctrl+C)
+        if (this.aborted) {
+          logger.warn('Workflow aborted by user.');
+          break;
+        }
+
         // Check if we should stop
         if (options.stopAtStep && step.id === options.stopAtStep) {
           logger.info(`Stopping at step ${step.id} as requested`);
@@ -505,6 +524,19 @@ export class WorkflowEngine extends EventEmitter {
 
       const duration = Date.now() - startTime;
       const summary = mergeStepResults(this.results);
+
+      if (this.aborted) {
+        logger.warn(`Workflow aborted after ${duration}ms`);
+        this.emit('workflow:complete', { results: this.results, summary, duration, aborted: true });
+        return {
+          success: false,
+          aborted: true,
+          summary,
+          results: this.results,
+          duration,
+          context: this.context,
+        };
+      }
 
       logger.success(`Workflow completed in ${duration}ms`);
       logger.info(`Results: ${summary.succeeded}/${summary.total} steps succeeded`);
