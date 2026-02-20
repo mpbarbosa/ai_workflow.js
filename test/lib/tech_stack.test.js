@@ -46,7 +46,7 @@ describe('Tech Stack Detection - Pure Functions', () => {
       const files = ['deploy.sh', 'scripts/setup.bash', 'README.md'];
       const result = detectLanguagesFromFiles(files);
 
-      expect(result.primary).toBe('shell');
+      expect(result.primary).toBe('bash');
     });
 
     it('should handle mixed languages', () => {
@@ -445,7 +445,7 @@ describe('Tech Stack Detection - Integration', () => {
 
     const result = await detector.detectTechStack();
 
-    expect(result.primary_language).toBe('shell');
+    expect(result.primary_language).toBe('bash');
     expect(result.build_system).toBe('none');
     expect(result.linters.some((l) => l.name === 'shellcheck')).toBe(true);
   });

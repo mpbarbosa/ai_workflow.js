@@ -7,6 +7,7 @@
  */
 
 import path from 'path';
+import yaml from 'js-yaml';
 import { FileOperations } from './file_operations.js';
 import { logger } from '../core/logger.js';
 
@@ -29,7 +30,7 @@ export function detectLanguagesFromFiles(files) {
     javascript: ['.js', '.mjs', '.cjs', '.jsx'],
     typescript: ['.ts', '.tsx'],
     python: ['.py', '.pyw'],
-    shell: ['.sh', '.bash'],
+    bash: ['.sh', '.bash', '.bats'],
     go: ['.go'],
     rust: ['.rs'],
     java: ['.java'],
@@ -443,6 +444,27 @@ export function generateTechStackReport(techStack) {
 // ============================================================================
 
 /**
+ * Normalize a language name from config (e.g. "bash shell script") to a canonical key
+ * used in TEST_PATTERNS, SOURCE_PATTERNS, etc.
+ * @param {string} lang - Raw language string from config or detection
+ * @returns {string|null} Canonical language key, or null if unrecognized
+ * @pure
+ */
+export function normalizeLanguageName(lang) {
+  if (!lang || typeof lang !== 'string') return null;
+  const lower = lang.toLowerCase();
+  if (lower.includes('bash') || lower.includes('shell') || lower.endsWith('.sh')) return 'bash';
+  if (lower.includes('typescript') || lower === 'ts') return 'typescript';
+  if (lower.includes('javascript') || lower === 'js') return 'javascript';
+  if (lower.includes('python') || lower === 'py') return 'python';
+  if (lower === 'go' || lower.includes('golang')) return 'go';
+  if (lower.includes('java') && !lower.includes('javascript')) return 'java';
+  if (lower.includes('ruby') || lower === 'rb') return 'ruby';
+  if (lower.includes('rust') || lower === 'rs') return 'rust';
+  return lower;
+}
+
+/**
  * Tech Stack Detector
  * Analyzes project to detect languages, frameworks, and tools
  */
@@ -532,6 +554,18 @@ export class TechStackDetector {
         detected_at: new Date().toISOString(),
       };
 
+      // Override primary_language with explicit config setting if present
+      const configLang = await this._readConfigLanguage(root);
+      if (configLang) {
+        techStack.primary_language = configLang;
+        if (!techStack.languages.includes(configLang)) {
+          techStack.languages.unshift(configLang);
+        } else {
+          // Move config language to front so languages[0] returns the right value
+          techStack.languages = [configLang, ...techStack.languages.filter((l) => l !== configLang)];
+        }
+      }
+
       // Cache result
       this.cache.set(cacheKey, techStack);
 
@@ -562,6 +596,36 @@ export class TechStackDetector {
   async generateReport(projectRoot = null) {
     const techStack = await this.detectTechStack(projectRoot);
     return generateTechStackReport(techStack);
+  }
+
+  /**
+   * Alias for detectTechStack — provided for backwards compatibility with steps
+   * that call detectAll().
+   * @param {string} projectRoot - Project root directory (optional)
+   * @returns {Promise<Object>} Complete tech stack information
+   */
+  async detectAll(projectRoot = null) {
+    return this.detectTechStack(projectRoot);
+  }
+
+  /**
+   * Read primary_language from .workflow-config.yaml
+   * @private
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<string|null>} Normalized language name or null
+   */
+  async _readConfigLanguage(projectRoot) {
+    try {
+      const configPath = path.join(projectRoot, '.workflow-config.yaml');
+      const exists = await this.fileOps.exists(configPath);
+      if (!exists) return null;
+      const content = await this.fileOps.readFile(configPath);
+      const parsed = yaml.load(content);
+      const rawLang = parsed?.tech_stack?.primary_language;
+      return rawLang ? normalizeLanguageName(rawLang) : null;
+    } catch {
+      return null;
+    }
   }
 
   /**

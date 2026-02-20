@@ -648,7 +648,9 @@ export function capitalize(str) {
 export class WorkflowSummary {
   static stepKind = STEP_KIND.CONTEXT;
 
-  constructor(workflowDir = '.ai_workflow') {
+  constructor(workflowDirOrOptions = '.ai_workflow') {
+    const workflowDir =
+      typeof workflowDirOrOptions === 'string' ? workflowDirOrOptions : '.ai_workflow';
     this.workflowDir = workflowDir;
     this.metricsDir = path.join(workflowDir, 'metrics');
     this.summariesDir = path.join(workflowDir, 'summaries');
