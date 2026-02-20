@@ -75,9 +75,9 @@ describe('E2E: Step 5 Directory Structure Validation – glob fix', () => {
   // -------------------------------------------------------------------------
 
   describe('Method API Regression Prevention', () => {
-    test('FileOperations exposes listDirectory, not glob', () => {
+    test('FileOperations exposes listDirectory and glob', () => {
       expect(typeof fileOps.listDirectory).toBe('function');
-      expect(fileOps.glob).toBeUndefined();
+      expect(typeof fileOps.glob).toBe('function');
     });
 
     test('FileOperations exposes listDirectoryRecursive', () => {
@@ -123,8 +123,8 @@ describe('E2E: Step 5 Directory Structure Validation – glob fix', () => {
 
     test('non-allowed markdown files are reported as misplaced', async () => {
       await writeFile(tempDir, 'README.md', '# Readme');
-      await writeFile(tempDir, 'GUIDE.md', '# Guide');        // misplaced
-      await writeFile(tempDir, 'ANALYSIS.md', '# Analysis');  // misplaced
+      await writeFile(tempDir, 'GUIDE.md', '# Guide'); // misplaced
+      await writeFile(tempDir, 'ANALYSIS.md', '# Analysis'); // misplaced
 
       const result = await analyzer.execute(tempDir);
 

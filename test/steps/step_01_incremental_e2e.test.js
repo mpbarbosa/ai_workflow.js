@@ -51,7 +51,11 @@ describe('E2E: detectChangedDocs fix regression', () => {
   let tempDir;
 
   beforeEach(async () => {
-    tempDir = path.join(process.cwd(), '.test-e2e', `detect-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tempDir = path.join(
+      process.cwd(),
+      '.test-e2e',
+      `detect-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
     await fs.mkdir(tempDir, { recursive: true });
   });
 
@@ -80,8 +84,8 @@ describe('E2E: detectChangedDocs fix regression', () => {
 
     test('returns all files as changed on first run (empty cache)', async () => {
       const processor = makeProcessor(tempDir);
-      const files = ['README.md', 'docs/guide.md', 'docs/api/index.md'].map(
-        (f) => path.join(tempDir, f)
+      const files = ['README.md', 'docs/guide.md', 'docs/api/index.md'].map((f) =>
+        path.join(tempDir, f)
       );
       for (const f of files) {
         await writeFile(f, `Content of ${path.basename(f)}`);
@@ -187,8 +191,8 @@ describe('E2E: detectChangedDocs fix regression', () => {
           saveStepSummary: () => Promise.resolve(),
         },
         parallelProcessor: {
-          processDocumentation: () =>
-            Promise.resolve({ stats: { processed: 0, totalTime: 0 } }),
+          validate: () => Promise.resolve({ validatedFiles: 0, totalFiles: 0, errors: [] }),
+          getStatistics: () => ({ totalDuration: 0, speedup: null }),
         },
         incrementalProcessor: processor,
         ...overrides,

@@ -283,8 +283,9 @@ describe('E2E: step_02_5 execute() fix regression', () => {
       // Build optimizer with real fileOps pointing at our tempDir
       const fileOps = {
         directoryExists: async (dir) => {
+          const absDir = path.isAbsolute(dir) ? dir : path.join(tempDir, dir);
           try {
-            await fs.access(path.join(tempDir, dir));
+            await fs.access(absDir);
             return true;
           } catch {
             return false;

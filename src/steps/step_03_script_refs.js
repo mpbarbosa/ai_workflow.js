@@ -35,7 +35,7 @@ export const SCRIPT_PATTERNS = {
  * Script directories by language
  */
 export const SCRIPT_DIRECTORIES = {
-  bash: ['src/workflow', 'scripts'],
+  bash: ['.', 'scripts', 'src/scripts', 'src/workflow'],
   python: ['scripts', 'src'],
   javascript: ['scripts', 'src'],
   typescript: ['scripts', 'src'],
@@ -385,11 +385,18 @@ export class Step3ScriptAnalyzer {
     for (const dir of directories) {
       for (const pattern of patterns) {
         try {
-          const found = await this.fileOps.glob(`${dir}/**/${pattern}`, {
+          // Match files directly in the directory
+          const direct = await this.fileOps.glob(`${dir}/${pattern}`, {
             cwd: projectRoot,
             ignore: exclude.map((ex) => `**/${ex}/**`),
           });
-          scripts.push(...found);
+          scripts.push(...direct);
+          // Match files in subdirectories
+          const recursive = await this.fileOps.glob(`${dir}/**/${pattern}`, {
+            cwd: projectRoot,
+            ignore: exclude.map((ex) => `**/${ex}/**`),
+          });
+          scripts.push(...recursive);
         } catch {
           // Directory or pattern not found, continue
         }

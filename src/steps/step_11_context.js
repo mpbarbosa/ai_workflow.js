@@ -294,7 +294,7 @@ export function formatContextReport(context) {
  * Step 11 analyzer for context analysis
  */
 export class Step11ContextAnalyzer {
-  static stepKind = STEP_KIND.PROJECT;
+  static stepKind = STEP_KIND.CONTEXT;
 
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
@@ -305,16 +305,23 @@ export class Step11ContextAnalyzer {
 
   /**
    * Execute Step 11 context analysis
-   * @param {string} projectRoot - Project root directory
-   * @param {Object} workflowContext - Workflow context
+   * @param {Object} context - Workflow context (includes projectRoot, stepResults, etc.)
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, workflowContext = {}) {
+  async execute(context = {}) {
+    const { projectRoot, stepResults = [], ...workflowContext } = context;
     try {
       logger.step('Step 11: Context Analysis');
 
       // Phase 1: Analyze workflow completion
-      const { completedSteps = 0, totalSteps = 11 } = workflowContext;
+      const completedSteps =
+        typeof workflowContext.completedSteps === 'number'
+          ? workflowContext.completedSteps
+          : stepResults.filter((r) => r && r.status === 'completed').length;
+      const totalSteps =
+        typeof workflowContext.totalSteps === 'number'
+          ? workflowContext.totalSteps
+          : Math.max(stepResults.length, 11);
       const completionRate = calculateCompletionRate(completedSteps, totalSteps);
       const completionStatus = determineCompletionStatus(completionRate);
 
@@ -343,7 +350,6 @@ export class Step11ContextAnalyzer {
       logger.info(`Change impact: ${changeImpact} (score: ${impactScore})`);
 
       // Phase 4: Aggregate issues
-      const stepResults = workflowContext.stepResults || [];
       const issues = aggregateIssues(stepResults);
 
       logger.info(`Issues: ${issues.total} total, ${issues.critical} critical`);

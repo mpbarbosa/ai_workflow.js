@@ -44,7 +44,7 @@ describe('Step 3: Script Reference Validation', () => {
 
   describe('getScriptDirectories', () => {
     test('returns bash directories', () => {
-      expect(getScriptDirectories('bash')).toEqual(['src/workflow', 'scripts']);
+      expect(getScriptDirectories('bash')).toEqual(['.', 'scripts', 'src/scripts', 'src/workflow']);
     });
 
     test('returns python directories', () => {

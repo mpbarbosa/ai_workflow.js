@@ -18,7 +18,7 @@ const NEVER_TRAVERSE_DIRS = new Set([
   '.mypy_cache',
 ]);
 
-import fs from 'fs/promises';
+import fs, { glob as fsGlob } from 'fs/promises';
 import path from 'path';
 import { logger } from '../core/logger.js';
 import { FileSystemError } from '../utils/errors.js';
@@ -561,5 +561,30 @@ export class FileOperations {
         originalError: error,
       });
     }
+  }
+
+  /**
+   * Glob files matching a pattern
+   * @param {string} pattern - Glob pattern (e.g. '**\/*.sh')
+   * @param {Object} [options] - Options
+   * @param {string} [options.cwd] - Working directory for glob resolution
+   * @param {string[]} [options.ignore] - Patterns to exclude
+   * @param {boolean} [options.absolute] - Return absolute paths (default false)
+   * @returns {Promise<string[]>} Matching file paths
+   */
+  async glob(pattern, options = {}) {
+    const { cwd = process.cwd(), ignore = [], absolute = false } = options;
+    const files = [];
+    const globIter = fsGlob(pattern, {
+      cwd,
+      exclude:
+        ignore.length > 0
+          ? (name) => ignore.some((p) => name.includes(p.replace('**/', '').replace('/**', '')))
+          : undefined,
+    });
+    for await (const file of globIter) {
+      files.push(absolute ? path.join(cwd, file) : file);
+    }
+    return files;
   }
 }

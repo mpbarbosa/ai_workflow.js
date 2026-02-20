@@ -64,6 +64,7 @@ export const EXCLUDE_DIRS = [
   '__pycache__',
   'target',
   'vendor',
+  '.ai_workflow',
 ];
 
 // ============================================================================

@@ -30,6 +30,7 @@ import { ProjectKindDetector } from '../lib/project_kind_detection.js';
 import { ProjectKindConfigManager } from '../lib/project_kind_config.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { WorkflowSummary } from '../steps/step_17_summary.js';
+import { FileOperations } from '../lib/file_operations.js';
 
 // Import all workflow steps
 import { Step0Analyzer } from '../steps/step_00_analyze.js';
@@ -51,6 +52,7 @@ import { Step13MarkdownLint } from '../steps/step_13_markdown_lint.js';
 import { Step14PromptEngineer } from '../steps/step_14_prompt_engineer.js';
 import { Step15UxAnalysis } from '../steps/step_15_ux_analysis.js';
 import { Step16VersionUpdate } from '../steps/step_16_version_update.js';
+import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
 
 // ============================================================================
 // CONSTANTS
@@ -159,6 +161,7 @@ export function getStepsForStage(stage) {
       'step_10',
       'step_11', // Context
       'step_12', // Git finalization
+      'step_0f', // Commit artifacts
       'step_13',
       'step_14', // Prompt engineer
       'step_15', // UX analysis
@@ -427,6 +430,13 @@ export class MainOrchestrator {
         dependencies: ['step_15'],
       },
       {
+        id: 'step_0f',
+        name: 'Commit Artifacts',
+        description: 'Commit workflow artifacts generated during the run',
+        class: Step0fCommitArtifacts,
+        dependencies: ['step_12'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
@@ -551,6 +561,7 @@ export class MainOrchestrator {
         workflowDir: this.workflowDir,
         projectRoot: this.projectRoot,
         auto: this.auto,
+        projectType: this.configManager?.config?.project?.kind ?? null,
       };
 
       // Setup event listeners for progress tracking
@@ -681,6 +692,7 @@ export class MainOrchestrator {
           backlogManager: this.backlogManager,
           backlog: this.backlogManager,
           metricsCollector: this.metricsCollector,
+          fileOps: new FileOperations({ logger }),
           logger, // ensure steps using options.logger write to the run log file
           enableParallel: !this.noParallel,
           sdkSmokeTest: this.sdkSmokeTest,

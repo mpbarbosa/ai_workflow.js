@@ -6,6 +6,7 @@
  */
 
 import { STEP_KIND } from './step_contract.js';
+import path from 'path';
 import { FileOperations } from '../lib/file_operations.js';
 import { HeuristicsAnalyzer } from './step_02_5_lib/heuristics.js';
 import { GitAnalyzer } from './step_02_5_lib/git_analysis.js';
@@ -210,16 +211,20 @@ export class DocumentationOptimizer {
    * @returns {Promise<Object>} - {skip: boolean, reason?: string}
    */
   async shouldSkip() {
-    const { docsDir, minFiles } = this.state.config;
+    const { docsDir, minFiles, projectRoot } = this.state.config;
+    const absDocsDir = projectRoot ? path.join(projectRoot, docsDir) : docsDir;
 
     // Check if directory exists
-    const exists = await this.fileOps.exists(docsDir);
+    const exists = await this.fileOps.directoryExists(absDocsDir);
     if (!exists) {
       return { skip: true, reason: `Documentation directory not found: ${docsDir}` };
     }
 
     // Count markdown files
-    const files = await this.fileOps.listFiles(docsDir, { extensions: ['.md'], recursive: true });
+    const files = await this.fileOps.listFiles(absDocsDir, {
+      extensions: ['.md'],
+      recursive: true,
+    });
     this.state = updateState(this.state, { files });
 
     if (files.length < minFiles) {

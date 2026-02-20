@@ -291,12 +291,13 @@ describe('Step 11: Context Analysis', () => {
 
     test('analyzes workflow completion', async () => {
       const workflowContext = {
+        projectRoot: '/project',
         completedSteps: 10,
         totalSteps: 11,
         stepResults: [{ success: true }],
       };
 
-      const result = await analyzer.execute('/project', workflowContext);
+      const result = await analyzer.execute(workflowContext);
 
       expect(result.success).toBe(true);
       expect(result.completionRate).toBe(91);
@@ -314,12 +315,13 @@ describe('Step 11: Context Analysis', () => {
       });
 
       const workflowContext = {
+        projectRoot: '/project',
         completedSteps: 8,
         totalSteps: 10,
         stepResults: [],
       };
 
-      const result = await analyzer.execute('/project', workflowContext);
+      const result = await analyzer.execute(workflowContext);
 
       expect(result.gitStatus.isGitRepo).toBe(true);
       expect(result.gitStatus.branch).toBe('feature');
@@ -335,12 +337,13 @@ describe('Step 11: Context Analysis', () => {
       });
 
       const workflowContext = {
+        projectRoot: '/project',
         completedSteps: 9,
         totalSteps: 10,
         stepResults: [],
       };
 
-      const result = await analyzer.execute('/project', workflowContext);
+      const result = await analyzer.execute(workflowContext);
 
       expect(result.impactScore).toBeGreaterThan(0);
       expect(result.changeImpact).toBeTruthy();
@@ -348,6 +351,7 @@ describe('Step 11: Context Analysis', () => {
 
     test('aggregates workflow issues', async () => {
       const workflowContext = {
+        projectRoot: '/project',
         completedSteps: 8,
         totalSteps: 10,
         stepResults: [
@@ -358,7 +362,7 @@ describe('Step 11: Context Analysis', () => {
         ],
       };
 
-      const result = await analyzer.execute('/project', workflowContext);
+      const result = await analyzer.execute(workflowContext);
 
       expect(result.issues.critical).toBe(2);
       expect(result.issues.warnings).toBe(1);
@@ -368,12 +372,13 @@ describe('Step 11: Context Analysis', () => {
 
     test('calculates workflow duration', async () => {
       const workflowContext = {
+        projectRoot: '/project',
         completedSteps: 10,
         totalSteps: 10,
         stepResults: [],
       };
 
-      const result = await analyzer.execute('/project', workflowContext);
+      const result = await analyzer.execute(workflowContext);
 
       expect(result.duration).toBeGreaterThan(0);
     });

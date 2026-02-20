@@ -169,6 +169,7 @@ export class Step1DocumentationAnalyzer {
     this.incrementalProcessor = options.incrementalProcessor || new Step1IncrementalProcessor();
     this.parallelProcessor = options.parallelProcessor || new Step1ParallelProcessor();
     this.enableParallel = options.enableParallel !== false;
+    this.configManager = options.configManager || null;
   }
 
   /**
@@ -244,7 +245,11 @@ export class Step1DocumentationAnalyzer {
             if (!aiAvailable) {
               return { success: true, skipped: true, reason: 'ai_unavailable' };
             }
-            const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files });
+            const projectInfo = {
+              language: this.configManager?.config?.tech_stack?.primary_language,
+              projectKind: this.configManager?.config?.project?.kind,
+            };
+            const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files, projectInfo });
             const cacheContext = `documentation_analyst|${files.join(',')}`;
             const response = await this.aiCache.withCache(prompt, cacheContext, () =>
               this.aiHelper.executeRequest(prompt, {
