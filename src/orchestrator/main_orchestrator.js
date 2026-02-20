@@ -27,6 +27,7 @@ import { Metrics } from '../lib/metrics.js';
 import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { ProjectKindDetector } from '../lib/project_kind_detection.js';
+import { ProjectKindConfigManager } from '../lib/project_kind_config.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { WorkflowSummary } from '../steps/step_17_summary.js';
 
@@ -255,6 +256,7 @@ export class MainOrchestrator {
     this.auto = options.auto || false;
     this.noParallel = options.noParallel || false;
     this.resumeFromCheckpoint = options.resumeFromCheckpoint || null;
+    this.sdkSmokeTest = options.sdkSmokeTest || false;
 
     // Validate config
     const validation = validateOrchestratorConfig(options);
@@ -274,6 +276,7 @@ export class MainOrchestrator {
     this.backlogManager = new Backlog(this.configManager); // Pass Config instance, not string
     this.gitOps = new GitAutomation(this.projectRoot);
     this.projectDetection = new ProjectKindDetector(this.projectRoot);
+    this.projectKindConfig = new ProjectKindConfigManager(this.projectRoot);
     this.techStackDetection = new TechStackDetector(this.projectRoot);
 
     // State
@@ -502,6 +505,7 @@ export class MainOrchestrator {
         this.configManager.workflowRunId
       );
       logger.setLogFile(path.join(logsRunDir, 'workflow.log'));
+      this.logsRunDir = logsRunDir;
 
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
       logger.info(`${colors.blue}  AI Workflow Automation - Starting${colors.reset}`);
@@ -671,12 +675,16 @@ export class MainOrchestrator {
           executor: executorModule,
           gitOps: this.gitOps,
           projectDetection: this.projectDetection,
+          projectKindConfig: this.projectKindConfig,
           techStackDetection: this.techStackDetection,
           configManager: this.configManager,
           backlogManager: this.backlogManager,
+          backlog: this.backlogManager,
           metricsCollector: this.metricsCollector,
           logger, // ensure steps using options.logger write to the run log file
           enableParallel: !this.noParallel,
+          sdkSmokeTest: this.sdkSmokeTest,
+          promptsDir: this.logsRunDir ? path.join(this.logsRunDir, 'prompts', stepId) : null,
         };
 
         // Create executor instance with dependencies

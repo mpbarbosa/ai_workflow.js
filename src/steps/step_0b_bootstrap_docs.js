@@ -415,7 +415,7 @@ export class Step0bBootstrapDocs {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.logger = options.logger || new Logger();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir });
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
   }

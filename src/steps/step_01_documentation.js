@@ -6,10 +6,11 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { PromptBuilder } from '../lib/ai_prompt_builder.js';
+import { PromptBuilder, buildDocAnalysisPrompt } from '../lib/ai_prompt_builder.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
 import { Step1IncrementalProcessor } from '../lib/step1_incremental.js';
@@ -154,15 +155,20 @@ export function shouldRunAiAnalysis(classification, options = {}) {
  * Step 1 analyzer for documentation validation and updates
  */
 export class Step1DocumentationAnalyzer {
+  static stepKind = STEP_KIND.PROJECT;
+
   constructor(options = {}) {
     this.gitOps = options.gitOps || new GitAutomation();
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.aiCache = options.aiCache || new AiCache();
     this.promptBuilder = options.promptBuilder || new PromptBuilder();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper =
+      options.aiHelper ||
+      new AiHelper({ promptsDir: options.promptsDir || options.configManager?.promptsDir });
     this.incrementalProcessor = options.incrementalProcessor || new Step1IncrementalProcessor();
     this.parallelProcessor = options.parallelProcessor || new Step1ParallelProcessor();
+    this.enableParallel = options.enableParallel !== false;
   }
 
   /**
@@ -221,14 +227,42 @@ export class Step1DocumentationAnalyzer {
       logger.info('Running documentation consistency validation...');
       const validationResult = await this.runValidation(projectRoot, docsToProcess);
 
+      // Initialize AI helper before making requests
+      const aiAvailable = await this.aiHelper.initialize();
+      if (!aiAvailable) {
+        logger.warn('AI helper not available - skipping AI analysis');
+      }
+
       // Phase 6: Run parallel documentation analysis (if enabled)
       let analysisResult = null;
-      if (options.enableParallel !== false && docsToProcess.length > 1) {
+      if (this.enableParallel && docsToProcess.length >= 1) {
         logger.info('Running parallel documentation analysis...');
-        analysisResult = await this.parallelProcessor.processDocumentation(docsToProcess, {
-          strategy: options.parallelStrategy || 'BALANCED',
-          maxConcurrency: options.maxConcurrency || 4,
-        });
+        const rawResult = await this.parallelProcessor.validate(
+          docsToProcess,
+          async (_category, files) => {
+            if (!aiAvailable) {
+              return { success: true, skipped: true, reason: 'ai_unavailable' };
+            }
+            const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files });
+            const response = await this.aiHelper.executeRequest(prompt, {
+              persona: 'documentation_analyst',
+            });
+            return { success: response.success, response };
+          },
+          {
+            strategy: options.parallelStrategy || 'BALANCED',
+            maxConcurrency: options.maxConcurrency || 4,
+          }
+        );
+        const procStats = this.parallelProcessor.getStatistics();
+        analysisResult = {
+          ...rawResult,
+          stats: {
+            processed: rawResult.validatedFiles,
+            totalTime: procStats.totalDuration,
+            speedup: procStats.speedup?.speedup ?? null,
+          },
+        };
 
         logger.success(
           `Parallel analysis completed: ${analysisResult.stats.processed} docs in ${analysisResult.stats.totalTime}ms`
