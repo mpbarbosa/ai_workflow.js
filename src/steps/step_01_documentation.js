@@ -227,8 +227,9 @@ export class Step1DocumentationAnalyzer {
       logger.info('Running documentation consistency validation...');
       const validationResult = await this.runValidation(projectRoot, docsToProcess);
 
-      // Initialize AI helper before making requests
+      // Initialize AI helper and response cache before making requests
       const aiAvailable = await this.aiHelper.initialize();
+      await this.aiCache.init();
       if (!aiAvailable) {
         logger.warn('AI helper not available - skipping AI analysis');
       }
@@ -244,9 +245,12 @@ export class Step1DocumentationAnalyzer {
               return { success: true, skipped: true, reason: 'ai_unavailable' };
             }
             const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files });
-            const response = await this.aiHelper.executeRequest(prompt, {
-              persona: 'documentation_analyst',
-            });
+            const cacheContext = `documentation_analyst|${files.join(',')}`;
+            const response = await this.aiCache.withCache(prompt, cacheContext, () =>
+              this.aiHelper.executeRequest(prompt, {
+                persona: 'documentation_analyst',
+              })
+            );
             return { success: response.success, response };
           },
           {
