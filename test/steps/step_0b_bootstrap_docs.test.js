@@ -15,6 +15,8 @@ import {
   determinePrimaryLanguage,
   buildTechnicalWriterPrompt,
   formatGapAnalysisReport,
+  parseAiDocResponse,
+  extractGitignoreDirNames,
 } from '../../src/steps/step_0b_bootstrap_docs.js';
 
 describe('Step 0b: Bootstrap Documentation', () => {
@@ -170,7 +172,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
   // ========================================================================
 
   describe('buildTechnicalWriterPrompt', () => {
-    test('builds complete prompt', () => {
+    test('builds complete prompt using inline fallback when no promptConfig provided', () => {
       const context = {
         projectName: 'My Project',
         projectDescription: 'A test project',
@@ -188,7 +190,38 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(prompt).toContain('CHANGELOG.md');
       expect(prompt).toContain('CONTRIBUTING.md');
       expect(prompt).toContain('Senior Technical Writer');
-      expect(prompt).toContain('**README.md** should include');
+    });
+
+    test('builds prompt from yaml promptConfig when provided', () => {
+      const promptConfig = `
+technical_writer_prompt:
+  role_prefix: |
+    You are a yaml-loaded technical writer.
+  behavioral_guidelines: |
+    Be helpful.
+  task_template: |
+    Project: {project_name} ({project_description})
+    Language: {primary_language}
+    Docs: {doc_count}
+    Sources: {source_files}
+`;
+      const context = {
+        projectName: 'YamlProject',
+        projectDescription: 'Loaded from yaml',
+        primaryLanguage: 'Python',
+        docCount: 3,
+        sourceCount: 10,
+        missingDocs: ['CHANGELOG.md'],
+        promptConfig,
+      };
+
+      const prompt = buildTechnicalWriterPrompt(context);
+
+      expect(prompt).toContain('yaml-loaded technical writer');
+      expect(prompt).toContain('YamlProject');
+      expect(prompt).toContain('Loaded from yaml');
+      expect(prompt).toContain('Python');
+      expect(prompt).toContain('CHANGELOG.md');
     });
   });
 
@@ -238,6 +271,102 @@ describe('Step 0b: Bootstrap Documentation', () => {
       const report = formatGapAnalysisReport(data);
       expect(report).toContain('Total Missing Documentation**: 0');
       expect(report).toContain('sufficient documentation coverage');
+    });
+  });
+
+  describe('parseAiDocResponse', () => {
+    test('parses single file from AI response', () => {
+      const response = `## README.md\n\n### Priority: Critical\n\n### Content:\n\`\`\`markdown\n# My Project\nA great project.\n\`\`\`\n\n### Reasoning:\nEvery project needs a README.\n`;
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].filename).toBe('README.md');
+      expect(results[0].content).toContain('# My Project');
+    });
+
+    test('parses multiple files from AI response', () => {
+      const response = [
+        '## README.md',
+        '### Priority: Critical',
+        '### Content:',
+        '```markdown',
+        '# Project',
+        '```',
+        '---',
+        '## CHANGELOG.md',
+        '### Priority: Important',
+        '### Content:',
+        '```markdown',
+        '# Changelog',
+        '```',
+      ].join('\n');
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(2);
+      expect(results[0].filename).toBe('README.md');
+      expect(results[1].filename).toBe('CHANGELOG.md');
+    });
+
+    test('parses nested path filenames', () => {
+      const response = `## docs/API.md\n\n### Content:\n\`\`\`markdown\n# API\n\`\`\`\n`;
+      const results = parseAiDocResponse(response);
+      expect(results[0].filename).toBe('docs/API.md');
+    });
+
+    test('returns empty array for unparseable response', () => {
+      expect(parseAiDocResponse('')).toEqual([]);
+      expect(parseAiDocResponse('No sections here')).toEqual([]);
+    });
+
+    test('strips backtick formatting from filenames', () => {
+      const response = '## `README.md`\n\n### Content:\n```markdown\n# Hi\n```\n';
+      const results = parseAiDocResponse(response);
+      expect(results[0].filename).toBe('README.md');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - extractGitignoreDirNames
+  // ========================================================================
+
+  describe('extractGitignoreDirNames', () => {
+    test('returns empty array for empty or non-string input', () => {
+      expect(extractGitignoreDirNames('')).toEqual([]);
+      expect(extractGitignoreDirNames(null)).toEqual([]);
+      expect(extractGitignoreDirNames(undefined)).toEqual([]);
+    });
+
+    test('extracts simple directory names', () => {
+      const content = 'node_modules\ndist\nbuild\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['node_modules', 'dist', 'build']);
+    });
+
+    test('strips trailing slashes', () => {
+      const content = '.ai_workflow/\ncoverage/\n.env/\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['.ai_workflow', 'coverage', '.env']);
+    });
+
+    test('skips comments and empty lines', () => {
+      const content = '# dependencies\nnode_modules\n\n# output\ndist/\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['node_modules', 'dist']);
+    });
+
+    test('skips wildcard patterns', () => {
+      const content = '*.log\n*.tmp\n**/*.js\nnode_modules\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['node_modules']);
+    });
+
+    test('skips negation patterns', () => {
+      const content = '!important.md\ndist\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['dist']);
+    });
+
+    test('skips path patterns with intermediate slashes', () => {
+      const content = 'src/generated/\nfoo/bar\ndist\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['dist']);
+    });
+
+    test('includes dot-prefixed names like .ai_workflow', () => {
+      const content = '.ai_workflow/\n.cache\n.env\n';
+      expect(extractGitignoreDirNames(content)).toEqual(['.ai_workflow', '.cache', '.env']);
     });
   });
 
@@ -328,9 +457,11 @@ describe('Step 0b: Bootstrap Documentation', () => {
     });
 
     test('executes successful gap analysis', async () => {
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
       const step = new Step0bBootstrapDocs({
         backlog: mockBacklog,
         logger: mockLogger,
+        aiHelper: mockAiHelper,
       });
 
       step.gatherProjectStats = jest.fn().mockResolvedValue({
@@ -352,6 +483,47 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(mockLogger.success).toHaveBeenCalledWith(
         expect.stringContaining('Step 0b: Documentation gap analysis completed')
       );
+    });
+
+    test('gatherProjectStats excludes .ai_workflow directory', async () => {
+      const listFn = jest.fn().mockResolvedValue(['/proj/README.md', '/proj/src/index.js']);
+      const step = new Step0bBootstrapDocs({
+        backlog: mockBacklog,
+        logger: { ...mockLogger, debug: jest.fn() },
+        fileOps: {
+          listDirectoryRecursive: listFn,
+          stat: jest.fn().mockRejectedValue(new Error('not found')),
+          readFile: jest.fn().mockResolvedValue('.ai_workflow/\nnode_modules\n'),
+        },
+        projectRoot: '/proj',
+      });
+
+      await step.gatherProjectStats();
+
+      expect(listFn).toHaveBeenCalledWith('/proj', {
+        exclude: expect.arrayContaining(['.ai_workflow', 'node_modules']),
+      });
+    });
+
+    test('listExistingDocs excludes .ai_workflow directory', async () => {
+      const listFn = jest.fn().mockResolvedValue(['/proj/README.md', '/proj/docs/API.md']);
+      const step = new Step0bBootstrapDocs({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        fileOps: {
+          listDirectoryRecursive: listFn,
+          readFile: jest.fn().mockResolvedValue('.ai_workflow/\ncoverage/\n'),
+        },
+        projectRoot: '/proj',
+      });
+
+      const docs = await step.listExistingDocs();
+
+      expect(listFn).toHaveBeenCalledWith('/proj', {
+        exclude: expect.arrayContaining(['.ai_workflow', 'coverage']),
+      });
+      expect(docs).toContain('README.md');
+      expect(docs).toContain('docs/API.md');
     });
 
     test('handles errors gracefully', async () => {

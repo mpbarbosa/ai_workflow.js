@@ -6,8 +6,12 @@
  * @version 2.0.0
  */
 
+import path from 'path';
+import yaml from 'js-yaml';
 import { FileOperations } from '../lib/file_operations.js';
+import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
+import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
 
@@ -170,12 +174,43 @@ export function determinePrimaryLanguage(extensionCounts) {
   return languageMap[primaryExt] || 'Unknown';
 }
 
+/**
+ * Parse AI response into filename→content pairs
+ * @param {string} responseText - Raw AI response text
+ * @returns {Array<{filename: string, content: string}>} - Parsed documents
+ */
+export function parseAiDocResponse(responseText) {
+  const results = [];
+  const sectionRegex = /^## (.+?)\s*$/gm;
+  const contentBlockRegex = /### Content:\s*\n```(?:markdown|md)?\n([\s\S]*?)\n```/;
+
+  let match;
+  const sections = [];
+  while ((match = sectionRegex.exec(responseText)) !== null) {
+    const rawName = match[1].trim().replace(/[`*]/g, '');
+    sections.push({ filename: rawName, index: match.index });
+  }
+
+  for (let i = 0; i < sections.length; i++) {
+    const start = sections[i].index;
+    const end = sections[i + 1]?.index ?? responseText.length;
+    const sectionText = responseText.substring(start, end);
+    const contentMatch = contentBlockRegex.exec(sectionText);
+    if (contentMatch) {
+      results.push({ filename: sections[i].filename, content: contentMatch[1] });
+    }
+  }
+
+  return results;
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Prompt Building
 // ============================================================================
 
 /**
- * Build technical writer prompt for AI
+ * Build technical writer prompt from ai_helpers.yaml config.
+ * Falls back to a minimal inline template if the yaml cannot be loaded.
  * @param {Object} context - Project context
  * @param {string} context.projectName - Project name
  * @param {string} context.projectDescription - Brief description
@@ -183,14 +218,53 @@ export function determinePrimaryLanguage(extensionCounts) {
  * @param {number} context.docCount - Current documentation count
  * @param {number} context.sourceCount - Source file count
  * @param {Array<string>} context.missingDocs - List of missing docs
+ * @param {string|null} context.promptConfig - Raw yaml content of ai_helpers.yaml (optional)
  * @returns {string} - Formatted AI prompt
  */
 export function buildTechnicalWriterPrompt(context) {
-  const { projectName, projectDescription, primaryLanguage, docCount, sourceCount, missingDocs } =
-    context;
+  const {
+    projectName,
+    projectDescription,
+    primaryLanguage,
+    docCount,
+    sourceCount,
+    missingDocs,
+    promptConfig,
+  } = context;
 
   const missingList = missingDocs.map((d) => `  - ${d}`).join('\n');
 
+  // Try to build prompt from yaml config
+  if (promptConfig) {
+    try {
+      const parsed = yaml.load(promptConfig);
+      const twPrompt = parsed?.technical_writer_prompt;
+      if (twPrompt?.role_prefix && twPrompt?.task_template) {
+        const variables = {
+          project_name: projectName,
+          project_description: projectDescription || '',
+          primary_language: primaryLanguage,
+          doc_count: String(docCount),
+          source_files: String(sourceCount),
+        };
+
+        let taskText = twPrompt.task_template;
+        for (const [key, value] of Object.entries(variables)) {
+          taskText = taskText.replaceAll(`{${key}}`, value);
+        }
+
+        const behavioralGuidelines = twPrompt.behavioral_guidelines
+          ? `\n${twPrompt.behavioral_guidelines}\n`
+          : '';
+
+        return `${twPrompt.role_prefix.trimEnd()}${behavioralGuidelines}\n${taskText.trimEnd()}\n\n**Documentation Gaps Identified**:\n${missingList}\n\nPlease generate documentation for the identified gaps, prioritizing critical files first.`;
+      }
+    } catch {
+      // fall through to inline template
+    }
+  }
+
+  // Inline fallback template
   return `You are a Senior Technical Writer with expertise in software documentation, API documentation, and developer experience.
 
 **Project Context**:
@@ -204,57 +278,14 @@ export function buildTechnicalWriterPrompt(context) {
 ${missingList}
 
 **Your Task**:
-Analyze the project structure and existing code to generate comprehensive documentation for the missing files listed above.
-
-**Documentation Standards**:
-
-1. **README.md** should include:
-   - Project title and description
-   - Installation instructions
-   - Quick start guide
-   - Basic usage examples
-   - Link to full documentation
-   - License and contribution info
-
-2. **CHANGELOG.md** should follow:
-   - Keep a Changelog format (keepachangelog.com)
-   - Semantic versioning (semver.org)
-   - Sections: Added, Changed, Deprecated, Removed, Fixed, Security
-
-3. **CONTRIBUTING.md** should cover:
-   - Code of conduct
-   - How to report bugs
-   - How to suggest features
-   - Development setup
-   - Pull request process
-   - Coding standards
-
-4. **API Documentation** should include:
-   - Module overview
-   - Function/method signatures
-   - Parameters and return types
-   - Usage examples
-   - Error handling
-
-5. **Architecture Documentation** should describe:
-   - System overview
-   - Component structure
-   - Data flow
-   - Key design decisions
-   - Technology stack
-
-**Output Format**:
-For each missing file, provide:
+Generate comprehensive documentation for the missing files listed above. For each file provide:
 
 ## [Filename]
-
 ### Priority: [Critical/Important/Optional]
-
 ### Content:
 \`\`\`markdown
 [Complete markdown content ready to save]
 \`\`\`
-
 ### Reasoning:
 [Brief explanation of why this documentation is important]
 
@@ -323,6 +354,33 @@ ${missingDocs.length > 0 ? '1. Run Step 0b with AI to generate missing documenta
 `;
 }
 
+/**
+ * Extract simple directory names from .gitignore content for use as exclusions.
+ * Only lines that are bare names or name-with-trailing-slash are extracted;
+ * wildcards, negations, and path patterns are skipped.
+ * @param {string} gitignoreContent - Raw .gitignore file content
+ * @returns {string[]} Array of directory/file names to exclude
+ * @pure
+ */
+export function extractGitignoreDirNames(gitignoreContent) {
+  if (!gitignoreContent || typeof gitignoreContent !== 'string') {
+    return [];
+  }
+  const names = [];
+  for (const line of gitignoreContent.split('\n')) {
+    const trimmed = line.trim();
+    // Skip empty lines, comments, and negations
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) continue;
+    // Skip patterns with wildcards or glob chars
+    if (trimmed.includes('*') || trimmed.includes('?') || trimmed.includes('[')) continue;
+    // Strip trailing slash then reject anything with remaining slashes (path patterns)
+    const name = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+    if (name.includes('/')) continue;
+    if (name) names.push(name);
+  }
+  return names;
+}
+
 // ============================================================================
 // STEP0BBOOTSTRAPDOCS - Impure Wrapper Class
 // ============================================================================
@@ -332,12 +390,15 @@ ${missingDocs.length > 0 ? '1. Run Step 0b with AI to generate missing documenta
  * Identifies missing documentation and bootstraps new projects.
  */
 export class Step0bBootstrapDocs {
+  static stepKind = STEP_KIND.CONTEXT;
+
   /**
    * Create a new Step 0b analyzer
    * @param {Object} options - Configuration options
    * @param {Object} options.fileOps - File operations instance
    * @param {Object} options.backlog - Backlog instance
    * @param {Object} options.logger - Logger instance
+   * @param {Object} options.aiHelper - AI helper instance (optional, skips generation if absent)
    * @param {boolean} options.dryRun - Whether to run in dry-run mode
    * @param {string} options.projectRoot - Project root directory
    */
@@ -345,6 +406,7 @@ export class Step0bBootstrapDocs {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.logger = options.logger || new Logger();
+    this.aiHelper = options.aiHelper || new AiHelper();
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
   }
@@ -357,7 +419,13 @@ export class Step0bBootstrapDocs {
    * @returns {Promise<Object>} - Execution result { success, missingDocs, ... }
    */
   async execute(_context = {}) {
+    this.logger.debug('Step0bBootstrapDocs.execute()');
     const startTime = Date.now();
+
+    // Use projectRoot from context if provided (overrides constructor default)
+    if (_context.projectRoot) {
+      this.projectRoot = _context.projectRoot;
+    }
 
     try {
       if (this.dryRun) {
@@ -372,11 +440,21 @@ export class Step0bBootstrapDocs {
         };
       }
 
+      this.logger.info('Step 0b: Starting documentation gap analysis and generation');
       // Phase 1: Gather project statistics
       this.logger.info(`${colors.blue}Phase 1:${colors.reset} Gathering project statistics...`);
       const stats = await this.gatherProjectStats();
 
+      this.logger.info(
+        `Project has ${stats.docCount} documentation files and ${stats.sourceCount} source files`
+      );
+      this.logger.info(
+        `README.md size: ${stats.readmeSize} bytes, Has CHANGELOG: ${stats.hasChangelog}, Has docs/ directory: ${stats.hasDocsDir}`
+      );
       // Phase 2: Check if bootstrap needed
+      this.logger.info(
+        `${colors.blue}Phase 2:${colors.reset} Evaluating documentation coverage...`
+      );
       if (stats.docCount >= DOC_THRESHOLDS.sufficientDocsCount) {
         this.logger.info(
           `Step 0b: Sufficient documentation exists (${stats.docCount} files) - skipping bootstrap`
@@ -395,6 +473,10 @@ export class Step0bBootstrapDocs {
           reason: 'sufficient documentation exists',
           docCount: stats.docCount,
         };
+      } else {
+        this.logger.warn(
+          `Documentation coverage may be inadequate (${stats.docCount} files) - further analysis needed`
+        );
       }
 
       const needsBootstrap = shouldBootstrapDocs(stats);
@@ -416,9 +498,10 @@ export class Step0bBootstrapDocs {
         };
       }
 
+      this.logger.debug('Phase 3');
       // Phase 3: Identify missing documentation
       this.logger.info(
-        `${colors.blue}Phase 2:${colors.reset} Identifying missing documentation...`
+        `${colors.blue}Phase 3:${colors.reset} Identifying missing documentation...`
       );
       const existingFiles = await this.listExistingDocs();
       const missingDocs = identifyMissingDocs(existingFiles);
@@ -446,11 +529,85 @@ export class Step0bBootstrapDocs {
         `Critical: ${categorized.critical.length}, Important: ${categorized.important.length}, Optional: ${categorized.optional.length}`
       );
 
+      // Phase 4: Generate missing documentation with AI
+      const generated = [];
+      if (missingDocs.length > 0) {
+        this.logger.info(
+          `${colors.blue}Phase 4:${colors.reset} Generating documentation with AI...`
+        );
+        this.logger.debug('Initializing AI Helper...');
+        const aiAvailable = await this.aiHelper.initialize();
+        if (!aiAvailable) {
+          this.logger.warn('Step 0b: AI unavailable — skipping document generation');
+        } else {
+          this.logger.debug('AI Helper is initialized.');
+
+          // Load ai_helpers.yaml for the prompt template
+          const aiHelpersPath = path.join(
+            this.projectRoot,
+            '.workflow_core/config/ai_helpers.yaml'
+          );
+          let promptConfig = null;
+          try {
+            promptConfig = await this.fileOps.readFile(aiHelpersPath);
+          } catch {
+            this.logger.debug('ai_helpers.yaml not found — using inline prompt template');
+          }
+
+          // Read project description and primary language from .workflow-config.yaml if not in context
+          let projectDescription = _context.projectDescription || '';
+          let primaryLanguage = stats.primaryLanguage || 'Unknown';
+          try {
+            const workflowConfigPath = path.join(this.projectRoot, '.workflow-config.yaml');
+            const workflowConfigContent = await this.fileOps.readFile(workflowConfigPath);
+            const workflowConfig = yaml.load(workflowConfigContent);
+            if (!projectDescription && workflowConfig?.project?.description) {
+              projectDescription = workflowConfig.project.description;
+            }
+            if (workflowConfig?.tech_stack?.primary_language) {
+              primaryLanguage = workflowConfig.tech_stack.primary_language;
+            }
+          } catch {
+            this.logger.debug('.workflow-config.yaml not found — using detected values');
+          }
+
+          const context = {
+            projectName: _context.projectName || path.basename(this.projectRoot),
+            projectDescription,
+            primaryLanguage,
+            docCount: stats.docCount,
+            sourceCount: stats.sourceCount,
+            missingDocs,
+            promptConfig,
+          };
+          const prompt = buildTechnicalWriterPrompt(context);
+          this.logger.debug(prompt);
+          const response = await this.aiHelper.executeRequest(prompt, {
+            persona: 'technical_writer',
+          });
+          if (response.success && response.content) {
+            const parsedDocs = parseAiDocResponse(response.content);
+            for (const { filename, content } of parsedDocs) {
+              const filePath = path.join(this.projectRoot, filename);
+              if (this.dryRun) {
+                this.logger.info(`[DRY RUN] Would generate: ${filename}`);
+              } else {
+                await this.fileOps.writeFile(filePath, content + '\n');
+                this.logger.success(`Generated: ${filename}`);
+                generated.push(filename);
+              }
+            }
+            this.logger.success(`Step 0b: Generated ${generated.length} documentation files`);
+          }
+        }
+      }
+
       return {
         success: true,
         missingDocs,
         categorized,
         stats,
+        generated,
         duration: Date.now() - startTime,
       };
     } catch (error) {
@@ -473,18 +630,66 @@ export class Step0bBootstrapDocs {
   }
 
   /**
+   * Load directory exclusions from .gitignore (I/O operation)
+   * @returns {Promise<string[]>} Directory/file names to exclude
+   */
+  async loadGitignoreExclusions() {
+    try {
+      const gitignorePath = path.join(this.projectRoot, '.gitignore');
+      const content = await this.fileOps.readFile(gitignorePath);
+      return extractGitignoreDirNames(content);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Gather project statistics (I/O operation)
    * @returns {Promise<Object>} - Project stats
    */
   async gatherProjectStats() {
-    // In real implementation, would scan filesystem
-    // For now, return mock stats
+    this.logger.debug('Gathering project statistics by scanning files...');
+    let allRelativeFiles;
+    try {
+      this.logger.debug('Listing all files in the project directory...');
+      this.logger.debug(`Project root: ${this.projectRoot}`);
+      const exclude = await this.loadGitignoreExclusions();
+      const allFiles = await this.fileOps.listDirectoryRecursive(this.projectRoot, { exclude });
+      this.logger.debug(`All files: ${allFiles} found`);
+      this.logger.debug(`Total files found: ${allFiles.length}`);
+      this.logger.debug('Converting to relative paths...');
+      allRelativeFiles = allFiles.map((f) => path.relative(this.projectRoot, f));
+    } catch {
+      allRelativeFiles = [];
+    }
+
+    const docFiles = allRelativeFiles.filter(
+      (f) => f.endsWith('.md') || path.basename(f).toLowerCase() === 'license'
+    );
+    const sourceFiles = filterSourceFiles(allRelativeFiles);
+    const primaryLanguage = determinePrimaryLanguage(countFilesByExtension(sourceFiles));
+
+    const sep = path.sep;
+    const hasDocsDir = allRelativeFiles.some((f) => f.startsWith('docs' + sep) || f === 'docs');
+    const hasChangelog = allRelativeFiles.some(
+      (f) => path.basename(f).toLowerCase() === 'changelog.md'
+    );
+
+    let readmeSize = 0;
+    try {
+      const meta = await this.fileOps.stat(path.join(this.projectRoot, 'README.md'));
+      readmeSize = meta.size;
+    } catch {
+      readmeSize = 0;
+    }
+
     return {
-      docCount: 2,
-      sourceCount: 50,
-      readmeSize: 1200,
-      hasChangelog: false,
-      hasDocsDir: true,
+      docCount: docFiles.length,
+      sourceCount: sourceFiles.length,
+      readmeSize,
+      hasChangelog,
+      hasDocsDir,
+      primaryLanguage,
     };
   }
 
@@ -493,8 +698,15 @@ export class Step0bBootstrapDocs {
    * @returns {Promise<Array<string>>} - List of existing doc paths
    */
   async listExistingDocs() {
-    // In real implementation, would scan filesystem
-    // For now, return mock list
-    return ['README.md', 'docs/API.md'];
+    let allFiles;
+    try {
+      const exclude = await this.loadGitignoreExclusions();
+      allFiles = await this.fileOps.listDirectoryRecursive(this.projectRoot, { exclude });
+    } catch {
+      return [];
+    }
+    return allFiles
+      .map((f) => path.relative(this.projectRoot, f))
+      .filter((f) => f.endsWith('.md') || path.basename(f).toLowerCase() === 'license');
   }
 }
