@@ -377,6 +377,7 @@ export class Step12GitFinalization {
     this.dryRun = options.dryRun || false;
     this.interactiveMode = options.interactiveMode || false;
     this.aiEnabled = options.aiEnabled || false;
+    this.projectRoot = options.projectRoot || null;
   }
 
   /**
@@ -386,6 +387,9 @@ export class Step12GitFinalization {
    */
   async execute(context = {}) {
     this.logger.step('Step 12: Git Finalization');
+
+    // Resolve projectRoot from context or constructor option
+    this._projectRoot = context.projectRoot || this.projectRoot || process.cwd();
 
     if (this.dryRun) {
       return this._executeDryRun();
@@ -546,8 +550,28 @@ export class Step12GitFinalization {
     this.logger.info('No changes to commit');
 
     if (gitState.commitsAhead > 0) {
-      this.logger.info(`Local is ${gitState.commitsAhead} commit(s) ahead of remote`);
-      // Would push existing commits here
+      this.logger.info(`Local is ${gitState.commitsAhead} commit(s) ahead of remote — pushing...`);
+      const pushResult = await this._pushToRemote(gitState);
+
+      if (this.backlogManager) {
+        const summary = pushResult.pushed
+          ? `No new changes. Pushed ${gitState.commitsAhead} existing commit(s) to origin/${gitState.branch}.`
+          : `No new changes. Push to ${gitState.branch} failed: ${pushResult.error || 'unknown error'}.`;
+
+        await this.backlogManager.saveStepSummary(
+          '12',
+          'Git_Finalization',
+          summary,
+          pushResult.pushed ? '✅' : '⚠️'
+        );
+      }
+
+      return {
+        success: true,
+        noChanges: true,
+        branch: gitState.branch,
+        pushed: pushResult.pushed,
+      };
     }
 
     if (this.backlogManager) {
@@ -689,15 +713,16 @@ export class Step12GitFinalization {
    * @private
    */
   async _executeGit(command) {
+    const cwd = this._projectRoot || process.cwd();
     if (this.executor && typeof this.executor.execute === 'function') {
-      const result = await this.executor.execute(command, { shell: true });
+      const result = await this.executor.execute(command, { shell: true, cwd });
       return result.stdout || '';
     }
 
     // Fallback: use executor module functions if available
     const executor = this.executor;
     if (executor && typeof executor.executeCommand === 'function') {
-      const result = await executor.executeCommand(command, { shell: true });
+      const result = await executor.executeCommand(command, { shell: true, cwd });
       return result.stdout || '';
     }
 

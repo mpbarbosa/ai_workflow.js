@@ -141,9 +141,32 @@ export function validateJsonSyntax(content) {
 export function validateYamlSyntax(content) {
   const lines = content.split('\n');
   const issues = [];
+  let insideBlockScalar = false;
+  let blockScalarIndent = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // Detect block scalar indicators (| or >) at end of a key's value
+    const blockScalarMatch = line.match(/^(\s*)[^#\s][^:]*:\s*[|>][-+]?\s*$/);
+    if (blockScalarMatch) {
+      insideBlockScalar = true;
+      blockScalarIndent = blockScalarMatch[1].length;
+      continue;
+    }
+
+    // Exit block scalar when we return to base indentation level
+    if (insideBlockScalar) {
+      const indent = line.match(/^(\s*)/)[0].length;
+      const isEmpty = line.trim() === '';
+      if (!isEmpty && indent <= blockScalarIndent) {
+        insideBlockScalar = false;
+        blockScalarIndent = -1;
+      } else {
+        // Content inside block scalar — skip indentation check
+        continue;
+      }
+    }
 
     // Check for tabs (YAML doesn't allow tabs)
     if (line.includes('\t')) {
@@ -153,7 +176,7 @@ export function validateYamlSyntax(content) {
       });
     }
 
-    // Check for inconsistent indentation
+    // Check for inconsistent indentation (YAML keys only, not block scalar content)
     const indent = line.match(/^(\s*)/)[0].length;
     if (indent > 0 && indent % 2 !== 0) {
       issues.push({
