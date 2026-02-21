@@ -38,6 +38,7 @@ import { DocsOnlyOptimizer } from '../lib/docs_only_optimization.js';
 import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
 import { FullChangesOptimizer } from '../lib/full_changes_optimization.js';
 import { MLOptimizer } from '../lib/ml_optimization.js';
+import { CommitHistory, isValidCommitHash } from '../lib/commit_history.js';
 
 // Import all workflow steps
 import { Step0Analyzer } from '../steps/step_00_analyze.js';
@@ -260,8 +261,18 @@ export function performHealthChecks(environment) {
 export class MainOrchestrator {
   constructor(options = {}) {
     // Configuration
-    this.workflowDir = options.workflowDir || '.ai_workflow';
+    // NOTE: projectRoot must be resolved before workflowDir so that a relative
+    // workflowDir (the common default '.ai_workflow') is anchored to the target
+    // project, not to process.cwd() (which is the directory the CLI was invoked
+    // from — often the ai_workflow.js repo itself, not the project being analysed).
     this.projectRoot = options.projectRoot || process.cwd();
+    const rawWorkflowDir = options.workflowDir || '.ai_workflow';
+    // Resolve relative workflowDir against projectRoot so that all workflow
+    // artifacts (logs, checkpoints, summaries) land inside the target project
+    // regardless of where the CLI is invoked from.
+    this.workflowDir = path.isAbsolute(rawWorkflowDir)
+      ? rawWorkflowDir
+      : path.join(this.projectRoot, rawWorkflowDir);
     this.stage = options.stage || WORKFLOW_STAGES.FULL;
     this.auto = options.auto || false;
     this.noParallel = options.noParallel || false;
@@ -284,7 +295,7 @@ export class MainOrchestrator {
     });
     this.summaryGenerator = new WorkflowSummary(this.workflowDir);
     this.backlogManager = new Backlog(this.configManager); // Pass Config instance, not string
-    this.gitOps = new GitAutomation(this.projectRoot);
+    this.gitOps = new GitAutomation({ repoPath: this.projectRoot });
     this.projectDetection = new ProjectKindDetector(this.projectRoot);
     this.projectKindConfig = new ProjectKindConfigManager({ projectRoot: this.projectRoot });
     this.techStackDetection = new TechStackDetector(this.projectRoot);
@@ -557,14 +568,49 @@ export class MainOrchestrator {
       const stepsToExecute = getStepsForStage(this.stage);
       logger.info(`Executing ${stepsToExecute.length} steps for stage: ${this.stage}`);
 
+      // ── Commit-history-aware change detection ──────────────────────────────
+      // Load the commit hash persisted by the previous ai_workflow.js run.
+      // If a valid hash is found, diff against HEAD to get committed changes.
+      // On first run (no history) or on an invalid hash, fall back to the
+      // last 30 commits so the workflow always has a meaningful file set.
+      const commitHistory = new CommitHistory({ workflowDir: this.workflowDir });
+      const lastRunCommit = commitHistory.getLastRunCommit();
+      let committedChangedFiles = [];
+
+      if (lastRunCommit && isValidCommitHash(lastRunCommit)) {
+        try {
+          committedChangedFiles = this.gitOps.getChangedFilesSince(lastRunCommit);
+          logger.info(
+            `[CommitHistory] ${committedChangedFiles.length} file(s) changed since last run (${lastRunCommit.substring(0, 7)})`
+          );
+        } catch {
+          logger.warn(
+            `[CommitHistory] Hash ${lastRunCommit.substring(0, 7)} not found — falling back to last 30 commits`
+          );
+          committedChangedFiles = this.gitOps.getLastNCommitsFiles(30);
+        }
+      } else {
+        logger.info('[CommitHistory] No previous run detected — using last 30 commits as baseline');
+        committedChangedFiles = this.gitOps.getLastNCommitsFiles(30);
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       // Run change-type optimizer for savings estimate (advisory only)
       try {
         const status = await this.gitOps.status();
-        const changedFiles = [
-          ...(status.modified || []),
-          ...(status.added || []),
-          ...(status.deleted || []),
+        // Merge committed changes (since last run) with current uncommitted changes,
+        // deduplicating by file path so each file appears once.
+        const uncommittedFiles = [
+          ...(status.staged || []),
+          ...(status.unstaged || []),
+          ...(status.untracked || []),
         ];
+        const seenPaths = new Set(committedChangedFiles.map((f) => f.file));
+        const mergedFiles = [
+          ...committedChangedFiles,
+          ...uncommittedFiles.filter((f) => !seenPaths.has(f.file)),
+        ];
+        const changedFiles = mergedFiles.map((f) => f.file || f);
         if (changedFiles.length > 0) {
           let optimizer;
           if (detectedProfile === 'docs_only') {
@@ -754,6 +800,16 @@ export class MainOrchestrator {
         `Steps: ${engineResult.summary.succeeded}/${engineResult.summary.total} succeeded`
       );
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+
+      // Persist current HEAD so the next run can detect changes since this run
+      try {
+        const currentHead = this.gitOps.getCurrentHead();
+        if (currentHead) {
+          commitHistory.save(currentHead, workflow.id);
+        }
+      } catch {
+        // Non-critical — never block completion
+      }
 
       logger.closeLogFile();
 
