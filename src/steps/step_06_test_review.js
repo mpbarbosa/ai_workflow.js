@@ -303,7 +303,7 @@ export function formatTestReport(results) {
  * Step 6 analyzer for test review
  */
 export class Step6TestReviewer {
-  static stepKind = STEP_KIND.PROJECT;
+  static stepKind = STEP_KIND.CONTEXT;
 
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
@@ -314,29 +314,50 @@ export class Step6TestReviewer {
   }
 
   /**
-   * Execute Step 6 test review
-   * @param {string} projectRoot - Project root directory
-   * @param {Object} _options - Execution options (reserved)
+   * Execute Step 6 test review.
+   *
+   * Accepts two calling conventions:
+   *   • Orchestrator (CONTEXT step): execute({ projectRoot, categorizedFiles, … })
+   *   • Tests / legacy:              execute('/path', options)
+   *
+   * When step_00's categorizedFiles.test is present in the context it is used
+   * as the authoritative list of changed test files, avoiding a redundant
+   * filesystem scan whose patterns may not match the project's conventions.
+   *
+   * @param {string|Object} contextOrRoot - Context object or legacy projectRoot string
+   * @param {Object} _legacyOptions - Reserved (legacy calling convention)
    * @returns {Promise<Object>} Review result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(contextOrRoot = {}, _legacyOptions = {}) {
+    const isLegacy = typeof contextOrRoot === 'string';
+    const projectRoot = isLegacy ? contextOrRoot : contextOrRoot.projectRoot || process.cwd();
+    const ctx = isLegacy ? {} : contextOrRoot;
+
     try {
       logger.step('Step 6: Test Review');
 
-      // Phase 1: Detect primary language
+      // Phase 1: Detect primary language (still needed for coverage-path lookup)
       const language = await this.detectLanguage(projectRoot);
       logger.info(`Detected language: ${language}`);
 
-      // Phase 2: Discover test files
-      let testFiles = await this.discoverTestFiles(projectRoot, language);
-      logger.info(`Found ${testFiles.length} test file(s)`);
+      // Phase 2: Resolve test file list.
+      // Prefer step_00's authoritative change-detection result over a fresh
+      // filesystem scan, which may use patterns that don't cover this project.
+      let testFiles;
+      if (Array.isArray(ctx.categorizedFiles?.test)) {
+        testFiles = ctx.categorizedFiles.test;
+        logger.info(`Found ${testFiles.length} test file(s) (from step_00 change detection)`);
+      } else {
+        testFiles = await this.discoverTestFiles(projectRoot, language);
+        logger.info(`Found ${testFiles.length} test file(s)`);
 
-      // Fallback: if no test files found for detected language, try bash patterns
-      if (testFiles.length === 0 && language !== 'bash') {
-        const bashFiles = await this.discoverTestFiles(projectRoot, 'bash');
-        if (bashFiles.length > 0) {
-          logger.info(`Fallback: found ${bashFiles.length} bash test file(s) instead`);
-          testFiles = bashFiles;
+        // Fallback: if no test files found for detected language, try bash patterns
+        if (testFiles.length === 0 && language !== 'bash') {
+          const bashFiles = await this.discoverTestFiles(projectRoot, 'bash');
+          if (bashFiles.length > 0) {
+            logger.info(`Fallback: found ${bashFiles.length} bash test file(s) instead`);
+            testFiles = bashFiles;
+          }
         }
       }
 

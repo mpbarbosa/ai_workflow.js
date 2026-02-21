@@ -155,7 +155,7 @@ export function shouldRunAiAnalysis(classification, options = {}) {
  * Step 1 analyzer for documentation validation and updates
  */
 export class Step1DocumentationAnalyzer {
-  static stepKind = STEP_KIND.PROJECT;
+  static stepKind = STEP_KIND.CONTEXT;
 
   constructor(options = {}) {
     this.gitOps = options.gitOps || new GitAutomation();
@@ -173,17 +173,28 @@ export class Step1DocumentationAnalyzer {
   }
 
   /**
-   * Execute Step 1 documentation analysis
-   * @param {string} projectRoot - Project root directory
-   * @param {Object} options - Execution options
+   * Execute Step 1 documentation analysis.
+   *
+   * Accepts two calling conventions:
+   *   • Orchestrator (CONTEXT step): execute({ projectRoot, modifiedFiles, … })
+   *   • Tests / legacy:              execute('/path', options)
+   *
+   * @param {string|Object} contextOrRoot - Context object or legacy projectRoot string
+   * @param {Object} legacyOptions - Options when called with legacy string signature
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, options = {}) {
+  async execute(contextOrRoot = {}, legacyOptions = {}) {
+    const isLegacy = typeof contextOrRoot === 'string';
+    const projectRoot = isLegacy ? contextOrRoot : contextOrRoot.projectRoot || process.cwd();
+    const options = isLegacy ? legacyOptions : contextOrRoot;
+
     try {
       logger.step('Step 1: AI-Powered Documentation Updates');
 
-      // Phase 1: Detect changes
-      const changedFiles = await this.gitOps.getModifiedFiles();
+      // Phase 1: Detect changes — prefer step_00's authoritative list over a fresh git query.
+      const changedFiles = Array.isArray(options.modifiedFiles)
+        ? options.modifiedFiles
+        : await this.gitOps.getModifiedFiles();
       if (changedFiles.length === 0) {
         logger.info('No changes detected - skipping documentation update');
         return { success: true, skipped: true, reason: 'no_changes' };

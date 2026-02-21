@@ -463,6 +463,16 @@ export class Step0Analyzer {
       return {
         success: true,
         analysis,
+        contextUpdate: {
+          projectType: projectKind?.kind ?? null,
+          // Propagate the full change analysis so every subsequent step
+          // uses this single source of truth instead of re-querying git.
+          modifiedFiles: modifiedFilesList,
+          categorizedFiles,
+          fileCounts: counts,
+          changeScope,
+          commitsAhead,
+        },
       };
     } catch (error) {
       logger.error(`Step 0 failed: ${error.message}`);
