@@ -46,7 +46,6 @@ import {
 
 import {
   ProjectKindConfigManager,
-  extractProjectKindConfig,
   extractConfigSection,
   parseYaml,
   validateProjectStructure,
@@ -72,7 +71,12 @@ async function writeFile(filePath, content) {
 function buildBacklogStub() {
   const calls = [];
   return {
-    stub: { saveStepSummary: (...args) => { calls.push(args); return Promise.resolve(); } },
+    stub: {
+      saveStepSummary: (...args) => {
+        calls.push(args);
+        return Promise.resolve();
+      },
+    },
     calls,
   };
 }
@@ -246,41 +250,31 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
 
     test('getAIGuidance: best_practices contains src/aws-config.json storage rule', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasAwsConfig = guidance.best_practices.some((bp) =>
-        bp.includes('src/aws-config.json')
-      );
+      const hasAwsConfig = guidance.best_practices.some((bp) => bp.includes('src/aws-config.json'));
       expect(hasAwsConfig).toBe(true);
     });
 
     test('getAIGuidance: testing_standards contain AWS CLI verification', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasAwsCli = guidance.testing_standards.some((ts) =>
-        ts.toLowerCase().includes('aws')
-      );
+      const hasAwsCli = guidance.testing_standards.some((ts) => ts.toLowerCase().includes('aws'));
       expect(hasAwsCli).toBe(true);
     });
 
     test('getAIGuidance: testing_standards contain curl smoke-test rule', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasCurl = guidance.testing_standards.some((ts) =>
-        ts.toLowerCase().includes('curl')
-      );
+      const hasCurl = guidance.testing_standards.some((ts) => ts.toLowerCase().includes('curl'));
       expect(hasCurl).toBe(true);
     });
 
     test('getAIGuidance: testing_standards contain CloudWatch Logs check', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasCloudWatch = guidance.testing_standards.some((ts) =>
-        ts.includes('CloudWatch')
-      );
+      const hasCloudWatch = guidance.testing_standards.some((ts) => ts.includes('CloudWatch'));
       expect(hasCloudWatch).toBe(true);
     });
 
     test('getAIGuidance: style_guides contain Google Shell Style Guide', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasGoogle = guidance.style_guides.some((sg) =>
-        sg.includes('Google Shell Style Guide')
-      );
+      const hasGoogle = guidance.style_guides.some((sg) => sg.includes('Google Shell Style Guide'));
       expect(hasGoogle).toBe(true);
     });
 
@@ -302,17 +296,13 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
 
     test('getAIGuidance: directory_standards contain src/lambda pattern', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasLambdaDir = guidance.directory_standards.some((ds) =>
-        ds.includes('src/lambda')
-      );
+      const hasLambdaDir = guidance.directory_standards.some((ds) => ds.includes('src/lambda'));
       expect(hasLambdaDir).toBe(true);
     });
 
     test('getAIGuidance: directory_standards contain src/scripts pattern', async () => {
       const guidance = await configMgr.getAIGuidance(KIND);
-      const hasScripts = guidance.directory_standards.some((ds) =>
-        ds.includes('src/scripts')
-      );
+      const hasScripts = guidance.directory_standards.some((ds) => ds.includes('src/scripts'));
       expect(hasScripts).toBe(true);
     });
 
@@ -655,18 +645,18 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
       // NOTE: .sh files are unclassified by step_01 (known gap — see test above).
       // They still count toward counts.total but appear in no category.
       const { counts } = classifyChangedFiles([
-        'setup-aws-lbs.sh',                    // unclassified (.sh)
-        'src/scripts/create-api.sh',           // unclassified (.sh)
-        'src/lambda/get-route/index.js',       // source (.js)
-        'src/aws-config.json',                 // config (.json)
-        'README.md',                           // documentation (.md)
+        'setup-aws-lbs.sh', // unclassified (.sh)
+        'src/scripts/create-api.sh', // unclassified (.sh)
+        'src/lambda/get-route/index.js', // source (.js)
+        'src/aws-config.json', // config (.json)
+        'README.md', // documentation (.md)
       ]);
 
-      expect(counts.source).toBe(1);           // only the .js Lambda handler
-      expect(counts.config).toBe(1);           // aws-config.json
-      expect(counts.documentation).toBe(1);    // README.md
-      expect(counts.tests).toBe(0);            // no tests in aws_lbs
-      expect(counts.total).toBe(5);            // all 5 files counted
+      expect(counts.source).toBe(1); // only the .js Lambda handler
+      expect(counts.config).toBe(1); // aws-config.json
+      expect(counts.documentation).toBe(1); // README.md
+      expect(counts.tests).toBe(0); // no tests in aws_lbs
+      expect(counts.total).toBe(5); // all 5 files counted
     });
 
     // --- shouldRunAiAnalysis for aws_lbs change sets ---
@@ -774,8 +764,7 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
         backlog: { saveStepSummary: () => Promise.resolve() },
         incrementalProcessor: { detectChangedDocs: (files) => Promise.resolve(files) },
         parallelProcessor: {
-          validate: () =>
-            Promise.resolve({ success: true, validatedFiles: 1 }),
+          validate: () => Promise.resolve({ success: true, validatedFiles: 1 }),
           getStatistics: () => ({ totalDuration: 10, speedup: null }),
         },
         aiHelper: { initialize: () => Promise.resolve(false) },

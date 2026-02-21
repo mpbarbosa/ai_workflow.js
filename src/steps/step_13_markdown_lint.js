@@ -478,7 +478,7 @@ export class Step13MarkdownLint {
 
     try {
       const allFiles = await this.fileOps.listDirectoryRecursive('.', {
-        pattern: '*.md',
+        extensions: ['.md'],
       });
 
       const filtered = allFiles.filter((file) => !shouldExcludePath(file));

@@ -462,27 +462,32 @@ export class Step4ConfigAnalyzer {
   async discoverConfigFiles(projectRoot) {
     try {
       const changedFiles = await this.gitOps.getModifiedFiles();
-      return changedFiles.filter((file) => isConfigFile(file));
-    } catch {
-      // Fallback: scan common config files
-      const patterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
-      const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
-
-      const files = [];
-      for (const pattern of patterns) {
-        try {
-          const found = await this.fileOps.glob(pattern, {
-            cwd: projectRoot,
-            ignore: exclude.map((dir) => `**/${dir}/**`),
-          });
-          files.push(...found.filter((f) => isConfigFile(f)));
-        } catch {
-          // Pattern not found, continue
-        }
+      const configChanged = changedFiles.filter((file) => isConfigFile(file));
+      if (configChanged.length > 0) {
+        return configChanged;
       }
-
-      return [...new Set(files)];
+    } catch {
+      // Git unavailable; fall through to glob scan
     }
+
+    // Fallback: scan common config files (clean working tree or git error)
+    const patterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
+    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
+
+    const files = [];
+    for (const pattern of patterns) {
+      try {
+        const found = await this.fileOps.glob(pattern, {
+          cwd: projectRoot,
+          ignore: exclude.map((dir) => `**/${dir}/**`),
+        });
+        files.push(...found.filter((f) => isConfigFile(f)));
+      } catch {
+        // Pattern not found, continue
+      }
+    }
+
+    return [...new Set(files)];
   }
 
   /**

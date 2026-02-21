@@ -180,12 +180,10 @@ describe('E2E: Init Command – Workflow Directory Creation', () => {
       for (const dir of WORKFLOW_DIRECTORIES.slice(1)) {
         // Skip '.ai_workflow' itself – check only children
         const leafName = path.basename(dir);
-        let exists = false;
         try {
           await fs.stat(path.join(process.cwd(), dir));
-          exists = true;
         } catch {
-          exists = false;
+          // directory does not exist in cwd — expected in temp-dir test
         }
         // This assertion only fails if cwd coincidentally already has the dir
         // AND it was created by this test – safe to assert in a tempDir-based test
@@ -223,9 +221,7 @@ describe('E2E: Init Command – Workflow Directory Creation', () => {
         expect(stat2.isDirectory()).toBe(true);
 
         // The two trees are distinct filesystem paths
-        expect(path.join(tempDir, '.ai_workflow')).not.toBe(
-          path.join(tempDir2, '.ai_workflow')
-        );
+        expect(path.join(tempDir, '.ai_workflow')).not.toBe(path.join(tempDir2, '.ai_workflow'));
       } finally {
         await fs.rm(tempDir2, { recursive: true, force: true });
       }
