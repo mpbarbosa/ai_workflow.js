@@ -212,6 +212,25 @@ export {
 } from './lib/cleanup_handlers.js';
 
 // Phase 6 exports (v2.0.0) - AI Integration
+// Git Submodules (v2.0.0) - Phase 5 Git Integration
+export {
+  GitSubmodules,
+  SUBMODULE_STATUS,
+  SUBMODULE_COMMANDS,
+  parseSubmoduleStatus,
+  parseSubmoduleConfig,
+  hasSubmodules,
+  isSubmoduleInitialized,
+  isSubmoduleModified,
+  hasSubmoduleMergeConflict,
+  getSubmodulesByStatus,
+  categorizeSubmodules,
+  buildSubmoduleCommand,
+  validateSubmodulePath,
+  formatSubmoduleSummary,
+} from './lib/git_submodules.js';
+
+// Phase 6 exports (v2.0.0) - AI Integration
 export {
   validateJson,
   sanitizeArgjsonValue,
@@ -599,8 +618,6 @@ export {
   generateCommitMessage,
   parseDiffSummary,
   parseCommitCounts,
-  hasSubmodules,
-  parseSubmoduleStatus,
   formatGitReport,
 } from './steps/step_12_git_finalization.js';
 

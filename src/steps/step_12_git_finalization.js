@@ -20,6 +20,10 @@ import { STEP_KIND } from './step_contract.js';
 import { promises as fsPromises } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import GitSubmodules, {
+  categorizeSubmodules,
+  formatSubmoduleSummary,
+} from '../lib/git_submodules.js';
 
 // ============================================================================
 // CONSTANTS
@@ -522,23 +526,50 @@ export class Step12GitFinalization {
   }
 
   /**
-   * Process git submodules
+   * Process git submodules: detect state, init uninitialized, log summary.
    * @private
+   * @param {Object} _gitState - Current git state (unused directly; submodule state is fetched fresh)
+   * @returns {Promise<Object>} Result with submodule summary
    */
   async _processSubmodules(_gitState) {
-    this.logger.info('Checking submodules...');
+    this.logger.info('Processing submodules...');
+
+    const sm = new GitSubmodules({
+      repoPath: this._projectRoot,
+      executor: this.executor,
+      logger: this.logger,
+    });
 
     try {
-      const statusOutput = await this._executeGit(GIT_OPERATIONS.submoduleStatus);
-      const submodules = parseSubmoduleStatus(statusOutput);
+      const submodules = await sm.getAll();
 
-      if (submodules.length > 0) {
-        this.logger.info(`Found ${submodules.length} submodule(s)`);
-        // Note: Full submodule processing (update, commit, push) would happen here
-        // For now, just log the detection
+      if (submodules.length === 0) {
+        this.logger.debug('No submodules found in status output');
+        return { success: true, submodules: [] };
       }
+
+      this.logger.info(formatSubmoduleSummary(submodules));
+
+      const { uninitialized, conflicts } = categorizeSubmodules(submodules);
+
+      if (conflicts.length > 0) {
+        this.logger.warn(
+          `${conflicts.length} submodule(s) have merge conflicts: ${conflicts.map((s) => s.path).join(', ')}`
+        );
+      }
+
+      if (uninitialized.length > 0) {
+        this.logger.info(
+          `Initializing ${uninitialized.length} uninitialized submodule(s): ${uninitialized.map((s) => s.path).join(', ')}`
+        );
+        await sm.update({ init: true, recursive: true });
+        this.logger.info('Submodule initialization complete');
+      }
+
+      return { success: true, submodules };
     } catch (error) {
-      this.logger.warn(`Submodule check failed: ${error.message}`);
+      this.logger.warn(`Submodule processing failed: ${error.message}`);
+      return { success: false, error: error.message, submodules: [] };
     }
   }
 

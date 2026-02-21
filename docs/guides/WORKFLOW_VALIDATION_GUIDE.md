@@ -207,6 +207,66 @@ All other steps (step_00, step_02_5, step_03, step_04, step_05, step_08, step_09
 
 ## Common Failure Patterns
 
+### Pattern 8: `projectType` always `null` — `getProjectKind()` does not exist
+
+**Symptom:**  
+step_14 (and any other step reading `context.projectType`) receives `null` even though step_00 correctly detected a project kind. step_14 backlog shows `"Skipped - project type unknown not eligible for prompt analysis."` instead of a real project type name.
+
+**Root cause:**  
+`main_orchestrator.js` built `executionContext.projectType` using:
+
+```js
+projectType: (await this.projectKindConfig?.getProjectKind()) ?? null,
+```
+
+`ProjectKindConfigManager` has no `getProjectKind()` method. Optional chaining (`?.()`) silently returns `undefined`; `?? null` collapses that to `null`. Every step then sees `context.projectType === null`.
+
+**How to detect:**
+
+```bash
+grep "project type" .ai_workflow/logs/<run_id>/steps/step_14.log
+# Symptom: "project type unknown not eligible" when step_00 detected a valid kind
+grep "project kind\|kind:" .ai_workflow/logs/<run_id>/steps/step_00.log
+```
+
+**Fix applied in `src/orchestrator/main_orchestrator.js`:**
+
+```js
+// Before (broken — method does not exist on ProjectKindConfigManager):
+projectType: (await this.projectKindConfig?.getProjectKind()) ?? null,
+
+// After (correct — uses ProjectKindDetector.detectProjectKind):
+projectType: (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ?? null,
+```
+
+---
+
+### Pattern 9: step_04 flags `.ai_cache/index.json` as a syntax error
+
+**Symptom:**  
+`step_04.log` shows:
+
+```
+Syntax validation: 1 error(s)
+```
+
+The flagged file is `.ai_workflow/.ai_cache/index.json` with message `"Only absolute paths are allowed"`. The file is a valid internal cache index, not a project configuration file.
+
+**Root cause:**  
+`Step4ConfigAnalyzer.discoverConfigFiles()` fallback scan included `**/*.json` without excluding the `.ai_cache/` directory. The cache index matched the glob and was passed to JSON syntax validation, which rejected the internal path format.
+
+**Fix applied in `src/steps/step_04_config_validation.js`:**
+
+```js
+// Before:
+const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage'];
+
+// After:
+const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
+```
+
+---
+
 ### Pattern 1: Unregistered persona name
 
 **Symptom:**  
@@ -339,6 +399,44 @@ But `git log --oneline origin/main..HEAD` confirms commits were never pushed.
 ## Validated Run Examples
 
 This section records real workflow executions and their step 12 (Git Finalization) outcomes, to serve as a reference baseline for future validations.
+
+---
+
+### Run: `workflow_20260220_202333` — pre-structured-logging run, two new patterns identified (2026-02-20)
+
+**Project:** `ai_workflow.js` (nodejs_api)  
+**Stage:** full | **Mode:** interactive | **Version:** 2.3.0 (shell-based predecessor)  
+**Duration:** 50m 26s | **Steps:** 20/20 ✅  
+**Result:** ⚠️ Validation non-conformant — structural gaps + 2 code bugs found and fixed
+
+#### Structural observations
+
+This run predates the `logs/steps/` and `prompts/` infrastructure. Artifacts are stored in non-standard locations:
+
+| Artifact            | Expected path                                                         | Actual path                                                   | Status                             |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------- |
+| `workflow.log`      | `.ai_workflow/logs/workflow_20260220_202333/workflow.log`             | does not exist                                                | MISSING                            |
+| `steps/*.log`       | `.ai_workflow/logs/workflow_20260220_202333/steps/`                   | does not exist                                                | MISSING                            |
+| `prompts/`          | `.ai_workflow/logs/workflow_20260220_202333/prompts/`                 | does not exist                                                | MISSING                            |
+| Backlog `.md` files | `.ai_workflow/backlog/workflow_20260220_202333/`                      | `.ai_workflow/.ai_workflow/backlog/workflow_20260220_202333/` | MISPLACED (cwd bug in old version) |
+| Workflow summary    | `.ai_workflow/summaries/workflow_20260220_202333/workflow_summary.md` | ✅ correct                                                    | OK                                 |
+
+These gaps are artefacts of the older shell-based engine and do not reflect defects in ai_workflow.js.
+
+#### Criteria results
+
+- **C1** ⚠️ Partially verified — `workflow_summary.md` confirms 20/20 steps, but no `workflow.log` for registration/execution order. `step_0a` (present in old engine) has no backlog file.
+- **C2** ❌ No `steps/*.log` directory — C2 cannot be met for this run.
+- **C3** ⚠️ step_14 confirmed **Pattern 8** — backlog shows `"project type unknown"` despite step_00 detecting configuration-scope changes. Caused by broken `getProjectKind()` call in `main_orchestrator.js` (now fixed). step_04 confirmed **Pattern 9** — `.ai_cache/index.json` flagged as syntax error (now fixed).
+- **C4** ❌ No `prompts/` folder — prompt-saving did not exist in v2.3.0.
+
+#### Bugs found and fixed
+
+| #   | Pattern   | Step    | Fix                                                                                                                                           |
+| --- | --------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Pattern 8 | step_14 | `main_orchestrator.js`: replace broken `projectKindConfig.getProjectKind()` call with `projectDetection.detectProjectKind(projectRoot)?.kind` |
+| 2   | Pattern 9 | step_04 | `step_04_config_validation.js`: add `.ai_cache` to the `exclude` list in `discoverConfigFiles()`                                              |
+| 3   | Pattern 4 | step_13 | Already fixed in current code: `_enumerateMarkdownFiles()` uses `listDirectoryRecursive()`, not `listFiles()`                                 |
 
 ---
 

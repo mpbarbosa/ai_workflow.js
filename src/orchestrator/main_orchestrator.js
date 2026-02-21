@@ -561,7 +561,8 @@ export class MainOrchestrator {
         workflowDir: this.workflowDir,
         projectRoot: this.projectRoot,
         auto: this.auto,
-        projectType: (await this.projectKindConfig?.getProjectKind()) ?? null,
+        projectType:
+          (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ?? null,
       };
 
       // Setup event listeners for progress tracking

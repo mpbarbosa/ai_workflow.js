@@ -466,7 +466,7 @@ export class Step4ConfigAnalyzer {
     } catch {
       // Fallback: scan common config files
       const patterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
-      const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage'];
+      const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
 
       const files = [];
       for (const pattern of patterns) {
