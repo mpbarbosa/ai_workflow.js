@@ -1,6 +1,6 @@
 # Workflow Execution Validation Guide
 
-**Version:** 1.0.0  
+**Version:** 1.2.0  
 **Last Updated:** 2026-02-21  
 **Applies to:** ai_workflow.js v1.2.0+
 
@@ -17,7 +17,8 @@ This guide documents the process for validating a workflow execution run. It was
 5. [Persona Registry](#persona-registry)
 6. [Which Steps Call AI](#which-steps-call-ai)
 7. [Common Failure Patterns](#common-failure-patterns)
-8. [Validation Checklist Template](#validation-checklist-template)
+8. [Validated Run Examples](#validated-run-examples)
+9. [Validation Checklist Template](#validation-checklist-template)
 
 ---
 
@@ -176,8 +177,11 @@ These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any 
 | -------------------------- | ----------------------- |
 | `documentation_analyst`    | `documentation_expert`  |
 | `documentation_specialist` | `documentation_expert`  |
+| `requirements_engineer`    | `documentation_expert`  |
 | `consistency_checker`      | `architecture_reviewer` |
 | `code_reviewer`            | `code_quality_analyst`  |
+| `ux_designer`              | `ux_analyst`            |
+| `version_manager`          | `devops_engineer`       |
 
 ---
 
@@ -288,7 +292,169 @@ Step reports skip with reason tied to project type (e.g., step_14 on a `configur
 
 ---
 
-## Validation Checklist Template
+### Pattern 6: step_04 false-positive YAML syntax error in block scalars
+
+**Symptom:**  
+`Syntax validation: 1 error(s)` in `step_04.log` for a YAML file that is structurally valid. The flagged line is content inside a `|` or `>` block scalar (e.g., a prose bullet list with 7-space indentation inside a `prompt:` field).
+
+**Root cause:**  
+`validateYamlSyntax()` in `step_04_config_validation.js` checked _every_ line for odd indentation, including literal content lines inside block scalars where indentation is prose formatting, not YAML structure.
+
+**Fix applied in `src/steps/step_04_config_validation.js`:**  
+Added block-scalar tracking: when a line ending with `|` or `>` is encountered, the function enters block-scalar mode and skips the indentation check until the content returns to the key's indentation level.
+
+**How to diagnose before the fix:**
+
+```bash
+# Find the flagged file from the step log — step_04 logs filename in the report
+grep "Syntax errors" .ai_workflow/logs/workflow_<run_id>/steps/step_04.log
+# Then check the reported line number manually
+```
+
+---
+
+### Pattern 7: step_12 does not push when ahead with no local changes
+
+**Symptom:**  
+`step_12.log` shows:
+
+```
+No changes to commit
+Local is N commit(s) ahead of remote
+✓ Step step_12 completed
+```
+
+But `git log --oneline origin/main..HEAD` confirms commits were never pushed.
+
+**Root cause:**  
+`_handleNoChanges()` logged the ahead-of-remote state but contained only a comment (`// Would push existing commits here`) with no actual push call. Step 12 only pushed inside `_generateReport()`, which is only reached when there are new staged changes.
+
+**Fix applied in `src/steps/step_12_git_finalization.js`:**  
+`_handleNoChanges()` now calls `_pushToRemote()` when `commitsAhead > 0`, with proper backlog summary and return value reflecting push outcome.
+
+---
+
+## Validated Run Examples
+
+This section records real workflow executions and their step 12 (Git Finalization) outcomes, to serve as a reference baseline for future validations.
+
+---
+
+### Run: `workflow_20260220_213310` — cross-project execution with `--project-root` (2026-02-21)
+
+**Project:** `ai_workflow_core` (configuration_library)  
+**Triggered from:** `ai_workflow.js` via `node bin/ai-workflow.js run --project-root /path/to/ai_workflow_core --auto`  
+**Stage:** full | **Mode:** automatic  
+**Result:** ⚠️ 20/21 steps — **Step 12 failed** (root cause identified and fixed before re-run)
+
+#### Step 12 failure analysis
+
+**Symptom:**
+
+```
+✗ Git finalization failed: Command failed: git commit -F "/tmp/workflow_commit_<ts>.txt"
+```
+
+Git status showed both modified files (`config/ai_helpers.yaml`, `.github/copilot-instructions.md`) still unstaged after the step reported "Changes staged successfully".
+
+**Root cause — missing `cwd` in `_executeGit()`:**  
+`Step12GitFinalization._executeGit()` called the executor without a `cwd` option, so every git command ran in `process.cwd()` — the `ai_workflow.js` directory — not the target project root. `git add -A` staged nothing in the target repo; the subsequent `git commit` had an empty index and failed.
+
+**Diagnosis commands:**
+
+```bash
+# Confirm git ran in wrong directory by checking status of target repo after failed step
+cd /path/to/ai_workflow_core && git status
+# Expected (wrong): files still show as "Changes not staged for commit"
+
+# Compare changed-file count in step log vs actual git status
+grep "Changes:" .ai_workflow/logs/workflow_<run_id>/steps/step_12.log
+# 1 file reported — but 2 were actually modified (step_00 ran in correct dir; step_12 did not)
+```
+
+**Fix applied in `src/steps/step_12_git_finalization.js`:**
+
+1. Added `this.projectRoot = options.projectRoot || null` to the constructor.
+2. Resolved `this._projectRoot` from `context.projectRoot` at the start of `execute()`:
+   ```js
+   this._projectRoot = context.projectRoot || this.projectRoot || process.cwd();
+   ```
+3. Passed `cwd: this._projectRoot` to all `_executeGit()` invocations:
+   ```js
+   const result = await this.executor.execute(command, { shell: true, cwd });
+   ```
+
+> `Step12GitFinalization.stepKind = STEP_KIND.CONTEXT`, so `context.projectRoot` is always populated by `main_orchestrator.js` when `--project-root` is passed.
+
+---
+
+### Run: `workflow_20260220_213516` — re-run after fix (2026-02-21)
+
+**Project:** `ai_workflow_core` (configuration_library)  
+**Stage:** full | **Mode:** automatic  
+**Result:** ✅ 21/21 steps — **Step 12 succeeded**
+
+**Step 12 log (key lines):**
+
+```
+Branch: main (ahead: 0, behind: 0)
+Changes: 2 files
+Inferred commit type: docs(documentation)
+Staging all changes...
+Changes staged successfully
+Generating commit message...
+Commit message generated
+Creating commit...
+Changes committed successfully
+Local branch is up to date with origin/main
+✓ Step step_12 completed in 41ms
+```
+
+**Files committed:** `config/ai_helpers.yaml` (v6.3.1 → v6.4.0, +aws_cloud_architect_prompt persona) and `.github/copilot-instructions.md` (updated persona count 16→17, added AWS persona documentation).
+
+**Key validation checks:**
+
+- C1 ✅ All 21 steps executed and completed
+- C2 ✅ All step log files present and non-empty
+- C3 ✅ step_01 used `documentation_expert` persona (only AI-calling step triggered)
+- C4 ✅ Response saved in `prompts/step_01/`
+- Step 12 ✅ Committed to correct repository (`ai_workflow_core`), not the invoking repo (`ai_workflow.js`)
+
+---
+
+### Run: `workflow_20260220_214108` — post-fix re-run (2026-02-21)
+
+**Project:** `ai_workflow_core` (configuration_library)  
+**Stage:** full | **Mode:** automatic  
+**Result:** ⚠️ 21/21 steps — 4 non-blocking issues identified and fixed
+
+**Key validation checks:**
+
+- C1 ✅ All 21 steps executed and completed (no ✗ failures)
+- C2 ✅ All 21 step log files present and non-empty
+- C3 ⚠️ step_01 used `documentation_expert` (registered ✅), but `.workflow-config.yaml` had `ai_persona: "documentation_specialist"` (unregistered) — step ran correctly despite config bug
+- C4 ✅ `prompts/step_01/2026-02-21T00-41-15-424Z_0001_documentation_expert.md` present with both `## Prompt` and `## Response` sections
+
+**Issues found and fixed:**
+
+| #   | Pattern     | Step    | Description                                                                                | Fix                                                                         |
+| --- | ----------- | ------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| 1   | C3 mismatch | step_01 | `.workflow-config.yaml` had 6 unregistered `ai_persona` IDs                                | Corrected all 6 in `.workflow-config.yaml` — see Common Mismatches table    |
+| 2   | Pattern 6   | step_04 | Block scalar content in `config/ai_helpers.yaml` flagged as odd-indentation error          | Fixed `validateYamlSyntax()` to skip indentation check inside block scalars |
+| 3   | step_05 ⚠️  | step_05 | 4 `.md` files in project root classified as misplaced (108 structure issues also reported) | Moved 4 files: 3 → `docs/reports/analysis/`, 1 → `docs/misc/`               |
+| 4   | Pattern 7   | step_12 | `_handleNoChanges()` logged "1 commit ahead" but did not push                              | Fixed to call `_pushToRemote()` whenever `commitsAhead > 0`                 |
+
+**Step 12 log (key lines — no new changes, 1 commit already ahead):**
+
+```
+No changes to commit
+Local is 1 commit(s) ahead of remote
+✓ Step step_12 completed in 18ms
+```
+
+> ⚠️ Push was silently skipped this run (Pattern 7). Fixed in the same session; future runs will push automatically.
+
+---
 
 Copy this checklist for each new validation:
 
