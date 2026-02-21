@@ -18,7 +18,8 @@ This guide documents the process for validating a workflow execution run. It was
 6. [Which Steps Call AI](#which-steps-call-ai)
 7. [Common Failure Patterns](#common-failure-patterns)
 8. [Validated Run Examples](#validated-run-examples)
-9. [Validation Checklist Template](#validation-checklist-template)
+9. [AI Workflow Execution Report](#ai-workflow-execution-report)
+10. [Validation Checklist Template](#validation-checklist-template)
 
 ---
 
@@ -584,6 +585,210 @@ When `ai_workflow_core` (or any other `configuration_library` project) is proces
 **"Which Steps Call AI" table updated** to reflect `configuration_library` as a trigger condition.
 
 ---
+
+---
+
+## AI Workflow Execution Report
+
+An **AI Workflow Execution Report** is a per-run artifact that consolidates, for every AI-calling step, the six key items needed to audit, reproduce, or debug an execution. It complements the validation criteria (C1–C4) by providing a single structured view of what each step asked, what model was used, and exactly where the artifacts live on disk.
+
+> **Scope:** Only steps that produced at least one `[AI] SDK call starting` log entry have items 3–6 populated. All other steps show `N/A` for those columns.
+
+---
+
+### Items Collected Per Step
+
+#### 1 — Step Name
+
+The step identifier (e.g., `step_01`, `step_0b`, `step_14`) as registered in the workflow engine.
+
+**How to obtain:**
+
+```bash
+# List all steps that made at least one AI call in a run
+grep "\[AI\] SDK call starting" $LOG_DIR/workflow.log \
+  | grep -oP "step_[0-9a-f_]+" | sort -u
+```
+
+---
+
+#### 2 — Step Execution Status
+
+Whether the step completed successfully, failed, or produced a warning.
+
+| Symbol | Meaning                |
+| ------ | ---------------------- |
+| `✓`    | Completed (success)    |
+| `✗`    | Failed                 |
+| `⚠`    | Completed with warning |
+
+**How to obtain:**
+
+```bash
+# Status for every step in the run
+grep -E "(✓ Step|✗ Step|⚠ Step)" $LOG_DIR/workflow.log
+```
+
+---
+
+#### 3 — AI Model Used
+
+The model identifier passed to the Copilot SDK for the AI call (e.g., `gpt-4o`, `claude-3-5-sonnet`). Recorded in the step-level log at the `[AI] SDK call starting` line.
+
+**How to obtain:**
+
+```bash
+# Model used by step_01 (replace step_01 with any step ID)
+grep "\[AI\] SDK call starting" $LOG_DIR/steps/step_01.log \
+  | grep -oP "model: \K[^,]+"
+```
+
+The model is also recorded at the top of every prompt-response `.md` file:
+
+```bash
+grep "^\*\*Model:\*\*" $LOG_DIR/prompts/step_01/*.md
+```
+
+---
+
+#### 4 — Prompt(s) Used
+
+The exact text sent to the AI, captured in the `## Prompt` block of each prompt-response log file under `prompts/<step_id>/`. Each AI call within a step produces one file, so a step may have multiple prompts.
+
+**How to obtain:**
+
+```bash
+# Print the prompt section from every call made by step_01
+for f in $LOG_DIR/prompts/step_01/*.md; do
+  echo "=== $f ==="
+  awk '/^## Prompt$/,/^## Response$/' "$f" | grep -v "^## Response"
+done
+```
+
+---
+
+#### 5 — AI Workflow Step Execution Log File — Absolute Path
+
+The step-level log file containing all output produced by that step, including AI call boundaries, persona, model, timings, and debug messages.
+
+**Path pattern:**
+
+```
+<ABS_LOG_DIR>/steps/<step_id>.log
+```
+
+**How to resolve the absolute path:**
+
+```bash
+realpath $LOG_DIR/steps/step_01.log
+```
+
+---
+
+#### 6 — AI Workflow Step Prompt(s) Response(s) Log File(s) — Absolute Path(s)
+
+One `.md` file per AI call made by the step. The file contains the timestamp, persona, model, the full prompt, and the full AI response.
+
+**File-name format:**
+
+```
+<ISO_timestamp>_<seq>_<persona>.md
+# Example: 2026-02-21T00-41-15-424Z_0001_documentation_expert.md
+```
+
+**Path pattern:**
+
+```
+<ABS_LOG_DIR>/prompts/<step_id>/<timestamp>_<seq>_<persona>.md
+```
+
+**How to list all prompt-response files for a step:**
+
+```bash
+ls -1 $(realpath $LOG_DIR/prompts/step_01/)
+```
+
+---
+
+### Report Generation Script
+
+The following script prints a compact AI Workflow Execution Report for all AI-calling steps in a given run. Run it from the repository root.
+
+```bash
+#!/usr/bin/env bash
+# Usage: LOG_DIR=".ai_workflow/logs/workflow_<run_id>" bash generate_ai_report.sh
+
+ABS_LOG_DIR="$(realpath "${LOG_DIR:-.ai_workflow/logs/$(ls -1t .ai_workflow/logs/ | head -1)}")"
+
+echo "# AI Workflow Execution Report"
+echo "Run: $(basename "$ABS_LOG_DIR")"
+echo ""
+
+# Collect AI-calling step IDs
+AI_STEPS=$(grep "\[AI\] SDK call starting" "$ABS_LOG_DIR/workflow.log" 2>/dev/null \
+  | grep -oP "step_[0-9a-f_]+" | sort -u)
+
+if [[ -z "$AI_STEPS" ]]; then
+  echo "No AI calls detected in this run."
+  exit 0
+fi
+
+for STEP in $AI_STEPS; do
+  STEP_LOG="$ABS_LOG_DIR/steps/$STEP.log"
+  PROMPTS_DIR="$ABS_LOG_DIR/prompts/$STEP"
+
+  # 2 — status
+  STATUS=$(grep -E "(✓ Step $STEP|✗ Step $STEP|⚠ Step $STEP)" "$ABS_LOG_DIR/workflow.log" \
+    | head -1 | grep -oP "(✓|✗|⚠)")
+
+  # 3 — model
+  MODEL=$(grep "\[AI\] SDK call starting" "$STEP_LOG" 2>/dev/null \
+    | grep -oP "model: \K[^,]+" | head -1)
+
+  echo "## $STEP"
+  echo "  Status : ${STATUS:-unknown}"
+  echo "  Model  : ${MODEL:-unknown}"
+  echo "  Exec log : $STEP_LOG"
+  echo ""
+
+  # 4+6 — prompts and response log paths
+  if [[ -d "$PROMPTS_DIR" ]]; then
+    IDX=1
+    for F in "$PROMPTS_DIR"/*.md; do
+      PROMPT_TEXT=$(awk '/^## Prompt$/{ found=1; next } /^## Response$/{ found=0 } found{ print }' "$F" \
+        | grep -v '^\`\`\`' | head -5 | tr '\n' ' ')
+      echo "  Prompt $IDX :"
+      echo "    Text (truncated) : ${PROMPT_TEXT:0:120}..."
+      echo "    Response log     : $F"
+      IDX=$((IDX + 1))
+    done
+  else
+    echo "  Prompts: N/A (no prompts directory)"
+  fi
+  echo ""
+done
+```
+
+---
+
+### Report Template Table
+
+Use the following table to document the AI Workflow Execution Report for a given run inline (e.g., in a validated-run entry or a post-mortem). Add one row for every AI-calling step.
+
+```
+## AI Workflow Execution Report — Run: workflow_<YYYYMMDD_HHmmss>
+
+| Step | Status | AI Model | Prompt(s) summary | Execution log (abs path) | Prompt-response log(s) (abs path) |
+|------|--------|----------|--------------------|--------------------------|-----------------------------------|
+| step_01 | ✓ | gpt-4o | "Update README with new API surface…" (1 call) | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_01.log` | `/abs/path/.ai_workflow/logs/workflow_<run_id>/prompts/step_01/2026-02-21T00-41-15-424Z_0001_documentation_expert.md` |
+| step_0b | N/A (skipped) | N/A | N/A | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_0b.log` | N/A |
+```
+
+> **Tip:** Run `realpath $LOG_DIR` once to get the absolute base path, then append `steps/<id>.log` or `prompts/<id>/<file>.md` as needed.
+
+---
+
+## Validation Checklist Template
 
 ```
 ## Workflow Validation — Run: workflow_<YYYYMMDD_HHmmss>

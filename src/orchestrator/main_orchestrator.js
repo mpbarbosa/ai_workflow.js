@@ -507,13 +507,10 @@ export class MainOrchestrator {
     try {
       this.startTime = Date.now();
 
-      // Open log file for this run so all logger output is persisted
-      const logsRunDir = path.join(
-        this.projectRoot,
-        '.ai_workflow',
-        'logs',
-        this.configManager.workflowRunId
-      );
+      // Open log file for this run so all logger output is persisted.
+      // Use this.workflowDir so that tests passing a custom workflowDir
+      // (e.g. a temp directory) don't pollute the real .ai_workflow/logs folder.
+      const logsRunDir = path.join(this.workflowDir, 'logs', this.configManager.workflowRunId);
       logger.setLogFile(path.join(logsRunDir, 'workflow.log'));
       this.logsRunDir = logsRunDir;
 
