@@ -5,7 +5,7 @@ project:
   name: 'ai_workflow.js'
   type: 'nodejs-application' # e.g., bash-automation-framework, nodejs-application, python-package
   description: 'JavaScript/Node.js migration of AI workflow automation system'
-  kind: 'cli_tool' # e.g., shell_automation, web_application, library, cli_tool
+  kind: 'nodejs_automation' # e.g., shell_automation, nodejs_api, nodejs_automation, python_app, generic
   version: '1.0.0'
 
 tech_stack:

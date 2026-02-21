@@ -39,6 +39,25 @@ export function analyzePackageJson(packageJson) {
     return { kind: 'react_spa', confidence: 90, indicators };
   }
 
+  // Check for Node.js CLI / automation tools
+  if (
+    (dependencies.commander || dependencies.yargs || dependencies.inquirer || dependencies.oclif) &&
+    packageJson.bin
+  ) {
+    indicators.push('cli_framework');
+    indicators.push('has_bin');
+    return { kind: 'nodejs_automation', confidence: 90, indicators };
+  }
+
+  // Check for workflow/automation keywords without explicit CLI framework
+  const keywords = Array.isArray(packageJson.keywords) ? packageJson.keywords : [];
+  const automationKeywords = ['automation', 'workflow', 'cli', 'devops', 'tooling'];
+  if (automationKeywords.some((kw) => keywords.includes(kw)) && packageJson.bin) {
+    indicators.push('automation_keywords');
+    indicators.push('has_bin');
+    return { kind: 'nodejs_automation', confidence: 75, indicators };
+  }
+
   // Check for Node.js backend frameworks
   if (
     dependencies.express ||

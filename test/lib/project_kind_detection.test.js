@@ -34,6 +34,23 @@ describe('Project Kind Detection - Pure Functions', () => {
       expect(result.indicators).toContain('react_dependency');
     });
 
+    it('should detect Node.js CLI/automation tool from commander + bin', () => {
+      const packageJson = {
+        name: 'my-cli',
+        bin: { 'my-cli': 'bin/my-cli.js' },
+        dependencies: {
+          commander: '^12.0.0',
+        },
+      };
+
+      const result = analyzePackageJson(packageJson);
+
+      expect(result.kind).toBe('nodejs_automation');
+      expect(result.confidence).toBeGreaterThanOrEqual(85);
+      expect(result.indicators).toContain('cli_framework');
+      expect(result.indicators).toContain('has_bin');
+    });
+
     it('should detect Node.js API from Express', () => {
       const packageJson = {
         name: 'my-api',
