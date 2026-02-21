@@ -31,9 +31,9 @@ describe('ai_personas - Pure Functions', () => {
       expect(personas.length).toBeGreaterThan(0);
     });
 
-    test('returns 14 personas', () => {
+    test('returns 15 personas', () => {
       const personas = getAllPersonas();
-      expect(personas).toHaveLength(14);
+      expect(personas).toHaveLength(15);
     });
 
     test('all personas have required fields', () => {
@@ -419,7 +419,7 @@ describe('ai_personas - Pure Functions', () => {
   describe('getPersonaCount', () => {
     test('returns correct count', () => {
       const count = getPersonaCount();
-      expect(count).toBe(14);
+      expect(count).toBe(15);
     });
 
     test('matches getAllPersonas length', () => {
@@ -437,7 +437,7 @@ describe('ai_personas - Pure Functions', () => {
     test('returns all persona IDs', () => {
       const ids = getPersonaIds();
       expect(Array.isArray(ids)).toBe(true);
-      expect(ids).toHaveLength(14);
+      expect(ids).toHaveLength(15);
     });
 
     test('all IDs are strings', () => {
@@ -528,6 +528,16 @@ describe('ai_personas - Pure Functions', () => {
       const persona = getPersonaById('security_expert');
       expect(persona.name).toBe('Security Expert');
       expect(persona.expertise.some((e) => e.toLowerCase().includes('security'))).toBe(true);
+    });
+
+    test('AWS Serverless Engineer has correct properties', () => {
+      const persona = getPersonaById('aws_serverless_engineer');
+      expect(persona.name).toBe('AWS Serverless Engineer');
+      expect(persona.role).toContain('AWS serverless');
+      expect(persona.expertise).toContain('AWS Lambda');
+      expect(persona.expertise).toContain('Amazon API Gateway');
+      expect(persona.expertise).toContain('AWS Location Service');
+      expect(persona.useCases.length).toBeGreaterThan(0);
     });
 
     test('all personas have non-empty descriptions', () => {

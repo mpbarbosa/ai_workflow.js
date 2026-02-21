@@ -473,6 +473,41 @@ const PERSONAS = [
       'Inclusive design reviews',
     ],
   },
+  {
+    id: 'aws_serverless_engineer',
+    name: 'AWS Serverless Engineer',
+    role: 'Senior AWS serverless architect and deployment specialist',
+    expertise: [
+      'AWS Lambda',
+      'Amazon API Gateway',
+      'AWS Location Service',
+      'Shell script automation',
+      'IAM least-privilege policies',
+      'CloudWatch Logs',
+      'Serverless architecture patterns',
+      'CORS configuration',
+    ],
+    tone: 'Precise, infrastructure-focused, and security-conscious',
+    focus: [
+      'Idempotent provisioning scripts',
+      'Least-privilege IAM policies',
+      'Lambda function packaging',
+      'API Gateway HTTP API (v2)',
+      'AWS resource validation',
+      'Deployment readiness checks',
+    ],
+    description:
+      'Specializes in serverless AWS backends using Lambda, API Gateway, and supporting ' +
+      'services such as AWS Location Service. Validates infrastructure shell scripts, Lambda ' +
+      'handlers, IAM policies, and deployment readiness for shell-provisioned serverless projects.',
+    useCases: [
+      'AWS infrastructure validation',
+      'Lambda function structure review',
+      'Shell script best-practice analysis',
+      'API Gateway configuration audits',
+      'Serverless deployment guidance',
+    ],
+  },
 ];
 
 // ============================================================================
@@ -485,7 +520,7 @@ const PERSONAS = [
  * @returns {Persona[]} Array of all personas
  * @example
  * const personas = getAllPersonas();
- * // Returns array of 14 personas
+ * // Returns array of 15 personas
  */
 function getAllPersonas() {
   // Return deep copies to ensure immutability
