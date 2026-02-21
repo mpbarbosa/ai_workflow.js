@@ -160,13 +160,13 @@ export function getStepsForStage(stage) {
       'step_09', // Dependencies
       'step_10',
       'step_11', // Context
-      'step_12', // Git finalization
-      'step_0f', // Commit artifacts
       'step_13',
       'step_14', // Prompt engineer
       'step_15', // UX analysis
       'step_16', // Version update
       'step_17', // Summary
+      'step_0f', // Commit artifacts
+      'step_12', // Git finalization (must run last)
     ],
   };
 
@@ -394,19 +394,11 @@ export class MainOrchestrator {
         dependencies: ['step_10'],
       },
       {
-        id: 'step_12',
-        name: 'Git Finalization',
-        description: 'Finalize git operations',
-        class: Step12GitFinalization,
-        dependencies: ['step_11'],
-        critical: false,
-      },
-      {
         id: 'step_13',
         name: 'Markdown Linting',
         description: 'Lint markdown files',
         class: Step13MarkdownLint,
-        dependencies: ['step_12'],
+        dependencies: ['step_11'],
       },
       {
         id: 'step_14',
@@ -430,18 +422,26 @@ export class MainOrchestrator {
         dependencies: ['step_15'],
       },
       {
-        id: 'step_0f',
-        name: 'Commit Artifacts',
-        description: 'Commit workflow artifacts generated during the run',
-        class: Step0fCommitArtifacts,
-        dependencies: ['step_12'],
-      },
-      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
         dependencies: ['step_16'],
+      },
+      {
+        id: 'step_0f',
+        name: 'Commit Artifacts',
+        description: 'Commit workflow artifacts generated during the run',
+        class: Step0fCommitArtifacts,
+        dependencies: ['step_17'],
+      },
+      {
+        id: 'step_12',
+        name: 'Git Finalization',
+        description: 'Stage, commit and push all modifications',
+        class: Step12GitFinalization,
+        dependencies: ['step_0f'],
+        critical: false,
       },
     ];
 

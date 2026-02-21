@@ -31,6 +31,10 @@ describe('Step 14: Prompt Engineer Analysis', () => {
       expect(shouldRunPromptAnalysis(PROJECT_TYPES.bashFramework)).toBe(true);
     });
 
+    test('returns true for configuration_library (contains prompt file configs)', () => {
+      expect(shouldRunPromptAnalysis(PROJECT_TYPES.configurationLibrary)).toBe(true);
+    });
+
     test('returns false for other project types', () => {
       expect(shouldRunPromptAnalysis('nodejs_api')).toBe(false);
       expect(shouldRunPromptAnalysis('react_spa')).toBe(false);

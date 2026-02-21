@@ -187,20 +187,21 @@ These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any 
 
 ## Which Steps Call AI
 
-Not every step makes an AI call on every run. The following table documents when AI is expected to be invoked and under what conditions it is skipped.
+Not every step makes an AI call on every run. The following table documents when AI is expected to be invoked and under what conditions it is skipped. Steps are listed in execution order; **step_12 always runs last**.
 
-| Step    | AI Persona              | When AI is triggered                                                 | Common skip reasons           |
-| ------- | ----------------------- | -------------------------------------------------------------------- | ----------------------------- |
-| step_0b | `technical_writer`      | Project has < threshold doc files                                    | Sufficient docs already exist |
-| step_01 | `documentation_expert`  | Changed doc or source files detected                                 | No changed files in scope     |
-| step_02 | `architecture_reviewer` | Inconsistencies found (future)                                       | No issues detected            |
-| step_06 | `test_engineer`         | Test files exist                                                     | No test files found           |
-| step_07 | `test_engineer`         | Source files exist with no tests                                     | No source files found         |
-| step_10 | `code_quality_analyst`  | Source files exist with linter configured                            | No source files / no linter   |
-| step_14 | `prompt_engineer`       | Project type is `workflow-automation` or `bash-automation-framework` | Non-workflow project kind     |
-| step_15 | `ux_analyst`            | Project has UI components                                            | Project kind has no UI        |
+| Step    | AI Persona              | When AI is triggered                                                                           | Common skip reasons           |
+| ------- | ----------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------- |
+| step_0b | `technical_writer`      | Project has < threshold doc files                                                              | Sufficient docs already exist |
+| step_01 | `documentation_expert`  | Changed doc or source files detected                                                           | No changed files in scope     |
+| step_02 | `architecture_reviewer` | Inconsistencies found (future)                                                                 | No issues detected            |
+| step_06 | `test_engineer`         | Test files exist                                                                               | No test files found           |
+| step_07 | `test_engineer`         | Source files exist with no tests                                                               | No source files found         |
+| step_10 | `code_quality_analyst`  | Source files exist with linter configured                                                      | No source files / no linter   |
+| step_14 | `prompt_engineer`       | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind     |
+| step_15 | `ux_analyst`            | Project has UI components                                                                      | Project kind has no UI        |
+| step_12 | _(none)_                | **Always last** — stages, commits and pushes all modifications from all prior steps            | Non-git repository            |
 
-All other steps (step_00, step_02_5, step_03, step_04, step_05, step_08, step_09, step_11, step_12, step_0f, step_13, step_16, step_17) do not make AI calls.
+All other steps (step_00, step_02_5, step_03, step_04, step_05, step_08, step_09, step_11, step_13, step_16, step_17, step_0f) do not make AI calls.
 
 ---
 
@@ -287,7 +288,8 @@ Step reports skip with reason tied to project type (e.g., step_14 on a `configur
 **Whether this is a bug or correct behavior:**
 
 - Expected: step_15 skipping for projects with no UI components ✅
-- Expected: step_14 skipping for non-workflow-automation projects ✅ (but log should show actual project type, not "unknown")
+- Expected: step_14 skipping for non-eligible project types ✅ (but log should show actual project type, not "unknown")
+- Fixed: step_14 now runs for `configuration_library` projects (e.g., `ai_workflow_core`), which contain prompt file configurations ✅
 - Unexpected: step_14 skipping because projectType is null due to context-passing bug ⚠️
 
 ---
@@ -456,7 +458,34 @@ Local is 1 commit(s) ahead of remote
 
 ---
 
-Copy this checklist for each new validation:
+### Fix: `step_14` now runs on `configuration_library` projects (2026-02-21)
+
+**Change:** `src/steps/step_14_prompt_engineer.js` — `shouldRunPromptAnalysis()` and `PROJECT_TYPES`
+
+**Root cause:**  
+`shouldRunPromptAnalysis()` only permitted `workflow-automation` and `bash-automation-framework` project types. The `ai_workflow_core` repository is classified as `configuration_library` because it is a prompt-file configuration package — its primary artifact is `config/ai_helpers.yaml`. Step 14 was skipping it with "project type not eligible", meaning prompt quality analysis was never executed on the project most likely to need it.
+
+**Fix applied in `src/steps/step_14_prompt_engineer.js`:**
+
+1. Added `configurationLibrary: 'configuration_library'` to `PROJECT_TYPES`.
+2. Updated `shouldRunPromptAnalysis()` to return `true` for `configuration_library`:
+   ```js
+   export function shouldRunPromptAnalysis(projectType) {
+     return (
+       projectType === PROJECT_TYPES.workflowAutomation ||
+       projectType === PROJECT_TYPES.bashFramework ||
+       projectType === PROJECT_TYPES.configurationLibrary
+     );
+   }
+   ```
+3. Added a test case in `test/steps/step_14_prompt_engineer.test.js`.
+
+**Expected behavior after fix:**  
+When `ai_workflow_core` (or any other `configuration_library` project) is processed, step 14 will attempt to load `configPath` (default: `.workflow_core/config/ai_helpers.yaml`). If the file exists, prompts are analyzed; if not, the step gracefully skips with reason `configuration not found`.
+
+**"Which Steps Call AI" table updated** to reflect `configuration_library` as a trigger condition.
+
+---
 
 ```
 ## Workflow Validation — Run: workflow_<YYYYMMDD_HHmmss>

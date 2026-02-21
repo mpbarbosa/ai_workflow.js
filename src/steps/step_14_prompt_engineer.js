@@ -25,6 +25,7 @@ import { STEP_KIND } from './step_contract.js';
 export const PROJECT_TYPES = {
   workflowAutomation: 'workflow-automation',
   bashFramework: 'bash-automation-framework',
+  configurationLibrary: 'configuration_library',
 };
 
 export const PROMPT_QUALITY_CRITERIA = {
@@ -53,7 +54,9 @@ export const QUALITY_THRESHOLDS = {
  */
 export function shouldRunPromptAnalysis(projectType) {
   return (
-    projectType === PROJECT_TYPES.workflowAutomation || projectType === PROJECT_TYPES.bashFramework
+    projectType === PROJECT_TYPES.workflowAutomation ||
+    projectType === PROJECT_TYPES.bashFramework ||
+    projectType === PROJECT_TYPES.configurationLibrary
   );
 }
 
