@@ -556,5 +556,36 @@ describe('Step 12: Git Finalization', () => {
         '✅'
       );
     });
+
+    test('pushes to remote after commit even when commitsAhead was 0 before commit', async () => {
+      // Simulate repo in sync with remote (commitsAhead=0) before new commit
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead (stale: before new commit)
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status (has changes)
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules check
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: '' }); // git push origin main
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      // Verify git push was called
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.includes('git push origin'))).toBe(true);
+      expect(result.pushed).toBe(true);
+    });
   });
 });

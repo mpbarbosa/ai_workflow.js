@@ -433,8 +433,11 @@ export class Step12GitFinalization {
       // Phase 6: Commit changes
       await this._commitChanges(commitMessage);
 
-      // Phase 7: Push to remote
-      const pushResult = await this._pushToRemote(gitState);
+      // Phase 7: Push to remote (commitsAhead + 1 because we just created a new commit)
+      const pushResult = await this._pushToRemote({
+        ...gitState,
+        commitsAhead: gitState.commitsAhead + 1,
+      });
 
       // Phase 8: Generate report
       return this._generateReport(gitState, commitMessage, pushResult);
