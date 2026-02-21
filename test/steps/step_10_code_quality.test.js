@@ -15,6 +15,9 @@ import {
   calculateIssueRate,
   determineQualityRating,
   formatQualityReport,
+  formatMultiLanguageQualityReport,
+  getAllDetectedLanguages,
+  getLanguageLinterCommands,
 } from '../../src/steps/step_10_code_quality.js';
 
 describe('Step 10: Code Quality Analysis', () => {
@@ -29,6 +32,14 @@ describe('Step 10: Code Quality Analysis', () => {
 
     test('returns flake8 for Python', () => {
       expect(getLinterCommand('python')).toBe('flake8 .');
+    });
+
+    test('returns shellcheck for bash', () => {
+      expect(getLinterCommand('bash')).toBe('shellcheck');
+    });
+
+    test('returns jsonlint for json', () => {
+      expect(getLinterCommand('json')).toBe('npx jsonlint --quiet');
     });
 
     test('returns null for unknown language', () => {
@@ -245,6 +256,132 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - Multi-Language Support
+  // ========================================================================
+
+  describe('getAllDetectedLanguages', () => {
+    test('returns languages from tech stack result', () => {
+      const result = getAllDetectedLanguages({ languages: ['javascript', 'bash'] });
+      expect(result).toContain('javascript');
+      expect(result).toContain('bash');
+    });
+
+    test('merges extra languages and de-duplicates', () => {
+      const result = getAllDetectedLanguages({ languages: ['javascript'] }, ['bash', 'json']);
+      expect(result).toContain('javascript');
+      expect(result).toContain('bash');
+      expect(result).toContain('json');
+      expect(result.length).toBe(3);
+    });
+
+    test('normalizes to lower-case', () => {
+      const result = getAllDetectedLanguages({ languages: ['JavaScript'] }, ['JSON']);
+      expect(result).toContain('javascript');
+      expect(result).toContain('json');
+    });
+
+    test('handles empty tech stack result', () => {
+      const result = getAllDetectedLanguages({}, ['bash']);
+      expect(result).toEqual(['bash']);
+    });
+
+    test('handles null tech stack result gracefully', () => {
+      const result = getAllDetectedLanguages(null, ['bash']);
+      expect(result).toEqual(['bash']);
+    });
+  });
+
+  describe('getLanguageLinterCommands', () => {
+    test('returns default commands for known languages', () => {
+      const map = getLanguageLinterCommands(['javascript', 'bash', 'json']);
+      expect(map.javascript).toBe('npm run lint');
+      expect(map.bash).toBe('shellcheck');
+      expect(map.json).toBe('npx jsonlint --quiet');
+    });
+
+    test('config commands take precedence over defaults', () => {
+      const configCmd = { javascript: 'npx eslint src/', bash: 'shellcheck -S warning' };
+      const map = getLanguageLinterCommands(['javascript', 'bash'], configCmd);
+      expect(map.javascript).toBe('npx eslint src/');
+      expect(map.bash).toBe('shellcheck -S warning');
+    });
+
+    test('omits languages with no command', () => {
+      const map = getLanguageLinterCommands(['unknown_lang']);
+      expect(map.unknown_lang).toBeUndefined();
+    });
+
+    test('returns empty object for empty languages list', () => {
+      expect(getLanguageLinterCommands([])).toEqual({});
+    });
+
+    test('uses config command for language not in defaults', () => {
+      const map = getLanguageLinterCommands(['myLang'], { mylang: 'custom-lint' });
+      expect(map.mylang).toBe('custom-lint');
+    });
+  });
+
+  describe('formatMultiLanguageQualityReport', () => {
+    const perLanguageResults = [
+      {
+        language: 'javascript',
+        sourceFileCount: 5,
+        linterCommand: 'npm run lint',
+        linterResults: { totalIssues: 3, errors: 1, warnings: 2 },
+        issueRate: 0.6,
+        qualityRating: 'good',
+        skipped: false,
+      },
+      {
+        language: 'bash',
+        sourceFileCount: 3,
+        linterCommand: 'shellcheck',
+        linterResults: { totalIssues: 0, errors: 0, warnings: 0 },
+        issueRate: 0,
+        qualityRating: 'excellent',
+        skipped: false,
+      },
+    ];
+
+    test('renders summary with totals', () => {
+      const report = formatMultiLanguageQualityReport(perLanguageResults, {
+        totalIssues: 3,
+        errors: 1,
+        warnings: 2,
+        fileCount: 8,
+      });
+      expect(report).toContain('Languages analyzed');
+      expect(report).toContain('Total Source Files');
+      expect(report).toContain('Total Issues');
+    });
+
+    test('renders a section per language', () => {
+      const report = formatMultiLanguageQualityReport(perLanguageResults, {
+        totalIssues: 3,
+        errors: 1,
+        warnings: 2,
+        fileCount: 8,
+      });
+      expect(report).toContain('Javascript');
+      expect(report).toContain('Bash');
+    });
+
+    test('shows skipped status for languages with no linter', () => {
+      const results = [{ language: 'ruby', sourceFileCount: 2, skipped: true }];
+      const report = formatMultiLanguageQualityReport(results, {});
+      expect(report).toContain('Skipped');
+    });
+
+    test('formatQualityReport delegates to multi-language format when perLanguageResults present', () => {
+      const report = formatQualityReport({
+        perLanguageResults,
+        aggregateTotals: { totalIssues: 3 },
+      });
+      expect(report).toContain('Languages analyzed');
+    });
+  });
+
+  // ========================================================================
   // STEP 10 ANALYZER - Integration Tests
   // ========================================================================
 
@@ -261,7 +398,10 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       };
 
       mockFileOps = {
-        readFile: async () => JSON.stringify({ scripts: { lint: 'eslint .' } }),
+        // readFile throws by default (no .workflow-config.yaml, no package.json)
+        readFile: async () => {
+          throw new Error('not found');
+        },
         glob: async () => [],
       };
 
@@ -270,7 +410,7 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       };
 
       mockTechStack = {
-        detectAll: async () => ({ languages: ['javascript'] }),
+        detectAll: async () => ({ languages: ['javascript'], primary_language: 'javascript' }),
       };
 
       analyzer = new Step10CodeQualityAnalyzer({
@@ -283,10 +423,9 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
     });
 
     test('runs linter when default command available', async () => {
-      mockFileOps.readFile = async () => JSON.stringify({ scripts: {} });
+      // Only JS files exist → JS linter runs using default LINTER_COMMANDS
       mockFileOps.glob = async () => ['src/utils.js', 'src/helpers.js'];
 
-      // Even without explicit lint script, default linter command is used
       mockExecutor.execute = async () => ({
         stdout: 'All files pass linting',
         stderr: '',
@@ -296,8 +435,9 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(true);
-      expect(result.skipped).toBe(false);
-      expect(result.linterCommand).toBe('npm run lint');
+      const jsResult = result.perLanguageResults?.find((r) => r.language === 'javascript');
+      expect(jsResult).toBeDefined();
+      expect(jsResult.linterCommand).toBe('npm run lint');
     });
 
     test('analyzes code quality successfully', async () => {
@@ -311,8 +451,9 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(true);
-      expect(result.sourceFileCount).toBe(2);
-      expect(result.linterResults.totalIssues).toBe(0);
+      expect(result.aggregateTotals.fileCount).toBeGreaterThanOrEqual(2);
+      const jsResult = result.perLanguageResults?.find((r) => r.language === 'javascript');
+      expect(jsResult?.linterResults.totalIssues).toBe(0);
     });
 
     test('detects linter issues', async () => {
@@ -329,8 +470,8 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(false);
-      expect(result.linterResults.totalIssues).toBe(5);
-      expect(result.linterResults.errors).toBe(2);
+      expect(result.perLanguageResults[0].linterResults.totalIssues).toBe(5);
+      expect(result.perLanguageResults[0].linterResults.errors).toBe(2);
     });
 
     test('calculates quality metrics', async () => {
@@ -346,8 +487,47 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
       const result = await analyzer.execute('/project');
 
-      expect(result.issueRate).toBe(2.0);
-      expect(result.qualityRating).toBe('good');
+      expect(result.perLanguageResults[0].issueRate).toBe(2.0);
+      expect(result.perLanguageResults[0].qualityRating).toBe('good');
+    });
+
+    test('skips languages with no source files', async () => {
+      // All globs return empty → no languages have files → skipped
+      mockFileOps.glob = async () => [];
+      const result = await analyzer.execute('/project');
+      expect(result.skipped).toBe(true);
+    });
+
+    test('runs linters for multiple languages with source files', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript', 'bash'],
+        primary_language: 'javascript',
+      });
+
+      // Return files for any pattern (both js and bash count)
+      mockFileOps.glob = async () => ['src/script.sh'];
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const result = await analyzer.execute('/project');
+
+      // Both javascript and bash languages are in detected + bash/json from extraLanguages
+      // Since glob returns 1 file for EVERY pattern, all will have sourceFileCount=1
+      expect(result.perLanguageResults.length).toBeGreaterThan(1);
+      const langs = result.perLanguageResults.map((r) => r.language);
+      expect(langs).toContain('javascript');
+      expect(langs).toContain('bash');
+    });
+
+    test('uses lint_commands from config YAML over defaults', async () => {
+      const yaml = `tech_stack:\n  lint_commands:\n    javascript: npx eslint src/\n    bash: shellcheck -S warning\n`;
+      mockFileOps.readFile = async () => yaml;
+      mockFileOps.glob = async () => ['src/file.js'];
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const result = await analyzer.execute('/project');
+
+      const jsResult = result.perLanguageResults?.find((r) => r.language === 'javascript');
+      expect(jsResult?.linterCommand).toBe('npx eslint src/');
     });
   });
 });

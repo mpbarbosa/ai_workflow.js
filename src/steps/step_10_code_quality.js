@@ -32,6 +32,8 @@ export const LINTER_COMMANDS = {
   java: 'mvn checkstyle:check',
   ruby: 'rubocop',
   rust: 'cargo clippy',
+  bash: 'shellcheck',
+  json: 'npx jsonlint --quiet',
 };
 
 /**
@@ -46,6 +48,7 @@ export const SOURCE_EXTENSIONS = {
   ruby: ['.rb'],
   rust: ['.rs'],
   bash: ['.sh', '.bash'],
+  json: ['.json'],
 };
 
 /**
@@ -78,6 +81,42 @@ export const QUALITY_THRESHOLDS = {
 export function getLinterCommand(language) {
   const normalized = language.toLowerCase();
   return LINTER_COMMANDS[normalized] || null;
+}
+
+/**
+ * Get all languages detected in a project from a tech stack result.
+ * Always includes 'bash' when .sh files exist; always includes 'json' when
+ * .json files exist (tech_stack.js filters those out of `languages[]`).
+ * @pure
+ * @param {Object} techStackResult - Result from TechStackDetector.detectAll()
+ * @param {string[]} [extraLanguages=[]] - Additional languages to include (e.g. ['json','bash'])
+ * @returns {string[]} All detected language names (lower-case, de-duplicated)
+ */
+export function getAllDetectedLanguages(techStackResult, extraLanguages = []) {
+  const fromStack = (techStackResult?.languages || []).map((l) => l.toLowerCase());
+  const extra = extraLanguages.map((l) => l.toLowerCase());
+  return [...new Set([...fromStack, ...extra])];
+}
+
+/**
+ * Build a map of { language → linterCommand } for the given languages.
+ * Config-provided commands take precedence over LINTER_COMMANDS defaults.
+ * Languages without any command are omitted.
+ * @pure
+ * @param {string[]} languages - Detected language names
+ * @param {Object} [configLintCommands={}] - Map from .workflow-config.yaml tech_stack.lint_commands
+ * @returns {Object} { language: command } for each language that has a linter
+ */
+export function getLanguageLinterCommands(languages, configLintCommands = {}) {
+  const result = {};
+  for (const lang of languages) {
+    const normalized = lang.toLowerCase();
+    const cmd = configLintCommands[normalized] || getLinterCommand(normalized);
+    if (cmd) {
+      result[normalized] = cmd;
+    }
+  }
+  return result;
 }
 
 /**
@@ -245,10 +284,15 @@ export function determineQualityRating(issueRate) {
 /**
  * Format code quality report
  * @pure
- * @param {Object} results - Quality results
+ * @param {Object} results - Quality results (single-language or multi-language)
  * @returns {string} Formatted report
  */
 export function formatQualityReport(results) {
+  // Multi-language mode: results contains perLanguageResults array
+  if (Array.isArray(results.perLanguageResults)) {
+    return formatMultiLanguageQualityReport(results.perLanguageResults, results.aggregateTotals);
+  }
+
   const {
     language = 'javascript',
     sourceFileCount = 0,
@@ -334,6 +378,83 @@ export function formatQualityReport(results) {
   return report;
 }
 
+/**
+ * Format a multi-language code quality report
+ * @pure
+ * @param {Object[]} perLanguageResults - Array of per-language result objects
+ * @param {Object} aggregateTotals - { totalIssues, errors, warnings, fileCount }
+ * @returns {string} Formatted report
+ */
+export function formatMultiLanguageQualityReport(perLanguageResults, aggregateTotals = {}) {
+  let report = '# Code Quality Report\n\n';
+
+  // Overall summary
+  const { totalIssues = 0, errors = 0, warnings = 0, fileCount = 0 } = aggregateTotals;
+  report += '## Summary\n\n';
+  report += `- **Languages analyzed**: ${perLanguageResults.length}\n`;
+  report += `- **Total Source Files**: ${fileCount}\n`;
+  report += `- **Total Issues**: ${totalIssues}\n`;
+  if (errors > 0) report += `- **Total Errors**: ${errors}\n`;
+  if (warnings > 0) report += `- **Total Warnings**: ${warnings}\n`;
+  report += '\n';
+
+  // Per-language sections
+  for (const langResult of perLanguageResults) {
+    const {
+      language,
+      sourceFileCount: count = 0,
+      linterCommand,
+      linterResults,
+      issueRate = 0,
+      qualityRating = 'unknown',
+      skipped = false,
+    } = langResult;
+
+    report += `## ${language.charAt(0).toUpperCase() + language.slice(1)}\n\n`;
+    report += `- **Source Files**: ${count}\n`;
+
+    if (skipped) {
+      report += `- **Status**: ⚠️ Skipped (no linter configured)\n\n`;
+      continue;
+    }
+
+    if (linterCommand) {
+      report += `- **Linter**: \`${linterCommand}\`\n`;
+    }
+
+    if (linterResults) {
+      if (linterResults.totalIssues === 0) {
+        report += '- **Result**: ✅ No issues found\n';
+      } else {
+        report += `- **Issues**: ${linterResults.totalIssues}`;
+        if (linterResults.errors > 0)
+          report += ` (${linterResults.errors} errors, ${linterResults.warnings} warnings)`;
+        report += '\n';
+      }
+    }
+
+    report += `- **Issue Rate**: ${issueRate} issues/file\n`;
+
+    if (qualityRating === 'excellent') report += '- **Rating**: ✅ Excellent\n';
+    else if (qualityRating === 'good') report += '- **Rating**: 👍 Good\n';
+    else if (qualityRating === 'moderate') report += '- **Rating**: ⚠️ Moderate\n';
+    else if (qualityRating === 'poor') report += '- **Rating**: 🚨 Poor\n';
+
+    report += '\n';
+  }
+
+  // Recommendations if any issues
+  if (totalIssues > 0) {
+    report += '## 💡 Recommendations\n\n';
+    if (errors > 0) report += '1. **Fix errors first** - they indicate critical issues\n';
+    report += '2. Review and fix linter warnings systematically\n';
+    report += '3. Configure auto-fix on save in your editor\n';
+    report += '4. Add linting to CI/CD pipeline\n\n';
+  }
+
+  return report;
+}
+
 // ============================================================================
 // STEP 10 ANALYZER - Integration
 // ============================================================================
@@ -364,99 +485,122 @@ export class Step10CodeQualityAnalyzer {
     try {
       logger.step('Step 10: Code Quality Analysis');
 
-      // Phase 1: Detect language
-      const language = await this.detectLanguage(projectRoot);
-      logger.info(`Detected language: ${language}`);
+      // Phase 1: Detect all languages present in the project
+      const techStackResult = await this.detectTechStack(projectRoot);
+      const detectedLanguages = getAllDetectedLanguages(techStackResult, ['bash', 'json']);
+      logger.info(`Detected languages: ${detectedLanguages.join(', ') || 'none'}`);
 
-      // Phase 2: Count source files
-      let effectiveLanguage = language;
-      let sourceFileCount = await this.countSourceFiles(projectRoot, language);
-      logger.info(`Found ${sourceFileCount} source file(s)`);
+      // Phase 2: Load lint_commands from .workflow-config.yaml (if present)
+      const configLintCommands = await this.readConfigLintCommands(projectRoot);
 
-      // Fallback: if 0 source files for detected language, try bash/shell
-      if (sourceFileCount === 0 && language !== 'bash') {
-        const bashCount = await this.countSourceFiles(projectRoot, 'bash');
-        if (bashCount > 0) {
-          logger.info(`Fallback: found ${bashCount} bash source file(s) instead`);
-          effectiveLanguage = 'bash';
-          sourceFileCount = bashCount;
-        }
-      }
+      // Phase 3: Build per-language linter command map
+      const linterCommandMap = getLanguageLinterCommands(detectedLanguages, configLintCommands);
 
-      // Phase 3: Determine linter command
-      const linterCommand = await this.determineLinterCommand(projectRoot, effectiveLanguage);
-
-      if (!linterCommand) {
+      if (Object.keys(linterCommandMap).length === 0) {
         logger.warn('No linter configured');
 
+        // Fall back to single-language report for backward compat
+        const primaryLanguage =
+          techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+        const sourceFileCount = await this.countSourceFiles(projectRoot, primaryLanguage);
+        logger.info(`Found ${sourceFileCount} source file(s)`);
+
         const report = formatQualityReport({
-          language: effectiveLanguage,
+          language: primaryLanguage,
           sourceFileCount,
           skipped: true,
         });
-
         await this.backlog.saveStepSummary(10, 'Code Quality', report);
 
-        return {
-          success: true,
-          language: effectiveLanguage,
+        return { success: true, language: primaryLanguage, sourceFileCount, skipped: true };
+      }
+
+      // Phase 4: Run each linter and collect per-language results
+      const perLanguageResults = [];
+      for (const [language, linterCommand] of Object.entries(linterCommandMap)) {
+        const sourceFileCount = await this.countSourceFiles(projectRoot, language);
+
+        if (sourceFileCount === 0) {
+          logger.info(`${language}: no source files found, skipping linter`);
+          continue;
+        }
+
+        logger.info(`${language}: ${sourceFileCount} source file(s), linter: ${linterCommand}`);
+
+        const linterCacheInputs = { projectRoot, language, command: linterCommand };
+        let linterResults = this.analysisCache.get('linter', linterCacheInputs);
+        if (linterResults) {
+          logger.info(`[AnalysisCache] ${language} linter results loaded from cache`);
+        } else {
+          linterResults = await this.runLinter(projectRoot, linterCommand, language);
+          this.analysisCache.set('linter', linterCacheInputs, linterResults);
+        }
+
+        if (linterResults.totalIssues > 0) {
+          logger.warn(`${language}: ${linterResults.totalIssues} issue(s)`);
+        } else {
+          logger.success(`${language}: no issues`);
+        }
+
+        const issueRate = calculateIssueRate(linterResults.totalIssues, sourceFileCount);
+        const qualityRating = determineQualityRating(issueRate);
+
+        perLanguageResults.push({
+          language,
           sourceFileCount,
+          linterCommand,
+          linterResults,
+          issueRate,
+          qualityRating,
+          skipped: false,
+        });
+      }
+
+      // Phase 5: Handle case where all languages had 0 source files
+      if (perLanguageResults.length === 0) {
+        logger.warn('No source files found for any configured language');
+        const primaryLanguage =
+          techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+        const report = formatQualityReport({
+          language: primaryLanguage,
+          sourceFileCount: 0,
           skipped: true,
-        };
+        });
+        await this.backlog.saveStepSummary(10, 'Code Quality', report);
+        return { success: true, language: primaryLanguage, sourceFileCount: 0, skipped: true };
       }
 
-      logger.info(`Linter command: ${linterCommand}`);
+      // Phase 6: Compute aggregate totals
+      const aggregateTotals = perLanguageResults.reduce(
+        (acc, r) => ({
+          totalIssues: acc.totalIssues + (r.linterResults?.totalIssues || 0),
+          errors: acc.errors + (r.linterResults?.errors || 0),
+          warnings: acc.warnings + (r.linterResults?.warnings || 0),
+          fileCount: acc.fileCount + r.sourceFileCount,
+        }),
+        { totalIssues: 0, errors: 0, warnings: 0, fileCount: 0 }
+      );
 
-      // Phase 4: Run linter (with analysis cache)
-      const linterCacheInputs = {
-        projectRoot,
-        language: effectiveLanguage,
-        command: linterCommand,
-      };
-      let linterResults = this.analysisCache.get('linter', linterCacheInputs);
-      if (linterResults) {
-        logger.info('[AnalysisCache] Linter results loaded from cache');
-      } else {
-        linterResults = await this.runLinter(projectRoot, linterCommand, effectiveLanguage);
-        this.analysisCache.set('linter', linterCacheInputs, linterResults);
-      }
+      logger.info(
+        `Total: ${aggregateTotals.totalIssues} issue(s) across ${perLanguageResults.length} language(s)`
+      );
 
-      if (linterResults.totalIssues > 0) {
-        logger.warn(`Found ${linterResults.totalIssues} code quality issue(s)`);
-      } else {
-        logger.success('No code quality issues found');
-      }
-
-      // Phase 5: Calculate metrics
-      const issueRate = calculateIssueRate(linterResults.totalIssues, sourceFileCount);
-      const qualityRating = determineQualityRating(issueRate);
-
-      logger.info(`Quality rating: ${qualityRating} (${issueRate} issues/file)`);
-
-      // Phase 6: Generate report
-      const results = {
-        language: effectiveLanguage,
-        sourceFileCount,
-        linterResults,
-        issueRate,
-        qualityRating,
-        linterCommand,
-        skipped: false,
-      };
-
-      const report = formatQualityReport(results);
+      // Phase 7: Generate multi-language report
+      const report = formatQualityReport({ perLanguageResults, aggregateTotals });
       await this.backlog.saveStepSummary(10, 'Code Quality', report);
 
-      // Phase 7: AI-powered code quality review
+      // Phase 8: AI-powered code quality review
+      const primaryLanguage =
+        techStackResult.primary_language || detectedLanguages[0] || 'javascript';
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
         const prompt = buildCodeQualityPrompt({
           codeFiles: [],
-          language: effectiveLanguage,
-          projectInfo: { language: effectiveLanguage },
+          language: primaryLanguage,
+          projectInfo: { language: primaryLanguage, languages: detectedLanguages },
         });
-        const cacheKey = `step_10|${effectiveLanguage}|${sourceFileCount}|${linterResults.totalIssues}`;
+        const cacheKey = `step_10|${detectedLanguages.join(',')}|${aggregateTotals.fileCount}|${aggregateTotals.totalIssues}`;
         await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
@@ -464,8 +608,7 @@ export class Step10CodeQualityAnalyzer {
         logger.warn('AI helper not available - skipping AI code quality review');
       }
 
-      const hasErrors = linterResults.errors > 0;
-
+      const hasErrors = aggregateTotals.errors > 0;
       if (hasErrors) {
         logger.warn('Step 10 completed with errors');
       } else {
@@ -474,7 +617,11 @@ export class Step10CodeQualityAnalyzer {
 
       return {
         success: !hasErrors,
-        ...results,
+        perLanguageResults,
+        aggregateTotals,
+        // backward-compat aliases for single-language consumers
+        language: primaryLanguage,
+        sourceFileCount: aggregateTotals.fileCount,
       };
     } catch (error) {
       logger.error(`Step 10 failed: ${error.message}`);
@@ -483,20 +630,43 @@ export class Step10CodeQualityAnalyzer {
   }
 
   /**
-   * Detect primary language
+   * Detect full tech stack for the project
    * @param {string} projectRoot - Project root directory
-   * @returns {Promise<string>} Language name
+   * @returns {Promise<Object>} Tech stack detection result
    */
-  async detectLanguage(projectRoot) {
+  async detectTechStack(projectRoot) {
     try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
+      return await this.techStack.detectAll(projectRoot);
     } catch {
-      // Fallback
+      return { primary_language: 'javascript', languages: [] };
     }
-    return 'javascript';
+  }
+
+  /**
+   * Read lint_commands map from .workflow-config.yaml
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<Object>} Map of { language: command } or empty object
+   */
+  async readConfigLintCommands(projectRoot) {
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const content = await this.fileOps.readFile(configPath);
+      // Simple YAML key extraction for tech_stack.lint_commands
+      // Parse the lint_commands block manually to avoid adding a yaml dep here
+      const match = content.match(/lint_commands:\s*\n((?:\s+\w[\w\s]*:.*\n?)*)/m);
+      if (!match) return {};
+      const block = match[1];
+      const result = {};
+      for (const line of block.split('\n')) {
+        const pair = line.match(/^\s+([\w]+):\s*(.+)$/);
+        if (pair) {
+          result[pair[1].toLowerCase().trim()] = pair[2].trim();
+        }
+      }
+      return result;
+    } catch {
+      return {};
+    }
   }
 
   /**
