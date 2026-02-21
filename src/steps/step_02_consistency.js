@@ -11,6 +11,9 @@ import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import yaml from 'js-yaml';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import { buildConsistencyPrompt } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -300,6 +303,8 @@ export class Step2ConsistencyAnalyzer {
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -345,6 +350,19 @@ export class Step2ConsistencyAnalyzer {
 
       const report = formatConsistencyReport(results);
       await this.backlog.saveStepSummary(2, 'Consistency Analysis', report);
+
+      // Phase 6: AI-powered consistency analysis
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        await this.aiCache.init();
+        const prompt = buildConsistencyPrompt({ docDirectory: projectRoot });
+        const cacheKey = `step_02|${projectRoot}|${docFiles.length}|${totalIssues}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'code_quality_analyst' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI consistency analysis');
+      }
 
       if (totalIssues === 0) {
         logger.success('Step 2 completed - no issues found');

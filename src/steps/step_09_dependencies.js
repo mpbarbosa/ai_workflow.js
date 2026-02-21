@@ -14,6 +14,7 @@ import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { DependencyCache, CACHE_TYPE, generateCacheKey } from '../lib/dependency_cache.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
@@ -324,6 +325,7 @@ export class Step9DependencyValidator {
     this.techStack = options.techStack || new TechStackDetector();
     this.aiHelper = options.aiHelper || new AiHelper();
     this.aiCache = options.aiCache || new AiCache();
+    this.depCache = options.depCache || new DependencyCache({ workflowHome: process.cwd() });
   }
 
   /**
@@ -385,8 +387,40 @@ export class Step9DependencyValidator {
       const dependencyCounts = await this.parseDependencies(projectRoot, language);
       logger.info(`Total dependencies: ${dependencyCounts.total}`);
 
-      // Phase 4: Run security audit
-      const vulnerabilities = await this.runSecurityAudit(projectRoot, language);
+      // Initialize dependency cache
+      let depCacheReady = false;
+      try {
+        await this.depCache.initialize();
+        depCacheReady = true;
+      } catch {
+        // Cache unavailable — proceed without it
+      }
+      const auditCacheKey = depCacheReady
+        ? generateCacheKey(
+            dependencyCounts.dependencies || {},
+            dependencyCounts.devDependencies || {},
+            CACHE_TYPE.AUDIT
+          )
+        : null;
+      const outdatedCacheKey = depCacheReady
+        ? generateCacheKey(
+            dependencyCounts.dependencies || {},
+            dependencyCounts.devDependencies || {},
+            CACHE_TYPE.OUTDATED
+          )
+        : null;
+
+      // Phase 4: Run security audit (with cache)
+      let vulnerabilities;
+      if (depCacheReady && auditCacheKey && (await this.depCache.has(auditCacheKey))) {
+        vulnerabilities = await this.depCache.get(auditCacheKey);
+        logger.info('[DependencyCache] Audit result loaded from cache');
+      } else {
+        vulnerabilities = await this.runSecurityAudit(projectRoot, language);
+        if (depCacheReady && auditCacheKey) {
+          await this.depCache.set(auditCacheKey, vulnerabilities, CACHE_TYPE.AUDIT);
+        }
+      }
 
       if (vulnerabilities.summary?.total > 0) {
         logger.warn(`Found ${vulnerabilities.summary.total} vulnerabilities`);
@@ -394,8 +428,17 @@ export class Step9DependencyValidator {
         logger.success('No vulnerabilities found');
       }
 
-      // Phase 5: Check for outdated packages
-      const outdatedPackages = await this.checkOutdatedPackages(projectRoot, language);
+      // Phase 5: Check for outdated packages (with cache)
+      let outdatedPackages;
+      if (depCacheReady && outdatedCacheKey && (await this.depCache.has(outdatedCacheKey))) {
+        outdatedPackages = await this.depCache.get(outdatedCacheKey);
+        logger.info('[DependencyCache] Outdated result loaded from cache');
+      } else {
+        outdatedPackages = await this.checkOutdatedPackages(projectRoot, language);
+        if (depCacheReady && outdatedCacheKey) {
+          await this.depCache.set(outdatedCacheKey, outdatedPackages, CACHE_TYPE.OUTDATED);
+        }
+      }
 
       if (outdatedPackages.length > 0) {
         logger.info(`Found ${outdatedPackages.length} outdated packages`);

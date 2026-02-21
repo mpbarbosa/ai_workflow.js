@@ -1,0 +1,1 @@
+{"content":"All tests passed (10/10), with no failures and exit code 0. No root causes of failure are present. Recommendation: Add coverage reporting and increase test count for broader validation.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

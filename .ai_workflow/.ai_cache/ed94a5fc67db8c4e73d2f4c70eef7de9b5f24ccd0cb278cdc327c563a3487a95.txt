@@ -1,0 +1,1 @@
+{"content":"The directory /home/mpb/Documents/GitHub/ai_workflow.js/.test-e2e/step-02-1771699583645-yj4lfh3m23e does not exist, so I cannot perform the requested documentation analysis. Please verify the path and provide a valid directory for review.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

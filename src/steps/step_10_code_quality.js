@@ -12,6 +12,10 @@ import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import { AnalysisCache } from '../lib/analysis_cache.js';
+import { buildCodeQualityPrompt } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -345,6 +349,9 @@ export class Step10CodeQualityAnalyzer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
+    this.analysisCache = options.analysisCache || new AnalysisCache();
   }
 
   /**
@@ -400,8 +407,19 @@ export class Step10CodeQualityAnalyzer {
 
       logger.info(`Linter command: ${linterCommand}`);
 
-      // Phase 4: Run linter
-      const linterResults = await this.runLinter(projectRoot, linterCommand, effectiveLanguage);
+      // Phase 4: Run linter (with analysis cache)
+      const linterCacheInputs = {
+        projectRoot,
+        language: effectiveLanguage,
+        command: linterCommand,
+      };
+      let linterResults = this.analysisCache.get('linter', linterCacheInputs);
+      if (linterResults) {
+        logger.info('[AnalysisCache] Linter results loaded from cache');
+      } else {
+        linterResults = await this.runLinter(projectRoot, linterCommand, effectiveLanguage);
+        this.analysisCache.set('linter', linterCacheInputs, linterResults);
+      }
 
       if (linterResults.totalIssues > 0) {
         logger.warn(`Found ${linterResults.totalIssues} code quality issue(s)`);
@@ -428,6 +446,23 @@ export class Step10CodeQualityAnalyzer {
 
       const report = formatQualityReport(results);
       await this.backlog.saveStepSummary(10, 'Code Quality', report);
+
+      // Phase 7: AI-powered code quality review
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        await this.aiCache.init();
+        const prompt = buildCodeQualityPrompt({
+          codeFiles: [],
+          language: effectiveLanguage,
+          projectInfo: { language: effectiveLanguage },
+        });
+        const cacheKey = `step_10|${effectiveLanguage}|${sourceFileCount}|${linterResults.totalIssues}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI code quality review');
+      }
 
       const hasErrors = linterResults.errors > 0;
 

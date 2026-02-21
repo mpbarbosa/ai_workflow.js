@@ -31,6 +31,13 @@ import { ProjectKindConfigManager } from '../lib/project_kind_config.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { WorkflowSummary } from '../steps/step_17_summary.js';
 import { FileOperations } from '../lib/file_operations.js';
+import { PerformanceTracker } from '../lib/performance.js';
+import { PerformanceMonitor, DEFAULT_THRESHOLDS } from '../lib/performance_monitoring.js';
+import { WorkflowProfileManager } from '../lib/workflow_profiles.js';
+import { DocsOnlyOptimizer } from '../lib/docs_only_optimization.js';
+import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
+import { FullChangesOptimizer } from '../lib/full_changes_optimization.js';
+import { MLOptimizer } from '../lib/ml_optimization.js';
 
 // Import all workflow steps
 import { Step0Analyzer } from '../steps/step_00_analyze.js';
@@ -282,6 +289,19 @@ export class MainOrchestrator {
     this.projectKindConfig = new ProjectKindConfigManager({ projectRoot: this.projectRoot });
     this.techStackDetection = new TechStackDetector(this.projectRoot);
 
+    // Phase 8: Performance tracking
+    this.performanceTracker = new PerformanceTracker();
+    this.performanceMonitor = new PerformanceMonitor({
+      thresholds: DEFAULT_THRESHOLDS,
+      onAlert: (alert) => {
+        logger.warn(`[Performance] ${alert.severity.toUpperCase()}: ${alert.message}`);
+      },
+    });
+    this.profileManager = new WorkflowProfileManager({
+      gitAutomation: this.gitOps,
+    });
+    this.mlOptimizer = new MLOptimizer();
+
     // State
     this.currentStep = null;
     this.results = { steps: {} };
@@ -520,6 +540,10 @@ export class MainOrchestrator {
       logger.info(`Stage: ${this.stage}`);
       logger.info(`Mode: ${this.auto ? 'auto' : 'interactive'}`);
 
+      // Detect workflow profile
+      const detectedProfile = await this.profileManager.detectProfile();
+      logger.info(`Profile: ${detectedProfile}`);
+
       // Health checks
       const healthResults = await this.healthCheck();
       if (!healthResults.passed) {
@@ -532,6 +556,42 @@ export class MainOrchestrator {
       // Determine steps to execute
       const stepsToExecute = getStepsForStage(this.stage);
       logger.info(`Executing ${stepsToExecute.length} steps for stage: ${this.stage}`);
+
+      // Run change-type optimizer for savings estimate (advisory only)
+      try {
+        const status = await this.gitOps.status();
+        const changedFiles = [
+          ...(status.modified || []),
+          ...(status.added || []),
+          ...(status.deleted || []),
+        ];
+        if (changedFiles.length > 0) {
+          let optimizer;
+          if (detectedProfile === 'docs_only') {
+            optimizer = new DocsOnlyOptimizer();
+            const optimizerAnalysis = optimizer.analyze(changedFiles, stepsToExecute);
+            if (optimizerAnalysis.timeSavings > 0) {
+              logger.info(`[Optimizer] Estimated time savings: ${optimizerAnalysis.timeSavings}s`);
+            }
+          } else if (detectedProfile === 'code_changes' || detectedProfile === 'test_changes') {
+            optimizer = new CodeChangesOptimizer();
+            const codeChanges = changedFiles.map((f) => ({ path: f }));
+            const optimizerAnalysis = optimizer.analyze(codeChanges, stepsToExecute);
+            if (optimizerAnalysis.timeSaved > 0) {
+              logger.info(`[Optimizer] Estimated time savings: ${optimizerAnalysis.timeSaved}s`);
+            }
+          } else {
+            optimizer = new FullChangesOptimizer();
+            const fullChanges = changedFiles.map((f) => ({ path: f, type: 'modified' }));
+            const optimizerAnalysis = await optimizer.analyze(fullChanges, stepsToExecute);
+            if (optimizerAnalysis && optimizerAnalysis.summary) {
+              logger.info(`[Optimizer] Full changes analysis: ${optimizerAnalysis.summary}`);
+            }
+          }
+        }
+      } catch {
+        // Optimizer is advisory only — never block execution
+      }
 
       // Create workflow definition with step handlers
       const workflow = {
@@ -564,19 +624,65 @@ export class MainOrchestrator {
 
       // Setup event listeners for progress tracking
       const stepsLogDir = path.join(logsRunDir, 'steps');
+      const mlPredictions = new Map();
       this.workflowEngine.on('step:start', ({ step }) => {
         this.currentStep = step.id;
+        this.performanceTracker.startTimer(step.id);
+        // ML: record prediction for this step
+        try {
+          if (this.mlOptimizer.initialized) {
+            const pred = this.mlOptimizer.predict(step.id, {
+              profile: this.profileManager.currentProfile,
+            });
+            mlPredictions.set(step.id, pred);
+            if (pred.prediction === 'skip') {
+              logger.debug(
+                `[MLOptimizer] ${step.id}: predicted skippable (confidence ${pred.confidence.toFixed(2)})`
+              );
+            }
+          }
+        } catch {
+          /* ML optimizer advisory only */
+        }
         logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
         logger.info(`\n${colors.cyan}→ Starting: ${step.name}${colors.reset}`);
       });
 
       this.workflowEngine.on('step:complete', ({ step, result }) => {
+        const perfMetrics = this.performanceTracker.endTimer(step.id);
+        this.performanceMonitor.checkMetrics(step.id, perfMetrics || {});
+        // ML: record outcome
+        try {
+          if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
+            this.mlOptimizer.recordOutcome(
+              step.id,
+              { profile: this.profileManager.currentProfile },
+              mlPredictions.get(step.id),
+              result.success ? 'success' : 'failure'
+            );
+          }
+        } catch {
+          /* ML optimizer advisory only */
+        }
         const durationStr = result.duration ? `(${Math.round(result.duration / 1000)}s)` : '';
         logger.info(`${colors.green}✓ Completed: ${step.name}${colors.reset} ${durationStr}`);
         logger.closeStepLogFile();
       });
 
       this.workflowEngine.on('step:error', ({ step, error }) => {
+        // ML: record failure outcome
+        try {
+          if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
+            this.mlOptimizer.recordOutcome(
+              step.id,
+              { profile: this.profileManager.currentProfile },
+              mlPredictions.get(step.id),
+              'failure'
+            );
+          }
+        } catch {
+          /* ML optimizer advisory only */
+        }
         logger.error(`${colors.red}✗ Failed: ${step.name} - ${error.message}${colors.reset}`);
         logger.closeStepLogFile();
       });
@@ -587,8 +693,12 @@ export class MainOrchestrator {
         logger.closeStepLogFile();
       });
 
+      // Initialize ML optimizer (non-blocking)
+      await this.mlOptimizer.initialize().catch(() => {});
+
       // Load and execute workflow
       await this.workflowEngine.loadWorkflow(workflow);
+      this.performanceTracker.startTimer('workflow_total');
       const engineResult = await this.workflowEngine.executeWorkflow(executionContext);
 
       // Store results
@@ -629,6 +739,10 @@ export class MainOrchestrator {
 
       // Calculate metrics
       const duration = Date.now() - this.startTime;
+      const totalPerfMetrics = this.performanceTracker.endTimer('workflow_total');
+      if (totalPerfMetrics) {
+        logger.debug(`[Performance] Total workflow: ${totalPerfMetrics.durationFormatted}`);
+      }
       logger.info(`\n${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
       if (engineResult.success) {
         logger.info(`${colors.green}✓ Workflow completed successfully${colors.reset}`);

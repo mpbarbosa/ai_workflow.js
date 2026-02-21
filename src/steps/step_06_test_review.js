@@ -12,6 +12,9 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import path from 'path';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import { buildTestReviewPrompt } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -306,6 +309,8 @@ export class Step6TestReviewer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -381,6 +386,19 @@ export class Step6TestReviewer {
 
       const report = formatTestReport(results);
       await this.backlog.saveStepSummary(6, 'Test Review', report);
+
+      // Phase 7: AI-powered test quality review
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        await this.aiCache.init();
+        const prompt = buildTestReviewPrompt({ testFiles, framework: language });
+        const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI test review');
+      }
 
       if (issues.length === 0) {
         logger.success('Step 6 completed - test suite looks good');

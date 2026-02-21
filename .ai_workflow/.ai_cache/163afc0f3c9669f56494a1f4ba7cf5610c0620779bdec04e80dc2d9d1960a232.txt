@@ -1,0 +1,1 @@
+{"content":"The directory /home/mpb/Documents/GitHub/ai_workflow.js/.test-e2e/step-02-artefacts-1771699458552-fwdppq7cz does not exist. Please verify the path or provide the correct location for the documentation artefacts.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

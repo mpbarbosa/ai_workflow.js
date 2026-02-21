@@ -1,0 +1,9 @@
+{
+  "cacheKey": "027ee0e4e7e24fd87e611049f5d800dc50a80d3544a53c88feea11c1995c1a4b",
+  "timestamp": "2026-02-21T18:07:41.000Z",
+  "timestampEpoch": 1771697261,
+  "promptPreview": "**Role**: You are an expert in software testing and quality assurance.\n\n**Task**: Analyze these test...",
+  "context": "step_08|javascript|8|2",
+  "responseSize": 684,
+  "prompt": "**Role**: You are an expert in software testing and quality assurance.\n\n**Task**: Analyze these test execution results and provide recommendations:\n- Language: javascript\n- Tests passed: 8\n- Tests failed: 2\n- Coverage: N/A%\n- Duration: 0ms\n- Exit code: 1\n\n**Approach**: Identify the most likely root causes of failures and suggest concrete fixes. Be concise."
+}

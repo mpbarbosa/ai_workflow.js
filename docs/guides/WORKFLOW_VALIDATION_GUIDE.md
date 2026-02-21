@@ -590,9 +590,11 @@ When `ai_workflow_core` (or any other `configuration_library` project) is proces
 
 ## AI Workflow Execution Report
 
-An **AI Workflow Execution Report** is a per-run artifact that consolidates, for every AI-calling step, the six key items needed to audit, reproduce, or debug an execution. It complements the validation criteria (C1–C4) by providing a single structured view of what each step asked, what model was used, and exactly where the artifacts live on disk.
+An **AI Workflow Execution Report** is a per-run artifact that consolidates, for every workflow step, the seven key items needed to audit, reproduce, or debug an execution. It complements the validation criteria (C1–C4) by providing a single structured view of what each step asked, what model was used, and exactly where the artifacts live on disk.
 
-> **Scope:** Only steps that produced at least one `[AI] SDK call starting` log entry have items 3–6 populated. All other steps show `N/A` for those columns.
+> **Scope:** Only steps that produced at least one `[AI] SDK call starting` log entry have items 3–6 populated. All other steps show `N/A` for those columns. Item 8 (Duration) is populated for every executed step.
+
+> **Storage rule:** The report file must be saved inside the session log folder for the run being validated: `.ai_workflow/logs/workflow_<run_id>/`.
 
 ---
 
@@ -710,6 +712,40 @@ ls -1 $(realpath $LOG_DIR/prompts/step_01/)
 
 ---
 
+#### 7 — Step Skip Reason
+
+If a step was not executed (i.e., it does not appear in the `Executing step:` lines of `workflow.log`), the reason it was skipped. Common values are a precondition not met (e.g., no changed files, sufficient docs already exist, ineligible project type) or an explicit skip decision logged by the step itself.
+
+**How to obtain:**
+
+```bash
+# Find steps that were registered but never executed
+comm -23 \
+  <(grep "Registered step:" $LOG_DIR/workflow.log | grep -oP "step_[0-9a-f_]+" | sort) \
+  <(grep "Executing step:" $LOG_DIR/workflow.log | grep -oP "step_[0-9a-f_]+" | sort)
+
+# For each skipped step, read its log for the reason (step may still produce a log even when skipped)
+grep -i "skip\|not eligible\|skipping\|no.*found\|sufficient" $LOG_DIR/steps/<step_id>.log | head -5
+```
+
+---
+
+#### 8 — Duration
+
+The wall-clock execution time of the step, in milliseconds, as reported by the workflow engine. Recorded in `workflow.log` at the `✓ Step <id> completed in <ms>ms` line.
+
+**How to obtain:**
+
+```bash
+# Duration for every step in the run
+grep "completed in" $LOG_DIR/workflow.log
+
+# Duration for a specific step
+grep "completed in" $LOG_DIR/workflow.log | grep "step_01"
+```
+
+---
+
 ### Report Generation Script
 
 The following script prints a compact AI Workflow Execution Report for all AI-calling steps in a given run. Run it from the repository root.
@@ -745,9 +781,14 @@ for STEP in $AI_STEPS; do
   MODEL=$(grep "\[AI\] SDK call starting" "$STEP_LOG" 2>/dev/null \
     | grep -oP "model: \K[^,]+" | head -1)
 
+  # 8 — duration
+  DURATION=$(grep "✓ Step $STEP completed in" "$ABS_LOG_DIR/workflow.log" \
+    | grep -oP "\d+ms" | head -1)
+
   echo "## $STEP"
-  echo "  Status : ${STATUS:-unknown}"
-  echo "  Model  : ${MODEL:-unknown}"
+  echo "  Status   : ${STATUS:-unknown}"
+  echo "  Model    : ${MODEL:-unknown}"
+  echo "  Duration : ${DURATION:-unknown}"
   echo "  Exec log : $STEP_LOG"
   echo ""
 
@@ -778,10 +819,10 @@ Use the following table to document the AI Workflow Execution Report for a given
 ```
 ## AI Workflow Execution Report — Run: workflow_<YYYYMMDD_HHmmss>
 
-| Step | Status | AI Model | Prompt(s) summary | Execution log (abs path) | Prompt-response log(s) (abs path) |
-|------|--------|----------|--------------------|--------------------------|-----------------------------------|
-| step_01 | ✓ | gpt-4o | "Update README with new API surface…" (1 call) | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_01.log` | `/abs/path/.ai_workflow/logs/workflow_<run_id>/prompts/step_01/2026-02-21T00-41-15-424Z_0001_documentation_expert.md` |
-| step_0b | N/A (skipped) | N/A | N/A | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_0b.log` | N/A |
+| Step | Status | Duration | AI Model | Prompt(s) summary | Execution log (abs path) | Prompt-response log(s) (abs path) |
+|------|--------|----------|----------|--------------------|--------------------------|-----------------------------------|
+| step_01 | ✓ | 10100ms | gpt-4o | "Update README with new API surface…" (1 call) | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_01.log` | `/abs/path/.ai_workflow/logs/workflow_<run_id>/prompts/step_01/2026-02-21T00-41-15-424Z_0001_documentation_expert.md` |
+| step_0b | N/A (skipped) | 19ms | N/A | N/A | `/abs/path/.ai_workflow/logs/workflow_<run_id>/steps/step_0b.log` | N/A |
 ```
 
 > **Tip:** Run `realpath $LOG_DIR` once to get the absolute base path, then append `steps/<id>.log` or `prompts/<id>/<file>.md` as needed.
