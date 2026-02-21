@@ -174,7 +174,8 @@ export class DocumentationOptimizer {
     const gitAutomation = options.gitOps || options.gitAutomation;
 
     this.fileOps = fileOps;
-    this.heuristics = options.heuristics || new HeuristicsAnalyzer({ logger: this.logger });
+    this.heuristics =
+      options.heuristics || new HeuristicsAnalyzer({ logger: this.logger, fileOps });
     this.gitAnalyzer =
       options.gitAnalyzer || new GitAnalyzer({ gitAutomation, fileOps, logger: this.logger });
     this.versionAnalyzer =

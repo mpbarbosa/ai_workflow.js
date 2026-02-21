@@ -418,6 +418,39 @@ export class HeuristicsAnalyzer {
     this.threshold = options.threshold || SIMILARITY_THRESHOLDS.HIGH;
     this.weights = options.weights || SIMILARITY_WEIGHTS;
     this.logger = options.logger || console;
+    this.fileOps = options.fileOps || null;
+  }
+
+  /**
+   * Analyze documents for exact duplicates and redundant pairs
+   * @param {Array<string>} filePaths - Array of file paths
+   * @param {number} [threshold] - Similarity threshold override
+   * @returns {Promise<{exactDuplicates: Array, redundantPairs: Array}>}
+   */
+  async analyzeDocuments(filePaths, threshold) {
+    const effectiveThreshold = threshold !== undefined ? threshold : this.threshold;
+    const fileContents = new Map();
+    const fileData = new Map();
+
+    for (const file of filePaths) {
+      try {
+        const content = this.fileOps
+          ? await this.fileOps.readFile(file)
+          : (await import('fs/promises')).readFile(file, 'utf8');
+        fileContents.set(file, content);
+        fileData.set(file, { content, size: content.length });
+      } catch (error) {
+        this.logger.warn(`Could not read ${file}: ${error.message}`);
+      }
+    }
+
+    const savedThreshold = this.threshold;
+    this.threshold = effectiveThreshold;
+    const exactDuplicates = this.findDuplicates(fileContents);
+    const redundantPairs = this.findRedundant(fileData);
+    this.threshold = savedThreshold;
+
+    return { exactDuplicates, redundantPairs };
   }
 
   /**

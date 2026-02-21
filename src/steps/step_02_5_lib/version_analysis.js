@@ -416,6 +416,17 @@ export class VersionAnalyzer {
   }
 
   /**
+   * Analyze documents for outdated version references
+   * @param {Array<string>} filePaths - Array of file paths
+   * @returns {Promise<{outdatedFiles: Array<string>}>}
+   */
+  async analyzeDocuments(filePaths) {
+    const analyses = await this.analyzeFiles(filePaths);
+    const outdatedFiles = this.getOutdatedFiles(analyses).map((a) => a.file);
+    return { outdatedFiles };
+  }
+
+  /**
    * Get outdated files
    * @param {Array<Object>} analyses - Version analyses
    * @returns {Array<Object>} - Outdated file analyses

@@ -352,6 +352,21 @@ export class GitAnalyzer {
   }
 
   /**
+   * Analyze documents for outdatedness
+   * @param {Array<string>} filePaths - Array of file paths
+   * @param {number} [outdatedThresholdMonths] - Override for outdated threshold in months
+   * @returns {Promise<{outdatedFiles: Array<string>}>}
+   */
+  async analyzeDocuments(filePaths, outdatedThresholdMonths) {
+    if (outdatedThresholdMonths !== undefined) {
+      this.thresholds = { ...this.thresholds, OUTDATED_MONTHS: outdatedThresholdMonths };
+    }
+    const analyses = await this.analyzeFiles(filePaths);
+    const outdatedFiles = this.getOutdatedFiles(analyses).map((a) => a.file);
+    return { outdatedFiles };
+  }
+
+  /**
    * Identify outdated files
    * @param {Array<Object>} analyses - File analyses
    * @returns {Array<Object>} - Outdated file analyses
