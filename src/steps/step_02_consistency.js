@@ -10,6 +10,7 @@ import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -387,15 +388,30 @@ export class Step2ConsistencyAnalyzer {
   }
 
   /**
-   * Get expected version from package.json
+   * Get expected version from the project.
+   *
+   * Resolution order:
+   *   1. `package.json` → `version` field (Node.js projects)
+   *   2. `.workflow-config.yaml` → `project.version` field (all project types)
+   *
    * @param {string} projectRoot - Project root directory
-   * @returns {Promise<string|null>} Expected version or null
+   * @returns {Promise<string|null>} Detected version string, or null if not found
    */
   async getExpectedVersion(projectRoot) {
+    // Try package.json first
     try {
       const content = await this.fileOps.readFile(`${projectRoot}/package.json`);
       const pkg = JSON.parse(content);
-      return pkg.version || null;
+      if (pkg.version) return pkg.version;
+    } catch {
+      // Fall through to workflow config
+    }
+
+    // Fall back to .workflow-config.yaml
+    try {
+      const content = await this.fileOps.readFile(`${projectRoot}/.workflow-config.yaml`);
+      const config = yaml.load(content);
+      return config?.project?.version || null;
     } catch {
       return null;
     }

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Step 2 – version detection fallback** (`src/steps/step_02_consistency.js`): `getExpectedVersion` now falls back to reading `project.version` from `.workflow-config.yaml` when `package.json` is absent or has no `version` field. This fixes the `Expected version: not found` log message that appeared for non-Node.js projects (e.g. shell automation projects) that only define a version in the workflow config.
+
 ## [1.0.0] - 2026-02-17
 
 ### 🎉 STABLE RELEASE - Production Ready
