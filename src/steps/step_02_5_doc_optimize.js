@@ -215,15 +215,14 @@ export class DocumentationOptimizer {
     const absDocsDir = projectRoot ? path.join(projectRoot, docsDir) : docsDir;
 
     // Check if directory exists
-    const exists = await this.fileOps.directoryExists(absDocsDir);
+    const exists = await this.fileOps.exists(absDocsDir);
     if (!exists) {
       return { skip: true, reason: `Documentation directory not found: ${docsDir}` };
     }
 
     // Count markdown files
-    const files = await this.fileOps.listFiles(absDocsDir, {
+    const files = await this.fileOps.listDirectoryRecursive(absDocsDir, {
       extensions: ['.md'],
-      recursive: true,
     });
     this.state = updateState(this.state, { files });
 

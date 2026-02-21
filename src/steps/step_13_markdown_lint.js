@@ -477,8 +477,7 @@ export class Step13MarkdownLint {
     }
 
     try {
-      const allFiles = await this.fileOps.listFiles('.', {
-        recursive: true,
+      const allFiles = await this.fileOps.listDirectoryRecursive('.', {
         pattern: '*.md',
       });
 

@@ -140,8 +140,8 @@ describe('DocumentationOptimizer - Integration', () => {
 
   beforeEach(() => {
     mockFileOps = {
-      directoryExists: jest.fn(),
-      listFiles: jest.fn(),
+      exists: jest.fn(),
+      listDirectoryRecursive: jest.fn(),
     };
 
     mockHeuristics = {
@@ -202,7 +202,7 @@ describe('DocumentationOptimizer - Integration', () => {
     });
 
     test('skips when directory does not exist', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(false);
+      mockFileOps.exists.mockResolvedValue(false);
 
       const result = await optimizer.shouldSkip();
 
@@ -211,8 +211,8 @@ describe('DocumentationOptimizer - Integration', () => {
     });
 
     test('skips when too few files', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(true);
-      mockFileOps.listFiles.mockResolvedValue(['a.md', 'b.md']); // Only 2 files
+      mockFileOps.exists.mockResolvedValue(true);
+      mockFileOps.listDirectoryRecursive.mockResolvedValue(['a.md', 'b.md']); // Only 2 files
 
       const result = await optimizer.shouldSkip();
 
@@ -221,8 +221,14 @@ describe('DocumentationOptimizer - Integration', () => {
     });
 
     test('does not skip when enough files', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(true);
-      mockFileOps.listFiles.mockResolvedValue(['a.md', 'b.md', 'c.md', 'd.md', 'e.md']);
+      mockFileOps.exists.mockResolvedValue(true);
+      mockFileOps.listDirectoryRecursive.mockResolvedValue([
+        'a.md',
+        'b.md',
+        'c.md',
+        'd.md',
+        'e.md',
+      ]);
 
       const result = await optimizer.shouldSkip();
 
@@ -416,8 +422,14 @@ describe('DocumentationOptimizer - Integration', () => {
 
   describe('run', () => {
     test('runs complete workflow successfully', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(true);
-      mockFileOps.listFiles.mockResolvedValue(['a.md', 'b.md', 'c.md', 'd.md', 'e.md']);
+      mockFileOps.exists.mockResolvedValue(true);
+      mockFileOps.listDirectoryRecursive.mockResolvedValue([
+        'a.md',
+        'b.md',
+        'c.md',
+        'd.md',
+        'e.md',
+      ]);
 
       mockHeuristics.analyzeDocuments.mockResolvedValue({
         exactDuplicates: ['a.md'],
@@ -442,7 +454,7 @@ describe('DocumentationOptimizer - Integration', () => {
     });
 
     test('skips when directory not found', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(false);
+      mockFileOps.exists.mockResolvedValue(false);
 
       const result = await optimizer.run();
 
@@ -451,8 +463,14 @@ describe('DocumentationOptimizer - Integration', () => {
     });
 
     test('handles workflow errors gracefully', async () => {
-      mockFileOps.directoryExists.mockResolvedValue(true);
-      mockFileOps.listFiles.mockResolvedValue(['a.md', 'b.md', 'c.md', 'd.md', 'e.md']);
+      mockFileOps.exists.mockResolvedValue(true);
+      mockFileOps.listDirectoryRecursive.mockResolvedValue([
+        'a.md',
+        'b.md',
+        'c.md',
+        'd.md',
+        'e.md',
+      ]);
       mockHeuristics.analyzeDocuments.mockRejectedValue(new Error('Fatal error'));
 
       const result = await optimizer.run();

@@ -346,7 +346,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
         executeCommand: jest.fn(),
       };
       mockFileOps = {
-        listFiles: jest.fn(),
+        listDirectoryRecursive: jest.fn(),
         readFile: jest.fn(),
       };
       mockBacklog = {
@@ -396,7 +396,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
     });
 
     test('handles no markdown files', async () => {
-      mockFileOps.listFiles = jest.fn().mockResolvedValue([]);
+      mockFileOps.listDirectoryRecursive = jest.fn().mockResolvedValue([]);
 
       const step = new Step13MarkdownLint({
         fileOps: mockFileOps,
@@ -417,7 +417,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
     });
 
     test('handles mdl not installed', async () => {
-      mockFileOps.listFiles = jest.fn().mockResolvedValue(['README.md']);
+      mockFileOps.listDirectoryRecursive = jest.fn().mockResolvedValue(['README.md']);
       mockExecutor.executeCommand = jest.fn().mockRejectedValue(new Error('Command not found'));
 
       const step = new Step13MarkdownLint({
@@ -441,7 +441,9 @@ docs/guide.md:10: MD022 Blank lines around headers`;
     });
 
     test('executes successful linting with no issues', async () => {
-      mockFileOps.listFiles = jest.fn().mockResolvedValue(['README.md', 'CHANGELOG.md']);
+      mockFileOps.listDirectoryRecursive = jest
+        .fn()
+        .mockResolvedValue(['README.md', 'CHANGELOG.md']);
       mockExecutor.executeCommand = jest
         .fn()
         .mockResolvedValueOnce({ stdout: '0.11.0', stderr: '' }) // mdl version

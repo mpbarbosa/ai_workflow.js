@@ -250,10 +250,10 @@ export class Step1DocumentationAnalyzer {
               projectKind: this.configManager?.config?.project?.kind,
             };
             const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files, projectInfo });
-            const cacheContext = `documentation_analyst|${files.join(',')}`;
+            const cacheContext = `documentation_expert|${files.join(',')}`;
             const response = await this.aiCache.withCache(prompt, cacheContext, () =>
               this.aiHelper.executeRequest(prompt, {
-                persona: 'documentation_analyst',
+                persona: 'documentation_expert',
               })
             );
             return { success: response.success, response };

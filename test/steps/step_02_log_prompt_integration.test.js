@@ -589,12 +589,12 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       // and the directory pattern from main_orchestrator.js:
       //   path.join(logsRunDir, 'prompts', stepId)  → prompts/step_02/
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      const persona = 'documentation_analyst';
+      const persona = 'documentation_expert';
       const filename = `${ts}_0001_${persona}.md`;
       const promptsDir = path.join('prompts', 'step_02');
       const fullPath = path.join(promptsDir, filename);
 
-      expect(fullPath).toMatch(/prompts[\\/]step_02[\\/].+_0001_documentation_analyst\.md/);
+      expect(fullPath).toMatch(/prompts[\\/]step_02[\\/].+_0001_documentation_expert\.md/);
     });
 
     describe('formatConsistencyReport() — pure function for report generation', () => {

@@ -46,8 +46,8 @@ function buildOptimizer({
   extraOptions = {},
 } = {}) {
   const fileOps = {
-    directoryExists: (_dir) => Promise.resolve(dirExists),
-    listFiles: (_dir, _opts) => Promise.resolve(files),
+    exists: (_dir) => Promise.resolve(dirExists),
+    listDirectoryRecursive: (_dir, _opts) => Promise.resolve(files),
     ...extraOptions.fileOps,
   };
 
@@ -282,7 +282,7 @@ describe('E2E: step_02_5 execute() fix regression', () => {
 
       // Build optimizer with real fileOps pointing at our tempDir
       const fileOps = {
-        directoryExists: async (dir) => {
+        exists: async (dir) => {
           const absDir = path.isAbsolute(dir) ? dir : path.join(tempDir, dir);
           try {
             await fs.access(absDir);
@@ -291,7 +291,7 @@ describe('E2E: step_02_5 execute() fix regression', () => {
             return false;
           }
         },
-        listFiles: async (dir) => {
+        listDirectoryRecursive: async (dir) => {
           const absDir = path.isAbsolute(dir) ? dir : path.join(tempDir, dir);
           try {
             const entries = await fs.readdir(absDir, { withFileTypes: true });
