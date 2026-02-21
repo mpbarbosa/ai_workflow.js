@@ -11,6 +11,7 @@ import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
+import { AiHelper } from '../lib/ai_helpers.js';
 
 // Constants
 export const UI_PROJECT_TYPES = Object.freeze({
@@ -378,6 +379,9 @@ export class Step15UxAnalysis {
     this.logger = options.logger || new Logger();
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
+    this.aiHelper =
+      options.aiHelper ||
+      new AiHelper({ promptsDir: options.promptsDir || options.configManager?.promptsDir });
   }
 
   /**
@@ -463,7 +467,7 @@ export class Step15UxAnalysis {
       this.logger.info(`${colors.blue}Phase 2:${colors.reset} Building UX analysis prompt...`);
       const prompt = buildUxAnalysisPrompt(analysisContext);
 
-      // Phase 4: Perform analysis (in real implementation, would call AI)
+      // Phase 4: Perform AI-powered analysis
       this.logger.info(
         `${colors.blue}Phase 3:${colors.reset} Performing AI-powered UX analysis...`
       );
@@ -519,54 +523,39 @@ export class Step15UxAnalysis {
 
   /**
    * Discover all files in project (I/O operation)
-   * @param {string} _rootPath - Root directory to scan
+   * @param {string} rootPath - Root directory to scan
    * @returns {Promise<Array<string>>} - List of file paths
    */
-  async discoverFiles(_rootPath) {
-    // In real implementation, would use FileOperations.listFiles()
-    // For now, return mock data for testing
-    return [];
+  async discoverFiles(rootPath) {
+    const patterns = [
+      '**/*.jsx',
+      '**/*.tsx',
+      '**/*.vue',
+      '**/*.html',
+      '**/*.css',
+      '**/*.scss',
+      '**/*.sass',
+      '**/*.less',
+      '**/*.svelte',
+    ];
+
+    const ignore = EXCLUDED_DIRECTORIES.map((d) => `**/${d}/**`);
+    const allFiles = [];
+
+    for (const pattern of patterns) {
+      const found = await this.fileOps.glob(pattern, { cwd: rootPath, ignore });
+      allFiles.push(...found);
+    }
+
+    return [...new Set(allFiles)];
   }
 
   /**
-   * Perform AI-powered UX analysis (I/O operation)
-   * @param {string} _prompt - Analysis prompt for AI
+   * Perform AI-powered UX analysis using ui_ux_designer_prompt
+   * @param {string} prompt - Analysis prompt for AI
    * @returns {Promise<string>} - AI analysis result (markdown)
    */
-  async performAnalysis(_prompt) {
-    // In real implementation, would call AI service
-    // For now, return mock analysis
-    return `# UX Analysis Report
-
-## Executive Summary
-Analysis complete. 2 critical issues, 3 warnings, 5 recommendations found.
-
-## Critical Issues
-
-### Issue 1: Missing Alt Text on Images
-- **Category**: Accessibility
-- **Severity**: Critical
-- **Description**: Images lack alt attributes for screen readers
-- **Impact**: Blind users cannot access image content
-- **Recommendation**: Add descriptive alt text to all images
-
-## Warnings
-
-### Warning 1: Low Color Contrast
-- **Category**: Accessibility
-- **Severity**: Warning
-- **Description**: Text color does not meet WCAG AA contrast ratio
-- **Impact**: Users with vision impairments may struggle to read
-- **Recommendation**: Increase contrast ratio to at least 4.5:1
-
-## Improvement Suggestions
-
-### Suggestion 1: Add Loading States
-- **Category**: Performance
-- **Severity**: Suggestion
-- **Description**: Components lack loading feedback
-- **Impact**: Users uncertain if actions are processing
-- **Recommendation**: Add loading spinners and skeleton screens
-`;
+  async performAnalysis(prompt) {
+    return this.aiHelper.executeRequest(prompt, { persona: 'ui_ux_designer' });
   }
 }
