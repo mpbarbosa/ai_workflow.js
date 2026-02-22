@@ -55,6 +55,8 @@ import { Step9DependencyValidator } from '../steps/step_09_dependencies.js';
 import { Step0bBootstrapDocs } from '../steps/step_0b_bootstrap_docs.js';
 import { Step10CodeQualityAnalyzer } from '../steps/step_10_code_quality.js';
 import { Step11ContextAnalyzer } from '../steps/step_11_context.js';
+import { Step11_5AwsLbsValidator } from '../steps/step_11_5_aws_lbs_validation.js';
+import { Step11_6AwsServerlessReviewer } from '../steps/step_11_6_aws_serverless_review.js';
 import { Step12GitFinalization } from '../steps/step_12_git_finalization.js';
 import { Step13MarkdownLint } from '../steps/step_13_markdown_lint.js';
 import { Step14PromptEngineer } from '../steps/step_14_prompt_engineer.js';
@@ -168,6 +170,8 @@ export function getStepsForStage(stage) {
       'step_09', // Dependencies
       'step_10',
       'step_11', // Context
+      'step_11_5', // AWS LBS Validation
+      'step_11_6', // AWS Serverless AI Review
       'step_13',
       'step_14', // Prompt engineer
       'step_15', // UX analysis
@@ -423,6 +427,21 @@ export class MainOrchestrator {
         description: 'Manage workflow context',
         class: Step11ContextAnalyzer,
         dependencies: ['step_10'],
+      },
+      {
+        id: 'step_11_5',
+        name: 'AWS LBS Validation',
+        description:
+          'Validate aws_lbs_backend_setup projects: shell scripts, Lambda structure, AWS config',
+        class: Step11_5AwsLbsValidator,
+        dependencies: ['step_11'],
+      },
+      {
+        id: 'step_11_6',
+        name: 'AWS Serverless AI Review',
+        description: 'AI-powered deployment readiness review for aws_lbs_backend_setup projects',
+        class: Step11_6AwsServerlessReviewer,
+        dependencies: ['step_11_5'],
       },
       {
         id: 'step_13',
@@ -879,13 +898,15 @@ export class MainOrchestrator {
         const projectRoot = context.projectRoot || this.projectRoot || process.cwd();
 
         // Dispatch by step kind:
-        //   ProjectStep → execute(projectRoot: string)
+        //   ProjectStep → execute(projectRoot: string, context: Object)
         //   ContextStep → execute(context: { projectRoot, ... })
+        // context.results contains previous step outputs (indexed by stepId via .find())
+        // and is used by steps like step_11_6 that depend on a prior step's output.
         const kind = ExecutorClass.stepKind ?? STEP_KIND.PROJECT;
         const result =
           kind === STEP_KIND.CONTEXT
             ? await executor.execute({ projectRoot, ...context })
-            : await executor.execute(projectRoot);
+            : await executor.execute(projectRoot, context);
 
         return result;
       } catch (error) {

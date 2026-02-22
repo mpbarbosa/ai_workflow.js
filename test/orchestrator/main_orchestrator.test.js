@@ -111,7 +111,7 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return full workflow steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.FULL);
 
-      expect(steps).toHaveLength(21); // All 21 steps
+      expect(steps).toHaveLength(23); // All 23 steps
       expect(steps).toContain('step_00');
       expect(steps).toContain('step_0b');
       expect(steps).toContain('step_0f');
@@ -121,7 +121,7 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should default to full workflow for invalid stage', () => {
       const steps = getStepsForStage('invalid');
 
-      expect(steps).toHaveLength(21);
+      expect(steps).toHaveLength(23);
     });
   });
 
@@ -278,7 +278,7 @@ describe('Main Orchestrator - Pure Functions', () => {
 
 describe('Main Orchestrator - Integration Tests', () => {
   let orchestrator;
-  const testDir = '.test_orchestrator';
+  const testDir = path.join(process.cwd(), '.test_orchestrator');
 
   beforeEach(async () => {
     // Create test directory
@@ -296,7 +296,7 @@ describe('Main Orchestrator - Integration Tests', () => {
     test('should create orchestrator with default options', () => {
       orchestrator = new MainOrchestrator();
 
-      expect(orchestrator.workflowDir).toBe('.ai_workflow');
+      expect(orchestrator.workflowDir).toBe(path.join(process.cwd(), '.ai_workflow'));
       expect(orchestrator.stage).toBe(WORKFLOW_STAGES.FULL);
       expect(orchestrator.auto).toBe(false);
     });
@@ -336,11 +336,11 @@ describe('Main Orchestrator - Integration Tests', () => {
       orchestrator = new MainOrchestrator({ workflowDir: testDir });
     });
 
-    test('should register all 21 workflow steps', () => {
+    test('should register all 23 workflow steps', () => {
       orchestrator.registerAllSteps();
 
       const stepCount = orchestrator.stepRegistry.list().length;
-      expect(stepCount).toBe(21);
+      expect(stepCount).toBe(23);
     });
 
     test('should register steps with correct metadata', () => {
