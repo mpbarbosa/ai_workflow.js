@@ -428,7 +428,7 @@ export class Step13MarkdownLint {
     this.backlogManager = options.backlogManager || null;
     this.logger = options.logger || console;
     this.dryRun = options.dryRun || false;
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir });
     this.aiCache = options.aiCache || new AiCache();
   }
 

@@ -359,7 +359,7 @@ export class Step16VersionUpdate {
     this.logger = options.logger || new Logger();
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -396,7 +396,7 @@ export class Step16VersionUpdate {
       const gitStats = context.gitStats || {};
 
       if (modifiedFiles.length === 0) {
-        this.logger.info('Step 16: No modified files to process');
+        this.logger.warn('Step 16: No modified files to process');
 
         await this.backlog.saveStepSummary(
           '16',
@@ -485,6 +485,9 @@ export class Step16VersionUpdate {
 
       // Phase 3: Calculate new version
       const newVersion = incrementVersion(currentVersion, bumpType);
+      this.logger.info(
+        `[VERSION BUMP] previous: ${currentVersion} → next: ${newVersion} (${bumpType})`
+      );
       this.logger.success(`New version: ${currentVersion} → ${newVersion}`);
 
       // Phase 4: Update versions in files

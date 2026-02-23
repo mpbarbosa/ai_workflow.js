@@ -567,12 +567,12 @@ export class Step15UxAnalysis {
   }
 
   /**
-   * Perform AI-powered UX analysis using ui_ux_designer_prompt
+   * Perform AI-powered UX analysis using ux_analyst persona
    * @param {string} prompt - Analysis prompt for AI
    * @returns {Promise<string>} - AI analysis result (markdown)
    */
   async performAnalysis(prompt) {
-    const response = await this.aiHelper.executeRequest(prompt, { persona: 'ui_ux_designer' });
+    const response = await this.aiHelper.executeRequest(prompt, { persona: 'ux_analyst' });
     return response?.content ?? '';
   }
 }

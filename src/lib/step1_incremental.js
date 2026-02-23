@@ -359,7 +359,11 @@ export class Step1IncrementalProcessor {
       const content = await fs.readFile(filePath, 'utf8');
       return calculateContentHash(content, this.config.hashAlgorithm, this.config.encoding);
     } catch (error) {
-      logger.warn(`Step1: Failed to read file ${filePath}: ${error.message}`);
+      if (error.code === 'ENOENT') {
+        logger.debug(`Step1: File no longer exists (skip): ${filePath}`);
+      } else {
+        logger.warn(`Step1: Failed to read file ${filePath}: ${error.message}`);
+      }
       return null;
     }
   }

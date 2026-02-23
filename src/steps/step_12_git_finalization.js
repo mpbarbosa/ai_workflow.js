@@ -391,7 +391,7 @@ export class Step12GitFinalization {
     this.interactiveMode = options.interactiveMode || false;
     this.aiEnabled = options.aiEnabled || false;
     this.projectRoot = options.projectRoot || null;
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir });
     this.aiCache = options.aiCache || new AiCache();
   }
 
