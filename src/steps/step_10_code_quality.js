@@ -16,6 +16,7 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
 import { buildCodeQualityPrompt } from '../lib/ai_prompt_builder.js';
+import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
 // ============================================================================
 // CONSTANTS
@@ -32,7 +33,7 @@ export const LINTER_COMMANDS = {
   java: 'mvn checkstyle:check',
   ruby: 'rubocop',
   rust: 'cargo clippy',
-  bash: 'shellcheck',
+  bash: 'find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" | xargs shellcheck',
   json: 'npx jsonlint --quiet',
 };
 
@@ -240,6 +241,19 @@ export function parseLinterOutput(output, language) {
     return parseEslintOutput(output);
   } else if (normalized === 'python') {
     return parseFlake8Output(output);
+  } else if (normalized === 'bash' || normalized === 'shell') {
+    // Parse shellcheck output: count "In file line N:" markers as issues
+    const issueMatches = output.match(/^In .+? line \d+:/gm) || [];
+    const errors = (output.match(/\(error\)/g) || []).length;
+    const warnings = (output.match(/\(warning\)/g) || []).length;
+    const notes = (output.match(/\(note\)/g) || []).length;
+    const total = issueMatches.length || errors + warnings + notes;
+    return {
+      totalIssues: total,
+      errors,
+      warnings: warnings + notes,
+      files: 0,
+    };
   }
 
   // Generic fallback - count lines
@@ -502,7 +516,8 @@ export class Step10CodeQualityAnalyzer {
         // Fall back to single-language report for backward compat
         const primaryLanguage =
           techStackResult.primary_language || detectedLanguages[0] || 'javascript';
-        const sourceFileCount = await this.countSourceFiles(projectRoot, primaryLanguage);
+        const sourceFiles = await this.countSourceFiles(projectRoot, primaryLanguage);
+        const sourceFileCount = sourceFiles.length;
         logger.info(`Found ${sourceFileCount} source file(s)`);
 
         const report = formatQualityReport({
@@ -517,14 +532,17 @@ export class Step10CodeQualityAnalyzer {
 
       // Phase 4: Run each linter and collect per-language results
       const perLanguageResults = [];
+      const allSourceFiles = [];
       for (const [language, linterCommand] of Object.entries(linterCommandMap)) {
-        const sourceFileCount = await this.countSourceFiles(projectRoot, language);
+        const sourceFiles = await this.countSourceFiles(projectRoot, language);
+        const sourceFileCount = sourceFiles.length;
 
         if (sourceFileCount === 0) {
           logger.info(`${language}: no source files found, skipping linter`);
           continue;
         }
 
+        allSourceFiles.push(...sourceFiles);
         logger.info(`${language}: ${sourceFileCount} source file(s), linter: ${linterCommand}`);
 
         const linterCacheInputs = { projectRoot, language, command: linterCommand };
@@ -589,21 +607,43 @@ export class Step10CodeQualityAnalyzer {
       const report = formatQualityReport({ perLanguageResults, aggregateTotals });
       await this.backlog.saveStepSummary(10, 'Code Quality', report);
 
-      // Phase 8: AI-powered code quality review
+      // Phase 8: AI-powered code quality review (partition + rotate strategy)
       const primaryLanguage =
         techStackResult.primary_language || detectedLanguages[0] || 'javascript';
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
-        const prompt = buildCodeQualityPrompt({
-          codeFiles: [],
-          language: primaryLanguage,
-          projectInfo: { language: primaryLanguage, languages: detectedLanguages },
+
+        // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
+        const uniqueSourceFiles = [...new Set(allSourceFiles)];
+
+        // Select the partition to review this run and rotate for the next run.
+        const partitionCache = new Step10PartitionCache({
+          cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
         });
-        const cacheKey = `step_10|${detectedLanguages.join(',')}|${aggregateTotals.fileCount}|${aggregateTotals.totalIssues}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const partition = await partitionCache.getCurrentPartition(uniqueSourceFiles);
+
+        logger.info(
+          `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
+        );
+
+        const prompt = buildCodeQualityPrompt({
+          codeFiles: partition.files,
+          language: primaryLanguage,
+          projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
+        });
+        const cacheKey = `step_10|p${partition.index}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
+          const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
+          await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
+          // Advance to the next partition for subsequent runs
+          await partitionCache.advance(uniqueSourceFiles);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI code quality review');
       }
@@ -673,7 +713,7 @@ export class Step10CodeQualityAnalyzer {
    * Count source files
    * @param {string} projectRoot - Project root directory
    * @param {string} language - Programming language
-   * @returns {Promise<number>} Source file count
+   * @returns {Promise<string[]>} Source file paths
    */
   async countSourceFiles(projectRoot, language) {
     const extensions = getSourceExtensions(language);
@@ -687,7 +727,21 @@ export class Step10CodeQualityAnalyzer {
         try {
           const files = await this.fileOps.glob(pattern, {
             cwd: projectRoot,
-            ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
+            ignore: [
+              '**/node_modules/**',
+              '**/dist/**',
+              '**/build/**',
+              '**/.git/**',
+              '**/venv/**',
+              '**/.venv/**',
+              '**/coverage/**',
+              '**/.coverage/**',
+              '**/__pycache__/**',
+              '**/.jest-cache/**',
+              '**/.cache/**',
+              '**/legacy-tests/**',
+              '**/vendor/**',
+            ],
           });
           allFiles = allFiles.concat(files);
         } catch {
@@ -696,9 +750,9 @@ export class Step10CodeQualityAnalyzer {
       }
 
       // Remove duplicates
-      return new Set(allFiles).size;
+      return [...new Set(allFiles)];
     } catch {
-      return 0;
+      return [];
     }
   }
 
