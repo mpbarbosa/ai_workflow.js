@@ -484,7 +484,7 @@ export class Step10CodeQualityAnalyzer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
     this.analysisCache = options.analysisCache || new AnalysisCache();
   }
@@ -634,7 +634,10 @@ export class Step10CodeQualityAnalyzer {
         });
         const cacheKey = `step_10|p${partition.index}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
+          this.aiHelper.executeRequest(prompt, {
+            persona: 'architecture_reviewer',
+            timeout: 240000,
+          })
         );
         const aiContent = aiResult?.content ?? '';
         if (aiContent) {

@@ -97,6 +97,19 @@ export const EXCLUDED_DIRS = [
   'build',
   '.vscode',
   '.idea',
+  // Artifact and cache directories (not relevant to project structure)
+  'venv',
+  '.venv',
+  '__pycache__',
+  '.pytest_cache',
+  '.jest-cache',
+  '.ai_workflow',
+  '.ai_cache',
+  '.nyc_output',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  'out',
 ];
 
 /**
@@ -353,7 +366,7 @@ export class Step5DirectoryAnalyzer {
     this.backlog = options.backlog || new Backlog();
     this.gitOps = options.gitOps || new GitAutomation();
     this.config = options.config || new Config();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -427,7 +440,9 @@ export class Step5DirectoryAnalyzer {
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step4_directory_prompt', {
+          prompt = buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
+            project_name: projectRoot,
+            existing_dirs: (structureResults.existingDirs ?? []).join(', '),
             total_dirs: String(results.totalDirs ?? 0),
             misplaced_docs: String(results.misplacedDocs ?? 0),
             organized_docs: String(results.organizedDocs ?? 0),
@@ -439,7 +454,8 @@ export class Step5DirectoryAnalyzer {
         }
         if (!prompt) {
           const role = `You are an expert in software project structure and organization.`;
-          const task = `Analyze these directory structure validation results:
+          const task = `Analyze these directory structure validation results for project at "${projectRoot}" and provide recommendations:
+- Directories found: ${(structureResults.existingDirs ?? []).join(', ') || 'none'}
 - Total directories: ${results.totalDirs ?? 0}
 - Misplaced docs: ${results.misplacedDocs ?? 0}
 - Organized docs: ${results.organizedDocs ?? 0}
@@ -449,9 +465,14 @@ export class Step5DirectoryAnalyzer {
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
         const cacheKey = `step_05|${results.totalDirs ?? 0}|${structureResults.issues?.length ?? 0}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(5, 'Directory Structure Validation', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
       }
@@ -562,6 +583,7 @@ export class Step5DirectoryAnalyzer {
         missingCritical: validation.missingCritical,
         undocumented: validation.undocumented,
         docMismatch: validation.docMismatch,
+        existingDirs,
       };
     } catch (error) {
       logger.error(`Structure validation failed: ${error.message}`);

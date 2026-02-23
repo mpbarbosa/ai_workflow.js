@@ -289,10 +289,10 @@ export class GitAnalyzer {
    */
   async getFileHistory(filePath) {
     try {
-      // Format: timestamp|hash|author|subject
+      // Format: timestamp|hash|author|subject — quoted to prevent shell pipe interpretation
       const format = '%ct|%h|%an|%s';
       const result = await this.gitAutomation.executeGitCommand(
-        ['log', `--format=${format}`, '--', filePath],
+        ['log', `--format="${format}"`, '--', filePath],
         { captureOutput: true }
       );
 

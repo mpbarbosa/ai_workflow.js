@@ -423,7 +423,7 @@ Also check [guide](guide.md) again.
 
       expect(commits).toHaveLength(2);
       expect(mockGitAutomation.executeGitCommand).toHaveBeenCalledWith(
-        ['log', '--format=%ct|%h|%an|%s', '--', 'docs/api.md'],
+        ['log', '--format="%ct|%h|%an|%s"', '--', 'docs/api.md'],
         { captureOutput: true }
       );
     });

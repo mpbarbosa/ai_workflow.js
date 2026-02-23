@@ -467,10 +467,26 @@ export class Step15UxAnalysis {
       this.logger.info(`${colors.blue}Phase 2:${colors.reset} Building UX analysis prompt...`);
       const prompt = buildUxAnalysisPrompt(analysisContext);
 
-      // Phase 4: Perform AI-powered analysis
+      // Phase 3: Initialize AI helper and perform analysis
       this.logger.info(
         `${colors.blue}Phase 3:${colors.reset} Performing AI-powered UX analysis...`
       );
+      const aiAvailable = await this.aiHelper.initialize();
+      if (!aiAvailable) {
+        this.logger.warn('AI helper not available - skipping AI analysis');
+        await this.backlog.saveStepSummary(
+          '15',
+          'UX_Analysis',
+          `Found ${uiFiles.length} UI files but AI analysis unavailable`,
+          '⚠️'
+        );
+        return {
+          success: true,
+          skipped: true,
+          reason: 'AI helper not available',
+          fileCount: uiFiles.length,
+        };
+      }
       const analysisResult = await this.performAnalysis(prompt);
 
       // Phase 5: Parse results
@@ -556,6 +572,7 @@ export class Step15UxAnalysis {
    * @returns {Promise<string>} - AI analysis result (markdown)
    */
   async performAnalysis(prompt) {
-    return this.aiHelper.executeRequest(prompt, { persona: 'ui_ux_designer' });
+    const response = await this.aiHelper.executeRequest(prompt, { persona: 'ui_ux_designer' });
+    return response?.content ?? '';
   }
 }
