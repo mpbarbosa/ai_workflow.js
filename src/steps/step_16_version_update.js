@@ -20,10 +20,12 @@ import {
   AI_HELPERS_PATH,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
+import { execFile } from 'child_process';
 
 // Constants
-export const SEMVER_PATTERN = /\d+\.\d+\.\d+/;
-export const VERSION_PATTERN_REGEX = /(version|VERSION|Version|@version)["'\s:=]*(\d+\.\d+\.\d+)/gi;
+export const SEMVER_PATTERN = /\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?/;
+export const VERSION_PATTERN_REGEX =
+  /(version|VERSION|Version|@version)["'\s:=]*(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)/gi;
 
 export const BUMP_TYPES = Object.freeze({
   major: 'major',
@@ -45,6 +47,9 @@ export const HEURISTIC_THRESHOLDS = Object.freeze({
   minorInsertions: 100,
 });
 
+/** npm script name used for project-level version consistency validation */
+export const CHECK_VERSION_SCRIPT = 'check:version';
+
 // ============================================================================
 // PURE FUNCTIONS - Version Parsing and Manipulation
 // ============================================================================
@@ -61,23 +66,24 @@ export function extractVersion(input) {
 
 /**
  * Parse semantic version into components
- * @param {string} version - Version string (X.Y.Z)
- * @returns {Object|null} - { major, minor, patch } or null
+ * @param {string} version - Version string (X.Y.Z or X.Y.Z-prerelease)
+ * @returns {Object|null} - { major, minor, patch, prerelease } or null
  */
 export function parseVersion(version) {
-  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.]+))?$/);
   if (!match) return null;
 
   return {
     major: parseInt(match[1], 10),
     minor: parseInt(match[2], 10),
     patch: parseInt(match[3], 10),
+    prerelease: match[4] || null,
   };
 }
 
 /**
- * Increment version based on bump type
- * @param {string} version - Current version (X.Y.Z)
+ * Increment version based on bump type, preserving any prerelease suffix.
+ * @param {string} version - Current version (X.Y.Z or X.Y.Z-prerelease)
  * @param {string} bumpType - Bump type (major|minor|patch)
  * @returns {string} - New version string
  */
@@ -85,13 +91,14 @@ export function incrementVersion(version, bumpType) {
   const parsed = parseVersion(version);
   if (!parsed) return version;
 
+  const pre = parsed.prerelease ? `-${parsed.prerelease}` : '';
   switch (bumpType) {
     case BUMP_TYPES.major:
-      return `${parsed.major + 1}.0.0`;
+      return `${parsed.major + 1}.0.0${pre}`;
     case BUMP_TYPES.minor:
-      return `${parsed.major}.${parsed.minor + 1}.0`;
+      return `${parsed.major}.${parsed.minor + 1}.0${pre}`;
     case BUMP_TYPES.patch:
-      return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
+      return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}${pre}`;
     default:
       return version;
   }
@@ -492,12 +499,30 @@ export class Step16VersionUpdate {
 
       // Phase 4: Update versions in files
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Updating versions in files...`);
-      const updates = await this.updateVersionsInFiles(modifiedFiles, currentVersion, newVersion);
+      const extraFiles = context.versionConfig?.files || [];
+      const updates = await this.updateVersionsInFiles(
+        modifiedFiles,
+        currentVersion,
+        newVersion,
+        extraFiles
+      );
 
       const stats = calculateUpdateStats(updates);
       this.logger.success(
         `Updated ${stats.updated} files, skipped ${stats.skipped}, failed ${stats.failed}`
       );
+
+      // Phase 4 (optional): Run project check:version script to verify consistency
+      const consistencyCheck = await this.runVersionConsistencyCheck();
+      if (consistencyCheck.ran) {
+        if (consistencyCheck.exitCode === 0) {
+          this.logger.success('Version consistency check passed ✅');
+        } else {
+          this.logger.warn(
+            `Version consistency check reported issues (exit ${consistencyCheck.exitCode}):\n${consistencyCheck.output}`
+          );
+        }
+      }
 
       // Phase 5: Generate report
       const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -521,6 +546,7 @@ export class Step16VersionUpdate {
         bumpType,
         stats,
         updates,
+        consistencyCheck,
         duration: Date.now() - startTime,
       };
     } catch (error) {
@@ -581,17 +607,22 @@ export class Step16VersionUpdate {
    * @param {Array<string>} files - List of modified files (relative paths)
    * @param {string} oldVersion - Old version string
    * @param {string} newVersion - New version string
+   * @param {Array<string>} [extraFiles=[]] - Additional project-declared version files
    * @returns {Promise<Array<Object>>} - Update results [{ file, success, skipped?, error? }]
    */
-  async updateVersionsInFiles(files, oldVersion, newVersion) {
+  async updateVersionsInFiles(files, oldVersion, newVersion, extraFiles = []) {
     const results = [];
 
-    // Collect candidate paths: metadata files + modified files that contain versions
+    // Collect candidate paths: metadata files + modified files + project-declared extras
     const candidates = new Set();
     for (const metaFile of METADATA_FILES) {
       candidates.add(`${this.projectRoot}/${metaFile}`);
     }
     for (const f of files) {
+      const abs = f.startsWith('/') ? f : `${this.projectRoot}/${f}`;
+      candidates.add(abs);
+    }
+    for (const f of extraFiles) {
       const abs = f.startsWith('/') ? f : `${this.projectRoot}/${f}`;
       candidates.add(abs);
     }
@@ -633,10 +664,54 @@ export class Step16VersionUpdate {
         }
         results.push({ file: relPath, success: true });
       } catch (err) {
-        results.push({ file: relPath, success: false, error: err.message });
+        const isNotFound =
+          err.code === 'ENOENT' ||
+          (err.message && err.message.toLowerCase().includes('no such file'));
+        if (isNotFound) {
+          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        } else {
+          results.push({ file: relPath, success: false, error: err.message });
+        }
       }
     }
 
     return results;
+  }
+
+  /**
+   * Run the project's check:version npm script (if present) to validate version consistency.
+   * This is a best-effort check; failures are reported as warnings, not step failures.
+   * @returns {Promise<Object>} - { ran, exitCode, output }
+   */
+  async runVersionConsistencyCheck() {
+    // Detect if the project has a check:version npm script
+    const pkgPath = `${this.projectRoot}/package.json`;
+    let hasScript = false;
+    try {
+      const content = await this.fileOps.readFile(pkgPath);
+      if (content) {
+        const pkg = JSON.parse(content);
+        hasScript = Boolean(pkg.scripts && pkg.scripts[CHECK_VERSION_SCRIPT]);
+      }
+    } catch {
+      // package.json missing or unreadable — skip
+    }
+
+    if (!hasScript) {
+      return { ran: false };
+    }
+
+    return new Promise((resolve) => {
+      execFile(
+        'npm',
+        ['run', CHECK_VERSION_SCRIPT],
+        { cwd: this.projectRoot, timeout: 30_000 },
+        (err, stdout, stderr) => {
+          const output = (stdout + stderr).trim();
+          const exitCode = err ? (err.code ?? 1) : 0;
+          resolve({ ran: true, exitCode, output });
+        }
+      );
+    });
   }
 }

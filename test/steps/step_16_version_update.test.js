@@ -7,6 +7,7 @@ import { jest } from '@jest/globals';
 import {
   Step16VersionUpdate,
   BUMP_TYPES,
+  CHECK_VERSION_SCRIPT,
   extractVersion,
   parseVersion,
   incrementVersion,
@@ -35,19 +36,53 @@ describe('Step 16: Version Update', () => {
       expect(extractVersion('no version here')).toBeNull();
       expect(extractVersion('')).toBeNull();
     });
+
+    // A — prerelease support
+    test('extracts prerelease version', () => {
+      expect(extractVersion('version: 0.9.0-alpha')).toBe('0.9.0-alpha');
+      expect(extractVersion('"version": "1.0.0-beta.1"')).toBe('1.0.0-beta.1');
+      expect(extractVersion('0.11.0-rc.2')).toBe('0.11.0-rc.2');
+    });
   });
 
   describe('parseVersion', () => {
     test('parses valid semantic version', () => {
-      expect(parseVersion('1.2.3')).toEqual({ major: 1, minor: 2, patch: 3 });
-      expect(parseVersion('0.0.1')).toEqual({ major: 0, minor: 0, patch: 1 });
-      expect(parseVersion('10.20.30')).toEqual({ major: 10, minor: 20, patch: 30 });
+      expect(parseVersion('1.2.3')).toEqual({ major: 1, minor: 2, patch: 3, prerelease: null });
+      expect(parseVersion('0.0.1')).toEqual({ major: 0, minor: 0, patch: 1, prerelease: null });
+      expect(parseVersion('10.20.30')).toEqual({
+        major: 10,
+        minor: 20,
+        patch: 30,
+        prerelease: null,
+      });
     });
 
     test('returns null for invalid version', () => {
       expect(parseVersion('1.2')).toBeNull();
       expect(parseVersion('v1.2.3')).toBeNull();
       expect(parseVersion('invalid')).toBeNull();
+    });
+
+    // A — prerelease support
+    test('parses prerelease version', () => {
+      expect(parseVersion('0.9.0-alpha')).toEqual({
+        major: 0,
+        minor: 9,
+        patch: 0,
+        prerelease: 'alpha',
+      });
+      expect(parseVersion('1.0.0-beta.1')).toEqual({
+        major: 1,
+        minor: 0,
+        patch: 0,
+        prerelease: 'beta.1',
+      });
+      expect(parseVersion('2.3.4-rc.2')).toEqual({
+        major: 2,
+        minor: 3,
+        patch: 4,
+        prerelease: 'rc.2',
+      });
     });
   });
 
@@ -69,6 +104,22 @@ describe('Step 16: Version Update', () => {
 
     test('returns original for invalid bump type', () => {
       expect(incrementVersion('1.2.3', 'invalid')).toBe('1.2.3');
+    });
+
+    // A — prerelease support
+    test('preserves prerelease suffix on patch bump', () => {
+      expect(incrementVersion('0.9.0-alpha', BUMP_TYPES.patch)).toBe('0.9.1-alpha');
+      expect(incrementVersion('1.0.0-beta.1', BUMP_TYPES.patch)).toBe('1.0.1-beta.1');
+    });
+
+    test('preserves prerelease suffix on minor bump', () => {
+      expect(incrementVersion('0.9.0-alpha', BUMP_TYPES.minor)).toBe('0.10.0-alpha');
+      expect(incrementVersion('1.2.3-rc.2', BUMP_TYPES.minor)).toBe('1.3.0-rc.2');
+    });
+
+    test('preserves prerelease suffix on major bump', () => {
+      expect(incrementVersion('0.11.0-alpha', BUMP_TYPES.major)).toBe('1.0.0-alpha');
+      expect(incrementVersion('1.0.0-rc.1', BUMP_TYPES.major)).toBe('2.0.0-rc.1');
     });
   });
 
@@ -344,6 +395,7 @@ Confidence: high`;
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
       expect(result.reason).toBe('no modified files');
+      expect(mockLogger.warn).toHaveBeenCalledWith('Step 16: No modified files to process');
       expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
         '16',
         'Version_Update',
@@ -400,6 +452,9 @@ Confidence: high`;
       expect(result.newVersion).toBe('1.2.4'); // patch bump
       expect(result.bumpType).toBe('patch');
       expect(result.stats.updated).toBe(2);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        '[VERSION BUMP] previous: 1.2.3 → next: 1.2.4 (patch)'
+      );
       expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
       expect(mockLogger.success).toHaveBeenCalledWith(
         expect.stringContaining('Step 16: Version update completed')
@@ -424,6 +479,145 @@ Confidence: high`;
       expect(result.error).toBe('Read error');
       expect(mockBacklog.saveStepIssues).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    // B — ENOENT → skipped not failed
+    describe('updateVersionsInFiles', () => {
+      test('skips non-existent files (ENOENT) instead of failing', async () => {
+        const enoentError = Object.assign(new Error('no such file or directory'), {
+          code: 'ENOENT',
+        });
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockRejectedValue(enoentError),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateVersionsInFiles(['missing.js'], '1.0.0', '1.0.1');
+        const skipped = results.filter((r) => r.skipped);
+        const failed = results.filter((r) => r.success === false);
+        expect(skipped.length).toBeGreaterThan(0);
+        expect(failed.length).toBe(0);
+      });
+
+      test('still records failure for non-ENOENT errors', async () => {
+        const ioError = new Error('permission denied');
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockRejectedValue(ioError),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateVersionsInFiles([], '1.0.0', '1.0.1');
+        // METADATA_FILES are all attempted; all should fail (not skipped)
+        const failed = results.filter((r) => r.success === false);
+        expect(failed.length).toBeGreaterThan(0);
+      });
+
+      test('includes project-declared extra files in update candidates', async () => {
+        const readMock = jest.fn().mockImplementation((path) => {
+          if (path.endsWith('package.json')) return Promise.resolve('{"version":"1.0.0"}');
+          if (path.includes('extra-file.js')) return Promise.resolve('version: 1.0.0');
+          return Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+        });
+        const writeMock = jest.fn().mockResolvedValue(undefined);
+
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: readMock, writeFile: writeMock },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateVersionsInFiles([], '1.0.0', '1.0.1', ['extra-file.js']);
+        const updated = results.filter((r) => r.success);
+        // package.json and extra-file.js should both be updated
+        expect(updated.some((r) => r.file.includes('extra-file.js'))).toBe(true);
+      });
+    });
+
+    // C — check:version integration
+    describe('runVersionConsistencyCheck', () => {
+      test('returns ran:false when check:version script absent', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue('{"scripts":{}}'),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const result = await step.runVersionConsistencyCheck();
+        expect(result).toEqual({ ran: false });
+      });
+
+      test('returns ran:false when package.json unreadable', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockRejectedValue(new Error('ENOENT')),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const result = await step.runVersionConsistencyCheck();
+        expect(result).toEqual({ ran: false });
+      });
+
+      test('exports CHECK_VERSION_SCRIPT constant', () => {
+        expect(CHECK_VERSION_SCRIPT).toBe('check:version');
+      });
+    });
+
+    // D — versionConfig.files passed through execute()
+    test('passes versionConfig.files to updateVersionsInFiles', async () => {
+      const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      step.detectCurrentVersion = jest.fn().mockResolvedValue('1.0.0');
+      step.updateVersionsInFiles = jest
+        .fn()
+        .mockResolvedValue([{ file: 'package.json', success: true }]);
+      step.runVersionConsistencyCheck = jest.fn().mockResolvedValue({ ran: false });
+
+      await step.execute({
+        modifiedFiles: ['src/app.js'],
+        gitStats: {
+          modifiedCount: 1,
+          addedCount: 0,
+          deletedCount: 0,
+          insertions: 10,
+          deletions: 2,
+        },
+        versionConfig: { files: ['src/config/defaults.js', 'docs/INDEX.md'] },
+      });
+
+      expect(step.updateVersionsInFiles).toHaveBeenCalledWith(
+        expect.any(Array),
+        '1.0.0',
+        expect.any(String),
+        ['src/config/defaults.js', 'docs/INDEX.md']
+      );
     });
   });
 });
