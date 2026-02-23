@@ -205,6 +205,50 @@ describe('Backlog - Pure Functions', () => {
 
       expect(result1).toBe(result2);
     });
+
+    test('should format array summary as markdown list', () => {
+      const reportData = {
+        name: 'UX_Analysis',
+        status: '✅',
+        summary: [
+          {
+            type: 'error',
+            message: 'AI helper not available. Initialize first.',
+            location: 'step_15_ux_analysis',
+          },
+        ],
+      };
+      const result = generateStepReportContent(15, reportData, '2026-02-23');
+
+      expect(result).toContain(
+        '- **error**: AI helper not available. Initialize first. (step_15_ux_analysis)'
+      );
+      expect(result).not.toContain('[object Object]');
+    });
+
+    test('should format array of plain strings as markdown list', () => {
+      const reportData = {
+        name: 'Test',
+        status: '✅',
+        summary: ['item one', 'item two'],
+      };
+      const result = generateStepReportContent(7, reportData, '2026-02-23');
+
+      expect(result).toContain('- item one');
+      expect(result).toContain('- item two');
+    });
+
+    test('should serialize plain objects as JSON', () => {
+      const reportData = {
+        name: 'Test',
+        status: '✅',
+        summary: { foo: 'bar' },
+      };
+      const result = generateStepReportContent(7, reportData, '2026-02-23');
+
+      expect(result).toContain('"foo": "bar"');
+      expect(result).not.toContain('[object Object]');
+    });
   });
 });
 
