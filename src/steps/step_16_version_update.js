@@ -298,7 +298,7 @@ export function formatVersionUpdateReport(data) {
     }
   }
 
-  return `# Step 16: Semantic Version Update Report
+  return `**Step 16: Semantic Version Update Report**
 
 **Status**: ✅ Completed
 **Date**: ${timestamp}
@@ -540,29 +540,100 @@ export class Step16VersionUpdate {
   }
 
   /**
-   * Detect current version from project files (I/O operation)
-   * @param {Array<string>} _files - List of files to check
+   * Detect current version from project metadata files (I/O operation)
+   * @param {Array<string>} _files - List of modified files (unused; searches metadata files)
    * @returns {Promise<string|null>} - Current version or null
    */
   async detectCurrentVersion(_files) {
-    // In real implementation, would read files and parse versions
-    // For now, return mock version
-    return '1.0.0';
+    // Check metadata files in priority order
+    for (const metaFile of METADATA_FILES) {
+      const filePath = `${this.projectRoot}/${metaFile}`;
+      try {
+        const content = await this.fileOps.readFile(filePath);
+        if (!content) continue;
+
+        // package.json: parse JSON "version" field
+        if (metaFile === 'package.json') {
+          try {
+            const pkg = JSON.parse(content);
+            const v = extractVersion(pkg.version || '');
+            if (v) return v;
+          } catch {
+            // fall through to pattern matching
+          }
+        }
+
+        // pyproject.toml / setup.py / Cargo.toml / .workflow-config.yaml: regex scan
+        const patterns = detectVersionPatterns(content);
+        if (patterns.length > 0) return patterns[0].version;
+      } catch {
+        // file not found or unreadable — try next
+      }
+    }
+    return null;
   }
 
   /**
-   * Update versions in modified files (I/O operation)
-   * @param {Array<string>} _files - List of files to update
-   * @param {string} _oldVersion - Old version
-   * @param {string} _newVersion - New version
-   * @returns {Promise<Array<Object>>} - Update results
+   * Update versions in modified files and project metadata files (I/O operation)
+   * @param {Array<string>} files - List of modified files (relative paths)
+   * @param {string} oldVersion - Old version string
+   * @param {string} newVersion - New version string
+   * @returns {Promise<Array<Object>>} - Update results [{ file, success, skipped?, error? }]
    */
-  async updateVersionsInFiles(_files, _oldVersion, _newVersion) {
-    // In real implementation, would update files
-    // For now, return mock updates
-    return [
-      { file: 'package.json', success: true },
-      { file: 'README.md', success: true },
-    ];
+  async updateVersionsInFiles(files, oldVersion, newVersion) {
+    const results = [];
+
+    // Collect candidate paths: metadata files + modified files that contain versions
+    const candidates = new Set();
+    for (const metaFile of METADATA_FILES) {
+      candidates.add(`${this.projectRoot}/${metaFile}`);
+    }
+    for (const f of files) {
+      const abs = f.startsWith('/') ? f : `${this.projectRoot}/${f}`;
+      candidates.add(abs);
+    }
+
+    for (const filePath of candidates) {
+      const relPath = filePath.replace(`${this.projectRoot}/`, '');
+      try {
+        const content = await this.fileOps.readFile(filePath);
+        if (!content || !content.includes(oldVersion)) {
+          results.push({ file: relPath, skipped: true });
+          continue;
+        }
+
+        let updated;
+        // For package.json update only the "version" field value
+        if (filePath.endsWith('package.json')) {
+          try {
+            const pkg = JSON.parse(content);
+            if (pkg.version === oldVersion || (pkg.version && pkg.version.includes(oldVersion))) {
+              pkg.version = newVersion;
+              updated = JSON.stringify(pkg, null, 2) + '\n';
+            } else {
+              updated = replaceVersion(content, oldVersion, newVersion);
+            }
+          } catch {
+            updated = replaceVersion(content, oldVersion, newVersion);
+          }
+        } else {
+          updated = replaceVersion(content, oldVersion, newVersion);
+        }
+
+        if (updated === content) {
+          results.push({ file: relPath, skipped: true });
+          continue;
+        }
+
+        if (!this.dryRun) {
+          await this.fileOps.writeFile(filePath, updated);
+        }
+        results.push({ file: relPath, success: true });
+      } catch (err) {
+        results.push({ file: relPath, success: false, error: err.message });
+      }
+    }
+
+    return results;
   }
 }
