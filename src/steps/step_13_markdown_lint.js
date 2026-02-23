@@ -16,6 +16,7 @@
  * - Impure wrapper class for I/O operations
  */
 
+import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
@@ -46,9 +47,13 @@ export const ANTI_PATTERNS = {
 export const LINTER_COMMANDS = {
   mdl: {
     check: 'mdl --version',
-    lint: 'mdl --git-recurse --ignore-front-matter .',
+    // Files are appended at runtime to avoid --git-recurse / git-lock race conditions
+    lintBase: 'mdl --ignore-front-matter',
   },
 };
+
+/** Maximum number of file arguments per mdl invocation */
+export const MDL_BATCH_SIZE = 100;
 
 export const SEVERITY_LEVELS = {
   error: 'error',
@@ -174,6 +179,31 @@ export function calculateLintStats(issues, fileCount) {
     uniqueRules: Object.keys(byRule).length,
     issuesPerFile: issues.length / Math.max(fileCount, 1),
   };
+}
+
+/**
+ * Split an array into chunks of at most `size` elements
+ * @pure
+ * @param {Array} arr - Array to split
+ * @param {number} size - Maximum chunk size
+ * @returns {Array<Array>} Array of chunks
+ */
+export function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/**
+ * Merge issues from multiple batch runs into one flat list
+ * @pure
+ * @param {Array<Array<Object>>} batchIssues - Issues from each batch
+ * @returns {Array<Object>} Merged issues list
+ */
+export function mergeBatchIssues(batchIssues) {
+  return batchIssues.flat();
 }
 
 // ============================================================================
@@ -407,16 +437,18 @@ export class Step13MarkdownLint {
    * @param {Object} context - Workflow context
    * @returns {Promise<Object>} Linting results
    */
-  async execute(_context = {}) {
+  async execute(context = {}) {
     this.logger.step('Step 13: Markdown Linting');
 
     if (this.dryRun) {
       return this._executeDryRun();
     }
 
+    const projectRoot = context.projectRoot || process.cwd();
+
     try {
       // Phase 1: Enumerate markdown files
-      const markdownFiles = await this._enumerateMarkdownFiles();
+      const markdownFiles = await this._enumerateMarkdownFiles(projectRoot);
 
       if (markdownFiles.length === 0) {
         return this._handleNoFiles();
@@ -429,8 +461,8 @@ export class Step13MarkdownLint {
         return this._handleMdlNotInstalled();
       }
 
-      // Phase 3: Run mdl linting
-      const lintResults = await this._runMdlLinting();
+      // Phase 3: Run mdl linting (pass enumerated files to avoid git-lock race)
+      const lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
 
       // Phase 4: Run anti-pattern detection
       const antiPatterns = await this._detectAntiPatterns(markdownFiles);
@@ -440,7 +472,8 @@ export class Step13MarkdownLint {
         markdownFiles.length,
         lintResults,
         antiPatterns,
-        mdlInstalled.version
+        mdlInstalled.version,
+        projectRoot
       );
     } catch (error) {
       this.logger.error(`Markdown linting failed: ${error.message}`);
@@ -479,7 +512,7 @@ export class Step13MarkdownLint {
    * Enumerate markdown files in project
    * @private
    */
-  async _enumerateMarkdownFiles() {
+  async _enumerateMarkdownFiles(projectRoot) {
     this.logger.info('Enumerating markdown files...');
 
     if (!this.fileOps) {
@@ -488,7 +521,8 @@ export class Step13MarkdownLint {
     }
 
     try {
-      const allFiles = await this.fileOps.listDirectoryRecursive('.', {
+      const absRoot = path.resolve(projectRoot);
+      const allFiles = await this.fileOps.listDirectoryRecursive(absRoot, {
         extensions: ['.md'],
       });
 
@@ -570,38 +604,49 @@ export class Step13MarkdownLint {
   }
 
   /**
-   * Run mdl linting
+   * Run mdl linting in batches to avoid command-line length limits and git-lock races
    * @private
+   * @param {string} projectRoot - Project root directory
+   * @param {Array<string>} files - Enumerated markdown files to lint
    */
-  async _runMdlLinting() {
+  async _runMdlLinting(projectRoot, files) {
     this.logger.info('Running mdl on all markdown files...');
 
-    try {
-      const result = await this._executeCommand(LINTER_COMMANDS.mdl.lint);
-      const output = result.stdout + result.stderr;
+    const batches = chunkArray(files, MDL_BATCH_SIZE);
+    const batchIssues = [];
 
-      const issues = parseMdlOutput(output);
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      const fileArgs = batch.map((f) => `"${f}"`).join(' ');
+      const command = `${LINTER_COMMANDS.mdl.lintBase} ${fileArgs}`;
 
-      if (issues.length === 0) {
-        this.logger.info('✅ No markdown linting errors found');
-      } else {
-        this.logger.warn(`Found ${issues.length} markdown linting violations`);
+      try {
+        const result = await this._executeCommand(command, { cwd: projectRoot });
+        const output = result.stdout + result.stderr;
+        batchIssues.push(parseMdlOutput(output));
+      } catch (error) {
+        // mdl exits with non-zero when it finds violations but still writes to stdout
+        const output = (error.stdout || '') + (error.stderr || '');
+        const issues = parseMdlOutput(output);
+
+        if (issues.length > 0) {
+          batchIssues.push(issues);
+        } else {
+          // Empty output means a real execution failure (e.g. bad args, missing files)
+          throw error;
+        }
       }
-
-      return { issues };
-    } catch (error) {
-      // mdl exits with non-zero if issues found, but still returns output
-      const output = error.stdout + error.stderr;
-      const issues = parseMdlOutput(output);
-
-      if (issues.length > 0) {
-        this.logger.warn(`Found ${issues.length} markdown linting violations`);
-        return { issues };
-      }
-
-      // Real error
-      throw error;
     }
+
+    const issues = mergeBatchIssues(batchIssues);
+
+    if (issues.length === 0) {
+      this.logger.info('✅ No markdown linting errors found');
+    } else {
+      this.logger.warn(`Found ${issues.length} markdown linting violations`);
+    }
+
+    return { issues };
   }
 
   /**
@@ -644,7 +689,7 @@ export class Step13MarkdownLint {
    * Generate final report
    * @private
    */
-  async _generateReport(fileCount, lintResults, antiPatterns, mdlVersion) {
+  async _generateReport(fileCount, lintResults, antiPatterns, mdlVersion, projectRoot) {
     const stats = calculateLintStats(lintResults.issues, fileCount);
     const status = determineLintStatus(stats);
 
@@ -671,6 +716,20 @@ export class Step13MarkdownLint {
     const aiAvailable = await this.aiHelper.initialize();
     if (aiAvailable) {
       await this.aiCache.init();
+
+      // Build grounding data for the prompt (prevents hallucination of file/rule names)
+      const byRule = groupIssuesByRule(lintResults.issues);
+      const byFile = groupIssuesByFile(lintResults.issues);
+      const issuesByRule = Object.entries(byRule)
+        .sort((a, b) => b[1].length - a[1].length)
+        .map(([rule, items]) => `${rule}: ${items.length} occurrence(s)`)
+        .join('\n');
+      const issuesByFile = Object.entries(byFile)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 10)
+        .map(([file, items]) => `${file}: ${items.length} issue(s)`)
+        .join('\n');
+
       let prompt;
       try {
         const yamlContent =
@@ -678,10 +737,13 @@ export class Step13MarkdownLint {
           (await import('fs').then((m) => m.promises.readFile(AI_HELPERS_PATH, 'utf-8')));
         const parsedYaml = yaml.load(yamlContent);
         prompt = buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
+          project_name: projectRoot,
           files_linted: String(fileCount),
           total_issues: String(stats.totalIssues),
           clean_files: String(stats.cleanFiles),
           anti_patterns: String(antiPatterns?.length ?? 0),
+          issues_by_rule: issuesByRule || '(none)',
+          issues_by_file: issuesByFile || '(none)',
           status,
         });
       } catch {
@@ -689,19 +751,41 @@ export class Step13MarkdownLint {
       }
       if (!prompt) {
         const role = `You are an expert in Markdown authoring and documentation quality.`;
-        const task = `Analyze these markdown linting results:
+        const task = `Analyze these markdown linting results for the project at: ${projectRoot}
+
 - Files linted: ${fileCount}
 - Total issues: ${stats.totalIssues}
 - Clean files: ${stats.cleanFiles}
 - Anti-patterns detected: ${antiPatterns?.length ?? 0}
-- Status: ${status}`;
-        const approach = `Provide the top 3 actionable fixes for the most common Markdown issues found. Be concise.`;
-        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+- Status: ${status}
+
+Issues by rule:
+${issuesByRule || '(none)'}
+
+Issues by file (top 10):
+${issuesByFile || '(none)'}
+
+IMPORTANT: Only reference the files and rules listed above. Do not invent file paths or rule names not present in this data.`;
+        const approach = `Provide actionable fixes for the rules and files listed above. Be precise and reference only the data provided.`;
+        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
+          project_name: projectRoot,
+        });
       }
       const cacheKey = `step_13|${fileCount}|${stats.totalIssues}`;
-      await this.aiCache.withCache(prompt, cacheKey, () =>
+      const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
         this.aiHelper.executeRequest(prompt, { persona: 'technical_writer' })
       );
+      const aiContent = aiResult?.content ?? '';
+      if (aiContent && this.backlogManager) {
+        const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+        const statusEmoji = status === 'pass' ? '✅' : status === 'warning' ? '⚠️' : '❌';
+        await this.backlogManager.saveStepSummary(
+          '13',
+          'Markdown_Linting',
+          enrichedReport,
+          statusEmoji
+        );
+      }
     } else {
       this.logger.warn('AI helper not available - skipping AI analysis');
     }
@@ -720,15 +804,15 @@ export class Step13MarkdownLint {
    * Execute command
    * @private
    */
-  async _executeCommand(command) {
+  async _executeCommand(command, options = {}) {
     if (this.executor && typeof this.executor.execute === 'function') {
-      return await this.executor.execute(command, { shell: true });
+      return await this.executor.execute(command, { shell: true, ...options });
     }
 
     // Fallback: use executor module functions
     const executor = this.executor;
     if (executor && typeof executor.executeCommand === 'function') {
-      return await executor.executeCommand(command, { shell: true });
+      return await executor.executeCommand(command, { shell: true, ...options });
     }
 
     throw new Error('No executor available for commands');

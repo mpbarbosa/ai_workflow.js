@@ -161,6 +161,77 @@ docs/guide.md:10: MD022 Blank lines around headers`;
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - Batch Helpers
+  // ========================================================================
+
+  describe('chunkArray', () => {
+    let chunkArray;
+    beforeAll(async () => {
+      ({ chunkArray } = await import('../../src/steps/step_13_markdown_lint.js'));
+    });
+
+    test('splits array into chunks of given size', () => {
+      const result = chunkArray([1, 2, 3, 4, 5], 2);
+      expect(result).toEqual([[1, 2], [3, 4], [5]]);
+    });
+
+    test('returns single chunk when array fits in one batch', () => {
+      const result = chunkArray(['a', 'b', 'c'], 10);
+      expect(result).toEqual([['a', 'b', 'c']]);
+    });
+
+    test('returns empty array for empty input', () => {
+      expect(chunkArray([], 5)).toEqual([]);
+    });
+
+    test('returns one-element chunks when size is 1', () => {
+      const result = chunkArray([1, 2, 3], 1);
+      expect(result).toEqual([[1], [2], [3]]);
+    });
+
+    test('returns exact chunks when divisible', () => {
+      const result = chunkArray([1, 2, 3, 4], 2);
+      expect(result).toEqual([
+        [1, 2],
+        [3, 4],
+      ]);
+    });
+  });
+
+  describe('mergeBatchIssues', () => {
+    let mergeBatchIssues;
+    beforeAll(async () => {
+      ({ mergeBatchIssues } = await import('../../src/steps/step_13_markdown_lint.js'));
+    });
+
+    test('merges issues from multiple batches', () => {
+      const batch1 = [{ file: 'a.md', rule: 'MD013' }];
+      const batch2 = [
+        { file: 'b.md', rule: 'MD022' },
+        { file: 'c.md', rule: 'MD013' },
+      ];
+      const result = mergeBatchIssues([batch1, batch2]);
+      expect(result).toHaveLength(3);
+      expect(result[0].file).toBe('a.md');
+      expect(result[2].file).toBe('c.md');
+    });
+
+    test('returns empty array for empty input', () => {
+      expect(mergeBatchIssues([])).toEqual([]);
+    });
+
+    test('handles batches with no issues', () => {
+      expect(mergeBatchIssues([[], []])).toEqual([]);
+    });
+
+    test('preserves order across batches', () => {
+      const result = mergeBatchIssues([[{ file: 'first.md' }], [{ file: 'second.md' }]]);
+      expect(result[0].file).toBe('first.md');
+      expect(result[1].file).toBe('second.md');
+    });
+  });
+
+  // ========================================================================
   // PURE FUNCTIONS - Anti-Pattern Detection
   // ========================================================================
 
