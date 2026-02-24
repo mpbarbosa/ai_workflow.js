@@ -12,6 +12,7 @@ import {
   categorizeUiFile,
   filterUiFiles,
   groupUiFilesByType,
+  selectKeyFiles,
   buildUxAnalysisPrompt,
   calculateSeverityScore,
   parseUxAnalysisResult,
@@ -162,6 +163,48 @@ describe('Step 15: UX Analysis', () => {
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - File Selection
+  // ========================================================================
+
+  describe('selectKeyFiles', () => {
+    test('prioritizes HTML files first', () => {
+      const uiFiles = ['src/styles.css', 'src/index.html', 'src/about.html'];
+      const fileGroups = { html: ['src/index.html', 'src/about.html'], css: ['src/styles.css'] };
+      const result = selectKeyFiles(uiFiles, fileGroups);
+      expect(result[0]).toBe('src/index.html');
+      expect(result[1]).toBe('src/about.html');
+      expect(result[2]).toBe('src/styles.css');
+    });
+
+    test('fills remaining slots with CSS files', () => {
+      const uiFiles = ['src/a.css', 'src/b.css'];
+      const fileGroups = { html: [], css: ['src/a.css', 'src/b.css'] };
+      const result = selectKeyFiles(uiFiles, fileGroups, 5);
+      expect(result).toEqual(['src/a.css', 'src/b.css']);
+    });
+
+    test('respects maxFiles cap', () => {
+      const htmlFiles = ['a.html', 'b.html', 'c.html'];
+      const cssFiles = ['a.css', 'b.css', 'c.css'];
+      const fileGroups = { html: htmlFiles, css: cssFiles };
+      const result = selectKeyFiles([...htmlFiles, ...cssFiles], fileGroups, 4);
+      expect(result).toHaveLength(4);
+      expect(result.slice(0, 3)).toEqual(htmlFiles);
+      expect(result[3]).toBe('a.css');
+    });
+
+    test('handles empty fileGroups', () => {
+      const result = selectKeyFiles([], { html: [], css: [] }, 10);
+      expect(result).toEqual([]);
+    });
+
+    test('handles missing fileGroups keys', () => {
+      const result = selectKeyFiles(['src/app.vue'], {}, 5);
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ========================================================================
   // PURE FUNCTIONS - UX Analysis Prompt Building
   // ========================================================================
 
@@ -193,6 +236,43 @@ describe('Step 15: UX Analysis', () => {
       const prompt = buildUxAnalysisPrompt(context);
       expect(prompt).toContain('UI Files Found: 3');
       expect(prompt).not.toContain('... and');
+    });
+
+    test('includes file contents section when fileContents provided', () => {
+      const context = {
+        projectType: 'static_website',
+        fileCount: 1,
+        fileSample: ['index.html'],
+        fileGroups: { html: ['index.html'], css: [] },
+        fileContents: [{ file: 'index.html', content: '<html><body>Hello</body></html>' }],
+      };
+      const prompt = buildUxAnalysisPrompt(context);
+      expect(prompt).toContain('Sample File Contents');
+      expect(prompt).toContain('// index.html');
+      expect(prompt).toContain('<html><body>Hello</body></html>');
+    });
+
+    test('omits file contents section when fileContents absent', () => {
+      const context = {
+        projectType: 'react_spa',
+        fileCount: 2,
+        fileSample: ['src/App.jsx'],
+        fileGroups: { react: ['src/App.jsx'], html: [], css: [] },
+      };
+      const prompt = buildUxAnalysisPrompt(context);
+      expect(prompt).not.toContain('Sample File Contents');
+    });
+
+    test('omits file contents section when fileContents is empty array', () => {
+      const context = {
+        projectType: 'react_spa',
+        fileCount: 2,
+        fileSample: ['src/App.jsx'],
+        fileGroups: { react: ['src/App.jsx'], html: [], css: [] },
+        fileContents: [],
+      };
+      const prompt = buildUxAnalysisPrompt(context);
+      expect(prompt).not.toContain('Sample File Contents');
     });
   });
 
@@ -280,6 +360,110 @@ describe('Step 15: UX Analysis', () => {
       expect(report).toContain('Improvement Suggestions**: 5');
       expect(report).toContain('Total Findings**: 10');
       expect(report).toContain('# Analysis');
+    });
+  });
+
+  // ========================================================================
+  // ========================================================================
+  // STEP15UXANALYSIS - readFilesSample Tests
+  // ========================================================================
+
+  describe('Step15UxAnalysis.readFilesSample', () => {
+    test('reads content from files', async () => {
+      const mockReadFile = jest.fn().mockResolvedValue('<html>content</html>');
+      const step = new Step15UxAnalysis({
+        fileOps: { readFile: mockReadFile },
+        logger: {
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          success: jest.fn(),
+          step: jest.fn(),
+        },
+      });
+
+      const result = await step.readFilesSample(['index.html'], '/root');
+      expect(result).toHaveLength(1);
+      expect(result[0].file).toBe('index.html');
+      expect(result[0].content).toBe('<html>content</html>');
+    });
+
+    test('truncates files exceeding maxBytesPerFile', async () => {
+      const longContent = 'x'.repeat(5000);
+      const mockReadFile = jest.fn().mockResolvedValue(longContent);
+      const step = new Step15UxAnalysis({
+        fileOps: { readFile: mockReadFile },
+        logger: {
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          success: jest.fn(),
+          step: jest.fn(),
+        },
+      });
+
+      const result = await step.readFilesSample(['big.html'], '/root', 100, 10000);
+      expect(result[0].content).toHaveLength(100 + '\n... (truncated)'.length);
+      expect(result[0].content).toContain('... (truncated)');
+    });
+
+    test('stops when maxTotalBytes is reached', async () => {
+      const mockReadFile = jest.fn().mockResolvedValue('x'.repeat(100));
+      const step = new Step15UxAnalysis({
+        fileOps: { readFile: mockReadFile },
+        logger: {
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          success: jest.fn(),
+          step: jest.fn(),
+        },
+      });
+
+      const result = await step.readFilesSample(
+        ['a.html', 'b.html', 'c.html'],
+        '/root',
+        200,
+        100 // exactly one file's size — loop breaks before reading second
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    test('skips unreadable files silently', async () => {
+      const mockReadFile = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('ENOENT'))
+        .mockResolvedValueOnce('good content');
+      const step = new Step15UxAnalysis({
+        fileOps: { readFile: mockReadFile },
+        logger: {
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          success: jest.fn(),
+          step: jest.fn(),
+        },
+      });
+
+      const result = await step.readFilesSample(['missing.html', 'good.html'], '/root');
+      expect(result).toHaveLength(1);
+      expect(result[0].file).toBe('good.html');
+    });
+
+    test('returns empty array when no files provided', async () => {
+      const step = new Step15UxAnalysis({
+        fileOps: { readFile: jest.fn() },
+        logger: {
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+          success: jest.fn(),
+          step: jest.fn(),
+        },
+      });
+
+      const result = await step.readFilesSample([], '/root');
+      expect(result).toEqual([]);
     });
   });
 

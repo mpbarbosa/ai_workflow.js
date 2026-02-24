@@ -6,6 +6,7 @@
  * @version 2.0.0
  */
 
+import path from 'path';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
@@ -39,6 +40,12 @@ export const EXCLUDED_DIRECTORIES = Object.freeze([
   'coverage',
   '.next',
   'out',
+  'venv',
+  '.venv',
+  '__pycache__',
+  'vendor',
+  '.cache',
+  'tmp',
 ]);
 
 export const UX_CATEGORIES = Object.freeze({
@@ -134,6 +141,22 @@ export function groupUiFilesByType(files) {
   return groups;
 }
 
+/**
+ * Select the most informative UI files for content sampling.
+ * Prioritizes HTML files (highest accessibility/usability signal) then CSS.
+ * @param {Array<string>} uiFiles - All discovered UI file paths
+ * @param {Object} fileGroups - UI files grouped by type from groupUiFilesByType
+ * @param {number} [maxFiles=10] - Maximum number of files to select
+ * @returns {Array<string>} - Selected file paths in priority order
+ */
+export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
+  const htmlFiles = fileGroups.html || [];
+  const cssFiles = fileGroups.css || [];
+  const remaining = maxFiles - htmlFiles.length;
+  const selected = [...htmlFiles, ...cssFiles.slice(0, Math.max(0, remaining))];
+  return selected.slice(0, maxFiles);
+}
+
 // ============================================================================
 // PURE FUNCTIONS - UX Analysis Prompt Building
 // ============================================================================
@@ -145,10 +168,11 @@ export function groupUiFilesByType(files) {
  * @param {number} context.fileCount - Number of UI files
  * @param {Array<string>} context.fileSample - Sample of UI file paths
  * @param {Object} context.fileGroups - UI files grouped by type
+ * @param {Array<{file: string, content: string}>} [context.fileContents] - Sampled file contents
  * @returns {string} - Formatted prompt for AI analysis
  */
 export function buildUxAnalysisPrompt(context) {
-  const { projectType, fileCount, fileSample, fileGroups } = context;
+  const { projectType, fileCount, fileSample, fileGroups, fileContents } = context;
 
   // Build file summary
   const fileSummary = fileSample.map((f) => `  - ${f}`).join('\n');
@@ -160,6 +184,14 @@ export function buildUxAnalysisPrompt(context) {
     .filter(([_type, files]) => files.length > 0)
     .map(([type, files]) => `  - ${type}: ${files.length} files`)
     .join('\n');
+
+  // Build file content section (grounding data for the AI)
+  const contentSection =
+    fileContents && fileContents.length > 0
+      ? `\n**Sample File Contents** (actual source code — base your analysis on this):\n\n${fileContents
+          .map(({ file, content }) => `\`\`\`\n// ${file}\n${content}\n\`\`\``)
+          .join('\n\n')}\n`
+      : '';
 
   return `**Role**: You are a senior UX/UI Designer and Frontend Specialist with expertise in user experience design, accessibility standards (WCAG 2.1 AA/AAA), responsive design, and modern frontend frameworks.
 
@@ -173,7 +205,7 @@ ${typeBreakdown}
 
 **Sample Files**:
 ${fileSummary}${moreFiles}
-
+${contentSection}
 **Your Analysis Should Cover**:
 1. **Accessibility Issues** (WCAG 2.1 violations)
    - Missing ARIA labels and semantic HTML
@@ -453,23 +485,29 @@ export class Step15UxAnalysis {
 
       this.logger.success(`Found ${uiFiles.length} UI files`);
 
-      // Phase 2: Group files and build analysis context
+      // Phase 2: Group files, select key files, and read content for AI grounding
       const fileGroups = groupUiFilesByType(uiFiles);
       const fileSample = uiFiles.slice(0, 20); // Sample for prompt
+      const keyFiles = selectKeyFiles(uiFiles, fileGroups);
+      this.logger.info(
+        `${colors.blue}Phase 2:${colors.reset} Reading ${keyFiles.length} key files for AI grounding...`
+      );
+      const fileContents = await this.readFilesSample(keyFiles, this.projectRoot);
       const analysisContext = {
         projectType,
         fileCount: uiFiles.length,
         fileSample,
         fileGroups,
+        fileContents,
       };
 
       // Phase 3: Build UX analysis prompt
-      this.logger.info(`${colors.blue}Phase 2:${colors.reset} Building UX analysis prompt...`);
+      this.logger.info(`${colors.blue}Phase 3:${colors.reset} Building UX analysis prompt...`);
       const prompt = buildUxAnalysisPrompt(analysisContext);
 
-      // Phase 3: Initialize AI helper and perform analysis
+      // Phase 4: Initialize AI helper and perform analysis
       this.logger.info(
-        `${colors.blue}Phase 3:${colors.reset} Performing AI-powered UX analysis...`
+        `${colors.blue}Phase 4:${colors.reset} Performing AI-powered UX analysis...`
       );
       const aiAvailable = await this.aiHelper.initialize();
       if (!aiAvailable) {
@@ -492,8 +530,8 @@ export class Step15UxAnalysis {
       // Phase 5: Parse results
       const issueCounts = parseUxAnalysisResult(analysisResult);
 
-      // Phase 6: Generate reports
-      this.logger.info(`${colors.blue}Phase 4:${colors.reset} Generating UX analysis report...`);
+      // Phase 5: Generate reports
+      this.logger.info(`${colors.blue}Phase 5:${colors.reset} Generating UX analysis report...`);
       const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
       const report = formatUxAnalysisReport({
@@ -535,6 +573,35 @@ export class Step15UxAnalysis {
         duration: Date.now() - startTime,
       };
     }
+  }
+
+  /**
+   * Read content from a sample of UI files for AI grounding.
+   * Skips unreadable files silently. Truncates large files.
+   * @param {Array<string>} files - Relative file paths to read
+   * @param {string} rootPath - Absolute root directory
+   * @param {number} [maxBytesPerFile=3072] - Max bytes to read per file (~100 lines)
+   * @param {number} [maxTotalBytes=20480] - Max total bytes across all files
+   * @returns {Promise<Array<{file: string, content: string}>>} - File path and content pairs
+   */
+  async readFilesSample(files, rootPath, maxBytesPerFile = 3072, maxTotalBytes = 20480) {
+    const contents = [];
+    let totalBytes = 0;
+    for (const file of files) {
+      if (totalBytes >= maxTotalBytes) break;
+      try {
+        const absPath = path.join(rootPath, file);
+        let content = await this.fileOps.readFile(absPath);
+        if (content.length > maxBytesPerFile) {
+          content = content.slice(0, maxBytesPerFile) + '\n... (truncated)';
+        }
+        contents.push({ file, content });
+        totalBytes += content.length;
+      } catch {
+        // skip unreadable files silently
+      }
+    }
+    return contents;
   }
 
   /**
