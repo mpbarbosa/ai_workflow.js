@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-02-25
+
 ### Fixed
 
+- **`workflowDir` resolved against CWD instead of `projectRoot`** (`src/orchestrator/main_orchestrator.js`): When the CLI was invoked from a directory other than the target project (e.g. from the `ai_workflow.js` repo itself), all workflow artifacts — logs, checkpoints, summaries, commit history — were written into the CWD's `.ai_workflow/` folder instead of into the target project's `.ai_workflow/` folder. The fix resolves `projectRoot` first and then anchors any relative `workflowDir` to it via `path.join(this.projectRoot, rawWorkflowDir)`. See [`docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md`](docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) for full details.
+
 - **Step 2 – version detection fallback** (`src/steps/step_02_consistency.js`): `getExpectedVersion` now falls back to reading `project.version` from `.workflow-config.yaml` when `package.json` is absent or has no `version` field. This fixes the `Expected version: not found` log message that appeared for non-Node.js projects (e.g. shell automation projects) that only define a version in the workflow config.
+
+- **`modifiedFiles` not propagated from CommitHistory to `executionContext`** (`src/orchestrator/main_orchestrator.js`, `src/lib/workflow_profiles.js`): When git-status showed 0 staged/unstaged changes (all changes already committed), `modifiedFiles` was never populated in `executionContext`. Steps relying on it (step_01, step_15, step_16) would silently skip processing. Fixed by hoisting `allChangedFiles` before the try-block and adding `refreshWithFiles()` to `WorkflowProfileManager` to re-derive the profile from CommitHistory when git-status returns 0 files.
+
+- **step_02_5 report saved to relative path** (`src/steps/step_02_5_doc_optimize.js`): `reportPath` and `archiveDir` were constructed with a relative path from `consolidation.archiveRoot`, causing `ENOENT: Only absolute paths are allowed` errors when the workflow ran from a different CWD. Fixed to use the absolute `archiveRoot` value directly.
+
+- **tsconfig.json JSONC false-positive in step_10** (`src/steps/step_10_code_quality.js`): The native JSON linter flagged `tsconfig*.json` and `jsconfig*.json` files as invalid JSON because they use JSONC syntax (comments allowed). These files are now skipped by `_lintJsonNative()`.
+
+- **step_07 untested files did not soft-block step_12 push** (`src/steps/step_12_git_finalization.js`): When step_07 identified files lacking test coverage, step_12 would push to remote without warning. A soft-block section now checks `context.results.step_07` for untested files and emits a warning before proceeding with the push.
+
+- **step_15 UX analysis skipped for `location_based_service` projects** (`src/steps/step_15_ux_analysis.js`): step_15 only ran for project kinds in `UI_PROJECT_TYPES`. Projects like `location_based_service` that have Vue/React UI files were silently skipped. Fixed by adding a fallback `discoverFiles()` probe that activates when the project kind is not in `UI_PROJECT_TYPES`, allowing step_15 to run if UI files are found.
+
+- **step_10 only reviewed 1 partition when change set was large** (`src/steps/step_10_code_quality.js`): On large change sets (>50 files), step_10 was still using the partition-based reviewer and only reviewing the current 1/N partition. A full-scan override now activates when `modifiedFiles.length > 50`, bypassing partition logic to review all changed files in one pass.
+
+- **C4 compliance: `promptsDir` not passed to `AiHelper` in 6 steps** (`src/steps/step_02_consistency.js`, `step_03_script_refs.js`, `step_04_config_validation.js`, `step_06_test_review.js`, `step_08_test_exec.js`, `step_09_dependencies.js`): These steps constructed `new AiHelper()` without forwarding the `promptsDir` option injected by the orchestrator, so AI prompt-response pairs were never saved for those steps. Fixed by passing `{ promptsDir: options.promptsDir || null }` to each constructor.
 
 ## [1.0.0] - 2026-02-17
 

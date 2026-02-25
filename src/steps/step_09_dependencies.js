@@ -47,8 +47,10 @@ export const AUDIT_COMMANDS = {
   javascript: 'npm audit --json',
   typescript: 'npm audit --json',
   python: 'pip-audit --format json',
-  go: 'go list -m -json all',
+  go: 'govulncheck -json ./...',
+  java: 'mvn org.owasp:dependency-check-maven:check -Dformat=JSON -q',
   ruby: 'bundle audit --format json',
+  rust: 'cargo audit --json',
 };
 
 /**
@@ -59,7 +61,25 @@ export const OUTDATED_COMMANDS = {
   typescript: 'npm outdated --json',
   python: 'pip list --outdated --format json',
   go: 'go list -u -m -json all',
+  java: 'mvn versions:display-dependency-updates -q',
   ruby: 'bundle outdated --format json',
+  rust: 'cargo outdated --format json',
+};
+
+/**
+ * Language-specific fix/update commands for recommendations
+ */
+export const FIX_COMMANDS = {
+  javascript: { audit: 'npm audit fix', update: 'npm update' },
+  typescript: { audit: 'npm audit fix', update: 'npm update' },
+  python: {
+    audit: 'pip install --upgrade <package>',
+    update: 'pip install --upgrade -r requirements.txt',
+  },
+  go: { audit: 'go get -u ./...', update: 'go get -u ./...' },
+  java: { audit: 'mvn versions:use-latest-releases', update: 'mvn versions:use-latest-releases' },
+  ruby: { audit: 'bundle update', update: 'bundle update' },
+  rust: { audit: 'cargo update', update: 'cargo update' },
 };
 
 /**
@@ -189,6 +209,326 @@ export function parseNpmOutdated(outdatedJson) {
   }));
 }
 
+// ============================================================================
+// PURE FUNCTIONS - Python Parsing
+// ============================================================================
+
+/**
+ * Parse pip-audit JSON output
+ * @pure
+ * @param {Array} auditJson - pip-audit JSON array [{name, version, vulns:[]}]
+ * @returns {Object} Vulnerability summary
+ */
+export function parsePipAudit(auditJson) {
+  if (!Array.isArray(auditJson)) return { summary: null, packages: [] };
+
+  const vulnerable = auditJson.filter((pkg) => pkg.vulns && pkg.vulns.length > 0);
+  const packages = vulnerable.map((pkg) => ({
+    name: pkg.name,
+    severity: 'high',
+    via: pkg.vulns.map((v) => v.id || v.alias || ''),
+  }));
+  const summary = {
+    total: packages.length,
+    critical: 0,
+    high: packages.length,
+    moderate: 0,
+    low: 0,
+    info: 0,
+  };
+  return { summary, packages };
+}
+
+/**
+ * Parse pip list --outdated JSON output
+ * @pure
+ * @param {Array} outdatedJson - [{name, version, latest_version}]
+ * @returns {Array} Outdated packages
+ */
+export function parsePipOutdated(outdatedJson) {
+  if (!Array.isArray(outdatedJson)) return [];
+  return outdatedJson.map((pkg) => ({
+    name: pkg.name,
+    current: pkg.version,
+    wanted: pkg.latest_version,
+    latest: pkg.latest_version,
+    type: 'dependencies',
+  }));
+}
+
+/**
+ * Count dependencies from requirements.txt content
+ * @pure
+ * @param {string} content - requirements.txt content
+ * @returns {Object} Dependency counts
+ */
+export function parsePythonDependencies(content) {
+  const lines = content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#') && !l.startsWith('-'));
+  return { total: lines.length, production: lines.length, development: 0, peer: 0 };
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Go Parsing
+// ============================================================================
+
+/**
+ * Count dependencies from go.mod content
+ * @pure
+ * @param {string} content - go.mod file content
+ * @returns {Object} Dependency counts
+ */
+export function parseGoDependencies(content) {
+  let inRequire = false;
+  let count = 0;
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('require (')) {
+      inRequire = true;
+      continue;
+    }
+    if (inRequire && trimmed === ')') {
+      inRequire = false;
+      continue;
+    }
+    if (inRequire && trimmed && !trimmed.startsWith('//')) count++;
+    // Single-line require: require module/path v1.2.3
+    if (!inRequire && trimmed.startsWith('require ') && !trimmed.includes('(')) count++;
+  }
+  return { total: count, production: count, development: 0, peer: 0 };
+}
+
+/**
+ * Parse govulncheck -json line-delimited output
+ * @pure
+ * @param {string} rawOutput - govulncheck JSON output
+ * @returns {Object} Vulnerability summary
+ */
+export function parseGoVulncheck(rawOutput) {
+  const findings = [];
+  for (const line of rawOutput.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line);
+      if (obj.finding) findings.push(obj.finding);
+    } catch {
+      /* skip non-JSON lines */
+    }
+  }
+  const packages = findings.map((f) => ({
+    name: f.osv || f.trace?.[0]?.module || 'unknown',
+    severity: 'high',
+    via: [],
+  }));
+  return {
+    summary: {
+      total: findings.length,
+      critical: 0,
+      high: findings.length,
+      moderate: 0,
+      low: 0,
+      info: 0,
+    },
+    packages,
+  };
+}
+
+/**
+ * Parse go list -u -m -json output for outdated modules
+ * @pure
+ * @param {string} rawOutput - newline-delimited JSON objects
+ * @returns {Array} Outdated modules
+ */
+export function parseGoOutdated(rawOutput) {
+  const result = [];
+  for (const line of rawOutput.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line);
+      if (obj.Update) {
+        result.push({
+          name: obj.Path,
+          current: obj.Version,
+          wanted: obj.Update.Version,
+          latest: obj.Update.Version,
+          type: 'dependencies',
+        });
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  return result;
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Java Parsing
+// ============================================================================
+
+/**
+ * Count dependencies from pom.xml content
+ * @pure
+ * @param {string} content - pom.xml content
+ * @returns {Object} Dependency counts
+ */
+export function parseMavenDependencies(content) {
+  const matches = content.match(/<dependency>/g) || [];
+  return { total: matches.length, production: matches.length, development: 0, peer: 0 };
+}
+
+/**
+ * Parse OWASP dependency-check JSON report
+ * @pure
+ * @param {Object} auditJson - OWASP dependency-check JSON
+ * @returns {Object} Vulnerability summary
+ */
+export function parseMavenAudit(auditJson) {
+  const deps = auditJson?.dependencies || [];
+  const vulnerable = deps.filter((d) => d.vulnerabilities && d.vulnerabilities.length > 0);
+  let critical = 0,
+    high = 0,
+    moderate = 0,
+    low = 0;
+  const packages = [];
+  for (const dep of vulnerable) {
+    for (const vuln of dep.vulnerabilities) {
+      const score = vuln.cvssv3?.baseScore || vuln.cvssv2?.score || 0;
+      if (score >= 9.0) critical++;
+      else if (score >= 7.0) high++;
+      else if (score >= 4.0) moderate++;
+      else low++;
+      packages.push({
+        name: dep.fileName,
+        severity: score >= 7 ? 'high' : 'moderate',
+        via: [vuln.name],
+      });
+    }
+  }
+  return {
+    summary: { total: critical + high + moderate + low, critical, high, moderate, low, info: 0 },
+    packages,
+  };
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Ruby Parsing
+// ============================================================================
+
+/**
+ * Count gem dependencies from Gemfile content
+ * @pure
+ * @param {string} content - Gemfile content
+ * @returns {Object} Dependency counts
+ */
+export function parseGemfileDependencies(content) {
+  const lines = content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('gem '));
+  return { total: lines.length, production: lines.length, development: 0, peer: 0 };
+}
+
+/**
+ * Parse bundle-audit JSON output
+ * @pure
+ * @param {Object} auditJson - bundle-audit JSON {results:[{gem, advisory}]}
+ * @returns {Object} Vulnerability summary
+ */
+export function parseBundleAudit(auditJson) {
+  const results = auditJson?.results || [];
+  const packages = results.map((r) => ({
+    name: r.gem?.name || 'unknown',
+    severity: r.advisory?.criticality || 'unknown',
+    via: [r.advisory?.id || ''],
+  }));
+  const critical = results.filter((r) => r.advisory?.criticality === 'critical').length;
+  const high = results.filter((r) => r.advisory?.criticality === 'high').length;
+  const moderate = results.filter((r) => r.advisory?.criticality === 'medium').length;
+  const low = results.filter((r) => r.advisory?.criticality === 'low').length;
+  return {
+    summary: { total: results.length, critical, high, moderate, low, info: 0 },
+    packages,
+  };
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Rust Parsing
+// ============================================================================
+
+/**
+ * Count dependencies from Cargo.toml content
+ * @pure
+ * @param {string} content - Cargo.toml content
+ * @returns {Object} Dependency counts
+ */
+export function parseCargoToml(content) {
+  let inDeps = false;
+  let count = 0;
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed === '[dependencies]' || trimmed === '[dev-dependencies]') {
+      inDeps = true;
+      continue;
+    }
+    if (
+      trimmed.startsWith('[') &&
+      trimmed !== '[dependencies]' &&
+      trimmed !== '[dev-dependencies]'
+    ) {
+      inDeps = false;
+    }
+    if (inDeps && trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) count++;
+  }
+  return { total: count, production: count, development: 0, peer: 0 };
+}
+
+/**
+ * Parse cargo audit --json output
+ * @pure
+ * @param {Object} auditJson - cargo audit JSON {vulnerabilities:{list:[]}}
+ * @returns {Object} Vulnerability summary
+ */
+export function parseCargoAudit(auditJson) {
+  const list = auditJson?.vulnerabilities?.list || [];
+  const packages = list.map((v) => {
+    const cvss = v.advisory?.cvss ? parseFloat(v.advisory.cvss) : 0;
+    return {
+      name: v.package?.name || 'unknown',
+      severity: cvss >= 7 ? 'high' : 'moderate',
+      via: [v.advisory?.id || ''],
+    };
+  });
+  const high = packages.filter((p) => p.severity === 'high').length;
+  const moderate = packages.filter((p) => p.severity === 'moderate').length;
+  return {
+    summary: { total: list.length, critical: 0, high, moderate, low: 0, info: 0 },
+    packages,
+  };
+}
+
+/**
+ * Parse cargo outdated --format json output
+ * @pure
+ * @param {Object} outdatedJson - cargo outdated JSON {dependencies:[{name,project,compat,latest}]}
+ * @returns {Array} Outdated packages
+ */
+export function parseCargoOutdated(outdatedJson) {
+  const deps = outdatedJson?.dependencies || [];
+  return deps.map((d) => ({
+    name: d.name,
+    current: d.project,
+    wanted: d.compat,
+    latest: d.latest,
+    type: 'dependencies',
+  }));
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Severity
+// ============================================================================
+
 /**
  * Determine severity level from vulnerability count
  * @pure
@@ -288,16 +628,17 @@ export function formatDependencyReport(results) {
 
   // Recommendations
   if (vulnerabilities.summary?.total > 0 || outdatedPackages.length > 0) {
+    const fixCmds = FIX_COMMANDS[language] || FIX_COMMANDS.javascript;
     report += '## 💡 Recommendations\n\n';
 
     if (vulnerabilities.summary?.total > 0) {
-      report += '1. Run `npm audit fix` to automatically fix vulnerabilities\n';
+      report += `1. Run \`${fixCmds.audit}\` to fix vulnerabilities\n`;
       report += '2. Review security advisories for manual fixes\n';
       report += '3. Consider alternative packages if fixes unavailable\n';
     }
 
     if (outdatedPackages.length > 0) {
-      report += '4. Update outdated packages with `npm update`\n';
+      report += `4. Update outdated packages with \`${fixCmds.update}\`\n`;
       report += '5. Test thoroughly after updating dependencies\n';
       report += '6. Check CHANGELOG for breaking changes\n';
     }
@@ -323,7 +664,7 @@ export class Step9DependencyValidator {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
     this.depCache = options.depCache || new DependencyCache({ workflowHome: process.cwd() });
   }
@@ -491,9 +832,14 @@ export class Step9DependencyValidator {
           });
         }
         const cacheKey = `step_09|${language}|vuln${vuln}|outdated${outdated}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(9, 'Dependency Validation', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI dependency analysis');
       }
@@ -566,7 +912,7 @@ export class Step9DependencyValidator {
    * @returns {Promise<Object>} Dependency counts
    */
   async parseDependencies(projectRoot, language) {
-    // For Node.js projects, parse package.json
+    // Node.js: parse package.json
     if (language === 'javascript' || language === 'typescript') {
       try {
         const pkgPath = `${projectRoot}/package.json`;
@@ -575,6 +921,56 @@ export class Step9DependencyValidator {
         return parsePackageJson(packageJson);
       } catch {
         // Could not parse
+      }
+    }
+
+    // Python: parse requirements.txt
+    if (language === 'python') {
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/requirements.txt`);
+        return parsePythonDependencies(content);
+      } catch {
+        /* fallback */
+      }
+    }
+
+    // Go: parse go.mod
+    if (language === 'go') {
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/go.mod`);
+        return parseGoDependencies(content);
+      } catch {
+        /* fallback */
+      }
+    }
+
+    // Java: parse pom.xml
+    if (language === 'java') {
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/pom.xml`);
+        return parseMavenDependencies(content);
+      } catch {
+        /* fallback */
+      }
+    }
+
+    // Ruby: parse Gemfile
+    if (language === 'ruby') {
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/Gemfile`);
+        return parseGemfileDependencies(content);
+      } catch {
+        /* fallback */
+      }
+    }
+
+    // Rust: parse Cargo.toml
+    if (language === 'rust') {
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/Cargo.toml`);
+        return parseCargoToml(content);
+      } catch {
+        /* fallback */
       }
     }
 
@@ -600,6 +996,16 @@ export class Step9DependencyValidator {
       return { summary: null, packages: [] };
     }
 
+    const _parseAuditOutput = (output, lang) => {
+      if (lang === 'javascript' || lang === 'typescript') return parseNpmAudit(JSON.parse(output));
+      if (lang === 'python') return parsePipAudit(JSON.parse(output));
+      if (lang === 'go') return parseGoVulncheck(output);
+      if (lang === 'java') return parseMavenAudit(JSON.parse(output));
+      if (lang === 'ruby') return parseBundleAudit(JSON.parse(output));
+      if (lang === 'rust') return parseCargoAudit(JSON.parse(output));
+      return { summary: null, packages: [] };
+    };
+
     try {
       const result = await this.executor.execute(auditCmd, {
         cwd: projectRoot,
@@ -607,26 +1013,12 @@ export class Step9DependencyValidator {
         timeout: 60000, // 1 minute
       });
 
-      // Parse JSON output
-      const output = result.stdout || '{}';
-      const auditJson = JSON.parse(output);
-
-      // Parse based on language
-      if (language === 'javascript' || language === 'typescript') {
-        return parseNpmAudit(auditJson);
-      }
-
-      return { summary: null, packages: [] };
+      return _parseAuditOutput(result.stdout || '{}', language);
     } catch (error) {
       // Audit might fail with exit code 1 when vulnerabilities found
       // Try to parse the output anyway
       try {
-        const output = error.stdout || '{}';
-        const auditJson = JSON.parse(output);
-
-        if (language === 'javascript' || language === 'typescript') {
-          return parseNpmAudit(auditJson);
-        }
+        return _parseAuditOutput(error.stdout || '{}', language);
       } catch {
         // Could not parse audit output
       }
@@ -655,12 +1047,19 @@ export class Step9DependencyValidator {
         timeout: 60000, // 1 minute
       });
 
-      const output = result.stdout || '{}';
-      const outdatedJson = JSON.parse(output);
+      const output = result.stdout || '';
 
-      // Parse based on language
       if (language === 'javascript' || language === 'typescript') {
-        return parseNpmOutdated(outdatedJson);
+        return parseNpmOutdated(JSON.parse(output));
+      }
+      if (language === 'python') {
+        return parsePipOutdated(JSON.parse(output));
+      }
+      if (language === 'go') {
+        return parseGoOutdated(output);
+      }
+      if (language === 'rust') {
+        return parseCargoOutdated(JSON.parse(output));
       }
 
       return [];

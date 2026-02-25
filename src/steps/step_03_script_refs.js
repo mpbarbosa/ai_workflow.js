@@ -290,7 +290,7 @@ export class Step3ScriptAnalyzer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -361,21 +361,22 @@ export class Step3ScriptAnalyzer {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
-            project_name: 'project',
-            scripts_dir: 'scripts/',
+            project_name: projectRoot,
+            scripts_dir: directories.join(', '),
             script_count: String(results.scriptsFound ?? 0),
             modified_count: String(missingReferences.length),
             issues: String(totalIssues),
             script_issues_content: `Missing references: ${missingReferences.length}, Non-executable: ${nonExecutable.length}, Undocumented: ${undocumented.length}`,
-            all_scripts: results.scripts ? results.scripts.join('\n') : '',
+            all_scripts: scripts.length > 0 ? scripts.join('\n') : '',
           });
         } catch {
           /* fallback to generic prompt */
         }
         if (!prompt) {
           const role = `You are an expert in shell scripting and script reference validation.`;
-          const task = `Analyze these script reference validation results and provide recommendations:
+          const task = `Analyze these script reference validation results for project at "${projectRoot}" and provide recommendations:
 - Total scripts: ${results.scriptsFound ?? 0}
+- Scripts found: ${scripts.join(', ') || 'none'}
 - Missing references: ${missingReferences.length}
 - Non-executable scripts: ${nonExecutable.length}
 - Undocumented scripts: ${undocumented.length}
@@ -384,9 +385,14 @@ export class Step3ScriptAnalyzer {
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
         const cacheKey = `step_03|${results.scriptsFound ?? 0}|${totalIssues}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(3, 'Script Reference Validation', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
       }

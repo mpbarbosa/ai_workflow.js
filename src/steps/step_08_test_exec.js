@@ -342,7 +342,7 @@ export class Step8TestExecutor {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -451,9 +451,14 @@ export class Step8TestExecutor {
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
         const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(8, 'Test Execution', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
       }

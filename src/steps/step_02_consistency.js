@@ -303,7 +303,7 @@ export class Step2ConsistencyAnalyzer {
   constructor(options = {}) {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -355,11 +355,21 @@ export class Step2ConsistencyAnalyzer {
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
-        const prompt = buildConsistencyPrompt({ docDirectory: projectRoot });
+        const prompt = buildConsistencyPrompt({
+          docDirectory: projectRoot,
+          docFiles,
+          scanResults: results,
+          projectInfo: { project_name: projectRoot },
+        });
         const cacheKey = `step_02|${projectRoot}|${docFiles.length}|${totalIssues}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'code_quality_analyst' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(2, 'Consistency Analysis', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI consistency analysis');
       }

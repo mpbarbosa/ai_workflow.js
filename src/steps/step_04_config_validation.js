@@ -283,8 +283,8 @@ export function checkConfigBestPractices(content, type) {
   const issues = [];
 
   if (type === 'json') {
-    // Check for comments in JSON (not allowed)
-    if (content.includes('//') || content.match(/\/\*[\s\S]*?\*\//)) {
+    // Check for comments in JSON (not allowed) — match // only at line-start or after whitespace, not URLs
+    if (content.match(/^\s*\/\//m) || content.match(/\/\*[\s\S]*?\*\//)) {
       issues.push({
         type: CONFIG_ISSUE_TYPE.SYNTAX_ERROR,
         message: 'JSON does not support comments',
@@ -394,7 +394,7 @@ export class Step4ConfigAnalyzer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.gitOps = options.gitOps || new GitAutomation();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -468,6 +468,8 @@ export class Step4ConfigAnalyzer {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
+            project_name: projectRoot,
+            config_files: configFiles.map((f) => path.relative(projectRoot, f)).join(', '),
             files_checked: String(results.filesChecked ?? 0),
             syntax_errors: String(syntaxErrors.length),
             security_findings: String(securityFindings.length),
@@ -479,7 +481,8 @@ export class Step4ConfigAnalyzer {
         }
         if (!prompt) {
           const role = `You are a configuration validation specialist and security expert.`;
-          const task = `Analyze these configuration validation results and provide recommendations:
+          const task = `Analyze these configuration validation results for project at "${projectRoot}" and provide recommendations:
+- Config files examined: ${configFiles.map((f) => path.relative(projectRoot, f)).join(', ')}
 - Files validated: ${results.filesChecked ?? 0}
 - Syntax errors: ${syntaxErrors.length}
 - Security findings: ${securityFindings.length}
@@ -489,9 +492,14 @@ export class Step4ConfigAnalyzer {
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
         const cacheKey = `step_04|${results.filesChecked ?? 0}|${totalIssues}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'security_expert' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(4, 'Configuration Validation', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
       }

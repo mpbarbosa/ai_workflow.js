@@ -309,7 +309,7 @@ export class Step6TestReviewer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
   }
 
@@ -414,9 +414,14 @@ export class Step6TestReviewer {
         await this.aiCache.init();
         const prompt = buildTestReviewPrompt({ testFiles, framework: language });
         const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
-        await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
         );
+        const aiContent = aiResult?.content ?? '';
+        if (aiContent) {
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(6, 'Test Review', enrichedReport);
+        }
       } else {
         logger.warn('AI helper not available - skipping AI test review');
       }
