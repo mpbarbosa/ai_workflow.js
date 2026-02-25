@@ -6,6 +6,8 @@
  * Analyzes code quality using linters and static analysis tools.
  */
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
@@ -34,7 +36,7 @@ export const LINTER_COMMANDS = {
   ruby: 'rubocop',
   rust: 'cargo clippy',
   bash: 'find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" | xargs shellcheck',
-  json: 'npx jsonlint --quiet',
+  json: '(native JSON.parse)',
 };
 
 /**
@@ -550,7 +552,11 @@ export class Step10CodeQualityAnalyzer {
         if (linterResults) {
           logger.info(`[AnalysisCache] ${language} linter results loaded from cache`);
         } else {
-          linterResults = await this.runLinter(projectRoot, linterCommand, language);
+          if (language === 'json') {
+            linterResults = this._lintJsonNative(projectRoot, sourceFiles);
+          } else {
+            linterResults = await this.runLinter(projectRoot, linterCommand, language);
+          }
           this.analysisCache.set('linter', linterCacheInputs, linterResults);
         }
 
@@ -617,11 +623,23 @@ export class Step10CodeQualityAnalyzer {
         // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
         const uniqueSourceFiles = [...new Set(allSourceFiles)];
 
+        // If a large batch of files changed (e.g. a TypeScript migration), skip partition
+        // rotation and review ALL files in one pass so no changes fall off the radar.
+        const largeChangeSet =
+          Array.isArray(_options.modifiedFiles) && _options.modifiedFiles.length > 50;
+
         // Select the partition to review this run and rotate for the next run.
         const partitionCache = new Step10PartitionCache({
           cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
         });
-        const partition = await partitionCache.getCurrentPartition(uniqueSourceFiles);
+        const partition = largeChangeSet
+          ? {
+              index: 0,
+              total: 1,
+              files: uniqueSourceFiles,
+              label: 'all (large change set)',
+            }
+          : await partitionCache.getCurrentPartition(uniqueSourceFiles);
 
         logger.info(
           `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
@@ -644,8 +662,10 @@ export class Step10CodeQualityAnalyzer {
           const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
           const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
           await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
-          // Advance to the next partition for subsequent runs
-          await partitionCache.advance(uniqueSourceFiles);
+          // Advance to the next partition for subsequent runs (skip when full scan)
+          if (!largeChangeSet) {
+            await partitionCache.advance(uniqueSourceFiles);
+          }
         }
       } else {
         logger.warn('AI helper not available - skipping AI code quality review');
@@ -791,6 +811,31 @@ export class Step10CodeQualityAnalyzer {
    * @param {string} language - Programming language
    * @returns {Promise<Object>} Linter results
    */
+  /**
+   * Validate JSON files natively using JSON.parse (no subprocess).
+   * @param {string} projectRoot - Project root directory
+   * @param {string[]} files - Relative file paths from countSourceFiles
+   * @returns {Object} Linter results { totalIssues, errors, warnings, files }
+   */
+  _lintJsonNative(projectRoot, files) {
+    let errors = 0;
+    for (const relPath of files) {
+      // tsconfig*.json and *.jsonc use JSONC format (allows comments) — skip to avoid false positives
+      if (/tsconfig.*\.json$/i.test(relPath) || relPath.endsWith('.jsonc')) continue;
+      try {
+        const content = readFileSync(join(projectRoot, relPath), 'utf8');
+        JSON.parse(content);
+      } catch (err) {
+        if (err instanceof SyntaxError) {
+          logger.warn(`JSON syntax error in ${relPath}: ${err.message}`);
+          errors++;
+        }
+        // ENOENT / permission errors are not syntax errors; skip silently
+      }
+    }
+    return { totalIssues: errors, errors, warnings: 0, files: errors };
+  }
+
   async runLinter(projectRoot, linterCommand, language) {
     try {
       const result = await this.executor.execute(linterCommand, {

@@ -446,24 +446,34 @@ export class Step15UxAnalysis {
 
       const projectType = context.projectType || 'generic';
 
-      // Check if UX analysis should run
+      // Check if UX analysis should run.
+      // Fallback: even when the detected project_kind doesn't imply a UI, the project
+      // might contain Vue/React/Svelte files (e.g. location_based_service with Vue 3 SPA).
       if (!shouldRunUxAnalysis(projectType)) {
+        // Probe for actual UI framework files before giving up.
+        const probeFiles = await this.discoverFiles(this.projectRoot);
+        const uiProbeFiles = filterUiFiles(probeFiles);
+        if (uiProbeFiles.length === 0) {
+          this.logger.info(
+            `Step 15: UX Analysis skipped - project type '${projectType}' has no UI components`
+          );
+
+          await this.backlog.saveStepSummary(
+            '15',
+            'UX_Analysis',
+            `Skipped: No UI components for project type '${projectType}'`,
+            '⏭️'
+          );
+
+          return {
+            success: true,
+            skipped: true,
+            reason: 'project type not eligible',
+          };
+        }
         this.logger.info(
-          `Step 15: UX Analysis skipped - project type '${projectType}' has no UI components`
+          `Step 15: project type '${projectType}' — but found ${uiProbeFiles.length} UI file(s); running UX analysis`
         );
-
-        await this.backlog.saveStepSummary(
-          '15',
-          'UX_Analysis',
-          `Skipped: No UI components for project type '${projectType}'`,
-          '⏭️'
-        );
-
-        return {
-          success: true,
-          skipped: true,
-          reason: 'project type not eligible',
-        };
       }
 
       // Phase 1: Discover UI files

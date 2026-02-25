@@ -203,6 +203,13 @@ export class DocumentationOptimizer {
     }
 
     this.state = createInitialState(config);
+
+    // Resolve archiveDir to absolute — FileOperations requires absolute paths
+    const projectRoot = config.projectRoot || process.cwd();
+    this.consolidation.archiveRoot = path.isAbsolute(config.archiveDir)
+      ? config.archiveDir
+      : path.join(projectRoot, config.archiveDir);
+
     this.logger.info('Documentation optimization initialized');
     return validation;
   }
@@ -293,6 +300,14 @@ export class DocumentationOptimizer {
     this.state = updateState(this.state, { phase: PHASES.VERSION_ANALYSIS });
 
     try {
+      // Ensure the analyzer knows the actual project version before scanning.
+      // It defaults to '0.0.0' which makes every comparison a no-op.
+      if (this.versionAnalyzer.currentVersion === '0.0.0') {
+        const projectRoot = this.state.config.projectRoot || process.cwd();
+        const detected = await this.versionAnalyzer.detectProjectVersion(projectRoot);
+        this.versionAnalyzer.currentVersion = detected;
+      }
+
       const { outdatedFiles } = await this.versionAnalyzer.analyzeDocuments(this.state.files);
 
       // Merge with existing outdated files (union)
@@ -423,7 +438,11 @@ export class DocumentationOptimizer {
     this.logger.info('Phase 7: Generating Report');
     this.state = updateState(this.state, { phase: PHASES.REPORTING });
 
-    const reportPath = `${this.state.config.archiveDir}/${optimizationResults.timestamp}/optimization_report.md`;
+    const reportPath = path.join(
+      this.consolidation.archiveRoot,
+      optimizationResults.timestamp,
+      'optimization_report.md'
+    );
 
     const reportData = {
       totalFiles: this.state.files.length,
@@ -436,7 +455,7 @@ export class DocumentationOptimizer {
       ],
       beforeSize: 0, // Would need to calculate from file sizes
       afterSize: 0, // Would need to calculate from file sizes
-      archiveDir: `${this.state.config.archiveDir}/${optimizationResults.timestamp}`,
+      archiveDir: path.join(this.consolidation.archiveRoot, optimizationResults.timestamp),
     };
 
     return await this.reporting.generateAndDisplay(reportData, reportPath);

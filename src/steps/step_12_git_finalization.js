@@ -414,6 +414,17 @@ export class Step12GitFinalization {
       // Phase 1: Analyze git state
       const gitState = await this._analyzeGitState(context);
 
+      // Soft-block: warn if upstream test generation found untested files
+      const step07Result = Array.isArray(context.results)
+        ? context.results.find((r) => r.stepId === 'step_07')
+        : undefined;
+      if (step07Result?.untestedFiles?.length > 0) {
+        this.logger.warn(
+          `⚠ Test coverage gap: ${step07Result.untestedFiles.length} file(s) have no tests — ` +
+            `pushing anyway (resolve coverage gaps before next release)`
+        );
+      }
+
       // Phase 2: Process submodules if any
       if (gitState.hasSubmodules) {
         await this._processSubmodules(gitState);
@@ -646,11 +657,93 @@ export class Step12GitFinalization {
   }
 
   /**
+   * Read project metadata from package.json
+   * @private
+   * @returns {Promise<Object>} { version, name, description }
+   */
+  async _readProjectMeta() {
+    try {
+      const pkgPath = join(this._projectRoot || process.cwd(), 'package.json');
+      const pkgContent = await fsPromises.readFile(pkgPath, 'utf-8');
+      const pkg = JSON.parse(pkgContent);
+      return {
+        version: pkg.version || '',
+        name: pkg.name || '',
+        description: pkg.description || '',
+      };
+    } catch {
+      return { version: '', name: '', description: '' };
+    }
+  }
+
+  /**
+   * Read project semver from package.json
+   * @private
+   * @returns {Promise<string>} Version string or empty string if unavailable
+   */
+  async _readProjectVersion() {
+    const meta = await this._readProjectMeta();
+    return meta.version;
+  }
+
+  /**
+   * Gather git context data for the commit prompt
+   * @private
+   * @returns {Promise<Object>} { diffSummary, diffSample, gitLog, changedFiles }
+   */
+  async _gatherGitContext(gitState) {
+    const allFiles = [
+      ...(gitState.status?.modified || []),
+      ...(gitState.status?.staged || []),
+      ...(gitState.status?.untracked || []),
+      ...(gitState.status?.deleted || []),
+    ];
+
+    let diffSummary = '';
+    let diffSample = '';
+    let gitLog = '';
+
+    try {
+      diffSummary = await this._executeGit('git diff --shortstat HEAD');
+    } catch {
+      diffSummary = `${gitState.totalChanges} files changed`;
+    }
+
+    try {
+      const rawDiff = await this._executeGit('git diff HEAD');
+      // Limit to first 100 lines to keep prompt size reasonable
+      diffSample = rawDiff.split('\n').slice(0, 100).join('\n');
+    } catch {
+      diffSample = '(diff unavailable)';
+    }
+
+    try {
+      gitLog = await this._executeGit('git log --oneline -n 10');
+    } catch {
+      gitLog = '(log unavailable)';
+    }
+
+    return {
+      changedFiles: allFiles.length > 0 ? allFiles.join('\n') : '(none)',
+      diffSummary: diffSummary.trim() || `${gitState.totalChanges} files changed`,
+      diffSample: diffSample || '(diff unavailable)',
+      gitLog: gitLog.trim() || '(log unavailable)',
+    };
+  }
+
+  /**
    * Generate commit message
    * @private
    */
   async _generateCommitMessage(gitState) {
     this.logger.info('Generating commit message...');
+
+    const projectMeta = await this._readProjectMeta();
+    const {
+      version: projectVersion,
+      name: projectName,
+      description: projectDescription,
+    } = projectMeta;
 
     // Heuristic conventional commit message as base
     const baseMessage = generateCommitMessage({
@@ -660,7 +753,7 @@ export class Step12GitFinalization {
       modifiedCount: gitState.modifiedCount,
       categories: gitState.categories,
       totalChanges: gitState.totalChanges,
-      version: '1.2.0',
+      version: projectVersion,
     });
 
     // AI-powered commit message refinement
@@ -669,20 +762,26 @@ export class Step12GitFinalization {
       try {
         await this.aiCache.init();
         const cats = gitState.categories || {};
+        const changeScope = `${gitState.commitType}(${gitState.commitScope}): ${gitState.totalChanges} files changed (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})`;
+
         let prompt;
         try {
           const yamlContent = await fsPromises.readFile(AI_HELPERS_PATH, 'utf-8');
           const parsedYaml = yaml.load(yamlContent);
+          const gitCtx = await this._gatherGitContext(gitState);
+          // commit_types comes from the YAML config block itself
+          const commitTypesText = parsedYaml?.step11_git_commit_prompt?.commit_types || '';
           prompt = buildYamlStepPrompt(parsedYaml, 'step11_git_commit_prompt', {
-            commit_type: gitState.commitType,
-            commit_scope: gitState.commitScope,
-            modified_count: String(gitState.modifiedCount),
-            docs_count: String(cats.documentation || 0),
-            tests_count: String(cats.tests || 0),
-            code_count: String(cats.code || 0),
-            config_count: String(cats.config || 0),
-            total_changes: String(gitState.totalChanges),
-            base_message: baseMessage,
+            project_name: projectName,
+            project_description: projectDescription,
+            script_version: projectVersion,
+            change_scope: changeScope,
+            git_context: gitCtx.gitLog,
+            changed_files: gitCtx.changedFiles,
+            diff_summary: gitCtx.diffSummary,
+            git_analysis_content: baseMessage,
+            diff_sample: gitCtx.diffSample,
+            commit_types: commitTypesText,
           });
         } catch {
           /* fallback to generic prompt */

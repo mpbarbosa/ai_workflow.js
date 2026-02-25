@@ -571,7 +571,7 @@ export class MainOrchestrator {
       logger.info(`Mode: ${this.auto ? 'auto' : 'interactive'}`);
 
       // Detect workflow profile
-      const detectedProfile = await this.profileManager.detectProfile();
+      let detectedProfile = await this.profileManager.detectProfile();
       logger.info(`Profile: ${detectedProfile}`);
 
       // Health checks
@@ -614,6 +614,10 @@ export class MainOrchestrator {
       }
       // ──────────────────────────────────────────────────────────────────────
 
+      // Merge committed + uncommitted changes into a single file list used both
+      // for optimizer hints and as the modifiedFiles passed to all steps.
+      let allChangedFiles = committedChangedFiles.map((f) => f.file || f);
+
       // Run change-type optimizer for savings estimate (advisory only)
       try {
         const status = await this.gitOps.status();
@@ -630,6 +634,18 @@ export class MainOrchestrator {
           ...uncommittedFiles.filter((f) => !seenPaths.has(f.file)),
         ];
         const changedFiles = mergedFiles.map((f) => f.file || f);
+        allChangedFiles = changedFiles;
+
+        // If git status saw 0 changes but CommitHistory has committed changes,
+        // re-derive the profile so steps get the correct context.
+        if (allChangedFiles.length > 0 && this.profileManager.changeCounts?.total === 0) {
+          this.profileManager.refreshWithFiles(allChangedFiles);
+          detectedProfile = this.profileManager.currentProfile;
+          logger.info(
+            `[CommitHistory] Profile updated to '${detectedProfile}' based on ${allChangedFiles.length} committed file(s)`
+          );
+        }
+
         if (changedFiles.length > 0) {
           let optimizer;
           if (detectedProfile === 'docs_only') {
@@ -683,6 +699,7 @@ export class MainOrchestrator {
         workflowDir: this.workflowDir,
         projectRoot: this.projectRoot,
         auto: this.auto,
+        modifiedFiles: allChangedFiles,
         projectType:
           (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ?? null,
       };

@@ -172,7 +172,12 @@ export function selectProfile(counts) {
     return 'full_validation';
   }
 
-  // Infrastructure changes always trigger full validation (safety-first)
+  // Infrastructure changes with code/test modifications trigger full validation (safety-first)
+  if (infrastructure > 0 && (code > 0 || tests > 0)) {
+    return 'full_validation';
+  }
+
+  // Infrastructure-only changes (possibly with docs)
   if (infrastructure > 0) {
     return 'infrastructure';
   }
@@ -362,7 +367,26 @@ export class WorkflowProfileManager {
     try {
       if (this.gitAutomation) {
         const status = await this.gitAutomation.status();
-        changedFiles = [...status.modified, ...status.added, ...status.deleted];
+        if (
+          status.modified !== undefined ||
+          status.added !== undefined ||
+          status.deleted !== undefined
+        ) {
+          // Flat string array format
+          changedFiles = [
+            ...(status.modified || []),
+            ...(status.added || []),
+            ...(status.deleted || []),
+          ];
+        } else {
+          // { staged, unstaged, untracked } object array format from parseGitStatus
+          const allEntries = [
+            ...(status.staged || []),
+            ...(status.unstaged || []),
+            ...(status.untracked || []),
+          ];
+          changedFiles = allEntries.map((e) => e.file).filter(Boolean);
+        }
       }
     } catch (error) {
       logger.warn(`Could not detect changes: ${error.message}, using full_validation`);
@@ -380,10 +404,22 @@ export class WorkflowProfileManager {
     logger.info(
       `  Changed files: ${this.changeCounts.total} ` +
         `(docs: ${this.changeCounts.docs}, code: ${this.changeCounts.code}, ` +
-        `tests: ${this.changeCounts.tests}, infra: ${this.changeCounts.infrastructure})`
+        `tests: ${this.changeCounts.tests}, infra: ${this.changeCounts.infrastructure}, ` +
+        `other: ${this.changeCounts.other})`
     );
 
     return this.currentProfile;
+  }
+
+  /**
+   * Re-run profile detection using a pre-computed file list (e.g. from CommitHistory).
+   * Useful when git-status returns 0 changes but committed-since-last-run changes exist.
+   * @param {string[]} fileList - Absolute or relative file paths to categorize
+   */
+  refreshWithFiles(fileList) {
+    if (!Array.isArray(fileList) || fileList.length === 0) return;
+    this.changeCounts = categorizeChanges(fileList);
+    this.currentProfile = selectProfile(this.changeCounts);
   }
 
   /**
