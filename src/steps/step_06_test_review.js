@@ -408,22 +408,26 @@ export class Step6TestReviewer {
       const report = formatTestReport(results);
       await this.backlog.saveStepSummary(6, 'Test Review', report);
 
-      // Phase 7: AI-powered test quality review
-      const aiAvailable = await this.aiHelper.initialize();
-      if (aiAvailable) {
-        await this.aiCache.init();
-        const prompt = buildTestReviewPrompt({ testFiles, framework: language });
-        const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
-        );
-        const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(6, 'Test Review', enrichedReport);
+      // Phase 7: AI-powered test quality review (optional enrichment)
+      try {
+        const aiAvailable = await this.aiHelper.initialize();
+        if (aiAvailable) {
+          await this.aiCache.init();
+          const prompt = buildTestReviewPrompt({ testFiles, framework: language });
+          const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
+          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+          );
+          const aiContent = aiResult?.content ?? '';
+          if (aiContent) {
+            const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+            await this.backlog.saveStepSummary(6, 'Test Review', enrichedReport);
+          }
+        } else {
+          logger.warn('AI helper not available - skipping AI test review');
         }
-      } else {
-        logger.warn('AI helper not available - skipping AI test review');
+      } catch (aiError) {
+        logger.warn(`AI test review skipped: ${aiError.message}`);
       }
 
       if (issues.length === 0) {

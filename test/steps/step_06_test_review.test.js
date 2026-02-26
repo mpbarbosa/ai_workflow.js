@@ -311,6 +311,8 @@ describe('Step 6: Test Review', () => {
     let mockFileOps;
     let mockBacklog;
     let mockTechStack;
+    let mockAiHelper;
+    let mockAiCache;
 
     beforeEach(() => {
       mockFileOps = {
@@ -327,10 +329,21 @@ describe('Step 6: Test Review', () => {
         detectAll: () => Promise.resolve({ languages: ['javascript'] }),
       };
 
+      mockAiHelper = {
+        initialize: () => Promise.resolve(false),
+      };
+
+      mockAiCache = {
+        init: () => Promise.resolve(),
+        withCache: (_prompt, _key, fn) => fn(),
+      };
+
       reviewer = new Step6TestReviewer({
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
       });
     });
 
@@ -420,6 +433,18 @@ describe('Step 6: Test Review', () => {
 
       expect(result.success).toBe(true);
       expect(result.testFiles).toHaveLength(0);
+    });
+
+    // [BUG FIX 0f99feb] promptsDir must be forwarded so prompt+response files are saved
+    test('[BUG FIX] promptsDir option is accepted without error', () => {
+      const instance = new Step6TestReviewer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        promptsDir: '/tmp/prompts/step_06',
+      });
+      expect(instance).toBeDefined();
+      expect(instance.aiHelper).toBeDefined();
     });
   });
 });

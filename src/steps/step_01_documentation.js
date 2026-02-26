@@ -155,7 +155,7 @@ export function shouldRunAiAnalysis(classification, options = {}) {
  * Step 1 analyzer for documentation validation and updates
  */
 export class Step1DocumentationAnalyzer {
-  static stepKind = STEP_KIND.CONTEXT;
+  static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
     this.gitOps = options.gitOps || new GitAutomation();
