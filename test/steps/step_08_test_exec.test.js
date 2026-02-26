@@ -344,6 +344,7 @@ describe('Step 8: Test Execution', () => {
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

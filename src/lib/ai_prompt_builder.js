@@ -12,6 +12,16 @@
  * @version 2.0.0
  */
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+// Resolves to: ai_workflow.js/.workflow_core/config/ai_helpers.yaml
+export const AI_HELPERS_PATH = path.resolve(
+  path.dirname(__filename),
+  '../../.workflow_core/config/ai_helpers.yaml'
+);
+
 // ==============================================================================
 // PURE FUNCTIONS - Template Processing
 // ==============================================================================
@@ -255,6 +265,42 @@ export function buildStructuredPrompt(sections) {
 }
 
 // ==============================================================================
+// YAML PROMPT LOADING (Pure function)
+// ==============================================================================
+
+/**
+ * Build a structured prompt from a parsed ai_helpers.yaml step config.
+ *
+ * Extracts `role`, `task_template`, and `approach` from the specified YAML key,
+ * substitutes `{variable}` placeholders in `task_template` using `context`,
+ * then assembles using `buildStructuredPrompt`. Returns null if the key is not found.
+ *
+ * @param {Object|null} parsedYaml - Parsed YAML object (from js-yaml.load)
+ * @param {string} yamlKey - Top-level key in ai_helpers.yaml (e.g. 'step3_script_refs_prompt')
+ * @param {Object} [context] - Variable values to substitute in `task_template`
+ * @returns {string|null} Assembled prompt string, or null if key missing
+ *
+ * @example
+ * const parsed = yaml.load(rawYaml);
+ * const prompt = buildYamlStepPrompt(parsed, 'step3_script_refs_prompt', {
+ *   project_name: 'my-project',
+ *   script_count: '5',
+ * });
+ */
+export function buildYamlStepPrompt(parsedYaml, yamlKey, context = {}) {
+  if (!parsedYaml || typeof parsedYaml !== 'object') return null;
+  const config = parsedYaml[yamlKey];
+  if (!config || typeof config !== 'object') return null;
+
+  const role = config.role || '';
+  const taskTemplate = config.task_template || config.task || '';
+  const approach = config.approach || '';
+
+  const task = buildPromptFromTemplate(taskTemplate, context);
+  return buildStructuredPrompt({ role, task, approach });
+}
+
+// ==============================================================================
 // SPECIALIZED PROMPT BUILDERS
 // ==============================================================================
 
@@ -381,6 +427,7 @@ ${testList}`;
  * @param {string[]} options.codeFiles - Code files needing tests
  * @param {string} [options.framework] - Test framework name
  * @param {Object} [options.projectInfo] - Project information
+ * @deprecated Not called by any step — step_07 intentionally has no AI call. Kept for API compatibility.
  * @returns {string} Test generation prompt
  */
 export function buildTestGenPrompt(options) {

@@ -1,1 +1,0 @@
-{"content":"```markdown\ndocs/guides/WORKFLOW_VALIDATION_GUIDE.md\n\nNo updates needed - documentation is current\n```","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

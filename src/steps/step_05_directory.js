@@ -15,6 +15,15 @@ import { GitAutomation } from '../lib/git_automation.js';
 import { Config } from '../lib/config.js';
 import path from 'path';
 import fs from 'fs/promises';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -344,6 +353,8 @@ export class Step5DirectoryAnalyzer {
     this.backlog = options.backlog || new Backlog();
     this.gitOps = options.gitOps || new GitAutomation();
     this.config = options.config || new Config();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -407,6 +418,43 @@ export class Step5DirectoryAnalyzer {
 
       const report = formatDirectoryReport(results);
       await this.backlog.saveStepSummary(5, 'Directory Structure Validation', report);
+
+      // Phase AI: AI-powered directory structure analysis
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        await this.aiCache.init();
+        let prompt;
+        try {
+          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml = yaml.load(yamlContent);
+          prompt = buildYamlStepPrompt(parsedYaml, 'step4_directory_prompt', {
+            total_dirs: String(results.totalDirs ?? 0),
+            misplaced_docs: String(results.misplacedDocs ?? 0),
+            organized_docs: String(results.organizedDocs ?? 0),
+            missing_critical: String(structureResults.missingCritical ?? 0),
+            issues_count: String(structureResults.issues?.length ?? 0),
+          });
+        } catch {
+          /* fallback to generic prompt */
+        }
+        if (!prompt) {
+          const role = `You are an expert in software project structure and organization.`;
+          const task = `Analyze these directory structure validation results:
+- Total directories: ${results.totalDirs ?? 0}
+- Misplaced docs: ${results.misplacedDocs ?? 0}
+- Organized docs: ${results.organizedDocs ?? 0}
+- Missing critical dirs: ${structureResults.missingCritical ?? 0}
+- Issues: ${structureResults.issues?.length ?? 0}`;
+          const approach = `Provide concise recommendations to improve the project directory structure. Be specific.`;
+          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+        }
+        const cacheKey = `step_05|${results.totalDirs ?? 0}|${structureResults.issues?.length ?? 0}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI analysis');
+      }
 
       if (structureResults.missingCritical > 0) {
         logger.error(`Critical: ${structureResults.missingCritical} critical directories missing!`);

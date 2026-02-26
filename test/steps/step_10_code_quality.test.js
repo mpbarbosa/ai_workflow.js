@@ -278,6 +278,7 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

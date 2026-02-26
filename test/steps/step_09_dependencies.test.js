@@ -331,6 +331,7 @@ describe('Step 9: Dependency Validation', () => {
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

@@ -61,6 +61,7 @@ describe('E2E: Step 5 Directory Structure Validation – glob fix', () => {
       fileOps,
       backlog: nullBacklog,
       config: { load: () => Promise.reject(new Error('no config')) },
+      aiHelper: { initialize: () => Promise.resolve(false) },
     });
   });
 

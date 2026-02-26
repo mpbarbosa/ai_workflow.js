@@ -24,6 +24,15 @@ import GitSubmodules, {
   categorizeSubmodules,
   formatSubmoduleSummary,
 } from '../lib/git_submodules.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -382,6 +391,8 @@ export class Step12GitFinalization {
     this.interactiveMode = options.interactiveMode || false;
     this.aiEnabled = options.aiEnabled || false;
     this.projectRoot = options.projectRoot || null;
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -638,9 +649,8 @@ export class Step12GitFinalization {
   async _generateCommitMessage(gitState) {
     this.logger.info('Generating commit message...');
 
-    // For now, use conventional commit message
-    // AI generation would be integrated here with GitHub Copilot CLI
-    const message = generateCommitMessage({
+    // Heuristic conventional commit message as base
+    const baseMessage = generateCommitMessage({
       type: gitState.commitType,
       scope: gitState.commitScope,
       description: 'update tests and documentation',
@@ -650,8 +660,55 @@ export class Step12GitFinalization {
       version: '1.2.0',
     });
 
-    this.logger.info('Commit message generated');
-    return message;
+    // AI-powered commit message refinement
+    const aiAvailable = await this.aiHelper.initialize();
+    if (aiAvailable) {
+      try {
+        await this.aiCache.init();
+        const cats = gitState.categories || {};
+        let prompt;
+        try {
+          const yamlContent = await fsPromises.readFile(AI_HELPERS_PATH, 'utf-8');
+          const parsedYaml = yaml.load(yamlContent);
+          prompt = buildYamlStepPrompt(parsedYaml, 'step11_git_commit_prompt', {
+            commit_type: gitState.commitType,
+            commit_scope: gitState.commitScope,
+            modified_count: String(gitState.modifiedCount),
+            docs_count: String(cats.documentation || 0),
+            tests_count: String(cats.tests || 0),
+            code_count: String(cats.code || 0),
+            config_count: String(cats.config || 0),
+            total_changes: String(gitState.totalChanges),
+            base_message: baseMessage,
+          });
+        } catch {
+          /* fallback to generic prompt */
+        }
+        if (!prompt) {
+          const role = `You are an expert Git commit message writer following the Conventional Commits specification.`;
+          const task = `Generate a concise, accurate git commit message for these changes:
+- Type: ${gitState.commitType}(${gitState.commitScope})
+- Modified files: ${gitState.modifiedCount} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
+- Total changes: ${gitState.totalChanges}
+- Base message: ${baseMessage}`;
+          const approach = `Output ONLY the commit message (subject + optional body). Follow Conventional Commits. Subject ≤72 chars.`;
+          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+        }
+        const cacheKey = `step_12|${gitState.commitType}|${gitState.modifiedCount}|${gitState.totalChanges}`;
+        const response = await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'git_specialist' })
+        );
+        if (response?.content?.trim()) {
+          this.logger.info('AI commit message generated');
+          return response.content.trim();
+        }
+      } catch (err) {
+        this.logger.warn(`AI commit message generation failed: ${err.message} — using heuristic`);
+      }
+    }
+
+    this.logger.info('Commit message generated (heuristic)');
+    return baseMessage;
   }
 
   /**

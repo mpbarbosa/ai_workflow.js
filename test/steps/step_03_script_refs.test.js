@@ -292,6 +292,7 @@ describe('Step 3: Script Reference Validation', () => {
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

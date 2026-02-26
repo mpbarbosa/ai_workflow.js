@@ -296,13 +296,16 @@ Confidence: high`;
     });
 
     test('constructs with default options', () => {
-      const step = new Step16VersionUpdate();
+      const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
       expect(step).toBeInstanceOf(Step16VersionUpdate);
       expect(step.dryRun).toBe(false);
     });
 
     test('constructs with custom options', () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         fileOps: mockFileOps,
         backlog: mockBacklog,
         logger: mockLogger,
@@ -316,6 +319,7 @@ Confidence: high`;
 
     test('executes dry-run mode', async () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlog: mockBacklog,
         logger: mockLogger,
         dryRun: true,
@@ -330,6 +334,7 @@ Confidence: high`;
 
     test('skips when no modified files', async () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlog: mockBacklog,
         logger: mockLogger,
       });
@@ -349,6 +354,7 @@ Confidence: high`;
 
     test('skips when no version found', async () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlog: mockBacklog,
         logger: mockLogger,
       });
@@ -367,6 +373,7 @@ Confidence: high`;
 
     test('executes successful version update', async () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlog: mockBacklog,
         logger: mockLogger,
       });
@@ -401,6 +408,7 @@ Confidence: high`;
 
     test('handles errors gracefully', async () => {
       const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlog: mockBacklog,
         logger: mockLogger,
       });

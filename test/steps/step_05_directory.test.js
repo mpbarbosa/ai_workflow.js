@@ -429,6 +429,7 @@ describe('Step 5: Directory Structure Validation', () => {
         backlog: mockBacklog,
         gitOps: mockGitOps,
         config: mockConfig,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       // Default: no subdirectories

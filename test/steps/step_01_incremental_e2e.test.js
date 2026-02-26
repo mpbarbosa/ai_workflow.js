@@ -190,6 +190,7 @@ describe('E2E: detectChangedDocs fix regression', () => {
         backlog: {
           saveStepSummary: () => Promise.resolve(),
         },
+        aiHelper: { initialize: () => Promise.resolve(false) },
         parallelProcessor: {
           validate: () => Promise.resolve({ validatedFiles: 0, totalFiles: 0, errors: [] }),
           getStatistics: () => ({ totalDuration: 0, speedup: null }),

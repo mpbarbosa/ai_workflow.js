@@ -362,13 +362,16 @@ docs/guide.md:10: MD022 Blank lines around headers`;
     });
 
     test('constructs with default options', () => {
-      const step = new Step13MarkdownLint();
+      const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
       expect(step).toBeInstanceOf(Step13MarkdownLint);
       expect(step.dryRun).toBe(false);
     });
 
     test('constructs with custom options', () => {
       const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         executor: mockExecutor,
         fileOps: mockFileOps,
         backlogManager: mockBacklog,
@@ -382,6 +385,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
 
     test('executes dry-run mode', async () => {
       const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         backlogManager: mockBacklog,
         logger: mockLogger,
         dryRun: true,
@@ -399,6 +403,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
       mockFileOps.listDirectoryRecursive = jest.fn().mockResolvedValue([]);
 
       const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         fileOps: mockFileOps,
         backlogManager: mockBacklog,
         logger: mockLogger,
@@ -421,6 +426,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
       mockExecutor.executeCommand = jest.fn().mockRejectedValue(new Error('Command not found'));
 
       const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         executor: mockExecutor,
         fileOps: mockFileOps,
         backlogManager: mockBacklog,
@@ -450,6 +456,7 @@ docs/guide.md:10: MD022 Blank lines around headers`;
         .mockResolvedValueOnce({ stdout: '', stderr: '' }); // mdl lint (no issues)
 
       const step = new Step13MarkdownLint({
+        aiHelper: { initialize: () => Promise.resolve(false) },
         executor: mockExecutor,
         fileOps: mockFileOps,
         backlogManager: mockBacklog,

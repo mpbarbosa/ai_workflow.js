@@ -13,6 +13,7 @@ import {
   scanForSecrets,
   checkConfigBestPractices,
   formatConfigReport,
+  EXCLUDE_DIRS,
 } from '../../src/steps/step_04_config_validation.js';
 
 describe('Step 4: Configuration Validation', () => {
@@ -322,6 +323,7 @@ describe('Step 4: Configuration Validation', () => {
         fileOps: mockFileOps,
         backlog: mockBacklog,
         gitOps: mockGitOps,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 
@@ -363,7 +365,7 @@ describe('Step 4: Configuration Validation', () => {
     test('detects security findings', async () => {
       mockGitOps.getModifiedFiles = () => Promise.resolve(['.env']);
       mockFileOps.readFile = (path) => {
-        if (path === '.env') {
+        if (path.endsWith('.env')) {
           return Promise.resolve('API_KEY=abc123xyz789abc123xyz789'); // 28 chars
         }
         return Promise.resolve('');
@@ -409,6 +411,48 @@ describe('Step 4: Configuration Validation', () => {
 
       expect(result.success).toBe(true);
       expect(result.filesChecked).toBe(1);
+    });
+
+    // Bug A regression: .ai_cache files from git must be excluded
+    test('excludes .ai_cache files found via git-modified path', async () => {
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve(['.ai_workflow/.ai_cache/index.json', 'package.json']);
+      mockFileOps.readFile = () => Promise.resolve('{"name": "test"}');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.filesChecked).toBe(1); // only package.json
+    });
+
+    // Bug B regression: git paths are resolved to absolute before readFile
+    test('resolves relative git paths to absolute before reading', async () => {
+      const seenPaths = [];
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package.json']);
+      mockFileOps.readFile = (p) => {
+        seenPaths.push(p);
+        return Promise.resolve('{"name": "test"}');
+      };
+
+      await analyzer.execute('/project');
+
+      expect(seenPaths[0]).toBe('/project/package.json');
+    });
+
+    // Bug C regression: unreadable files must not be counted as syntax errors
+    test('does not count read failures as syntax errors', async () => {
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package.json']);
+      mockFileOps.readFile = () => Promise.reject(new Error('Only absolute paths are allowed'));
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.syntaxErrors).toHaveLength(0);
+    });
+
+    // EXCLUDE_DIRS export
+    test('EXCLUDE_DIRS includes .ai_cache', () => {
+      expect(EXCLUDE_DIRS).toContain('.ai_cache');
     });
   });
 });

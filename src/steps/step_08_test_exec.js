@@ -12,6 +12,15 @@ import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -333,6 +342,8 @@ export class Step8TestExecutor {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -407,6 +418,45 @@ export class Step8TestExecutor {
 
       const report = formatTestReport(results);
       await this.backlog.saveStepSummary(8, 'Test Execution', report);
+
+      // Phase AI: AI-powered test result analysis
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        await this.aiCache.init();
+        let prompt;
+        try {
+          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml = yaml.load(yamlContent);
+          prompt = buildYamlStepPrompt(parsedYaml, 'step7_test_exec_prompt', {
+            language,
+            tests_passed: String(testResults.passed ?? 0),
+            tests_failed: String(testResults.failed ?? 0),
+            coverage: String(coverage.statements ?? 'N/A'),
+            duration: String(duration),
+            exit_code: String(testResult.exitCode),
+          });
+        } catch {
+          /* fallback to generic prompt */
+        }
+        if (!prompt) {
+          const role = `You are an expert in software testing and quality assurance.`;
+          const task = `Analyze these test execution results and provide recommendations:
+- Language: ${language}
+- Tests passed: ${testResults.passed ?? 0}
+- Tests failed: ${testResults.failed ?? 0}
+- Coverage: ${coverage.statements ?? 'N/A'}%
+- Duration: ${duration}ms
+- Exit code: ${testResult.exitCode}`;
+          const approach = `Identify the most likely root causes of failures and suggest concrete fixes. Be concise.`;
+          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+        }
+        const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI analysis');
+      }
 
       if (success) {
         logger.success('Step 8 completed - all tests passed!');

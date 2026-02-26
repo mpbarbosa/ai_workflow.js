@@ -17,6 +17,15 @@
  */
 
 import { STEP_KIND } from './step_contract.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -381,6 +390,8 @@ export class Step14PromptEngineer {
     this.logger = options.logger || console;
     this.dryRun = options.dryRun || false;
     this.configPath = options.configPath || '.workflow_core/config/ai_helpers.yaml';
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -606,6 +617,43 @@ export class Step14PromptEngineer {
         summary,
         statusEmoji
       );
+    }
+
+    // Phase AI: AI-powered prompt quality improvement suggestions
+    const aiAvailable = await this.aiHelper.initialize();
+    if (aiAvailable) {
+      await this.aiCache.init();
+      let prompt;
+      try {
+        const yamlContent =
+          (await this.fileOps?.readFile(AI_HELPERS_PATH)) ??
+          (await import('fs').then((m) => m.promises.readFile(AI_HELPERS_PATH, 'utf-8')));
+        const parsedYaml = yaml.load(yamlContent);
+        prompt = buildYamlStepPrompt(parsedYaml, 'step13_prompt_engineer_prompt', {
+          total_prompts: String(stats.totalPrompts),
+          average_score: String(stats.averageScore),
+          total_improvements: String(stats.totalImprovements),
+          below_threshold: String(stats.belowThreshold ?? 0),
+        });
+      } catch {
+        /* fallback to generic prompt */
+      }
+      if (!prompt) {
+        const role = `You are an expert prompt engineer specializing in LLM system prompt optimization.`;
+        const task = `Analyze these AI persona prompt quality metrics:
+- Total prompts analyzed: ${stats.totalPrompts}
+- Average quality score: ${stats.averageScore}/100
+- Total improvements identified: ${stats.totalImprovements}
+- Prompts below threshold: ${stats.belowThreshold ?? 0}`;
+        const approach = `Suggest the highest-impact structural improvements for AI system prompts. Be concise and specific.`;
+        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+      }
+      const cacheKey = `step_14|${stats.totalPrompts}|${stats.averageScore}`;
+      await this.aiCache.withCache(prompt, cacheKey, () =>
+        this.aiHelper.executeRequest(prompt, { persona: 'prompt_engineer' })
+      );
+    } else {
+      this.logger.warn('AI helper not available - skipping AI analysis');
     }
 
     return {

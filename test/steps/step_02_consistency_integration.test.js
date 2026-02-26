@@ -76,6 +76,7 @@ function buildAnalyzer(rootDir, backlogStub) {
   return new Step2ConsistencyAnalyzer({
     fileOps: buildRealFileOps(rootDir),
     backlog: backlogStub,
+    aiHelper: { initialize: () => Promise.resolve(false) },
   });
 }
 
@@ -171,10 +172,7 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
         path.join(tempDir, 'docs', 'guide.md'),
         '# Guide\n\nVersion 1.2.3\n\nSee [advanced](advanced.md) for more.\n'
       );
-      await writeFile(
-        path.join(tempDir, 'docs', 'advanced.md'),
-        '# Advanced\n\nVersion 1.2.3\n'
-      );
+      await writeFile(path.join(tempDir, 'docs', 'advanced.md'), '# Advanced\n\nVersion 1.2.3\n');
     });
 
     test('reports zero total issues', async () => {
@@ -234,13 +232,10 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
 
   describe('Version inconsistency detection', () => {
     test('detects stale version in a doc file', async () => {
-      await writeFile(
-        path.join(tempDir, 'package.json'),
-        JSON.stringify({ version: '2.0.0' })
-      );
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '2.0.0' }));
       await writeFile(
         path.join(tempDir, 'README.md'),
-        '# Project\n\nVersion 1.0.0\n'  // stale version
+        '# Project\n\nVersion 1.0.0\n' // stale version
       );
 
       const { stub } = buildBacklogStub();
@@ -256,18 +251,9 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
     });
 
     test('detects version mismatches across multiple files', async () => {
-      await writeFile(
-        path.join(tempDir, 'package.json'),
-        JSON.stringify({ version: '3.0.0' })
-      );
-      await writeFile(
-        path.join(tempDir, 'README.md'),
-        '# Project v1.0.0\n'
-      );
-      await writeFile(
-        path.join(tempDir, 'CHANGELOG.md'),
-        '## Release 2.0.0\n'
-      );
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '3.0.0' }));
+      await writeFile(path.join(tempDir, 'README.md'), '# Project v1.0.0\n');
+      await writeFile(path.join(tempDir, 'CHANGELOG.md'), '## Release 2.0.0\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -278,14 +264,8 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
     });
 
     test('accepts v-prefixed version matching package.json', async () => {
-      await writeFile(
-        path.join(tempDir, 'package.json'),
-        JSON.stringify({ version: '1.5.0' })
-      );
-      await writeFile(
-        path.join(tempDir, 'README.md'),
-        '# Project v1.5.0\n'
-      );
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.5.0' }));
+      await writeFile(path.join(tempDir, 'README.md'), '# Project v1.5.0\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -296,10 +276,7 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
     });
 
     test('skips version check when package.json is absent', async () => {
-      await writeFile(
-        path.join(tempDir, 'README.md'),
-        '# Project\n\nVersion 1.0.0\n'
-      );
+      await writeFile(path.join(tempDir, 'README.md'), '# Project\n\nVersion 1.0.0\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -335,10 +312,7 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
         path.join(tempDir, 'README.md'),
         '# Project\n\nSee [guide](docs/guide.md).\n'
       );
-      await writeFile(
-        path.join(tempDir, 'docs', 'guide.md'),
-        '# Guide\n'
-      );
+      await writeFile(path.join(tempDir, 'docs', 'guide.md'), '# Guide\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -381,10 +355,7 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
         path.join(tempDir, 'README.md'),
         '[broken1](nowhere/a.md)\n[broken2](nowhere/b.md)\n'
       );
-      await writeFile(
-        path.join(tempDir, 'CONTRIBUTING.md'),
-        '[broken3](nowhere/c.md)\n'
-      );
+      await writeFile(path.join(tempDir, 'CONTRIBUTING.md'), '[broken3](nowhere/c.md)\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -401,14 +372,8 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
 
   describe('Report content', () => {
     test('report contains issue summary counts', async () => {
-      await writeFile(
-        path.join(tempDir, 'package.json'),
-        JSON.stringify({ version: '1.0.0' })
-      );
-      await writeFile(
-        path.join(tempDir, 'README.md'),
-        '[broken](missing.md)\n\nVersion 2.0.0\n'
-      );
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.0.0' }));
+      await writeFile(path.join(tempDir, 'README.md'), '[broken](missing.md)\n\nVersion 2.0.0\n');
 
       const { stub, calls } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);
@@ -465,7 +430,9 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
     });
 
     test('execute() with undefined projectRoot does not throw', async () => {
-      const analyzer = new Step2ConsistencyAnalyzer({});
+      const analyzer = new Step2ConsistencyAnalyzer({
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
       await expect(analyzer.execute(undefined)).resolves.toHaveProperty('success');
     });
   });

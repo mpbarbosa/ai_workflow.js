@@ -284,6 +284,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       logger.openStepLogFile(stepLogPath);
@@ -303,6 +304,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       logger.openStepLogFile(stepLogPath);
@@ -321,6 +323,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       logger.openStepLogFile(stepLogPath);
@@ -339,6 +342,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       logger.openStepLogFile(stepLogPath);
@@ -357,6 +361,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       logger.openStepLogFile(stepLogPath);
@@ -398,6 +403,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -412,6 +418,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -426,6 +433,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -440,6 +448,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -454,6 +463,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -468,6 +478,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -483,6 +494,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -497,6 +509,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -511,6 +524,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -528,6 +542,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -542,6 +557,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -557,6 +573,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);
@@ -572,6 +589,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       const analyzer = new Step2ConsistencyAnalyzer({
         fileOps: buildRealFileOps(tempDir),
         backlog: stub,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
       await analyzer.execute(tempDir);

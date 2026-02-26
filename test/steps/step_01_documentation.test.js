@@ -271,6 +271,7 @@ describe('Step 1: Documentation Validation', () => {
         backlog: mockBacklog,
         incrementalProcessor: mockIncrementalProcessor,
         parallelProcessor: mockParallelProcessor,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

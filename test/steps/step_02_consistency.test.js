@@ -340,6 +340,7 @@ describe('Step 2: Consistency Analysis', () => {
       analyzer = new Step2ConsistencyAnalyzer({
         fileOps: mockFileOps,
         backlog: mockBacklog,
+        aiHelper: { initialize: () => Promise.resolve(false) },
       });
     });
 

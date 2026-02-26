@@ -11,6 +11,15 @@ import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // Constants
 export const SEMVER_PATTERN = /\d+\.\d+\.\d+/;
@@ -350,6 +359,8 @@ export class Step16VersionUpdate {
     this.logger = options.logger || new Logger();
     this.dryRun = options.dryRun || false;
     this.projectRoot = options.projectRoot || process.cwd();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -423,10 +434,54 @@ export class Step16VersionUpdate {
 
       this.logger.success(`Current version: ${currentVersion}`);
 
-      // Phase 2: Determine bump type
+      // Phase 2: Determine bump type (heuristic + optional AI verification)
       this.logger.info(`${colors.blue}Phase 2:${colors.reset} Determining bump type...`);
-      const bumpType = determineHeuristicBumpType(gitStats);
-      this.logger.info(`Bump type: ${bumpType}`);
+      let bumpType = determineHeuristicBumpType(gitStats);
+      this.logger.info(`Heuristic bump type: ${bumpType}`);
+
+      // AI verification of bump type
+      const aiAvailable = await this.aiHelper.initialize();
+      if (aiAvailable) {
+        try {
+          await this.aiCache.init();
+          const cats = gitStats.categories || {};
+          let prompt;
+          try {
+            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+            const parsedYaml = yaml.load(yamlContent);
+            prompt = buildYamlStepPrompt(parsedYaml, 'version_manager_prompt', {
+              current_version: currentVersion,
+              modified_count: String(modifiedFiles.length),
+              docs_count: String(cats.documentation || 0),
+              tests_count: String(cats.tests || 0),
+              code_count: String(cats.code || 0),
+              config_count: String(cats.config || 0),
+              heuristic_bump: bumpType,
+            });
+          } catch {
+            /* fallback to generic prompt */
+          }
+          if (!prompt) {
+            const role = `You are a semantic versioning expert. Determine the correct semver bump type (major/minor/patch).`;
+            const task = `Current version: ${currentVersion}. Change summary:
+- Modified files: ${modifiedFiles.length} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
+- Heuristic recommendation: ${bumpType}`;
+            const approach = `Reply with ONLY one word: major, minor, or patch. No explanation.`;
+            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+          }
+          const cacheKey = `step_16|${currentVersion}|${bumpType}|${modifiedFiles.length}`;
+          const response = await this.aiCache.withCache(prompt, cacheKey, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
+          );
+          const aiSuggestion = response?.content?.trim().toLowerCase();
+          if (aiSuggestion && ['major', 'minor', 'patch'].includes(aiSuggestion)) {
+            this.logger.info(`AI refined bump type: ${aiSuggestion} (was: ${bumpType})`);
+            bumpType = aiSuggestion;
+          }
+        } catch (err) {
+          this.logger.warn(`AI bump type verification failed: ${err.message} — using heuristic`);
+        }
+      }
 
       // Phase 3: Calculate new version
       const newVersion = incrementVersion(currentVersion, bumpType);

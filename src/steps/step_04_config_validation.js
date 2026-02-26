@@ -6,15 +6,31 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
+
+/**
+ * Directories to exclude from configuration file discovery (applied to both
+ * the git-modified-files path and the glob fallback).
+ */
+export const EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
 
 /**
  * Configuration file patterns
@@ -378,6 +394,8 @@ export class Step4ConfigAnalyzer {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.gitOps = options.gitOps || new GitAutomation();
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -407,6 +425,9 @@ export class Step4ConfigAnalyzer {
       }
 
       logger.info(`Syntax validation: ${syntaxErrors.length} error(s)`);
+      for (const err of syntaxErrors) {
+        logger.warn(`  ${err.file} (line ${err.line ?? 'unknown'}): ${err.error ?? err.message}`);
+      }
 
       // Phase 3: Scan for secrets
       const securityFindings = [];
@@ -437,7 +458,44 @@ export class Step4ConfigAnalyzer {
       const report = formatConfigReport(results);
       await this.backlog.saveStepSummary(4, 'Configuration Validation', report);
 
+      // Phase AI: AI-powered configuration analysis
+      const aiAvailable = await this.aiHelper.initialize();
       const totalIssues = syntaxErrors.length + securityFindings.length;
+      if (aiAvailable) {
+        await this.aiCache.init();
+        let prompt;
+        try {
+          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml = yaml.load(yamlContent);
+          prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
+            files_checked: String(results.filesChecked ?? 0),
+            syntax_errors: String(syntaxErrors.length),
+            security_findings: String(securityFindings.length),
+            best_practice_issues: String(bestPracticeIssues.length),
+            total_issues: String(totalIssues),
+          });
+        } catch {
+          /* fallback to generic prompt */
+        }
+        if (!prompt) {
+          const role = `You are a configuration validation specialist and security expert.`;
+          const task = `Analyze these configuration validation results and provide recommendations:
+- Files validated: ${results.filesChecked ?? 0}
+- Syntax errors: ${syntaxErrors.length}
+- Security findings: ${securityFindings.length}
+- Best practice issues: ${bestPracticeIssues.length}
+- Total issues: ${totalIssues}`;
+          const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
+          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+        }
+        const cacheKey = `step_04|${results.filesChecked ?? 0}|${totalIssues}`;
+        await this.aiCache.withCache(prompt, cacheKey, () =>
+          this.aiHelper.executeRequest(prompt, { persona: 'security_expert' })
+        );
+      } else {
+        logger.warn('AI helper not available - skipping AI analysis');
+      }
+
       if (totalIssues === 0) {
         logger.success('Step 4 completed - no issues found');
       } else {
@@ -462,7 +520,11 @@ export class Step4ConfigAnalyzer {
   async discoverConfigFiles(projectRoot) {
     try {
       const changedFiles = await this.gitOps.getModifiedFiles();
-      const configChanged = changedFiles.filter((file) => isConfigFile(file));
+      const configChanged = changedFiles
+        .filter(
+          (file) => isConfigFile(file) && !EXCLUDE_DIRS.some((dir) => file.split('/').includes(dir))
+        )
+        .map((file) => (path.isAbsolute(file) ? file : path.resolve(projectRoot, file)));
       if (configChanged.length > 0) {
         return configChanged;
       }
@@ -472,16 +534,19 @@ export class Step4ConfigAnalyzer {
 
     // Fallback: scan common config files (clean working tree or git error)
     const patterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
 
     const files = [];
     for (const pattern of patterns) {
       try {
         const found = await this.fileOps.glob(pattern, {
           cwd: projectRoot,
-          ignore: exclude.map((dir) => `**/${dir}/**`),
+          ignore: EXCLUDE_DIRS.map((dir) => `**/${dir}/**`),
         });
-        files.push(...found.filter((f) => isConfigFile(f)));
+        files.push(
+          ...found
+            .filter((f) => isConfigFile(f))
+            .map((f) => (path.isAbsolute(f) ? f : path.resolve(projectRoot, f)))
+        );
       } catch {
         // Pattern not found, continue
       }
@@ -512,7 +577,8 @@ export class Step4ConfigAnalyzer {
 
       return [];
     } catch (error) {
-      return [{ file: filePath, error: error.message }];
+      logger.warn(`  Cannot read ${filePath}: ${error.message}`);
+      return []; // Read failure is not a syntax error
     }
   }
 

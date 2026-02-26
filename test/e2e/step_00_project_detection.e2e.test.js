@@ -49,7 +49,7 @@ describe('E2E: Step 0 Project Detection Auto-Detection', () => {
     projectDetection = new ProjectKindDetector({ fileOps });
     techStackDetection = new TechStackDetector({ fileOps });
     projectKindConfig = new ProjectKindConfigManager();
-    
+
     // Initialize backlog with mock config that has required directories
     const mockConfig = {
       backlogRunDir: path.join(projectRoot, '.ai_workflow', 'backlog'),
@@ -158,10 +158,7 @@ requests==2.31.0`;
 
     // Create app directory
     await fs.mkdir(path.join(projectRoot, 'app'), { recursive: true });
-    await fs.writeFile(
-      path.join(projectRoot, 'app', 'main.py'),
-      'def main():\n    pass\n'
-    );
+    await fs.writeFile(path.join(projectRoot, 'app', 'main.py'), 'def main():\n    pass\n');
 
     // Commit files to git
     execSync('git add .', { cwd: projectRoot, stdio: 'ignore' });
@@ -172,10 +169,7 @@ requests==2.31.0`;
    * Helper: Create a file change to trigger analysis
    */
   async function createFileChange() {
-    await fs.writeFile(
-      path.join(projectRoot, 'README.md'),
-      '# Test Project\n\nThis is a test.'
-    );
+    await fs.writeFile(path.join(projectRoot, 'README.md'), '# Test Project\n\nThis is a test.');
     execSync('git add README.md', { cwd: projectRoot, stdio: 'ignore' });
   }
 
@@ -194,8 +188,10 @@ requests==2.31.0`;
 
       // Verify: Project kind was auto-detected correctly
       expect(result.analysis.projectKind).toBeDefined();
-      // May be nodejs_api or cli_tool depending on structure
-      expect(['nodejs_api', 'cli_tool']).toContain(result.analysis.projectKind.kind);
+      // May be nodejs_api, nodejs_automation, or cli_tool depending on structure
+      expect(['nodejs_api', 'nodejs_automation', 'cli_tool']).toContain(
+        result.analysis.projectKind.kind
+      );
       expect(result.analysis.projectKind.confidence).toBeGreaterThan(0);
       // Main point: detectProjectKind was called (no "detect is not a function" error)
     });
@@ -213,8 +209,10 @@ requests==2.31.0`;
 
       // Verify: Project kind was detected (may vary based on file structure)
       expect(result.analysis.projectKind).toBeDefined();
-      // May be react_spa or cli_tool depending on how detection works
-      expect(['react_spa', 'cli_tool']).toContain(result.analysis.projectKind.kind);
+      // May be react_spa, nodejs_automation, or cli_tool depending on how detection works
+      expect(['react_spa', 'nodejs_automation', 'cli_tool']).toContain(
+        result.analysis.projectKind.kind
+      );
       // Main point: detectProjectKind was called successfully
     });
 
@@ -229,9 +227,11 @@ requests==2.31.0`;
       // Verify: Analysis succeeded
       expect(result.success).toBe(true);
 
-      // Verify: Project kind was auto-detected as Python app or cli_tool
+      // Verify: Project kind was auto-detected as Python app, nodejs_automation, or cli_tool
       expect(result.analysis.projectKind).toBeDefined();
-      expect(['python_app', 'cli_tool']).toContain(result.analysis.projectKind.kind);
+      expect(['python_app', 'nodejs_automation', 'cli_tool']).toContain(
+        result.analysis.projectKind.kind
+      );
       // Main point: detectProjectKind was called successfully (no method error)
     });
   });
@@ -248,8 +248,10 @@ requests==2.31.0`;
       // Verify: Both project kind and tech stack were detected
       expect(result.success).toBe(true);
       expect(result.analysis.projectKind).toBeDefined();
-      // May be nodejs_api or cli_tool depending on project structure
-      expect(['nodejs_api', 'cli_tool']).toContain(result.analysis.projectKind.kind);
+      // May be nodejs_api, nodejs_automation, or cli_tool depending on project structure
+      expect(['nodejs_api', 'nodejs_automation', 'cli_tool']).toContain(
+        result.analysis.projectKind.kind
+      );
 
       expect(result.analysis.techStack).toBeDefined();
       expect(result.analysis.techStack.primary_language).toBe('javascript');
@@ -267,10 +269,14 @@ requests==2.31.0`;
       // Verify: Analysis completes even without clear project type
       expect(result.success).toBe(true);
       expect(result.analysis.projectKind).toBeDefined();
-      // Should fall back to generic, unknown, configuration_library, or cli_tool
-      expect(['generic', 'unknown', 'configuration_library', 'cli_tool']).toContain(
-        result.analysis.projectKind.kind
-      );
+      // Should fall back to generic, unknown, configuration_library, nodejs_automation, or cli_tool
+      expect([
+        'generic',
+        'unknown',
+        'configuration_library',
+        'cli_tool',
+        'nodejs_automation',
+      ]).toContain(result.analysis.projectKind.kind);
     });
   });
 
@@ -278,7 +284,7 @@ requests==2.31.0`;
     test('verifies detectProjectKind method exists on ProjectKindDetector', () => {
       // Verify the correct method name exists
       expect(typeof projectDetection.detectProjectKind).toBe('function');
-      
+
       // Verify the old wrong method name does NOT exist
       expect(projectDetection.detect).toBeUndefined();
     });
@@ -286,7 +292,7 @@ requests==2.31.0`;
     test('verifies detectTechStack method exists on TechStackDetector', () => {
       // Verify the correct method name exists
       expect(typeof techStackDetection.detectTechStack).toBe('function');
-      
+
       // Verify the old wrong method name does NOT exist
       expect(techStackDetection.detect).toBeUndefined();
     });
@@ -302,7 +308,7 @@ requests==2.31.0`;
       // Verify: No method-not-found errors
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
-      
+
       // Verify: Both detections ran successfully
       expect(result.analysis.projectKind).toBeDefined();
       expect(result.analysis.techStack).toBeDefined();

@@ -17,6 +17,15 @@
  */
 
 import { STEP_KIND } from './step_contract.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import {
+  buildStructuredPrompt,
+  injectProjectContext,
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -389,6 +398,8 @@ export class Step13MarkdownLint {
     this.backlogManager = options.backlogManager || null;
     this.logger = options.logger || console;
     this.dryRun = options.dryRun || false;
+    this.aiHelper = options.aiHelper || new AiHelper();
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -654,6 +665,45 @@ export class Step13MarkdownLint {
       const statusEmoji = status === 'pass' ? '✅' : status === 'warning' ? '⚠️' : '❌';
 
       await this.backlogManager.saveStepSummary('13', 'Markdown_Linting', summary, statusEmoji);
+    }
+
+    // Phase AI: AI-powered markdown lint analysis
+    const aiAvailable = await this.aiHelper.initialize();
+    if (aiAvailable) {
+      await this.aiCache.init();
+      let prompt;
+      try {
+        const yamlContent =
+          (await this.fileOps?.readFile(AI_HELPERS_PATH)) ??
+          (await import('fs').then((m) => m.promises.readFile(AI_HELPERS_PATH, 'utf-8')));
+        const parsedYaml = yaml.load(yamlContent);
+        prompt = buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
+          files_linted: String(fileCount),
+          total_issues: String(stats.totalIssues),
+          clean_files: String(stats.cleanFiles),
+          anti_patterns: String(antiPatterns?.length ?? 0),
+          status,
+        });
+      } catch {
+        /* fallback to generic prompt */
+      }
+      if (!prompt) {
+        const role = `You are an expert in Markdown authoring and documentation quality.`;
+        const task = `Analyze these markdown linting results:
+- Files linted: ${fileCount}
+- Total issues: ${stats.totalIssues}
+- Clean files: ${stats.cleanFiles}
+- Anti-patterns detected: ${antiPatterns?.length ?? 0}
+- Status: ${status}`;
+        const approach = `Provide the top 3 actionable fixes for the most common Markdown issues found. Be concise.`;
+        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+      }
+      const cacheKey = `step_13|${fileCount}|${stats.totalIssues}`;
+      await this.aiCache.withCache(prompt, cacheKey, () =>
+        this.aiHelper.executeRequest(prompt, { persona: 'technical_writer' })
+      );
+    } else {
+      this.logger.warn('AI helper not available - skipping AI analysis');
     }
 
     return {
