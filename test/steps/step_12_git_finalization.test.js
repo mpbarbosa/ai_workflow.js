@@ -567,7 +567,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status (has changes)
         .mockRejectedValueOnce(new Error('no submodules')) // submodules check
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push origin main
 
       const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
@@ -582,8 +583,9 @@ describe('Step 12: Git Finalization', () => {
       const result = await step.execute();
 
       expect(result.success).toBe(true);
-      // Verify git push was called
+      // Verify both pull and push were called
       const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.includes('git pull --rebase'))).toBe(true);
       expect(calls.some((cmd) => cmd.includes('git push origin'))).toBe(true);
       expect(result.pushed).toBe(true);
     });
@@ -608,6 +610,7 @@ describe('Step 12: Git Finalization', () => {
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
 
       const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };

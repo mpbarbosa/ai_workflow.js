@@ -858,6 +858,8 @@ export class Step12GitFinalization {
     this.logger.info(`Pushing to origin/${branch}...`);
 
     try {
+      // Pull latest remote changes before pushing to avoid non-fast-forward rejection
+      await this._executeGit(`git pull --rebase origin ${branch}`);
       await this._executeGit(`git push origin ${branch}`);
       this.logger.info('Successfully pushed to remote');
       return { pushed: true };
