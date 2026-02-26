@@ -693,7 +693,8 @@ export class Step10CodeQualityAnalyzer {
       }
 
       return {
-        success: !hasErrors,
+        success: true,
+        hasLintErrors: hasErrors,
         perLanguageResults,
         aggregateTotals,
         // backward-compat aliases for single-language consumers

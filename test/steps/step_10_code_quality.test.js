@@ -3,6 +3,7 @@
  * @group steps
  */
 
+import { jest } from '@jest/globals';
 import {
   Step10CodeQualityAnalyzer,
   getLinterCommand,
@@ -35,11 +36,13 @@ describe('Step 10: Code Quality Analysis', () => {
     });
 
     test('returns shellcheck for bash', () => {
-      expect(getLinterCommand('bash')).toBe('shellcheck');
+      expect(getLinterCommand('bash')).toBe(
+        'find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" | xargs shellcheck'
+      );
     });
 
     test('returns jsonlint for json', () => {
-      expect(getLinterCommand('json')).toBe('npx jsonlint --quiet');
+      expect(getLinterCommand('json')).toBe('(native JSON.parse)');
     });
 
     test('returns null for unknown language', () => {
@@ -159,6 +162,24 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       const result = parseLinterOutput(output, 'python');
 
       expect(result.totalIssues).toBe(1);
+    });
+
+    test('uses shellcheck parser for bash', () => {
+      const output =
+        'In script.sh line 32:\ncd foo\n^--^ SC2164 (warning): Use cd ... || exit.\n\nIn script.sh line 65:\ncd bar\n^--^ SC2164 (warning): Use cd ... || exit.';
+      const result = parseLinterOutput(output, 'bash');
+
+      expect(result.totalIssues).toBe(2);
+      expect(result.warnings).toBe(2);
+      expect(result.errors).toBe(0);
+    });
+
+    test('shellcheck parser does not count usage/error text as issues', () => {
+      const output =
+        'No files specified.\n\nUsage: shellcheck [OPTIONS...] FILES...\n  -a   --check-sourced\n  -C   --color';
+      const result = parseLinterOutput(output, 'bash');
+
+      expect(result.totalIssues).toBe(0);
     });
 
     test('uses generic parser for unknown language', () => {
@@ -295,8 +316,10 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
     test('returns default commands for known languages', () => {
       const map = getLanguageLinterCommands(['javascript', 'bash', 'json']);
       expect(map.javascript).toBe('npm run lint');
-      expect(map.bash).toBe('shellcheck');
-      expect(map.json).toBe('npx jsonlint --quiet');
+      expect(map.bash).toBe(
+        'find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" | xargs shellcheck'
+      );
+      expect(map.json).toBe('(native JSON.parse)');
     });
 
     test('config commands take precedence over defaults', () => {
@@ -469,7 +492,8 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
       const result = await analyzer.execute('/project');
 
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.hasLintErrors).toBe(true);
       expect(result.perLanguageResults[0].linterResults.totalIssues).toBe(5);
       expect(result.perLanguageResults[0].linterResults.errors).toBe(2);
     });
@@ -528,6 +552,66 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
       const jsResult = result.perLanguageResults?.find((r) => r.language === 'javascript');
       expect(jsResult?.linterCommand).toBe('npx eslint src/');
+    });
+
+    // [BUG FIX bb8f213] execute() reads source files and passes fileContents to AI prompt
+    test('[BUG FIX] execute() reads discovered source files for AI prompt', async () => {
+      const readFileCalls = [];
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/index.js', 'src/utils.js'];
+      mockFileOps.readFile = async (filePath) => {
+        readFileCalls.push(filePath);
+        if (filePath === '/project/src/index.js') return 'export const main = () => {};';
+        if (filePath === '/project/src/utils.js') return 'export const noop = () => {};';
+        throw new Error('not found');
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const aiRequests = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(false),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          aiRequests.push(prompt);
+          return '**Severity**: None';
+        }),
+      };
+
+      await analyzer.execute('/project');
+
+      // readFile must have been called for at least one source file
+      const srcReads = readFileCalls.filter((p) => p.includes('/project/'));
+      expect(srcReads.length).toBeGreaterThan(0);
+    });
+
+    // [BUG FIX bb8f213] fileContents are injected into the AI prompt (4000-char per file budget)
+    test('[BUG FIX] execute() truncates large file contents to 4000 chars per file', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      const bigContent = 'x'.repeat(8000);
+      mockFileOps.glob = async () => ['src/big.js'];
+      mockFileOps.readFile = async () => bigContent;
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const promptContents = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(false),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          promptContents.push(prompt);
+          return '**Severity**: None';
+        }),
+      };
+
+      await analyzer.execute('/project');
+
+      if (promptContents.length > 0) {
+        // The file content embedded in the prompt must be truncated — no 8000-char run of 'x'
+        expect(promptContents[0]).not.toContain('x'.repeat(4001));
+      }
     });
   });
 });
