@@ -266,6 +266,10 @@ upstream\thttps://github.com/org/repo.git (fetch)`;
         'git status --porcelain --short'
       );
     });
+    test('builds git add with -f flag for force option', () => {
+      // force: true must prepend -f so .gitignore-d files can be staged
+      expect(buildGitCommand('add', ['-f', 'some/file.txt'])).toBe('git add -f some/file.txt');
+    });
   });
 
   describe('validateGitOutput', () => {

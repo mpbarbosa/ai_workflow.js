@@ -728,14 +728,15 @@ export class GitAutomation {
    * @param {Array<string>} files - Files to stage
    * @returns {Promise<void>}
    */
-  async add(files) {
+  async add(files, { force = false } = {}) {
     if (!Array.isArray(files) || files.length === 0) {
       throw new ValidationError('Files array is required and must not be empty');
     }
 
-    const command = buildGitCommand('add', files);
+    const args = force ? ['-f', ...files] : files;
+    const command = buildGitCommand('add', args);
     this._exec(command);
-    logger.debug(`Staged ${files.length} file(s)`);
+    logger.debug(`Staged ${files.length} file(s)${force ? ' (forced)' : ''}`);
   }
 
   /**

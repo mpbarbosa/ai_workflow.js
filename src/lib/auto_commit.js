@@ -480,8 +480,10 @@ export class AutoCommit {
         return { committed: false, reason: 'dry_run', message: fullMessage, files: toCommit };
       }
 
-      // Stage all files in one call (add() requires an array)
-      await this.gitAutomation.add(toCommit);
+      // Stage all files in one call (add() requires an array).
+      // Force-add (-f) so that files in .gitignore-d paths (e.g. .ai_workflow/.ai_cache)
+      // are still staged — these are intentional workflow artifacts.
+      await this.gitAutomation.add(toCommit, { force: true });
 
       // Commit
       await this.gitAutomation.commit(fullMessage);

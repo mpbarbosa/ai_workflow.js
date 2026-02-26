@@ -414,6 +414,23 @@ describe('auto_commit - AutoCommit Class', () => {
       expect(addCalls[0]).toEqual(expect.arrayContaining(files));
     });
 
+    test('uses force:true when staging so .gitignored artifacts are included', async () => {
+      // Artifact dirs like .ai_workflow/.ai_cache may be in .gitignore.
+      // commitArtifacts must pass { force: true } to git.add so ignored
+      // files are staged without error.
+      const addOptions = [];
+      const mockGit = {
+        add: async (_files, opts) => {
+          addOptions.push(opts);
+        },
+        commit: async () => {},
+      };
+      const files = ['.ai_workflow/.ai_cache/index.json'];
+      const autoCommit = new AutoCommit({ gitAutomation: mockGit });
+      await autoCommit.commitArtifacts(files);
+      expect(addOptions[0]).toEqual(expect.objectContaining({ force: true }));
+    });
+
     test('handles commit errors', async () => {
       const mockGit = {
         add: async () => {
