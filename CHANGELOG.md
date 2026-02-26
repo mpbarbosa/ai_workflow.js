@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.3.6] - 2026-02-25
+## [1.3.7] - 2026-02-25
 
 ### Fixed
 
@@ -228,7 +228,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Phase 10**: Main Orchestrator - NEXT
 - **Test Coverage**: 99.5% pass rate (18 skipped tests)
 
-## [1.3.6] - 2026-02-09
+## [1.3.7] - 2026-02-09
 
 ### Completed
 
@@ -459,7 +459,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Test Count**: Updated from 695 to 942 total tests (28 error module tests + 219 Phase 5 git integration tests)
 - **Phase Status**: Phase 5 (Git Integration) now complete with 4 new modules
 
-## [1.3.6] - 2026-02-01
+## [1.3.7] - 2026-02-01
 
 ### Added - Phase 4 (COMPLETE)
 

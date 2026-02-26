@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "partitionIndex": 0,
+  "partitionIndex": 1,
   "totalPartitions": 5,
   "filesHash": "b117cae8",
   "partitionLabels": [
@@ -10,5 +10,5 @@
     "src/lib, src/core",
     "src/cli, scripts, bin, eslint.config.mjs, jest.config.json, package-lock.json, package.json"
   ],
-  "updatedAt": "2026-02-26T17:20:14.613Z"
+  "updatedAt": "2026-02-26T17:27:49.021Z"
 }
