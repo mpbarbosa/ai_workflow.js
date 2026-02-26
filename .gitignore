@@ -212,4 +212,5 @@ playwright-report/
 .ai_workflow/prompts/
 .ai_workflow/ml_models/
 .ai_workflow/.incremental_cache/
-.ai_workflow/.ai_cache
+.ai_workflow/.ai_cache/
+.ai_workflow/commit_history.json
