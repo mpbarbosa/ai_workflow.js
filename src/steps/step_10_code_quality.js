@@ -25,6 +25,12 @@ import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 // ============================================================================
 
 /**
+ * Maximum number of files sent to the AI in a single request.
+ * Keeps prompts well below model context limits and avoids timeout errors.
+ */
+export const AI_FILES_PER_SLICE = 15;
+
+/**
  * Linter commands by language
  */
 export const LINTER_COMMANDS = {
@@ -616,73 +622,99 @@ export class Step10CodeQualityAnalyzer {
       // Phase 8: AI-powered code quality review (partition + rotate strategy)
       const primaryLanguage =
         techStackResult.primary_language || detectedLanguages[0] || 'javascript';
-      const aiAvailable = await this.aiHelper.initialize();
-      if (aiAvailable) {
-        await this.aiCache.init();
+      try {
+        const aiAvailable = await this.aiHelper.initialize();
+        if (aiAvailable) {
+          await this.aiCache.init();
 
-        // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
-        const uniqueSourceFiles = [...new Set(allSourceFiles)];
+          // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
+          const uniqueSourceFiles = [...new Set(allSourceFiles)];
 
-        // If a large batch of files changed (e.g. a TypeScript migration), skip partition
-        // rotation and review ALL files in one pass so no changes fall off the radar.
-        const largeChangeSet =
-          Array.isArray(_options.modifiedFiles) && _options.modifiedFiles.length > 50;
+          // If a large batch of files changed (e.g. a TypeScript migration), skip partition
+          // rotation and review ALL files in one pass so no changes fall off the radar.
+          // Slicing (below) ensures even very large sets don't produce a single huge prompt.
+          const largeChangeSet =
+            Array.isArray(_options.modifiedFiles) && _options.modifiedFiles.length > 50;
 
-        // Select the partition to review this run and rotate for the next run.
-        const partitionCache = new Step10PartitionCache({
-          cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
-        });
-        const partition = largeChangeSet
-          ? {
-              index: 0,
-              total: 1,
-              files: uniqueSourceFiles,
-              label: 'all (large change set)',
-            }
-          : await partitionCache.getCurrentPartition(uniqueSourceFiles);
+          // Select the partition to review this run and rotate for the next run.
+          const partitionCache = new Step10PartitionCache({
+            cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
+          });
+          const partition = largeChangeSet
+            ? {
+                index: 0,
+                total: 1,
+                files: uniqueSourceFiles,
+                label: 'all (large change set)',
+              }
+            : await partitionCache.getCurrentPartition(uniqueSourceFiles);
 
-        logger.info(
-          `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
-        );
+          logger.info(
+            `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
+          );
 
-        // Read file contents so the AI receives real code, not just file names.
-        const fileContents = {};
-        await Promise.all(
-          partition.files.map(async (relPath) => {
-            try {
-              const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
-              fileContents[relPath] = await this.fileOps.readFile(abs);
-            } catch {
-              // File unreadable — the prompt will still list it by name.
-            }
-          })
-        );
+          // Read file contents so the AI receives real code, not just file names.
+          const fileContents = {};
+          await Promise.all(
+            partition.files.map(async (relPath) => {
+              try {
+                const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
+                fileContents[relPath] = await this.fileOps.readFile(abs);
+              } catch {
+                // File unreadable — the prompt will still list it by name.
+              }
+            })
+          );
 
-        const prompt = buildCodeQualityPrompt({
-          codeFiles: partition.files,
-          language: primaryLanguage,
-          projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
-          fileContents,
-        });
-        const cacheKey = `step_10|p${partition.index}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, {
-            persona: 'architecture_reviewer',
-            timeout: 240000,
-          })
-        );
-        const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
-          const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
-          await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
-          // Advance to the next partition for subsequent runs (skip when full scan)
-          if (!largeChangeSet) {
-            await partitionCache.advance(uniqueSourceFiles);
+          // Slice the partition into smaller batches so each AI request stays within
+          // a manageable prompt size and doesn't time out on large file sets.
+          const slices = [];
+          for (let i = 0; i < partition.files.length; i += AI_FILES_PER_SLICE) {
+            slices.push(partition.files.slice(i, i + AI_FILES_PER_SLICE));
           }
+          if (slices.length === 0) slices.push([]);
+
+          const aiSections = [];
+          for (let si = 0; si < slices.length; si++) {
+            const sliceFiles = slices[si];
+            const sliceContents = {};
+            for (const f of sliceFiles) {
+              if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
+                sliceContents[f] = fileContents[f];
+              }
+            }
+            const prompt = buildCodeQualityPrompt({
+              codeFiles: sliceFiles,
+              language: primaryLanguage,
+              projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
+              fileContents: sliceContents,
+            });
+            const cacheKey = `step_10|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
+            const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+              this.aiHelper.executeRequest(prompt, {
+                persona: 'architecture_reviewer',
+                timeout: 240000,
+              })
+            );
+            const content = aiResult?.content ?? '';
+            if (content) aiSections.push(content);
+          }
+
+          const aiContent = aiSections.join('\n\n---\n\n');
+          if (aiContent) {
+            const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
+            const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
+            await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
+            // Advance to the next partition for subsequent runs (skip when full scan)
+            if (!largeChangeSet) {
+              await partitionCache.advance(uniqueSourceFiles);
+            }
+          }
+        } else {
+          logger.warn('AI helper not available - skipping AI code quality review');
         }
-      } else {
-        logger.warn('AI helper not available - skipping AI code quality review');
+      } catch (aiError) {
+        logger.warn(`AI code quality review skipped: ${aiError.message}`);
       }
 
       const hasErrors = aggregateTotals.errors > 0;

@@ -19,6 +19,7 @@ import {
   formatMultiLanguageQualityReport,
   getAllDetectedLanguages,
   getLanguageLinterCommands,
+  AI_FILES_PER_SLICE,
 } from '../../src/steps/step_10_code_quality.js';
 
 describe('Step 10: Code Quality Analysis', () => {
@@ -612,6 +613,64 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         // The file content embedded in the prompt must be truncated — no 8000-char run of 'x'
         expect(promptContents[0]).not.toContain('x'.repeat(4001));
       }
+    });
+
+    // AI phase slicing: large file sets must be split into batches of AI_FILES_PER_SLICE
+    test('AI phase slices large file sets into multiple requests', async () => {
+      const fileCount = AI_FILES_PER_SLICE * 2 + 1; // 31 files with default slice of 15
+      const files = Array.from({ length: fileCount }, (_, i) => `src/file${i}.js`);
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => files;
+      mockFileOps.readFile = async () => 'const x = 1;';
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+      };
+      // Use >50 modifiedFiles to trigger largeChangeSet path (skips partition cache I/O)
+      const manyChanged = Array.from({ length: 51 }, (_, i) => `changed${i}.js`);
+
+      const result = await analyzer.execute('/project', { modifiedFiles: manyChanged });
+
+      expect(result.success).toBe(true);
+      // Should produce ceil(fileCount / AI_FILES_PER_SLICE) separate executeRequest calls
+      const expectedSlices = Math.ceil(fileCount / AI_FILES_PER_SLICE);
+      expect(prompts.length).toBe(expectedSlices);
+    });
+
+    // AI phase: errors must not propagate — step must still succeed
+    test('AI phase errors are caught and do not fail the step', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/index.js'];
+      mockFileOps.readFile = async () => 'const x = 1;';
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockRejectedValue(new Error('request timeout')),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+      };
+
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
     });
   });
 });
