@@ -1,0 +1,10 @@
+[2026-02-26T18:21:18.267Z] 
+→ Starting: Commit Artifacts
+[2026-02-26T18:21:18.267Z] ════════════════════════════════════════════════════════════
+[2026-02-26T18:21:18.267Z] 🔷  Step 0f: Commit Workflow Artifacts
+[2026-02-26T18:21:18.267Z] ════════════════════════════════════════════════════════════
+[2026-02-26T18:21:18.277Z] Found 30 artifact file(s) to commit
+[2026-02-26T18:21:18.278Z] ✗ Failed to auto-commit: Files array is required and must not be empty
+[2026-02-26T18:21:18.278Z] Skipped: error
+[2026-02-26T18:21:18.278Z] ✓ Step step_0f completed in 11ms
+[2026-02-26T18:21:18.278Z] ✓ Completed: Commit Artifacts (0s)

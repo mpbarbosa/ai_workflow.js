@@ -1,0 +1,11 @@
+[2026-02-26T18:21:18.265Z] 
+→ Starting: Workflow Summary
+[2026-02-26T18:21:18.265Z] ════════════════════════════════════════════════════════════
+[2026-02-26T18:21:18.265Z] 🔷  Step 17: Workflow Summary
+[2026-02-26T18:21:18.265Z] ════════════════════════════════════════════════════════════
+[2026-02-26T18:21:18.265Z] Generating workflow summary report...
+[2026-02-26T18:21:18.265Z] ⚠ Could not read metrics file: ENOENT: no such file or directory, open '.ai_workflow/metrics/current_run.json'
+[2026-02-26T18:21:18.266Z] Summary report written to: .ai_workflow/summaries/workflow_1772130078265/workflow_summary.md
+[2026-02-26T18:21:18.267Z] ✓ Workflow summary generated successfully
+[2026-02-26T18:21:18.267Z] ✓ Step step_17 completed in 2ms
+[2026-02-26T18:21:18.267Z] ✓ Completed: Workflow Summary (0s)

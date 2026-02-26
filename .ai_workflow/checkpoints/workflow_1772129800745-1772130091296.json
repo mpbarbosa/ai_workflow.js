@@ -1,0 +1,1131 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1772129800745",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1772130091296,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 32,
+            "modifiedFilesList": [
+              ".github/copilot-instructions.md",
+              "docs/prompts_steps.md",
+              "src/lib/ai_prompt_builder.js",
+              "src/steps/step_03_script_refs.js",
+              "src/steps/step_04_config_validation.js",
+              "src/steps/step_05_directory.js",
+              "src/steps/step_08_test_exec.js",
+              "src/steps/step_09_dependencies.js",
+              "src/steps/step_12_git_finalization.js",
+              "src/steps/step_13_markdown_lint.js",
+              "src/steps/step_14_prompt_engineer.js",
+              "src/steps/step_16_version_update.js",
+              "test/e2e/step_00_project_detection.e2e.test.js",
+              "test/e2e/step_05_directory_structure.e2e.test.js",
+              "test/steps/step_01_documentation.test.js",
+              "test/steps/step_01_incremental_e2e.test.js",
+              "test/steps/step_02_consistency.test.js",
+              "test/steps/step_02_consistency_integration.test.js",
+              "test/steps/step_02_log_prompt_integration.test.js",
+              "test/steps/step_03_script_refs.test.js",
+              "test/steps/step_04_config_validation.test.js",
+              "test/steps/step_05_directory.test.js",
+              "test/steps/step_08_test_exec.test.js",
+              "test/steps/step_09_dependencies.test.js",
+              "test/steps/step_10_code_quality.test.js",
+              "test/steps/step_13_markdown_lint.test.js",
+              "test/steps/step_16_version_update.test.js",
+              ".workflow_core",
+              ".ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.meta",
+              ".ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.txt",
+              ".ai_workflow/commit_history.json"
+            ],
+            "changeScope": "full-stack",
+            "fileCounts": {
+              "documentation": 2,
+              "test": 16,
+              "source": 9,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                ".github/copilot-instructions.md",
+                "docs/prompts_steps.md"
+              ],
+              "test": [
+                "src/steps/step_08_test_exec.js",
+                "test/e2e/step_00_project_detection.e2e.test.js",
+                "test/e2e/step_05_directory_structure.e2e.test.js",
+                "test/steps/step_01_documentation.test.js",
+                "test/steps/step_01_incremental_e2e.test.js",
+                "test/steps/step_02_consistency.test.js",
+                "test/steps/step_02_consistency_integration.test.js",
+                "test/steps/step_02_log_prompt_integration.test.js",
+                "test/steps/step_03_script_refs.test.js",
+                "test/steps/step_04_config_validation.test.js",
+                "test/steps/step_05_directory.test.js",
+                "test/steps/step_08_test_exec.test.js",
+                "test/steps/step_09_dependencies.test.js",
+                "test/steps/step_10_code_quality.test.js",
+                "test/steps/step_13_markdown_lint.test.js",
+                "test/steps/step_16_version_update.test.js"
+              ],
+              "source": [
+                "src/lib/ai_prompt_builder.js",
+                "src/steps/step_03_script_refs.js",
+                "src/steps/step_04_config_validation.js",
+                "src/steps/step_05_directory.js",
+                "src/steps/step_09_dependencies.js",
+                "src/steps/step_12_git_finalization.js",
+                "src/steps/step_13_markdown_lint.js",
+                "src/steps/step_14_prompt_engineer.js",
+                "src/steps/step_16_version_update.js"
+              ],
+              "config": [
+                ".workflow_core"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "nodejs_automation",
+              "confidence": 100,
+              "source": "config",
+              "description": "nodejs_automation"
+            },
+            "techStack": {
+              "primary_language": "javascript",
+              "languages": [
+                "javascript",
+                "markdown",
+                "html",
+                "json",
+                "yaml",
+                "bash",
+                "python",
+                "css"
+              ],
+              "frameworks": [
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^30.2.0",
+                  "package": "jest"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "prettier",
+                  "configFile": ".prettierrc"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-02-26T18:16:40.813Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1772129800813
+          }
+        },
+        "duration": 58
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "sufficient documentation exists",
+          "docCount": 187
+        },
+        "duration": 9
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [
+              ".github/copilot-instructions.md",
+              "docs/prompts_steps.md"
+            ],
+            "source": [
+              "src/lib/ai_prompt_builder.js",
+              "src/steps/step_03_script_refs.js",
+              "src/steps/step_05_directory.js",
+              "src/steps/step_08_test_exec.js",
+              "src/steps/step_09_dependencies.js",
+              "src/steps/step_12_git_finalization.js",
+              "src/steps/step_13_markdown_lint.js",
+              "src/steps/step_14_prompt_engineer.js",
+              "src/steps/step_16_version_update.js"
+            ],
+            "tests": [
+              "test/e2e/step_00_project_detection.e2e.test.js",
+              "test/e2e/step_05_directory_structure.e2e.test.js",
+              "test/steps/step_01_documentation.test.js",
+              "test/steps/step_01_incremental_e2e.test.js",
+              "test/steps/step_02_consistency.test.js",
+              "test/steps/step_02_consistency_integration.test.js",
+              "test/steps/step_02_log_prompt_integration.test.js",
+              "test/steps/step_03_script_refs.test.js",
+              "test/steps/step_04_config_validation.test.js",
+              "test/steps/step_05_directory.test.js",
+              "test/steps/step_08_test_exec.test.js",
+              "test/steps/step_09_dependencies.test.js",
+              "test/steps/step_10_code_quality.test.js",
+              "test/steps/step_13_markdown_lint.test.js",
+              "test/steps/step_16_version_update.test.js"
+            ],
+            "config": [
+              "src/steps/step_04_config_validation.js",
+              ".ai_workflow/commit_history.json"
+            ],
+            "counts": {
+              "documentation": 2,
+              "source": 9,
+              "tests": 15,
+              "config": 2,
+              "total": 31
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": false,
+              "issues": [
+                "No README file found in project root"
+              ],
+              "counts": {
+                "markdown": 2,
+                "readme": 0,
+                "docs": 1
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "totalIssues": 1,
+            "success": false
+          },
+          "analysis": {
+            "success": true,
+            "categories": {
+              "other": {
+                "status": "completed",
+                "fileCount": 2,
+                "duration": 5,
+                "result": {
+                  "success": true,
+                  "response": {
+                    "content": ".github/copilot-instructions.md  \nNo updates needed - documentation is current\n\ndocs/prompts_steps.md  \nNo updates needed - documentation is current",
+                    "metadata": {
+                      "model": "unknown",
+                      "tokens": 0,
+                      "finishReason": "complete"
+                    },
+                    "confidence": 0.8,
+                    "success": true
+                  }
+                },
+                "error": null
+              }
+            },
+            "errors": [],
+            "totalFiles": 2,
+            "validatedFiles": 2,
+            "skippedFiles": 0,
+            "stats": {
+              "processed": 2,
+              "totalTime": 5,
+              "speedup": 1
+            }
+          },
+          "filesProcessed": 2
+        },
+        "duration": 7752
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 1,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": []
+        },
+        "duration": 90213
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 107,
+          "totalIssues": 0,
+          "brokenLinks": [],
+          "versionIssues": []
+        },
+        "duration": 24
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 109,
+          "misplacedDocs": 1,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/.ai_cache",
+              "message": "Undocumented directory: .ai_workflow/.ai_cache"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/backlog/workflow_20260226_150322",
+              "message": "Undocumented directory: .ai_workflow/backlog/workflow_20260226_150322"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/backlog/workflow_20260226_151640",
+              "message": "Undocumented directory: .ai_workflow/backlog/workflow_20260226_151640"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260226_150322",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260226_150322"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260226_151640",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260226_151640"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/summaries/workflow_20260226_150322",
+              "message": "Undocumented directory: .ai_workflow/summaries/workflow_20260226_150322"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".test-e2e",
+              "message": "Undocumented directory: .test-e2e"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".test-e2e/step-02-artefacts-1771699285549-8xre1typa5v",
+              "message": "Undocumented directory: .test-e2e/step-02-artefacts-1771699285549-8xre1typa5v"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260128_231625",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260128_231625"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_083826",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_083826"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_092817",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_092817"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_210056",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_210056"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_211329",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_211329"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_213734",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_213734"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_214629",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_214629"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260130_215649",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260130_215649"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260131_205249",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260131_205249"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260131_233823",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260131_233823"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260131_234139",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260131_234139"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260207_195124",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260207_195124"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260209_180912",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260209_180912"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260209_181448",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260209_181448"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/.ai_workflow/prompts/workflow_20260210_002608",
+              "message": "Undocumented directory: .workflow_core/.ai_workflow/prompts/workflow_20260210_002608"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/docs/developers",
+              "message": "Undocumented directory: .workflow_core/docs/developers"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/docs/workflow-automation",
+              "message": "Undocumented directory: .workflow_core/docs/workflow-automation"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/templates/debugging",
+              "message": "Undocumented directory: .workflow_core/templates/debugging"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".workflow_core/workflow-templates",
+              "message": "Undocumented directory: .workflow_core/workflow-templates"
+            },
+            {
+              "type": "undocumented",
+              "directory": "docs/reports/bugfixes",
+              "message": "Undocumented directory: docs/reports/bugfixes"
+            },
+            {
+              "type": "undocumented",
+              "directory": "docs/tutorials",
+              "message": "Undocumented directory: docs/tutorials"
+            },
+            {
+              "type": "undocumented",
+              "directory": "docs/workflow-automation",
+              "message": "Undocumented directory: docs/workflow-automation"
+            },
+            {
+              "type": "undocumented",
+              "directory": "src/steps/step_02_5_lib",
+              "message": "Undocumented directory: src/steps/step_02_5_lib"
+            },
+            {
+              "type": "undocumented",
+              "directory": "test/steps/step_02_5_lib",
+              "message": "Undocumented directory: test/steps/step_02_5_lib"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 32,
+          "docMismatch": 0
+        },
+        "duration": 28036
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "totalFiles": 101,
+            "exactDuplicates": [],
+            "redundantPairs": [],
+            "outdatedFiles": [],
+            "edgeCases": [],
+            "filesOptimized": 0,
+            "errors": []
+          },
+          "optimizationResults": null,
+          "reportResult": null,
+          "executionTime": 2,
+          "errors": []
+        },
+        "duration": 1703
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "scriptsFound": 5,
+          "referencesChecked": 2,
+          "totalIssues": 7,
+          "missingReferences": [
+            {
+              "reference": "https://github.com/mpbarbosa/ai_workflow.js",
+              "normalized": "https://github.com/mpbarbosa/ai_workflow.js",
+              "type": "missing_reference"
+            },
+            {
+              "reference": "ai_workflow.js",
+              "normalized": "ai_workflow.js",
+              "type": "missing_reference"
+            }
+          ],
+          "nonExecutable": [],
+          "undocumented": [
+            "scripts/cleanup_artifacts.sh",
+            "scripts/prepare-release.sh",
+            "scripts/setup.sh",
+            "scripts/test-integration.sh",
+            "scripts/validate.sh"
+          ]
+        },
+        "duration": 103621
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [
+            "test/index.test.js",
+            "test/steps/step_00_analyze.test.js",
+            "test/steps/step_00_analyze_integration.test.js",
+            "test/steps/step_00_aws_lbs_integration.test.js",
+            "test/steps/step_01_aws_lbs_integration.test.js",
+            "test/steps/step_01_documentation.test.js",
+            "test/steps/step_01_incremental_e2e.test.js",
+            "test/steps/step_02_5_doc_optimize.test.js",
+            "test/steps/step_02_5_execute_e2e.test.js",
+            "test/steps/step_02_consistency.test.js",
+            "test/steps/step_02_consistency_integration.test.js",
+            "test/steps/step_02_log_prompt_integration.test.js",
+            "test/steps/step_03_script_refs.test.js",
+            "test/steps/step_04_config_validation.test.js",
+            "test/steps/step_05_directory.test.js",
+            "test/steps/step_06_test_review.test.js",
+            "test/steps/step_07_test_gen.test.js",
+            "test/steps/step_08_test_exec.test.js",
+            "test/steps/step_09_dependencies.test.js",
+            "test/steps/step_0b_bootstrap_docs.test.js",
+            "test/steps/step_0b_prompt_integration.test.js",
+            "test/steps/step_0b_state_cache_integration.test.js",
+            "test/steps/step_10_code_quality.test.js",
+            "test/steps/step_11_5_aws_lbs_validation.test.js",
+            "test/steps/step_11_context.test.js",
+            "test/steps/step_12_git_finalization.test.js",
+            "test/steps/step_13_markdown_lint.test.js",
+            "test/steps/step_14_prompt_engineer.test.js",
+            "test/steps/step_15_ux_analysis.test.js",
+            "test/steps/step_16_version_update.test.js",
+            "test/steps/step_17_summary.test.js",
+            "test/steps/step_02_5_lib/ai_analyzer.test.js",
+            "test/steps/step_02_5_lib/consolidation.test.js",
+            "test/steps/step_02_5_lib/git_analysis.test.js",
+            "test/steps/step_02_5_lib/heuristics.test.js",
+            "test/steps/step_02_5_lib/reporting.test.js",
+            "test/steps/step_02_5_lib/version_analysis.test.js",
+            "test/orchestrator/checkpoint_manager.test.js",
+            "test/orchestrator/conditional_executor.test.js",
+            "test/orchestrator/dependency_resolver.test.js",
+            "test/orchestrator/main_orchestrator.test.js",
+            "test/orchestrator/step_executor.test.js",
+            "test/orchestrator/step_registry.test.js",
+            "test/orchestrator/workflow_engine.test.js",
+            "test/lib/ai_cache.test.js",
+            "test/lib/ai_helpers.test.js",
+            "test/lib/ai_personas.test.js",
+            "test/lib/ai_validation.test.js",
+            "test/lib/analysis_cache.test.js",
+            "test/lib/argument_parser.test.js",
+            "test/lib/auto_commit.test.js",
+            "test/lib/backlog.test.js",
+            "test/lib/change_detection.test.js",
+            "test/lib/cleanup_handlers.test.js",
+            "test/lib/code_changes_optimization.test.js",
+            "test/lib/config.test.js",
+            "test/lib/dependency_cache.test.js",
+            "test/lib/docs_only_optimization.test.js",
+            "test/lib/edit_operations.test.js",
+            "test/lib/file_operations.test.js",
+            "test/lib/full_changes_optimization.test.js",
+            "test/lib/git_automation.test.js",
+            "test/lib/git_cache.test.js",
+            "test/lib/git_submodules.test.js",
+            "test/lib/incremental_analysis.test.js",
+            "test/lib/jq_wrapper.test.js",
+            "test/lib/metrics.test.js",
+            "test/lib/ml_optimization.test.js",
+            "test/lib/multi_stage_pipeline.test.js",
+            "test/lib/performance.test.js",
+            "test/lib/performance_monitoring.test.js",
+            "test/lib/project_kind_config.test.js",
+            "test/lib/project_kind_detection.test.js",
+            "test/lib/sdk_smoke_test.test.js",
+            "test/lib/session_manager.test.js",
+            "test/lib/step0b_state_cache.test.js",
+            "test/lib/step1_incremental.test.js",
+            "test/lib/step1_parallel.test.js",
+            "test/lib/tech_stack.test.js",
+            "test/lib/third_party_exclusion.test.js",
+            "test/lib/utils.test.js",
+            "test/lib/workflow_profiles.test.js",
+            "test/e2e/init_workflow_directories.e2e.test.js",
+            "test/e2e/step_00_project_detection.e2e.test.js",
+            "test/e2e/step_05_directory_structure.e2e.test.js",
+            "test/cli/help.test.js",
+            "test/cli/index.test.js",
+            "test/cli/output.test.js",
+            "test/cli/progress.test.js",
+            "test/cli/prompts.test.js",
+            "test/cli/commands/clean.test.js",
+            "test/cli/commands/config.test.js",
+            "test/cli/commands/init.test.js",
+            "test/cli/commands/resume.test.js",
+            "test/cli/commands/run.test.js",
+            "test/cli/commands/status.test.js"
+          ],
+          "categories": {
+            "unit": [],
+            "integration": [
+              "test/steps/step_00_analyze_integration.test.js",
+              "test/steps/step_00_aws_lbs_integration.test.js",
+              "test/steps/step_01_aws_lbs_integration.test.js",
+              "test/steps/step_02_consistency_integration.test.js",
+              "test/steps/step_02_log_prompt_integration.test.js",
+              "test/steps/step_0b_prompt_integration.test.js",
+              "test/steps/step_0b_state_cache_integration.test.js"
+            ],
+            "e2e": [
+              "test/steps/step_01_incremental_e2e.test.js",
+              "test/steps/step_02_5_execute_e2e.test.js",
+              "test/e2e/init_workflow_directories.e2e.test.js",
+              "test/e2e/step_00_project_detection.e2e.test.js",
+              "test/e2e/step_05_directory_structure.e2e.test.js"
+            ],
+            "other": [
+              "test/index.test.js",
+              "test/steps/step_00_analyze.test.js",
+              "test/steps/step_01_documentation.test.js",
+              "test/steps/step_02_5_doc_optimize.test.js",
+              "test/steps/step_02_consistency.test.js",
+              "test/steps/step_03_script_refs.test.js",
+              "test/steps/step_04_config_validation.test.js",
+              "test/steps/step_05_directory.test.js",
+              "test/steps/step_06_test_review.test.js",
+              "test/steps/step_07_test_gen.test.js",
+              "test/steps/step_08_test_exec.test.js",
+              "test/steps/step_09_dependencies.test.js",
+              "test/steps/step_0b_bootstrap_docs.test.js",
+              "test/steps/step_10_code_quality.test.js",
+              "test/steps/step_11_5_aws_lbs_validation.test.js",
+              "test/steps/step_11_context.test.js",
+              "test/steps/step_12_git_finalization.test.js",
+              "test/steps/step_13_markdown_lint.test.js",
+              "test/steps/step_14_prompt_engineer.test.js",
+              "test/steps/step_15_ux_analysis.test.js",
+              "test/steps/step_16_version_update.test.js",
+              "test/steps/step_17_summary.test.js",
+              "test/steps/step_02_5_lib/ai_analyzer.test.js",
+              "test/steps/step_02_5_lib/consolidation.test.js",
+              "test/steps/step_02_5_lib/git_analysis.test.js",
+              "test/steps/step_02_5_lib/heuristics.test.js",
+              "test/steps/step_02_5_lib/reporting.test.js",
+              "test/steps/step_02_5_lib/version_analysis.test.js",
+              "test/orchestrator/checkpoint_manager.test.js",
+              "test/orchestrator/conditional_executor.test.js",
+              "test/orchestrator/dependency_resolver.test.js",
+              "test/orchestrator/main_orchestrator.test.js",
+              "test/orchestrator/step_executor.test.js",
+              "test/orchestrator/step_registry.test.js",
+              "test/orchestrator/workflow_engine.test.js",
+              "test/lib/ai_cache.test.js",
+              "test/lib/ai_helpers.test.js",
+              "test/lib/ai_personas.test.js",
+              "test/lib/ai_validation.test.js",
+              "test/lib/analysis_cache.test.js",
+              "test/lib/argument_parser.test.js",
+              "test/lib/auto_commit.test.js",
+              "test/lib/backlog.test.js",
+              "test/lib/change_detection.test.js",
+              "test/lib/cleanup_handlers.test.js",
+              "test/lib/code_changes_optimization.test.js",
+              "test/lib/config.test.js",
+              "test/lib/dependency_cache.test.js",
+              "test/lib/docs_only_optimization.test.js",
+              "test/lib/edit_operations.test.js",
+              "test/lib/file_operations.test.js",
+              "test/lib/full_changes_optimization.test.js",
+              "test/lib/git_automation.test.js",
+              "test/lib/git_cache.test.js",
+              "test/lib/git_submodules.test.js",
+              "test/lib/incremental_analysis.test.js",
+              "test/lib/jq_wrapper.test.js",
+              "test/lib/metrics.test.js",
+              "test/lib/ml_optimization.test.js",
+              "test/lib/multi_stage_pipeline.test.js",
+              "test/lib/performance.test.js",
+              "test/lib/performance_monitoring.test.js",
+              "test/lib/project_kind_config.test.js",
+              "test/lib/project_kind_detection.test.js",
+              "test/lib/sdk_smoke_test.test.js",
+              "test/lib/session_manager.test.js",
+              "test/lib/step0b_state_cache.test.js",
+              "test/lib/step1_incremental.test.js",
+              "test/lib/step1_parallel.test.js",
+              "test/lib/tech_stack.test.js",
+              "test/lib/third_party_exclusion.test.js",
+              "test/lib/utils.test.js",
+              "test/lib/workflow_profiles.test.js",
+              "test/cli/help.test.js",
+              "test/cli/index.test.js",
+              "test/cli/output.test.js",
+              "test/cli/progress.test.js",
+              "test/cli/prompts.test.js",
+              "test/cli/commands/clean.test.js",
+              "test/cli/commands/config.test.js",
+              "test/cli/commands/init.test.js",
+              "test/cli/commands/resume.test.js",
+              "test/cli/commands/run.test.js",
+              "test/cli/commands/status.test.js"
+            ]
+          },
+          "statistics": {
+            "totalTests": 96,
+            "unitTests": 0,
+            "integrationTests": 7,
+            "e2eTests": 5,
+            "otherTests": 84,
+            "totalLines": 48344,
+            "averageLinesPerTest": 504
+          },
+          "coverage": {
+            "found": false,
+            "path": null,
+            "percentage": null
+          },
+          "issues": [
+            {
+              "type": "no_coverage_report",
+              "message": "No coverage reports found - consider generating coverage data"
+            },
+            {
+              "type": "missing_tests",
+              "message": "No unit tests found - consider adding unit tests"
+            }
+          ]
+        },
+        "duration": 33
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 97,
+          "totalTestFiles": 96,
+          "untestedFiles": [
+            "src/utils/errors.js",
+            "src/steps/step_0f_commit_artifacts.js",
+            "src/steps/step_contract.js",
+            "src/core/colors.js",
+            "src/core/executor.js",
+            "src/core/logger.js",
+            "src/core/system.js",
+            "src/core/version.js",
+            "scripts/analyze-change-impact.js",
+            "scripts/check-version-consistency.js",
+            "scripts/security-audit.js",
+            "scripts/smoke-test-copilot-sdk.js",
+            "scripts/validate-exports.js"
+          ],
+          "coveragePercentage": 87,
+          "categories": {
+            "src": [
+              "src/utils/errors.js",
+              "src/steps/step_0f_commit_artifacts.js",
+              "src/steps/step_contract.js",
+              "src/core/colors.js",
+              "src/core/executor.js",
+              "src/core/logger.js",
+              "src/core/system.js",
+              "src/core/version.js"
+            ],
+            "scripts": [
+              "scripts/analyze-change-impact.js",
+              "scripts/check-version-consistency.js",
+              "scripts/security-audit.js",
+              "scripts/smoke-test-copilot-sdk.js",
+              "scripts/validate-exports.js"
+            ]
+          }
+        },
+        "duration": 19
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": false,
+          "language": "javascript",
+          "testResults": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          "coverage": {
+            "statements": 87.42,
+            "branches": 84.32,
+            "functions": 92.85,
+            "lines": 87.6
+          },
+          "duration": 6388,
+          "exitCode": 1
+        },
+        "duration": 25170
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": false,
+          "language": "javascript",
+          "dependencyCounts": {
+            "total": 15,
+            "production": 6,
+            "development": 9,
+            "peer": 0
+          },
+          "vulnerabilities": {
+            "summary": {
+              "total": 2,
+              "critical": 0,
+              "high": 1,
+              "moderate": 1,
+              "low": 0,
+              "info": 0
+            },
+            "packages": [
+              {
+                "name": "ajv",
+                "severity": "moderate",
+                "via": [
+                  {
+                    "source": 1113428,
+                    "name": "ajv",
+                    "dependency": "ajv",
+                    "title": "ajv has ReDoS when using `$data` option",
+                    "url": "https://github.com/advisories/GHSA-2g4f-4pwh-qvx6",
+                    "severity": "moderate",
+                    "cwe": [
+                      "CWE-400",
+                      "CWE-1333"
+                    ],
+                    "cvss": {
+                      "score": 0,
+                      "vectorString": null
+                    },
+                    "range": "<6.14.0"
+                  }
+                ]
+              },
+              {
+                "name": "minimatch",
+                "severity": "high",
+                "via": [
+                  {
+                    "source": 1113459,
+                    "name": "minimatch",
+                    "dependency": "minimatch",
+                    "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+                    "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+                    "severity": "high",
+                    "cwe": [
+                      "CWE-1333"
+                    ],
+                    "cvss": {
+                      "score": 0,
+                      "vectorString": null
+                    },
+                    "range": "<3.1.3"
+                  },
+                  {
+                    "source": 1113465,
+                    "name": "minimatch",
+                    "dependency": "minimatch",
+                    "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+                    "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+                    "severity": "high",
+                    "cwe": [
+                      "CWE-1333"
+                    ],
+                    "cvss": {
+                      "score": 0,
+                      "vectorString": null
+                    },
+                    "range": ">=9.0.0 <9.0.6"
+                  },
+                  {
+                    "source": 1113466,
+                    "name": "minimatch",
+                    "dependency": "minimatch",
+                    "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+                    "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+                    "severity": "high",
+                    "cwe": [
+                      "CWE-1333"
+                    ],
+                    "cvss": {
+                      "score": 0,
+                      "vectorString": null
+                    },
+                    "range": ">=10.0.0 <10.2.1"
+                  }
+                ]
+              }
+            ]
+          },
+          "outdatedPackages": [],
+          "skipped": false
+        },
+        "duration": 18756
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "language": "javascript",
+          "sourceFileCount": 199,
+          "linterResults": {
+            "totalIssues": 0,
+            "errors": 0,
+            "warnings": 0,
+            "files": 0
+          },
+          "issueRate": 0,
+          "qualityRating": "excellent",
+          "linterCommand": "npm run lint",
+          "skipped": false
+        },
+        "duration": 2077
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 0,
+          "completionStatus": "poor",
+          "completedSteps": 0,
+          "totalSteps": 11,
+          "gitStatus": {
+            "isGitRepo": false
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 0
+          },
+          "duration": 0
+        },
+        "duration": 31
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "noFiles": true,
+          "message": "No markdown files to lint"
+        },
+        "duration": 1
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 0
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 1
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "no modified files"
+        },
+        "duration": 1
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 0,
+              "successfulSteps": 0,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 0,
+              "avgDuration": 0,
+              "successRate": 0,
+              "startTime": "",
+              "endTime": "2026-02-26T18:21:18.265Z",
+              "workflowRunId": "workflow_1772130078265",
+              "version": "unknown",
+              "mode": "unknown"
+            },
+            "timeline": {
+              "steps": [],
+              "phases": {
+                "initialization": [],
+                "documentation": [],
+                "validation": [],
+                "testing": [],
+                "quality": [],
+                "finalization": []
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_1772130078265\n**Version:** unknown\n**Mode:** unknown\n**Start Time:** \n**End Time:** 2026-02-26T18:21:18.265Z\n**Total Duration:** 0s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ⚠️ Completed\n**Success Rate:** 0.0%\n**Total Steps:** 0\n**Successful:** 0 ✅\n**Average Step Duration:** 0s\n\n---\n\n## Execution Timeline\n\n\n\n---\n\n## Phase Breakdown\n\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 0s |\n| Average Step Duration | 0s |\n| Total Steps | 0 |\n| Success Rate | 0.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n\n---\n\n*Generated by AI Workflow Automation vunknown*\n\n*Report generated at: 2026-02-26T18:21:18.266Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 2
+      },
+      "step_0f": {
+        "stepId": "step_0f",
+        "stepName": "Commit Artifacts",
+        "success": true,
+        "output": {
+          "success": true,
+          "committed": false,
+          "files": [],
+          "summary": "Skipped: error"
+        },
+        "duration": 11
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": true,
+        "output": {
+          "success": true,
+          "branch": "",
+          "commitMessage": "test(workflow): automate tests & docs validation\n\nIntegrate automated workflow for test and documentation validation to improve CI reliability and maintain up-to-date project docs. This change supports the Tests & Documentation Automation workflow and aligns with best practices for continuous integration.\n\n- Add automated checks for test coverage and documentation accuracy\n- Enhance workflow to ensure docs and tests remain synchronized\n- Improve maintainability and reduce manual review effort\n\n[workflow-automation v]",
+          "pushed": false,
+          "report": "### Git Finalization Summary\n\n**Branch:** \n**Commits Ahead:** 1\n**Commits Behind:** 0\n**Commit Type:** feat(implementation+tests)\n**Modified Files:** 28\n**Total Changes:** 71\n\n### Change Breakdown\n\n- Documentation: 22 files\n- Tests: 15 files\n- Scripts: 0 files\n- Code: 10 files\n- Config: 2 files\n\n### Commit Message\n\n```\ntest(workflow): automate tests & docs validation\n\nIntegrate automated workflow for test and documentation validation to improve CI reliability and maintain up-to-date project docs. This change supports the Tests & Documentation Automation workflow and aligns with best practices for continuous integration.\n\n- Add automated checks for test coverage and documentation accuracy\n- Enhance workflow to ensure docs and tests remain synchronized\n- Improve maintainability and reduce manual review effort\n\n[workflow-automation v]\n```\n\n**Push Status:** ❌ Push failed"
+        },
+        "duration": 13017
+      }
+    },
+    "context": {
+      "workflowDir": ".ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/ai_workflow.js",
+      "auto": false,
+      "projectType": "nodejs_automation"
+    }
+  },
+  "metadata": {
+    "totalSteps": 21,
+    "progress": 0
+  }
+}
