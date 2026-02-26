@@ -354,8 +354,20 @@ describe('Step 2: Consistency Analysis', () => {
       expect(result.reason).toBe('no_docs');
     });
 
+    test('requests absolute paths from glob', async () => {
+      const globOptions = [];
+      mockFileOps.glob = (pattern, options) => {
+        globOptions.push(options);
+        return Promise.resolve([]);
+      };
+
+      await analyzer.execute('/project');
+
+      expect(globOptions.some((o) => o.absolute === true)).toBe(true);
+    });
+
     test('executes successfully with documentation', async () => {
-      mockFileOps.glob = () => Promise.resolve(['README.md', 'docs/guide.md']);
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md', '/project/docs/guide.md']);
       mockFileOps.readFile = (path) => {
         if (path.endsWith('package.json')) {
           return Promise.resolve(JSON.stringify({ version: '1.0.0' }));
@@ -371,7 +383,7 @@ describe('Step 2: Consistency Analysis', () => {
     });
 
     test('detects broken links', async () => {
-      mockFileOps.glob = () => Promise.resolve(['README.md']);
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
       mockFileOps.readFile = () => Promise.resolve('[Link](missing.md)');
 
       const result = await analyzer.execute('/project');
@@ -381,7 +393,7 @@ describe('Step 2: Consistency Analysis', () => {
     });
 
     test('detects version inconsistencies', async () => {
-      mockFileOps.glob = () => Promise.resolve(['README.md']);
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
       mockFileOps.readFile = (path) => {
         if (path.endsWith('package.json')) {
           return Promise.resolve(JSON.stringify({ version: '1.0.0' }));
@@ -396,7 +408,7 @@ describe('Step 2: Consistency Analysis', () => {
     });
 
     test('handles missing package.json', async () => {
-      mockFileOps.glob = () => Promise.resolve(['README.md']);
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
       mockFileOps.readFile = (path) => {
         if (path.endsWith('package.json')) {
           return Promise.reject(new Error('Not found'));
@@ -412,7 +424,7 @@ describe('Step 2: Consistency Analysis', () => {
 
     test('saves report to backlog', async () => {
       let savedContent = null;
-      mockFileOps.glob = () => Promise.resolve(['README.md']);
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
       mockFileOps.readFile = () => Promise.resolve('Content');
       mockBacklog.saveStepSummary = (step, title, content) => {
         savedContent = content;

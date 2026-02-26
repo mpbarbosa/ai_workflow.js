@@ -405,6 +405,7 @@ export class Step2ConsistencyAnalyzer {
         const found = await this.fileOps.glob(pattern, {
           cwd: projectRoot,
           ignore: exclude.map((dir) => `**/${dir}/**`),
+          absolute: true,
         });
         files.push(...found);
       } catch {
@@ -487,6 +488,7 @@ export class Step2ConsistencyAnalyzer {
     const files = await this.fileOps.glob(patterns[0], {
       cwd: projectRoot,
       ignore: exclude.map((dir) => `**/${dir}/**`),
+      absolute: true,
     });
 
     return new Set(files);
