@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -357,7 +358,7 @@ export class Step2ConsistencyAnalyzer {
         await this.aiCache.init();
         const prompt = buildConsistencyPrompt({
           docDirectory: projectRoot,
-          docFiles,
+          docFiles: docFiles.map((f) => path.relative(projectRoot, f)),
           scanResults: results,
           projectInfo: { project_name: projectRoot },
         });
