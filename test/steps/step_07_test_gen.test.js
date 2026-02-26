@@ -13,6 +13,11 @@ import {
   calculateCoverage,
   categorizeUntestedFiles,
   formatTestGenerationReport,
+  getTestOutputPath,
+  buildSingleFileTestPrompt,
+  extractTestCode,
+  MAX_FILES_TO_GENERATE,
+  MAX_SOURCE_FILE_CHARS,
 } from '../../src/steps/step_07_test_gen.js';
 
 describe('Step 7: Test Generation', () => {
@@ -336,6 +341,80 @@ describe('Step 7: Test Generation', () => {
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - AI test generation helpers
+  // ========================================================================
+
+  describe('getTestOutputPath', () => {
+    test('JS: src/foo.js → test/foo.test.js', () => {
+      expect(getTestOutputPath('src/foo.js', 'javascript')).toBe('test/foo.test.js');
+    });
+
+    test('TS: src/lib/bar.ts → test/lib/bar.test.ts', () => {
+      expect(getTestOutputPath('src/lib/bar.ts', 'typescript')).toBe('test/lib/bar.test.ts');
+    });
+
+    test('Python: src/module.py → test/test_module.py', () => {
+      expect(getTestOutputPath('src/module.py', 'python')).toBe('test/test_module.py');
+    });
+
+    test('Go: pkg/utils.go → test/utils_test.go', () => {
+      expect(getTestOutputPath('pkg/utils.go', 'go')).toBe('test/pkg/utils_test.go');
+    });
+
+    test('Java: src/Foo.java → test/FooTest.java (mapped from src)', () => {
+      expect(getTestOutputPath('src/Foo.java', 'java')).toBe('test/FooTest.java');
+    });
+
+    test('non-src dir: lib/helper.js → test/lib/helper.test.js', () => {
+      expect(getTestOutputPath('lib/helper.js', 'javascript')).toBe('test/lib/helper.test.js');
+    });
+  });
+
+  describe('buildSingleFileTestPrompt', () => {
+    test('includes file path in prompt', () => {
+      const prompt = buildSingleFileTestPrompt('src/foo.js', 'const x = 1;', 'javascript');
+      expect(prompt).toContain('src/foo.js');
+    });
+
+    test('includes source content in prompt', () => {
+      const prompt = buildSingleFileTestPrompt('src/foo.js', 'const x = 1;', 'javascript');
+      expect(prompt).toContain('const x = 1;');
+    });
+
+    test('truncates content exceeding MAX_SOURCE_FILE_CHARS', () => {
+      const big = 'x'.repeat(MAX_SOURCE_FILE_CHARS + 100);
+      const prompt = buildSingleFileTestPrompt('src/foo.js', big, 'javascript');
+      expect(prompt).toContain('...(truncated)');
+    });
+
+    test('includes language in prompt', () => {
+      const prompt = buildSingleFileTestPrompt('src/foo.py', 'def f(): pass', 'python');
+      expect(prompt).toContain('python');
+    });
+  });
+
+  describe('extractTestCode', () => {
+    test('extracts code from fenced block', () => {
+      const response = 'Here is the test:\n```js\nconst x = 1;\n```\nDone.';
+      expect(extractTestCode(response)).toBe('const x = 1;');
+    });
+
+    test('extracts code from language-tagged block', () => {
+      const response = '```typescript\nimport foo from "./foo";\n```';
+      expect(extractTestCode(response)).toBe('import foo from "./foo";');
+    });
+
+    test('returns null when no code block present', () => {
+      expect(extractTestCode('No code here')).toBeNull();
+    });
+
+    test('handles multiline code blocks', () => {
+      const response = '```js\nline1\nline2\nline3\n```';
+      expect(extractTestCode(response)).toBe('line1\nline2\nline3');
+    });
+  });
+
+  // ========================================================================
   // STEP 7 ANALYZER - Integration Tests
   // ========================================================================
 
@@ -344,10 +423,14 @@ describe('Step 7: Test Generation', () => {
     let mockFileOps;
     let mockBacklog;
     let mockTechStack;
+    let mockAiHelper;
+    let mockAiCache;
 
     beforeEach(() => {
       mockFileOps = {
         glob: () => Promise.resolve([]),
+        readFile: () => Promise.reject(new Error('not found')),
+        writeFile: () => Promise.resolve(),
       };
 
       mockBacklog = {
@@ -358,10 +441,22 @@ describe('Step 7: Test Generation', () => {
         detectAll: () => Promise.resolve({ languages: ['javascript'] }),
       };
 
+      mockAiHelper = {
+        initialize: () => Promise.resolve(false), // disabled by default in unit tests
+        executeRequest: () => Promise.resolve({ content: '```js\ntest code\n```' }),
+      };
+
+      mockAiCache = {
+        init: () => Promise.resolve(),
+        withCache: (_prompt, _key, fn) => fn(),
+      };
+
       generator = new Step7TestGenerator({
         fileOps: mockFileOps,
         backlog: mockBacklog,
         techStack: mockTechStack,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
       });
     });
 
@@ -444,6 +539,113 @@ describe('Step 7: Test Generation', () => {
       const result = await generator.execute('/project');
 
       expect(result.success).toBe(true);
+    });
+
+    test('result includes generatedFiles array', async () => {
+      mockFileOps.glob = () => Promise.resolve([]);
+      const result = await generator.execute('/project');
+      expect(Array.isArray(result.generatedFiles)).toBe(true);
+    });
+
+    test('AI generates test file for untested source file', async () => {
+      // Source file exists, test file does not
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(['src/utils.js']);
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = (p) => {
+        if (p.includes('utils.js') && !p.includes('test')) return Promise.resolve('const x = 1;');
+        return Promise.reject(new Error('not found')); // test file does not exist yet
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+
+      let writtenPath = null;
+      mockFileOps.writeFile = (p) => {
+        writtenPath = p;
+        return Promise.resolve();
+      };
+
+      const result = await generator.execute('/project');
+
+      expect(result.generatedFiles).toHaveLength(1);
+      expect(writtenPath).toContain('utils.test.js');
+    });
+
+    test('AI generation is skipped when AI unavailable', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(['src/utils.js']);
+        return Promise.resolve([]);
+      };
+      mockAiHelper.initialize = () => Promise.resolve(false);
+
+      let writeCount = 0;
+      mockFileOps.writeFile = () => {
+        writeCount++;
+        return Promise.resolve();
+      };
+
+      const result = await generator.execute('/project');
+
+      expect(writeCount).toBe(0);
+      expect(result.generatedFiles).toHaveLength(0);
+    });
+
+    test('AI generation error does not fail the step', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(['src/utils.js']);
+        return Promise.resolve([]);
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = () => Promise.reject(new Error('AI timeout'));
+      mockFileOps.readFile = () => Promise.resolve('const x = 1;');
+
+      const result = await generator.execute('/project');
+
+      expect(result.success).toBe(true);
+    });
+
+    test('respects MAX_FILES_TO_GENERATE cap', async () => {
+      const manyFiles = Array.from({ length: 10 }, (_, i) => `src/file${i}.js`);
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(manyFiles);
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = (p) => {
+        if (!p.includes('.test.')) return Promise.resolve('const x = 1;');
+        return Promise.reject(new Error('not found'));
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+
+      const writtenPaths = [];
+      mockFileOps.writeFile = (p) => {
+        writtenPaths.push(p);
+        return Promise.resolve();
+      };
+
+      await generator.execute('/project');
+
+      expect(writtenPaths.length).toBeLessThanOrEqual(MAX_FILES_TO_GENERATE);
+    });
+
+    test('skips existing test files', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(['src/utils.js']);
+        return Promise.resolve([]);
+      };
+      // Both source and test file "exist"
+      mockFileOps.readFile = () => Promise.resolve('existing content');
+      mockAiHelper.initialize = () => Promise.resolve(true);
+
+      let writeCount = 0;
+      mockFileOps.writeFile = () => {
+        writeCount++;
+        return Promise.resolve();
+      };
+
+      const result = await generator.execute('/project');
+
+      expect(writeCount).toBe(0);
+      expect(result.generatedFiles).toHaveLength(0);
     });
   });
 });

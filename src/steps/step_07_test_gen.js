@@ -11,6 +11,8 @@ import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
 import path from 'path';
 
 // ============================================================================
@@ -301,6 +303,97 @@ export function formatTestGenerationReport(results) {
 }
 
 // ============================================================================
+// CONSTANTS - AI test generation
+// ============================================================================
+
+/** Maximum number of untested files to generate tests for in one run. */
+export const MAX_FILES_TO_GENERATE = 5;
+
+/** Maximum source file size (chars) to include in prompt. Larger files are skipped. */
+export const MAX_SOURCE_FILE_CHARS = 20_000;
+
+// ============================================================================
+// PURE FUNCTIONS - AI test generation helpers
+// ============================================================================
+
+/**
+ * Compute the output path for a generated test file.
+ * @pure
+ * @param {string} sourceFile - Relative source file path
+ * @param {string} language - Programming language
+ * @returns {string} Relative test file path
+ */
+export function getTestOutputPath(sourceFile, language) {
+  const ext = path.extname(sourceFile);
+  const base = path.basename(sourceFile, ext);
+  const dir = path.dirname(sourceFile);
+
+  // Replace leading src/ with test/, otherwise prepend test/
+  const testDir = dir.startsWith('src') ? dir.replace(/^src/, 'test') : path.join('test', dir);
+
+  const lang = language.toLowerCase();
+  if (lang === 'python') {
+    return path.join(testDir, `test_${base}${ext}`);
+  }
+  if (lang === 'go') {
+    return path.join(testDir, `${base}_test${ext}`);
+  }
+  if (lang === 'java') {
+    return path.join(testDir, `${base}Test${ext}`);
+  }
+  if (lang === 'ruby') {
+    return path.join(testDir, `${base}_spec${ext}`);
+  }
+  // JavaScript / TypeScript and defaults
+  return path.join(testDir, `${base}.test${ext}`);
+}
+
+/**
+ * Build an AI prompt for generating tests for a single file.
+ * @pure
+ * @param {string} sourceFile - Relative path of the source file
+ * @param {string} content - Source file content (may be truncated)
+ * @param {string} language - Programming language / framework
+ * @returns {string} Prompt string
+ */
+export function buildSingleFileTestPrompt(sourceFile, content, language) {
+  const truncated =
+    content.length > MAX_SOURCE_FILE_CHARS
+      ? content.substring(0, MAX_SOURCE_FILE_CHARS) + '\n...(truncated)'
+      : content;
+  const ext = path.extname(sourceFile).replace('.', '');
+
+  return `You are a senior test engineer. Generate a complete, runnable test file for the source file below.
+
+**Source file**: \`${sourceFile}\`
+**Language / framework**: ${language}
+
+**Requirements**:
+- Output ONLY the test file content inside a single fenced code block (\`\`\`${ext} ... \`\`\`)
+- Cover: happy paths, edge cases, and error scenarios
+- Use the standard test framework for ${language} (e.g. Jest for JS/TS, pytest for Python)
+- Use descriptive test names
+- Do NOT include explanations outside the code block
+
+\`\`\`${ext}
+${truncated}
+\`\`\`
+
+Now generate the test file:`;
+}
+
+/**
+ * Extract the first fenced code block from an AI response.
+ * @pure
+ * @param {string} aiResponse - Raw AI response text
+ * @returns {string|null} Extracted code or null if not found
+ */
+export function extractTestCode(aiResponse) {
+  const match = aiResponse.match(/```(?:\w+)?\n([\s\S]*?)```/);
+  return match ? match[1].trim() : null;
+}
+
+// ============================================================================
 // STEP 7 ANALYZER - Integration
 // ============================================================================
 
@@ -314,6 +407,8 @@ export class Step7TestGenerator {
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
+    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
+    this.aiCache = options.aiCache || new AiCache();
   }
 
   /**
@@ -362,6 +457,7 @@ export class Step7TestGenerator {
           totalTestFiles: testFiles.length,
           untestedFiles: [],
           coveragePercentage: 0,
+          generatedFiles: [],
         };
       }
 
@@ -395,6 +491,34 @@ export class Step7TestGenerator {
       const report = formatTestGenerationReport(results);
       await this.backlog.saveStepSummary(7, 'Test Generation', report);
 
+      // Phase 7: AI-powered test generation (optional, non-fatal)
+      const generatedFiles = [];
+      if (untestedFiles.length > 0) {
+        try {
+          const aiAvailable = await this.aiHelper.initialize();
+          if (aiAvailable) {
+            await this.aiCache.init();
+            const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
+            logger.info(
+              `Generating tests for ${filesToGenerate.length} file(s) via AI (cap: ${MAX_FILES_TO_GENERATE})...`
+            );
+            for (const sourceFile of filesToGenerate) {
+              const generated = await this.generateTestFile(projectRoot, sourceFile, language);
+              if (generated) {
+                generatedFiles.push(generated);
+              }
+            }
+            if (generatedFiles.length > 0) {
+              logger.success(`AI generated ${generatedFiles.length} test file(s)`);
+            }
+          } else {
+            logger.warn('AI helper not available - skipping test generation');
+          }
+        } catch (aiError) {
+          logger.warn(`AI test generation skipped: ${aiError.message}`);
+        }
+      }
+
       if (untestedFiles.length === 0) {
         logger.success('Step 7 completed - all files have tests!');
       } else {
@@ -404,10 +528,65 @@ export class Step7TestGenerator {
       return {
         success: true,
         ...results,
+        generatedFiles,
       };
     } catch (error) {
       logger.error(`Step 7 failed: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Generate a test file for a single source file using AI.
+   * @param {string} projectRoot - Project root directory
+   * @param {string} sourceFile - Relative path to the source file
+   * @param {string} language - Programming language
+   * @returns {Promise<string|null>} Path to generated test file, or null on skip/failure
+   */
+  async generateTestFile(projectRoot, sourceFile, language) {
+    try {
+      const absSource = path.join(projectRoot, sourceFile);
+      const content = await this.fileOps.readFile(absSource);
+
+      if (content.length > MAX_SOURCE_FILE_CHARS) {
+        logger.warn(`Skipping ${sourceFile} — file too large (${content.length} chars)`);
+        return null;
+      }
+
+      const testOutputPath = getTestOutputPath(sourceFile, language);
+      const absTestPath = path.join(projectRoot, testOutputPath);
+
+      // Skip if test file already exists
+      try {
+        await this.fileOps.readFile(absTestPath);
+        logger.info(`Test file already exists: ${testOutputPath}`);
+        return null;
+      } catch {
+        // File does not exist — proceed
+      }
+
+      const prompt = buildSingleFileTestPrompt(sourceFile, content, language);
+      const cacheKey = `step_07|${sourceFile}|${content.length}`;
+
+      logger.info(`Generating tests for: ${sourceFile}`);
+      const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+        this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+      );
+
+      const aiContent = aiResult?.content ?? '';
+      const testCode = extractTestCode(aiContent) ?? aiContent.trim();
+
+      if (!testCode) {
+        logger.warn(`AI returned empty test for ${sourceFile}`);
+        return null;
+      }
+
+      await this.fileOps.writeFile(absTestPath, testCode + '\n');
+      logger.success(`Generated: ${testOutputPath}`);
+      return testOutputPath;
+    } catch (err) {
+      logger.warn(`Failed to generate test for ${sourceFile}: ${err.message}`);
+      return null;
     }
   }
 
