@@ -219,7 +219,7 @@ console.log(`Node Version: ${sysInfo.nodeVersion}`);
 import { parseVersion, compareVersions } from 'ai-workflow';
 
 const v1 = parseVersion('1.2.3');
-const v2 = parseVersion('1.3.7');
+const v2 = parseVersion('1.3.8');
 
 console.log(compareVersions(v1, v2)); // -1 (v1 < v2)
 console.log(compareVersions(v2, v1)); // 1 (v2 > v1)
