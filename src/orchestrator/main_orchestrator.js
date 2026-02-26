@@ -594,14 +594,38 @@ export class MainOrchestrator {
       // last 30 commits so the workflow always has a meaningful file set.
       const commitHistory = new CommitHistory({ workflowDir: this.workflowDir });
       const lastRunCommit = commitHistory.getLastRunCommit();
+      // Capture HEAD before any workflow commits (step_0f, step_12) so the
+      // next run's diff reflects real source changes, not artifact commits.
+      const headAtWorkflowStart = (() => {
+        try {
+          return this.gitOps.getCurrentHead();
+        } catch {
+          return null;
+        }
+      })();
       let committedChangedFiles = [];
 
       if (lastRunCommit && isValidCommitHash(lastRunCommit)) {
         try {
           committedChangedFiles = this.gitOps.getChangedFilesSince(lastRunCommit);
-          logger.info(
-            `[CommitHistory] ${committedChangedFiles.length} file(s) changed since last run (${lastRunCommit.substring(0, 7)})`
+          // Filter out .ai_workflow/ artifact files — they are internal bookkeeping,
+          // not real source changes that steps should process.
+          const sourceChanges = committedChangedFiles.filter(
+            (f) => !f.file?.startsWith('.ai_workflow/')
           );
+          if (sourceChanges.length === 0 && committedChangedFiles.length > 0) {
+            // Only artifact files changed (e.g., step_0f/step_12 committed logs).
+            // Fall back to last 30 commits so steps have a meaningful file set.
+            logger.info(
+              `[CommitHistory] Changes since ${lastRunCommit.substring(0, 7)} are artifact-only — falling back to last 30 commits`
+            );
+            committedChangedFiles = this.gitOps.getLastNCommitsFiles(30);
+          } else {
+            committedChangedFiles = sourceChanges;
+            logger.info(
+              `[CommitHistory] ${committedChangedFiles.length} file(s) changed since last run (${lastRunCommit.substring(0, 7)})`
+            );
+          }
         } catch {
           logger.warn(
             `[CommitHistory] Hash ${lastRunCommit.substring(0, 7)} not found — falling back to last 30 commits`
@@ -839,11 +863,12 @@ export class MainOrchestrator {
       );
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
 
-      // Persist current HEAD so the next run can detect changes since this run
+      // Persist the HEAD captured at workflow start so the next run diffs
+      // against real source changes, not artifact commits made during this run.
       try {
-        const currentHead = this.gitOps.getCurrentHead();
-        if (currentHead) {
-          commitHistory.save(currentHead, workflow.id);
+        const headToSave = headAtWorkflowStart || this.gitOps.getCurrentHead();
+        if (headToSave) {
+          commitHistory.save(headToSave, workflow.id);
         }
       } catch {
         // Non-critical — never block completion
