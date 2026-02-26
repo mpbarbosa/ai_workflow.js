@@ -567,7 +567,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status (has changes)
         .mockRejectedValueOnce(new Error('no submodules')) // submodules check
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push origin main
 
@@ -609,7 +611,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
 
@@ -644,6 +648,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockRejectedValueOnce(nothingToCommitError); // git commit fails
 
       const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
@@ -677,7 +682,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach git add -A
         .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach commit
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent)
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
 
@@ -715,7 +722,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git submodule foreach git add -A
         .mockRejectedValueOnce(new Error('Committer identity unknown')) // submodule commit fails
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent) — must still run
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
 
@@ -737,6 +746,45 @@ describe('Step 12: Git Finalization', () => {
       // Parent git add -A must have been called
       const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
       expect(calls).toContain('git add -A');
+    });
+
+    // When there are unstaged changes before pull --rebase (e.g. gitignored files
+    // that weren't staged), stash must be called to allow the rebase to proceed.
+    test('stashes and pops unstaged changes around git pull --rebase', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '1' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: 'Saved working directory' }) // git stash — has changes
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }) // git stash pop
+        .mockResolvedValueOnce({ stdout: '' }); // git push
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      const result = await step.execute();
+      expect(result.success).toBe(true);
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.includes('git stash'))).toBe(true);
+      expect(calls.some((cmd) => cmd.includes('git stash pop'))).toBe(true);
+      // stash must appear before pull, pop must appear after pull
+      const stashIdx = calls.findIndex((cmd) => cmd === 'git stash --include-untracked');
+      const pullIdx = calls.findIndex((cmd) => cmd.includes('git pull --rebase'));
+      const popIdx = calls.findIndex((cmd) => cmd.includes('git stash pop'));
+      expect(stashIdx).toBeLessThan(pullIdx);
+      expect(popIdx).toBeGreaterThan(pullIdx);
     });
   });
 });

@@ -661,6 +661,17 @@ export class Step12GitFinalization {
       await this._stageSubmoduleChanges();
     }
     await this._executeGit('git add -A');
+    // Force-add the workflow artifact directory: parts of .ai_workflow/ (e.g.
+    // .ai_cache/, .step_cache/) are typically .gitignore-d, so git add -A
+    // silently skips them. git add -f stages them explicitly.
+    // We limit the force-add to .ai_workflow/ only to avoid accidentally
+    // committing other gitignore-d trees (node_modules, dist, …).
+    try {
+      await this._executeGit('git add -f .ai_workflow/');
+      this.logger.debug('Force-staged .ai_workflow/ artifacts');
+    } catch {
+      // .ai_workflow/ may not exist in some project setups — ignore
+    }
     this.logger.info('Changes staged successfully');
   }
 
@@ -891,8 +902,28 @@ export class Step12GitFinalization {
     this.logger.info(`Pushing to origin/${branch}...`);
 
     try {
+      // Stash any remaining unstaged changes before rebasing — git pull --rebase
+      // refuses to run when there are unstaged modifications (e.g. gitignore-d
+      // artifact files that were not staged in _stageChanges).
+      let stashed = false;
+      try {
+        const stashOut = await this._executeGit('git stash --include-untracked');
+        stashed = typeof stashOut === 'string' && !stashOut.includes('No local changes to save');
+      } catch {
+        // stash failure is non-fatal — attempt the pull anyway
+      }
+
       // Pull latest remote changes before pushing to avoid non-fast-forward rejection
       await this._executeGit(`git pull --rebase origin ${branch}`);
+
+      if (stashed) {
+        try {
+          await this._executeGit('git stash pop');
+        } catch {
+          this.logger.warn('git stash pop failed after pull — stash may need manual attention');
+        }
+      }
+
       await this._executeGit(`git push origin ${branch}`);
       this.logger.info('Successfully pushed to remote');
       return { pushed: true };
