@@ -97,7 +97,7 @@ describe('Step 16: Version Update', () => {
     });
 
     test('increments minor version', () => {
-      expect(incrementVersion('1.2.3', BUMP_TYPES.minor)).toBe('1.3.1');
+      expect(incrementVersion('1.2.3', BUMP_TYPES.minor)).toBe('1.3.0');
       expect(incrementVersion('5.10.15', BUMP_TYPES.minor)).toBe('5.11.0');
     });
 
@@ -118,7 +118,7 @@ describe('Step 16: Version Update', () => {
 
     test('preserves prerelease suffix on minor bump', () => {
       expect(incrementVersion('0.9.0-alpha', BUMP_TYPES.minor)).toBe('0.10.0-alpha');
-      expect(incrementVersion('1.2.3-rc.2', BUMP_TYPES.minor)).toBe('1.3.1-rc.2');
+      expect(incrementVersion('1.2.3-rc.2', BUMP_TYPES.minor)).toBe('1.3.0-rc.2');
     });
 
     test('preserves prerelease suffix on major bump', () => {
