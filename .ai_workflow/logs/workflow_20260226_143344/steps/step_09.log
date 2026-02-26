@@ -1,0 +1,18 @@
+[2026-02-26T17:34:14.150Z] 
+→ Starting: Dependency Analysis
+[2026-02-26T17:34:14.150Z] ════════════════════════════════════════════════════════════
+[2026-02-26T17:34:14.150Z] 🔷  Step 9: Dependency Validation
+[2026-02-26T17:34:14.150Z] ════════════════════════════════════════════════════════════
+[2026-02-26T17:34:14.167Z] Detected language: javascript
+[2026-02-26T17:34:14.167Z] Found dependency files: package.json, package-lock.json
+[2026-02-26T17:34:14.167Z] Total dependencies: 15
+[2026-02-26T17:34:14.934Z] ⚠ Found 2 vulnerabilities
+[2026-02-26T17:34:17.278Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-02-26T17:34:18.299Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-02-26T17:34:18.341Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-02-26T17:34:18.343Z] [DEBUG] Cache hit: 6a239fdc...
+[2026-02-26T17:34:18.344Z] ⚠ Step 9 completed with security issues
+[2026-02-26T17:34:18.344Z] ✓ Step step_09 completed in 4194ms
+[2026-02-26T17:34:18.344Z] [DEBUG] [Performance] step_09: 4.2s
+[2026-02-26T17:34:18.344Z] [DEBUG] Recorded outcome for step_09: success
+[2026-02-26T17:34:18.344Z] ✓ Completed: Dependency Analysis (4s)

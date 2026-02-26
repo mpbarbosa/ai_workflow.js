@@ -1,0 +1,193 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1771548494398",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1771548494849,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 28,
+            "modifiedFilesList": [
+              "workflow_core",
+              "docs/api/lib/project_kind_config.md",
+              "package-lock.json",
+              "scripts/prepare-release.sh",
+              "src/cli/commands/init.js",
+              "src/cli/index.js",
+              "src/lib/backlog.js",
+              "src/lib/git_automation.js",
+              "src/lib/project_kind_config.js",
+              "src/lib/step1_incremental.js",
+              "src/orchestrator/main_orchestrator.js",
+              "src/steps/step_00_analyze.js",
+              "test/cli/commands/run.test.js",
+              "test/lib/project_kind_config.test.js",
+              "test/orchestrator/main_orchestrator.test.js",
+              "test/steps/step_00_analyze.test.js",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260216_233102/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260216_233128/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260219_214004/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260219_214351/step_00.md",
+              "BUGFIX_SUMMARY.md",
+              "BUGFIX_SUMMARY_2026_02_17.md",
+              "CLI_ENHANCEMENT_SUMMARY.md",
+              "docs/CLI_USAGE_GUIDE.md",
+              "docs/testing/REGRESSION_TESTS_2026_02_17.md",
+              "test/e2e/init_workflow_directories.e2e.test.js",
+              "test/e2e/step_00_project_detection.e2e.test.js",
+              "test/steps/step_01_incremental_e2e.test.js"
+            ],
+            "changeScope": "full-stack",
+            "fileCounts": {
+              "documentation": 6,
+              "test": 7,
+              "source": 9,
+              "config": 2,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                "docs/api/lib/project_kind_config.md",
+                "BUGFIX_SUMMARY.md",
+                "BUGFIX_SUMMARY_2026_02_17.md",
+                "CLI_ENHANCEMENT_SUMMARY.md",
+                "docs/CLI_USAGE_GUIDE.md",
+                "docs/testing/REGRESSION_TESTS_2026_02_17.md"
+              ],
+              "test": [
+                "test/cli/commands/run.test.js",
+                "test/lib/project_kind_config.test.js",
+                "test/orchestrator/main_orchestrator.test.js",
+                "test/steps/step_00_analyze.test.js",
+                "test/e2e/init_workflow_directories.e2e.test.js",
+                "test/e2e/step_00_project_detection.e2e.test.js",
+                "test/steps/step_01_incremental_e2e.test.js"
+              ],
+              "source": [
+                "scripts/prepare-release.sh",
+                "src/cli/commands/init.js",
+                "src/cli/index.js",
+                "src/lib/backlog.js",
+                "src/lib/git_automation.js",
+                "src/lib/project_kind_config.js",
+                "src/lib/step1_incremental.js",
+                "src/orchestrator/main_orchestrator.js",
+                "src/steps/step_00_analyze.js"
+              ],
+              "config": [
+                "workflow_core",
+                "package-lock.json"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "generic",
+              "confidence": 30,
+              "indicators": [
+                "no_detection"
+              ],
+              "source": "auto-detected"
+            },
+            "techStack": {
+              "primary_language": "typescript",
+              "languages": [
+                "typescript",
+                "javascript",
+                "json",
+                "markdown",
+                "shell",
+                "html",
+                "yaml"
+              ],
+              "frameworks": [],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": null,
+              "test_command": null,
+              "linters": [
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-02-20T00:48:14.792Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1771548494792
+          }
+        },
+        "duration": 404
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "missingDocs": [
+            "CHANGELOG.md",
+            "CONTRIBUTING.md",
+            "LICENSE",
+            "docs/ARCHITECTURE.md",
+            "docs/GETTING_STARTED.md"
+          ],
+          "categorized": {
+            "critical": [],
+            "important": [
+              "CHANGELOG.md",
+              "CONTRIBUTING.md",
+              "LICENSE"
+            ],
+            "optional": [
+              "docs/ARCHITECTURE.md",
+              "docs/GETTING_STARTED.md"
+            ]
+          },
+          "stats": {
+            "docCount": 2,
+            "sourceCount": 50,
+            "readmeSize": 1200,
+            "hasChangelog": false,
+            "hasDocsDir": true
+          },
+          "duration": 1
+        },
+        "duration": 2
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": false,
+        "error": {
+          "message": "this.parallelProcessor.processDocumentation is not a function",
+          "name": "TypeError",
+          "stack": "TypeError: this.parallelProcessor.processDocumentation is not a function\n    at Step1DocumentationAnalyzer.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_01_documentation.js:228:55)\n    at async Object.handler (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:654:24)\n    at async WorkflowEngine.executeStep (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:580:24)\n    at async WorkflowEngine.executeWorkflow (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:487:24)\n    at async MainOrchestrator.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:549:28)\n    at async runCommand (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/cli/commands/run.js:135:20)"
+        },
+        "duration": 42
+      }
+    },
+    "context": {
+      "workflowDir": ".ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/onde_estou_backend",
+      "auto": false
+    }
+  },
+  "metadata": {
+    "totalSteps": 20,
+    "progress": 0
+  }
+}

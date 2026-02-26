@@ -1,0 +1,1708 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1771608475040",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1771608481839,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 257,
+            "modifiedFilesList": [
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_11.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T10-59-15-462Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T10-59-18-527Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-18-49-950Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-18-52-838Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-19-49-172Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-19-52-539Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-21-02-896Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-21-06-167Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-25-35-283Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-25-38-979Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-27-15-449Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-27-19-026Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-37-43-279Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-37-47-375Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-44-24-500Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-44-28-288Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-12-14-745Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-12-18-560Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-15-08-547Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-15-12-468Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-16-16-827Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-16-20-197Z_0002_documentation_analyst.md",
+              ".workflow_core",
+              "LICENSE",
+              "docs/api/lib/project_kind_config.md",
+              "package-lock.json",
+              "scripts/prepare-release.sh",
+              "src/cli/commands/init.js",
+              "src/cli/commands/resume.js",
+              "src/cli/commands/run.js",
+              "src/cli/index.js",
+              "src/index.js",
+              "src/lib/ai_helpers.js",
+              "src/lib/backlog.js",
+              "src/lib/file_operations.js",
+              "src/lib/git_automation.js",
+              "src/lib/project_kind_config.js",
+              "src/lib/project_kind_detection.js",
+              "src/lib/step1_incremental.js",
+              "src/orchestrator/main_orchestrator.js",
+              "src/orchestrator/workflow_engine.js",
+              "src/steps/step_00_analyze.js",
+              "src/steps/step_01_documentation.js",
+              "src/steps/step_02_5_doc_optimize.js",
+              "src/steps/step_02_consistency.js",
+              "src/steps/step_03_script_refs.js",
+              "src/steps/step_04_config_validation.js",
+              "src/steps/step_05_directory.js",
+              "src/steps/step_08_test_exec.js",
+              "src/steps/step_09_dependencies.js",
+              "src/steps/step_0b_bootstrap_docs.js",
+              "src/steps/step_11_context.js",
+              "src/steps/step_13_markdown_lint.js",
+              "src/steps/step_14_prompt_engineer.js",
+              "src/steps/step_15_ux_analysis.js",
+              "src/steps/step_16_version_update.js",
+              "test/cli/commands/run.test.js",
+              "test/cli/index.test.js",
+              "test/integration/file_operations_node_modules.integration.test.js",
+              "test/lib/ai_helpers.test.js",
+              "test/lib/file_operations.test.js",
+              "test/lib/project_kind_config.test.js",
+              "test/lib/project_kind_detection.test.js",
+              "test/orchestrator/main_orchestrator.test.js",
+              "test/steps/step_00_analyze.test.js",
+              "test/steps/step_01_documentation.test.js",
+              "test/steps/step_05_directory.test.js",
+              "test/steps/step_0b_bootstrap_docs.test.js",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_16.md"
+            ],
+            "changeScope": "full-stack",
+            "fileCounts": {
+              "documentation": 1,
+              "test": 13,
+              "source": 29,
+              "config": 3,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                "docs/api/lib/project_kind_config.md"
+              ],
+              "test": [
+                "src/steps/step_08_test_exec.js",
+                "test/cli/commands/run.test.js",
+                "test/cli/index.test.js",
+                "test/integration/file_operations_node_modules.integration.test.js",
+                "test/lib/ai_helpers.test.js",
+                "test/lib/file_operations.test.js",
+                "test/lib/project_kind_config.test.js",
+                "test/lib/project_kind_detection.test.js",
+                "test/orchestrator/main_orchestrator.test.js",
+                "test/steps/step_00_analyze.test.js",
+                "test/steps/step_01_documentation.test.js",
+                "test/steps/step_05_directory.test.js",
+                "test/steps/step_0b_bootstrap_docs.test.js"
+              ],
+              "source": [
+                "scripts/prepare-release.sh",
+                "src/cli/commands/init.js",
+                "src/cli/commands/resume.js",
+                "src/cli/commands/run.js",
+                "src/cli/index.js",
+                "src/index.js",
+                "src/lib/ai_helpers.js",
+                "src/lib/backlog.js",
+                "src/lib/file_operations.js",
+                "src/lib/git_automation.js",
+                "src/lib/project_kind_config.js",
+                "src/lib/project_kind_detection.js",
+                "src/lib/step1_incremental.js",
+                "src/orchestrator/main_orchestrator.js",
+                "src/orchestrator/workflow_engine.js",
+                "src/steps/step_00_analyze.js",
+                "src/steps/step_01_documentation.js",
+                "src/steps/step_02_5_doc_optimize.js",
+                "src/steps/step_02_consistency.js",
+                "src/steps/step_03_script_refs.js",
+                "src/steps/step_04_config_validation.js",
+                "src/steps/step_05_directory.js",
+                "src/steps/step_09_dependencies.js",
+                "src/steps/step_0b_bootstrap_docs.js",
+                "src/steps/step_11_context.js",
+                "src/steps/step_13_markdown_lint.js",
+                "src/steps/step_14_prompt_engineer.js",
+                "src/steps/step_15_ux_analysis.js",
+                "src/steps/step_16_version_update.js"
+              ],
+              "config": [
+                ".workflow_core",
+                "LICENSE",
+                "package-lock.json"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "cli_tool",
+              "confidence": 100,
+              "source": "config",
+              "description": "cli_tool"
+            },
+            "techStack": {
+              "primary_language": "bash",
+              "languages": [
+                "bash",
+                "json",
+                "markdown",
+                "javascript",
+                "yaml"
+              ],
+              "frameworks": [],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": null,
+              "test_command": null,
+              "linters": [
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-02-20T17:27:55.106Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1771608475107
+          }
+        },
+        "duration": 71
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": false,
+          "error": "Cannot read properties of undefined (reading 'debug')",
+          "duration": 2538
+        },
+        "duration": 2539
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_011201/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_012801/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_075905/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081841/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_081939/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082052/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082526/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_082706/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_083734/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_084342/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_090413/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091146/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_11.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091443/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_01.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_04.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_05.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_06.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_07.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_08.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_09.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_0b.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_10.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_11.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T10-59-15-462Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T10-59-18-527Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-18-49-950Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-18-52-838Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-19-49-172Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-19-52-539Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-21-02-896Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-21-06-167Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-25-35-283Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-25-38-979Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-27-15-449Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-27-19-026Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-37-43-279Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-37-47-375Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-44-24-500Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T11-44-28-288Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-12-14-745Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-12-18-560Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-15-08-547Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-15-12-468Z_0002_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-16-16-827Z_0001_documentation_analyst.md",
+              ".ai_workflow/.ai_workflow/prompts/2026-02-20T12-16-20-197Z_0002_documentation_analyst.md",
+              "docs/api/lib/project_kind_config.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_13.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_14.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_15.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_091542/step_16.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_142755/step_00.md",
+              ".ai_workflow/.ai_workflow/backlog/workflow_20260220_142755/step_0b.md"
+            ],
+            "source": [
+              "src/cli/commands/init.js",
+              "src/cli/commands/resume.js",
+              "src/cli/commands/run.js",
+              "src/cli/index.js",
+              "src/index.js",
+              "src/lib/ai_helpers.js",
+              "src/lib/backlog.js",
+              "src/lib/file_operations.js",
+              "src/lib/git_automation.js",
+              "src/lib/project_kind_detection.js",
+              "src/lib/step1_incremental.js",
+              "src/orchestrator/main_orchestrator.js",
+              "src/orchestrator/workflow_engine.js",
+              "src/steps/step_00_analyze.js",
+              "src/steps/step_01_documentation.js",
+              "src/steps/step_02_5_doc_optimize.js",
+              "src/steps/step_02_consistency.js",
+              "src/steps/step_03_script_refs.js",
+              "src/steps/step_05_directory.js",
+              "src/steps/step_08_test_exec.js",
+              "src/steps/step_09_dependencies.js",
+              "src/steps/step_0b_bootstrap_docs.js",
+              "src/steps/step_11_context.js",
+              "src/steps/step_13_markdown_lint.js",
+              "src/steps/step_14_prompt_engineer.js",
+              "src/steps/step_15_ux_analysis.js",
+              "src/steps/step_16_version_update.js"
+            ],
+            "tests": [
+              "test/cli/commands/run.test.js",
+              "test/cli/index.test.js",
+              "test/integration/file_operations_node_modules.integration.test.js",
+              "test/lib/ai_helpers.test.js",
+              "test/lib/file_operations.test.js",
+              "test/lib/project_kind_config.test.js",
+              "test/lib/project_kind_detection.test.js",
+              "test/orchestrator/main_orchestrator.test.js",
+              "test/steps/step_00_analyze.test.js",
+              "test/steps/step_01_documentation.test.js",
+              "test/steps/step_05_directory.test.js",
+              "test/steps/step_0b_bootstrap_docs.test.js"
+            ],
+            "config": [
+              "package-lock.json",
+              "src/lib/project_kind_config.js",
+              "src/steps/step_04_config_validation.js"
+            ],
+            "counts": {
+              "documentation": 212,
+              "source": 27,
+              "tests": 12,
+              "config": 3,
+              "total": 257
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": false,
+              "issues": [
+                "No README file found in project root"
+              ],
+              "counts": {
+                "markdown": 212,
+                "readme": 0,
+                "docs": 1
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "totalIssues": 1,
+            "success": false
+          },
+          "analysis": {
+            "success": false,
+            "categories": {
+              "api": {
+                "status": "failed",
+                "fileCount": 1,
+                "duration": 0,
+                "result": null,
+                "error": "Cannot read properties of undefined (reading 'debug')"
+              },
+              "other": {
+                "status": "failed",
+                "fileCount": 211,
+                "duration": 0,
+                "result": null,
+                "error": "Cannot read properties of undefined (reading 'debug')"
+              }
+            },
+            "errors": [
+              {
+                "category": "api",
+                "error": "Cannot read properties of undefined (reading 'debug')"
+              },
+              {
+                "category": "other",
+                "error": "Cannot read properties of undefined (reading 'debug')"
+              }
+            ],
+            "totalFiles": 212,
+            "validatedFiles": 0,
+            "skippedFiles": 212,
+            "stats": {
+              "processed": 0,
+              "totalTime": 0,
+              "speedup": 1
+            }
+          },
+          "filesProcessed": 212
+        },
+        "duration": 2659
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 1,
+          "syntaxErrors": [
+            {
+              "file": "package-lock.json",
+              "error": "Only absolute paths are allowed"
+            }
+          ],
+          "securityFindings": [],
+          "bestPracticeIssues": []
+        },
+        "duration": 12
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "no_docs"
+        },
+        "duration": 0
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 69,
+          "misplacedDocs": 0,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow",
+              "message": "Undocumented directory: .ai_workflow"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/.incremental_cache",
+              "message": "Undocumented directory: .ai_workflow/.incremental_cache"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/backlog",
+              "message": "Undocumented directory: .ai_workflow/backlog"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/checkpoints",
+              "message": "Undocumented directory: .ai_workflow/checkpoints"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_220502",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_220502"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_221344",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_221344"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_223412",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_223412"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_223643",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_223643"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_224412",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_224412"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_224918",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_224918"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_225054",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_225054"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_225438",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_225438"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_230535",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_230535"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_230819",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_230819"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_231049",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_231049"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_231426",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_231426"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_232517",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_232517"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_233500",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_233500"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260219_235459",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260219_235459"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_002106",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_002106"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_002106/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_002106/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_002515",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_002515"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_002515/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_002515/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_003411",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_003411"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_003411/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_003411/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_010943",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_010943"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_010943/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_010943/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_011201",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_011201"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_011201/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_011201/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_012801",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_012801"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_012801/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_012801/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_075905",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_075905"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_075905/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_075905/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_081841",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_081841"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_081841/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_081841/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_081939",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_081939"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_081939/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_081939/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082052",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082052"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082052/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082052/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082526",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082526"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082526/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082526/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082706",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082706"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_082706/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_082706/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_083734",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_083734"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_083734/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_083734/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_084342",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_084342"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_084342/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_084342/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_090413",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_090413"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_090413/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_090413/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091146",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091146"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091146/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091146/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091443",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091443"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091443/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091443/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091542",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091542"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_091542/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_091542/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_142755",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_142755"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/logs/workflow_20260220_142755/steps",
+              "message": "Undocumented directory: .ai_workflow/logs/workflow_20260220_142755/steps"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/ml_models",
+              "message": "Undocumented directory: .ai_workflow/ml_models"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/prompts",
+              "message": "Undocumented directory: .ai_workflow/prompts"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".ai_workflow/summaries",
+              "message": "Undocumented directory: .ai_workflow/summaries"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".github",
+              "message": "Undocumented directory: .github"
+            },
+            {
+              "type": "undocumented",
+              "directory": "docs",
+              "message": "Undocumented directory: docs"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 62,
+          "docMismatch": 0
+        },
+        "duration": 227
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Documentation directory not found: docs"
+        },
+        "duration": 0
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "no_scripts"
+        },
+        "duration": 6
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [],
+          "issues": [
+            {
+              "type": "no_tests",
+              "message": "No test files found"
+            }
+          ]
+        },
+        "duration": 7
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 0,
+          "totalTestFiles": 0,
+          "untestedFiles": [],
+          "coveragePercentage": 0
+        },
+        "duration": 4
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": false,
+          "language": "bash",
+          "testResults": {},
+          "message": "No test command configured"
+        },
+        "duration": 4
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "language": "bash",
+          "skipped": true
+        },
+        "duration": 4
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "language": "bash",
+          "sourceFileCount": 0,
+          "skipped": true
+        },
+        "duration": 4
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 0,
+          "completionStatus": "poor",
+          "completedSteps": 0,
+          "totalSteps": 11,
+          "gitStatus": {
+            "isGitRepo": false
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 0
+          },
+          "duration": 0
+        },
+        "duration": 28
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": false,
+        "error": {
+          "message": "Command failed: git commit -F \"/tmp/workflow_commit_1771608480688.txt\"",
+          "name": "ExecutionError",
+          "stack": "ExecutionError: Command failed: git commit -F \"/tmp/workflow_commit_1771608480688.txt\"\n    at Object.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/core/executor.js:48:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Step12GitFinalization._executeGit (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:693:22)\n    at async Step12GitFinalization._commitChanges (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:612:7)\n    at async Step12GitFinalization.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:415:7)\n    at async Object.handler (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:703:15)\n    at async WorkflowEngine.executeStep (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:612:24)\n    at async WorkflowEngine.executeWorkflow (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:500:24)\n    at async MainOrchestrator.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:581:28)\n    at async runCommand (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/cli/commands/run.js:145:20)"
+        },
+        "duration": 1227
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "noFiles": true,
+          "message": "No markdown files to lint"
+        },
+        "duration": 1
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 0
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 1
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "no modified files"
+        },
+        "duration": 0
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 20,
+              "successfulSteps": 20,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 3026,
+              "avgDuration": 151.3,
+              "successRate": 100,
+              "startTime": "2026-02-10T22:33:31-03:00",
+              "endTime": "2026-02-20T17:28:01.838Z",
+              "workflowRunId": "workflow_20260210_223330",
+              "version": "2.3.0",
+              "mode": "interactive"
+            },
+            "timeline": {
+              "steps": [
+                {
+                  "id": "step_0",
+                  "name": "Pre_Analysis",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770773613,
+                  "endTime": 1770773614
+                },
+                {
+                  "id": "step_0a",
+                  "name": "Unknown_Step_0a",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770773614,
+                  "endTime": 1770773615
+                },
+                {
+                  "id": "step_0b",
+                  "name": "Unknown_Step_0b",
+                  "status": "success",
+                  "duration": 302,
+                  "startTime": 1770773615,
+                  "endTime": 1770773917
+                },
+                {
+                  "id": "step_1",
+                  "name": "Documentation_Updates",
+                  "status": "success",
+                  "duration": 193,
+                  "startTime": 1770773917,
+                  "endTime": 1770774110
+                },
+                {
+                  "id": "step_2",
+                  "name": "Consistency_Analysis",
+                  "status": "success",
+                  "duration": 505,
+                  "startTime": 1770774110,
+                  "endTime": 1770774615
+                },
+                {
+                  "id": "step_3",
+                  "name": "Script_Reference_Validation",
+                  "status": "success",
+                  "duration": 338,
+                  "startTime": 1770774615,
+                  "endTime": 1770774953
+                },
+                {
+                  "id": "step_4",
+                  "name": "Directory_Structure_Validation",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770774953,
+                  "endTime": 1770774954
+                },
+                {
+                  "id": "step_5",
+                  "name": "Test_Review",
+                  "status": "success",
+                  "duration": 284,
+                  "startTime": 1770774955,
+                  "endTime": 1770775239
+                },
+                {
+                  "id": "step_6",
+                  "name": "Test_Generation",
+                  "status": "success",
+                  "duration": 0,
+                  "startTime": 1770775239,
+                  "endTime": 1770775239
+                },
+                {
+                  "id": "step_7",
+                  "name": "Test_Execution",
+                  "status": "success",
+                  "duration": 226,
+                  "startTime": 1770775240,
+                  "endTime": 1770775466
+                },
+                {
+                  "id": "step_8",
+                  "name": "Dependency_Validation",
+                  "status": "success",
+                  "duration": 50,
+                  "startTime": 1770775467,
+                  "endTime": 1770775517
+                },
+                {
+                  "id": "step_9",
+                  "name": "Code_Quality_Validation",
+                  "status": "success",
+                  "duration": 398,
+                  "startTime": 1770775517,
+                  "endTime": 1770775915
+                },
+                {
+                  "id": "step_10",
+                  "name": "Context_Analysis",
+                  "status": "success",
+                  "duration": 438,
+                  "startTime": 1770775915,
+                  "endTime": 1770776353
+                },
+                {
+                  "id": "step_11",
+                  "name": "Git_Finalization",
+                  "status": "success",
+                  "duration": 8,
+                  "startTime": 1770776353,
+                  "endTime": 1770776361
+                },
+                {
+                  "id": "step_12",
+                  "name": "Markdown_Linting",
+                  "status": "success",
+                  "duration": 35,
+                  "startTime": 1770776361,
+                  "endTime": 1770776396
+                },
+                {
+                  "id": "step_13",
+                  "name": "Prompt_Engineer_Analysis",
+                  "status": "success",
+                  "duration": 0,
+                  "startTime": 1770776397,
+                  "endTime": 1770776397
+                },
+                {
+                  "id": "step_11.7",
+                  "name": "Unknown_Step_11.7",
+                  "status": "success",
+                  "duration": 181,
+                  "startTime": 1770776397,
+                  "endTime": 1770776578
+                },
+                {
+                  "id": "step_14",
+                  "name": "UX_Analysis",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770776578,
+                  "endTime": 1770776579
+                },
+                {
+                  "id": "step_15",
+                  "name": "Unknown_Step_15",
+                  "status": "success",
+                  "duration": 24,
+                  "startTime": 1770776579,
+                  "endTime": 1770776603
+                },
+                {
+                  "id": "step_16",
+                  "name": "Unknown_Step_16",
+                  "status": "success",
+                  "duration": 40,
+                  "startTime": 1770776603,
+                  "endTime": 1770776643
+                }
+              ],
+              "phases": {
+                "initialization": [
+                  {
+                    "stepId": "step_0",
+                    "name": "Pre_Analysis",
+                    "status": "success",
+                    "startTime": 1770773613,
+                    "endTime": 1770773614,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:33:34-03:00"
+                  },
+                  {
+                    "stepId": "step_0a",
+                    "name": "Unknown_Step_0a",
+                    "status": "success",
+                    "startTime": 1770773614,
+                    "endTime": 1770773615,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:33:35-03:00"
+                  },
+                  {
+                    "stepId": "step_0b",
+                    "name": "Unknown_Step_0b",
+                    "status": "success",
+                    "startTime": 1770773615,
+                    "endTime": 1770773917,
+                    "duration": 302,
+                    "timestamp": "2026-02-10T22:38:37-03:00"
+                  }
+                ],
+                "documentation": [
+                  {
+                    "stepId": "step_1",
+                    "name": "Documentation_Updates",
+                    "status": "success",
+                    "startTime": 1770773917,
+                    "endTime": 1770774110,
+                    "duration": 193,
+                    "timestamp": "2026-02-10T22:41:50-03:00"
+                  },
+                  {
+                    "stepId": "step_2",
+                    "name": "Consistency_Analysis",
+                    "status": "success",
+                    "startTime": 1770774110,
+                    "endTime": 1770774615,
+                    "duration": 505,
+                    "timestamp": "2026-02-10T22:50:15-03:00"
+                  }
+                ],
+                "validation": [
+                  {
+                    "stepId": "step_3",
+                    "name": "Script_Reference_Validation",
+                    "status": "success",
+                    "startTime": 1770774615,
+                    "endTime": 1770774953,
+                    "duration": 338,
+                    "timestamp": "2026-02-10T22:55:53-03:00"
+                  },
+                  {
+                    "stepId": "step_4",
+                    "name": "Directory_Structure_Validation",
+                    "status": "success",
+                    "startTime": 1770774953,
+                    "endTime": 1770774954,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:55:54-03:00"
+                  },
+                  {
+                    "stepId": "step_5",
+                    "name": "Test_Review",
+                    "status": "success",
+                    "startTime": 1770774955,
+                    "endTime": 1770775239,
+                    "duration": 284,
+                    "timestamp": "2026-02-10T23:00:39-03:00"
+                  }
+                ],
+                "testing": [
+                  {
+                    "stepId": "step_6",
+                    "name": "Test_Generation",
+                    "status": "success",
+                    "startTime": 1770775239,
+                    "endTime": 1770775239,
+                    "duration": 0,
+                    "timestamp": "2026-02-10T23:00:39-03:00"
+                  },
+                  {
+                    "stepId": "step_7",
+                    "name": "Test_Execution",
+                    "status": "success",
+                    "startTime": 1770775240,
+                    "endTime": 1770775466,
+                    "duration": 226,
+                    "timestamp": "2026-02-10T23:04:27-03:00"
+                  },
+                  {
+                    "stepId": "step_8",
+                    "name": "Dependency_Validation",
+                    "status": "success",
+                    "startTime": 1770775467,
+                    "endTime": 1770775517,
+                    "duration": 50,
+                    "timestamp": "2026-02-10T23:05:17-03:00"
+                  }
+                ],
+                "quality": [
+                  {
+                    "stepId": "step_9",
+                    "name": "Code_Quality_Validation",
+                    "status": "success",
+                    "startTime": 1770775517,
+                    "endTime": 1770775915,
+                    "duration": 398,
+                    "timestamp": "2026-02-10T23:11:55-03:00"
+                  },
+                  {
+                    "stepId": "step_10",
+                    "name": "Context_Analysis",
+                    "status": "success",
+                    "startTime": 1770775915,
+                    "endTime": 1770776353,
+                    "duration": 438,
+                    "timestamp": "2026-02-10T23:19:13-03:00"
+                  },
+                  {
+                    "stepId": "step_11",
+                    "name": "Git_Finalization",
+                    "status": "success",
+                    "startTime": 1770776353,
+                    "endTime": 1770776361,
+                    "duration": 8,
+                    "timestamp": "2026-02-10T23:19:21-03:00"
+                  },
+                  {
+                    "stepId": "step_11.7",
+                    "name": "Unknown_Step_11.7",
+                    "status": "success",
+                    "startTime": 1770776397,
+                    "endTime": 1770776578,
+                    "duration": 181,
+                    "timestamp": "2026-02-10T23:22:58-03:00"
+                  }
+                ],
+                "finalization": [
+                  {
+                    "stepId": "step_12",
+                    "name": "Markdown_Linting",
+                    "status": "success",
+                    "startTime": 1770776361,
+                    "endTime": 1770776396,
+                    "duration": 35,
+                    "timestamp": "2026-02-10T23:19:56-03:00"
+                  },
+                  {
+                    "stepId": "step_13",
+                    "name": "Prompt_Engineer_Analysis",
+                    "status": "success",
+                    "startTime": 1770776397,
+                    "endTime": 1770776397,
+                    "duration": 0,
+                    "timestamp": "2026-02-10T23:19:57-03:00"
+                  },
+                  {
+                    "stepId": "step_14",
+                    "name": "UX_Analysis",
+                    "status": "success",
+                    "startTime": 1770776578,
+                    "endTime": 1770776579,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T23:22:59-03:00"
+                  },
+                  {
+                    "stepId": "step_15",
+                    "name": "Unknown_Step_15",
+                    "status": "success",
+                    "startTime": 1770776579,
+                    "endTime": 1770776603,
+                    "duration": 24,
+                    "timestamp": "2026-02-10T23:23:23-03:00"
+                  },
+                  {
+                    "stepId": "step_16",
+                    "name": "Unknown_Step_16",
+                    "status": "success",
+                    "startTime": 1770776603,
+                    "endTime": 1770776643,
+                    "duration": 40,
+                    "timestamp": "2026-02-10T23:24:03-03:00"
+                  }
+                ]
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "performance",
+                "priority": "high",
+                "title": "Performance Bottlenecks Detected",
+                "description": "5 step(s) took longer than 300 seconds",
+                "impact": "high",
+                "suggestion": "Review steps: Consistency_Analysis, Context_Analysis, Code_Quality_Validation, Script_Reference_Validation, Unknown_Step_0b",
+                "details": [
+                  "Consistency_Analysis: 505s",
+                  "Context_Analysis: 438s",
+                  "Code_Quality_Validation: 398s",
+                  "Script_Reference_Validation: 338s",
+                  "Unknown_Step_0b: 302s"
+                ]
+              },
+              {
+                "type": "optimization",
+                "priority": "medium",
+                "title": "Slow Steps Detected",
+                "description": "4 step(s) took longer than 120 seconds",
+                "impact": "medium",
+                "suggestion": "Consider optimizing or parallelizing these steps",
+                "details": [
+                  "Documentation_Updates: 193s",
+                  "Test_Review: 284s",
+                  "Test_Execution: 226s",
+                  "Unknown_Step_11.7: 181s"
+                ]
+              },
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              },
+              {
+                "type": "parallelization",
+                "priority": "medium",
+                "title": "Parallelization Opportunities",
+                "description": "2 step group(s) could potentially run in parallel",
+                "impact": "medium",
+                "suggestion": "Review step dependencies and enable parallel execution where safe",
+                "details": [
+                  "Validation phase: Script_Reference_Validation, Directory_Structure_Validation, Test_Review",
+                  "Quality phase: Context_Analysis, Git_Finalization, Unknown_Step_11.7"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_20260210_223330\n**Version:** 2.3.0\n**Mode:** interactive\n**Start Time:** 2026-02-10T22:33:31-03:00\n**End Time:** 2026-02-20T17:28:01.838Z\n**Total Duration:** 50m 26s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ✅ Success - All steps completed successfully\n**Success Rate:** 100.0%\n**Total Steps:** 20\n**Successful:** 20 ✅\n**Average Step Duration:** 2m 31.30000000000001s\n\n---\n\n## Execution Timeline\n\n- ✅ **Pre_Analysis** (step_0): 1s\n- ✅ **Unknown_Step_0a** (step_0a): 1s\n- ✅ **Unknown_Step_0b** (step_0b): 5m 2s\n- ✅ **Documentation_Updates** (step_1): 3m 13s\n- ✅ **Consistency_Analysis** (step_2): 8m 25s\n- ✅ **Script_Reference_Validation** (step_3): 5m 38s\n- ✅ **Directory_Structure_Validation** (step_4): 1s\n- ✅ **Test_Review** (step_5): 4m 44s\n- ✅ **Test_Generation** (step_6): 0s\n- ✅ **Test_Execution** (step_7): 3m 46s\n- ✅ **Dependency_Validation** (step_8): 50s\n- ✅ **Code_Quality_Validation** (step_9): 6m 38s\n- ✅ **Context_Analysis** (step_10): 7m 18s\n- ✅ **Git_Finalization** (step_11): 8s\n- ✅ **Markdown_Linting** (step_12): 35s\n- ✅ **Prompt_Engineer_Analysis** (step_13): 0s\n- ✅ **Unknown_Step_11.7** (step_11.7): 3m 1s\n- ✅ **UX_Analysis** (step_14): 1s\n- ✅ **Unknown_Step_15** (step_15): 24s\n- ✅ **Unknown_Step_16** (step_16): 40s\n\n---\n\n## Phase Breakdown\n\n### Initialization Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 5m 4s\n\n### Documentation Phase\n**Steps:** 2\n**Successful:** 2/2\n**Duration:** 11m 38s\n\n### Validation Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 10m 23s\n\n### Testing Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 4m 36s\n\n### Quality Phase\n**Steps:** 4\n**Successful:** 4/4\n**Duration:** 17m 5s\n\n### Finalization Phase\n**Steps:** 5\n**Successful:** 5/5\n**Duration:** 1m 40s\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 50m 26s |\n| Average Step Duration | 2m 31.30000000000001s |\n| Total Steps | 20 |\n| Success Rate | 100.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Performance Bottlenecks Detected\n**Priority:** HIGH\n**Type:** performance\n**Description:** 5 step(s) took longer than 300 seconds\n**Suggestion:** Review steps: Consistency_Analysis, Context_Analysis, Code_Quality_Validation, Script_Reference_Validation, Unknown_Step_0b\n\n**Details:**\n- Consistency_Analysis: 505s\n- Context_Analysis: 438s\n- Code_Quality_Validation: 398s\n- Script_Reference_Validation: 338s\n- Unknown_Step_0b: 302s\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n### 🟡 Slow Steps Detected\n**Priority:** MEDIUM\n**Type:** optimization\n**Description:** 4 step(s) took longer than 120 seconds\n**Suggestion:** Consider optimizing or parallelizing these steps\n\n**Details:**\n- Documentation_Updates: 193s\n- Test_Review: 284s\n- Test_Execution: 226s\n- Unknown_Step_11.7: 181s\n\n### 🟡 Parallelization Opportunities\n**Priority:** MEDIUM\n**Type:** parallelization\n**Description:** 2 step group(s) could potentially run in parallel\n**Suggestion:** Review step dependencies and enable parallel execution where safe\n\n**Details:**\n- Validation phase: Script_Reference_Validation, Directory_Structure_Validation, Test_Review\n- Quality phase: Context_Analysis, Git_Finalization, Unknown_Step_11.7\n\n\n---\n\n*Generated by AI Workflow Automation v2.3.0*\n\n*Report generated at: 2026-02-20T17:28:01.839Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 2
+      }
+    },
+    "context": {
+      "workflowDir": ".ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/onde_estou_backend",
+      "auto": false
+    }
+  },
+  "metadata": {
+    "totalSteps": 20,
+    "progress": 0
+  }
+}

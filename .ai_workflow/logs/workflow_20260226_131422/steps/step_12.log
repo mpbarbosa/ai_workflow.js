@@ -1,0 +1,42 @@
+[2026-02-26T16:18:02.973Z] 
+→ Starting: Git Finalization
+[2026-02-26T16:18:02.974Z] ════════════════════════════════════════════════════════════
+[2026-02-26T16:18:02.974Z] 🔷  Step 12: Git Finalization
+[2026-02-26T16:18:02.974Z] ════════════════════════════════════════════════════════════
+[2026-02-26T16:18:02.974Z] Analyzing git repository state...
+[2026-02-26T16:18:03.037Z] Branch: main (ahead: 33, behind: 0)
+[2026-02-26T16:18:03.037Z] Changes: 12 files
+[2026-02-26T16:18:03.037Z] Inferred commit type: test(testing)
+[2026-02-26T16:18:03.038Z] Processing submodules...
+[2026-02-26T16:18:03.103Z] [DEBUG] No submodules found in status output
+[2026-02-26T16:18:03.103Z] Staging all changes...
+[2026-02-26T16:18:03.151Z] Changes staged successfully
+[2026-02-26T16:18:03.152Z] Generating commit message...
+[2026-02-26T16:18:05.347Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-02-26T16:18:06.236Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-02-26T16:18:06.339Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-02-26T16:18:06.409Z] [DEBUG] Cache miss: e7a6d467...
+[2026-02-26T16:18:06.410Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"git_specialist","cache":true}
+[2026-02-26T16:18:06.410Z] [DEBUG] Persona: git_specialist
+[2026-02-26T16:18:06.410Z] [DEBUG] Model: gpt-4.1
+[2026-02-26T16:18:06.410Z] [AI] SDK call starting — persona: git_specialist, model: gpt-4.1, prompt_chars: 5014
+[2026-02-26T16:18:06.410Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-02-26T16:18:06.410Z] [DEBUG] AiHelper._sendRequest called
+[2026-02-26T16:18:06.410Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 5014 chars
+[2026-02-26T16:18:06.410Z] [DEBUG] Sending prompt...
+[2026-02-26T16:18:16.177Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-02-26T16:18:16.178Z] [AI] SDK call completed — persona: git_specialist, model: gpt-4.1, response_chars: 570, latency: 9768ms
+[2026-02-26T16:18:16.180Z] ✓ AI request completed successfully
+[2026-02-26T16:18:16.181Z] [DEBUG] Prompt logged to: 2026-02-26T16-18-16-180Z_0001_git_specialist.md
+[2026-02-26T16:18:16.185Z] [DEBUG] Response cached: e7a6d467...
+[2026-02-26T16:18:16.185Z] AI commit message generated
+[2026-02-26T16:18:16.186Z] Creating commit...
+[2026-02-26T16:18:16.265Z] Changes committed successfully
+[2026-02-26T16:18:16.266Z] Pushing to origin/main...
+[2026-02-26T16:18:16.278Z] ✗ Push failed: Command failed: git pull --rebase origin main: error: cannot pull with rebase: You have unstaged changes.
+error: Please commit or stash them.
+[2026-02-26T16:18:16.280Z] ✓ Step step_12 completed in 13307ms
+[2026-02-26T16:18:16.281Z] [DEBUG] [Performance] step_12: 13.3s
+[2026-02-26T16:18:16.281Z] ⚠ [WARNING] Operation 'step_12' took 13.3s (memory: 24.84MB)
+[2026-02-26T16:18:16.281Z] [DEBUG] Recorded outcome for step_12: success
+[2026-02-26T16:18:16.281Z] ✓ Completed: Git Finalization (13s)
