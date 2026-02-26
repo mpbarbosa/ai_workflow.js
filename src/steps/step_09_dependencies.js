@@ -797,51 +797,55 @@ export class Step9DependencyValidator {
       const report = formatDependencyReport(results);
       await this.backlog.saveStepSummary(9, 'Dependency Validation', report);
 
-      // Phase 7: AI-powered dependency analysis
-      const aiAvailable = await this.aiHelper.initialize();
-      if (aiAvailable) {
-        await this.aiCache.init();
-        const vuln = vulnerabilities.summary?.total ?? 0;
-        const outdated = outdatedPackages.length;
-        let prompt;
-        try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step8_dependencies_prompt', {
-            language,
-            total_deps: String(dependencyCounts.total),
-            dev_deps: String(dependencyCounts.dev || 0),
-            prod_deps: String(dependencyCounts.production || 0),
-            vulnerabilities: String(vuln),
-            critical_vulns: String(vulnerabilities.summary?.critical || 0),
-            high_vulns: String(vulnerabilities.summary?.high || 0),
-            outdated_packages: String(outdated),
-          });
-        } catch {
-          /* fallback to generic prompt */
-        }
-        if (!prompt) {
-          const role = `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`;
-          const task = `Analyze the dependency health report for a ${language} project:
+      // Phase 7: AI-powered dependency analysis (optional enrichment)
+      try {
+        const aiAvailable = await this.aiHelper.initialize();
+        if (aiAvailable) {
+          await this.aiCache.init();
+          const vuln = vulnerabilities.summary?.total ?? 0;
+          const outdated = outdatedPackages.length;
+          let prompt;
+          try {
+            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+            const parsedYaml = yaml.load(yamlContent);
+            prompt = buildYamlStepPrompt(parsedYaml, 'step8_dependencies_prompt', {
+              language,
+              total_deps: String(dependencyCounts.total),
+              dev_deps: String(dependencyCounts.dev || 0),
+              prod_deps: String(dependencyCounts.production || 0),
+              vulnerabilities: String(vuln),
+              critical_vulns: String(vulnerabilities.summary?.critical || 0),
+              high_vulns: String(vulnerabilities.summary?.high || 0),
+              outdated_packages: String(outdated),
+            });
+          } catch {
+            /* fallback to generic prompt */
+          }
+          if (!prompt) {
+            const role = `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`;
+            const task = `Analyze the dependency health report for a ${language} project:
 - Total dependencies: ${dependencyCounts.total} (${dependencyCounts.dev || 0} dev, ${dependencyCounts.production || 0} production)
 - Vulnerabilities: ${vuln} total (${vulnerabilities.summary?.critical || 0} critical, ${vulnerabilities.summary?.high || 0} high)
 - Outdated packages: ${outdated}`;
-          const approach = `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
-            language,
-          });
+            const approach = `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`;
+            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
+              language,
+            });
+          }
+          const cacheKey = `step_09|${language}|vuln${vuln}|outdated${outdated}`;
+          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
+          );
+          const aiContent = aiResult?.content ?? '';
+          if (aiContent) {
+            const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+            await this.backlog.saveStepSummary(9, 'Dependency Validation', enrichedReport);
+          }
+        } else {
+          logger.warn('AI helper not available - skipping AI dependency analysis');
         }
-        const cacheKey = `step_09|${language}|vuln${vuln}|outdated${outdated}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
-        );
-        const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(9, 'Dependency Validation', enrichedReport);
-        }
-      } else {
-        logger.warn('AI helper not available - skipping AI dependency analysis');
+      } catch (aiError) {
+        logger.warn(`AI dependency analysis skipped: ${aiError.message}`);
       }
 
       const hasIssues =
@@ -854,7 +858,8 @@ export class Step9DependencyValidator {
       }
 
       return {
-        success: !hasIssues,
+        success: true,
+        hasSecurityIssues: hasIssues,
         ...results,
       };
     } catch (error) {
