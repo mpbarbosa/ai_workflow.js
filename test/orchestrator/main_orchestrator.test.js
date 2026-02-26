@@ -1135,4 +1135,268 @@ describe('Main Orchestrator - Integration Tests', () => {
       });
     });
   });
+
+  // ============================================================================
+  // REGRESSION TESTS — Bug Fixes 2026-02-26
+  // CommitHistory: save HEAD at workflow START; skip artifact-only diffs
+  // ============================================================================
+
+  describe('Regression Tests - CommitHistory: start HEAD + artifact-only fallback', () => {
+    const testDir = '.ai_workflow/test-commit-history-fix';
+
+    /** Minimal git-ops mock with sensible defaults. Override per test as needed. */
+    const makeGitMock = (overrides = {}) => ({
+      getCurrentHead: () => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      getChangedFilesSince: () => [],
+      getLastNCommitsFiles: () => [],
+      status: async () => ({ staged: [], unstaged: [], untracked: [] }),
+      ...overrides,
+    });
+
+    /** Wire the workflow engine + downstream dependencies to no-ops. */
+    const mockWorkflow = (orc, captureCtx = null) => {
+      orc.workflowEngine.loadWorkflow = async (w) => w;
+      orc.workflowEngine.executeWorkflow = async (ctx) => {
+        if (captureCtx) captureCtx.value = ctx;
+        return {
+          success: true,
+          summary: { total: 1, succeeded: 1, failed: 0, skipped: 0 },
+          results: [{ stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 100 }],
+        };
+      };
+      orc.summaryGenerator.generateSummary = async () => 'Summary';
+      orc.checkpointManager.save = async () => 'cp-id';
+    };
+
+    let orchestrator;
+
+    beforeEach(async () => {
+      await fs.rm(testDir, { recursive: true, force: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      orchestrator = new MainOrchestrator({
+        workflowDir: testDir,
+        stage: WORKFLOW_STAGES.QUICK,
+        auto: true,
+      });
+    });
+
+    afterEach(async () => {
+      await fs.rm(testDir, { recursive: true, force: true });
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Bug 1 — HEAD saved is start-of-run, not post-commit HEAD
+    // ──────────────────────────────────────────────────────────────────────────
+
+    describe('Bug 1: HEAD captured at workflow start is persisted', () => {
+      test('saves start-of-run HEAD, not post-commit HEAD, to commit_history.json', async () => {
+        let callCount = 0;
+        orchestrator.gitOps = makeGitMock({
+          getCurrentHead: () => {
+            callCount += 1;
+            // First call = before steps run; second call = fallback at end (after commits)
+            return callCount === 1
+              ? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+              : 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+          },
+          getLastNCommitsFiles: () => [{ file: 'src/app.js', status: 'modified' }],
+        });
+        mockWorkflow(orchestrator);
+
+        await orchestrator.execute();
+
+        const history = JSON.parse(await fs.readFile(`${testDir}/commit_history.json`, 'utf8'));
+        // Must record the FIRST call value (before any workflow commits)
+        expect(history.lastRunCommit).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      });
+
+      test('uses start HEAD even if getCurrentHead would fail after commits', async () => {
+        let callCount = 0;
+        orchestrator.gitOps = makeGitMock({
+          getCurrentHead: () => {
+            callCount += 1;
+            if (callCount === 1) return 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+            throw new Error('git unavailable after commits');
+          },
+          getLastNCommitsFiles: () => [{ file: 'src/app.js', status: 'modified' }],
+        });
+        mockWorkflow(orchestrator);
+
+        await orchestrator.execute();
+
+        const history = JSON.parse(await fs.readFile(`${testDir}/commit_history.json`, 'utf8'));
+        expect(history.lastRunCommit).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      });
+
+      test('does not create commit_history.json when getCurrentHead always fails', async () => {
+        orchestrator.gitOps = makeGitMock({
+          getCurrentHead: () => {
+            throw new Error('no git repo');
+          },
+          getLastNCommitsFiles: () => [],
+        });
+        mockWorkflow(orchestrator);
+
+        await orchestrator.execute();
+
+        const exists = await fs
+          .access(`${testDir}/commit_history.json`)
+          .then(() => true)
+          .catch(() => false);
+        expect(exists).toBe(false);
+      });
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Bug 2 — Artifact-only diffs fall back to last 30 commits
+    // ──────────────────────────────────────────────────────────────────────────
+
+    describe('Bug 2: Artifact-only diff falls back to last 30 commits', () => {
+      const PRIOR_COMMIT = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+      const ARTIFACT_ONLY = [
+        { file: '.ai_workflow/backlog/workflow_001/step_00.md', status: 'deleted' },
+        { file: '.ai_workflow/.ai_cache/index.json', status: 'modified' },
+        { file: '.ai_workflow/commit_history.json', status: 'modified' },
+      ];
+      const SOURCE_FILES = [
+        { file: 'src/core/colors.js', status: 'modified' },
+        { file: 'src/lib/config.js', status: 'modified' },
+      ];
+
+      beforeEach(async () => {
+        // Seed a commit_history.json so the diff path is taken (not first-run)
+        await fs.writeFile(
+          `${testDir}/commit_history.json`,
+          JSON.stringify({ version: '1.0.0', lastRunCommit: PRIOR_COMMIT, runs: [] })
+        );
+      });
+
+      test('falls back to last 30 commits when diff contains only artifact files', async () => {
+        const ctx = {};
+        orchestrator.gitOps = makeGitMock({
+          getChangedFilesSince: () => ARTIFACT_ONLY,
+          getLastNCommitsFiles: () => SOURCE_FILES,
+        });
+        mockWorkflow(orchestrator, ctx);
+
+        await orchestrator.execute();
+
+        expect(ctx.value.modifiedFiles).toContain('src/core/colors.js');
+        expect(ctx.value.modifiedFiles).toContain('src/lib/config.js');
+        expect(ctx.value.modifiedFiles).not.toContain('.ai_workflow/commit_history.json');
+      });
+
+      test('keeps source files and strips artifact files when diff is mixed', async () => {
+        const ctx = {};
+        orchestrator.gitOps = makeGitMock({
+          getChangedFilesSince: () => [
+            ...ARTIFACT_ONLY,
+            { file: 'src/app.js', status: 'modified' },
+          ],
+          getLastNCommitsFiles: () => SOURCE_FILES,
+        });
+        mockWorkflow(orchestrator, ctx);
+
+        await orchestrator.execute();
+
+        expect(ctx.value.modifiedFiles).toContain('src/app.js');
+        expect(ctx.value.modifiedFiles).not.toContain('.ai_workflow/commit_history.json');
+      });
+
+      test('falls back to last 30 commits when getChangedFilesSince throws', async () => {
+        const ctx = {};
+        orchestrator.gitOps = makeGitMock({
+          getChangedFilesSince: () => {
+            throw new Error('unknown revision');
+          },
+          getLastNCommitsFiles: () => SOURCE_FILES,
+        });
+        mockWorkflow(orchestrator, ctx);
+
+        await orchestrator.execute();
+
+        expect(ctx.value.modifiedFiles).toContain('src/core/colors.js');
+      });
+
+      test('uses last 30 commits and never calls getChangedFilesSince when no prior hash', async () => {
+        // Override commit_history.json to have null lastRunCommit
+        await fs.writeFile(
+          `${testDir}/commit_history.json`,
+          JSON.stringify({ version: '1.0.0', lastRunCommit: null, runs: [] })
+        );
+        const ctx = {};
+        let diffCallCount = 0;
+        orchestrator.gitOps = makeGitMock({
+          getChangedFilesSince: () => {
+            diffCallCount++;
+            return [];
+          },
+          getLastNCommitsFiles: () => SOURCE_FILES,
+        });
+        mockWorkflow(orchestrator, ctx);
+
+        await orchestrator.execute();
+
+        expect(diffCallCount).toBe(0);
+        expect(ctx.value.modifiedFiles).toContain('src/core/colors.js');
+      });
+    });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Integration: Both fixes together across two consecutive runs
+    // ──────────────────────────────────────────────────────────────────────────
+
+    describe('Integration: consecutive runs — start HEAD + artifact-only fallback', () => {
+      test('run 2 uses start-of-run hash from run 1 and falls back past artifact commit', async () => {
+        const START_HASH = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+        const POST_ARTIFACT_HASH = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+        // ── Run 1 ──────────────────────────────────────────────────────────
+        let run1Calls = 0;
+        orchestrator.gitOps = makeGitMock({
+          getCurrentHead: () => {
+            run1Calls++;
+            return run1Calls === 1 ? START_HASH : POST_ARTIFACT_HASH;
+          },
+          getLastNCommitsFiles: () => [{ file: 'src/app.js', status: 'modified' }],
+        });
+        mockWorkflow(orchestrator);
+        await orchestrator.execute();
+
+        // Verify Run 1 recorded START_HASH (not post-commit hash)
+        const hist1 = JSON.parse(await fs.readFile(`${testDir}/commit_history.json`, 'utf8'));
+        expect(hist1.lastRunCommit).toBe(START_HASH);
+
+        // ── Run 2 ──────────────────────────────────────────────────────────
+        const orchestrator2 = new MainOrchestrator({
+          workflowDir: testDir,
+          stage: WORKFLOW_STAGES.QUICK,
+          auto: true,
+        });
+        const ctx2 = {};
+        mockWorkflow(orchestrator2, ctx2);
+
+        // Run 2: diff(START_HASH → HEAD) returns only artifact files
+        // (the artifact commit happened between runs)
+        let capturedDiffHash = null;
+        const diffResult = [{ file: '.ai_workflow/commit_history.json', status: 'modified' }];
+        orchestrator2.gitOps = makeGitMock({
+          getCurrentHead: () => POST_ARTIFACT_HASH,
+          getChangedFilesSince: (hash) => {
+            capturedDiffHash = hash;
+            return diffResult;
+          },
+          getLastNCommitsFiles: () => [{ file: 'src/app.js', status: 'modified' }],
+        });
+
+        await orchestrator2.execute();
+
+        expect(capturedDiffHash).toBe(START_HASH); // must diff from run-1's start, not its post-commit
+        // Artifact file filtered out; fallback gives real source file
+        expect(ctx2.value.modifiedFiles).toContain('src/app.js');
+        expect(ctx2.value.modifiedFiles).not.toContain('.ai_workflow/commit_history.json');
+      });
+    });
+  });
 });
