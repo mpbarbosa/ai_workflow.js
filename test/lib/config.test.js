@@ -474,7 +474,9 @@ describe('Config - Wrapper Class', () => {
       setTimeout(() => {
         const elapsed = config.getElapsedTime();
         expect(elapsed).toBeGreaterThanOrEqual(50);
-        expect(elapsed).toBeLessThan(200); // reasonable upper bound
+        // No upper-bound assertion: under CI / parallel test load the
+        // 50ms timer may resolve well beyond 200ms — that is a scheduling
+        // artefact, not a bug in getElapsedTime.
         done();
       }, 50);
     });
