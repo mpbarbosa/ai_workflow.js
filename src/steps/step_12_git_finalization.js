@@ -862,8 +862,9 @@ export class Step12GitFinalization {
       this.logger.info('Successfully pushed to remote');
       return { pushed: true };
     } catch (error) {
-      this.logger.error(`Push failed: ${error.message}`);
-      return { pushed: false, error: error.message };
+      const detail = error.stderr ? `: ${error.stderr.trim()}` : '';
+      this.logger.error(`Push failed: ${error.message}${detail}`);
+      return { pushed: false, error: `${error.message}${detail}` };
     }
   }
 
