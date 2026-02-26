@@ -21,8 +21,17 @@ import path from 'path';
  * Source file patterns by language
  */
 export const SOURCE_PATTERNS = {
-  javascript: ['src/**/*.js', 'lib/**/*.js', 'scripts/**/*.js'],
-  typescript: ['src/**/*.ts', 'lib/**/*.ts'],
+  javascript: [
+    'src/**/*.js',
+    'src/**/*.ts',
+    'src/**/*.jsx',
+    'src/**/*.tsx',
+    'src/**/*.vue',
+    'lib/**/*.js',
+    'lib/**/*.ts',
+    'scripts/**/*.js',
+  ],
+  typescript: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.vue', 'lib/**/*.ts'],
   python: ['src/**/*.py', 'lib/**/*.py', '**/*.py'],
   go: ['**/*.go'],
   java: ['src/**/*.java'],
@@ -36,7 +45,7 @@ export const SOURCE_PATTERNS = {
  * Test file patterns by language (for matching)
  */
 export const TEST_FILE_PATTERNS = {
-  javascript: ['.test.js', '.spec.js', '__tests__'],
+  javascript: ['.test.js', '.spec.js', '.test.ts', '.spec.ts', '__tests__'],
   typescript: ['.test.ts', '.spec.ts', '__tests__'],
   python: ['test_', '_test.py', '/tests/'],
   go: ['_test.go'],

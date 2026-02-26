@@ -26,6 +26,19 @@ describe('Step 7: Test Generation', () => {
       expect(patterns).toContain('src/**/*.js');
     });
 
+    test('JavaScript patterns include TypeScript and Vue for mixed projects', () => {
+      const patterns = getSourcePatterns('javascript');
+      expect(patterns).toContain('src/**/*.ts');
+      expect(patterns).toContain('src/**/*.vue');
+      expect(patterns).toContain('src/**/*.tsx');
+    });
+
+    test('TypeScript patterns include Vue files', () => {
+      const patterns = getSourcePatterns('typescript');
+      expect(patterns).toContain('src/**/*.ts');
+      expect(patterns).toContain('src/**/*.vue');
+    });
+
     test('returns Python patterns', () => {
       const patterns = getSourcePatterns('python');
       expect(patterns).toContain('src/**/*.py');
@@ -42,6 +55,12 @@ describe('Step 7: Test Generation', () => {
       const patterns = getTestPatterns('javascript');
       expect(patterns).toContain('.test.js');
       expect(patterns).toContain('.spec.js');
+    });
+
+    test('JavaScript test patterns include TypeScript test patterns', () => {
+      const patterns = getTestPatterns('javascript');
+      expect(patterns).toContain('.test.ts');
+      expect(patterns).toContain('.spec.ts');
     });
 
     test('returns Python test patterns', () => {
