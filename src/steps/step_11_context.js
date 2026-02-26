@@ -189,7 +189,6 @@ export function formatContextReport(context) {
     completionStatus = 'unknown',
     completedSteps = 0,
     totalSteps = 0,
-    gitStatus = {},
     changeImpact = 'low',
     impactScore = 0,
     issues = {},
@@ -208,21 +207,6 @@ export function formatContextReport(context) {
     report += '- **Status**: ⚠️ Moderate - more steps needed\n\n';
   } else {
     report += '- **Status**: 🚨 Poor - significant work remaining\n\n';
-  }
-
-  // Git Repository State
-  if (gitStatus.isGitRepo) {
-    report += '## Git Repository State\n\n';
-    report += `- **Branch**: ${gitStatus.branch || 'unknown'}\n`;
-    report += `- **Modified Files**: ${gitStatus.modifiedFiles || 0}\n`;
-    report += `- **Untracked Files**: ${gitStatus.untrackedFiles || 0}\n`;
-    report += `- **Staged Files**: ${gitStatus.stagedFiles || 0}\n`;
-
-    if (gitStatus.commitsAhead > 0) {
-      report += `- **Commits Ahead**: ${gitStatus.commitsAhead}\n`;
-    }
-
-    report += '\n';
   }
 
   // Change Impact
@@ -267,10 +251,6 @@ export function formatContextReport(context) {
 
   if (completionRate < 100) {
     report += '3. Complete remaining workflow steps\n';
-  }
-
-  if (gitStatus.modifiedFiles > 0 || gitStatus.stagedFiles > 0) {
-    report += '4. Review and commit changes\n';
   }
 
   if (changeImpact === 'high') {

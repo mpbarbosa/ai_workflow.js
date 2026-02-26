@@ -190,7 +190,6 @@ describe('Step 11: Context Analysis', () => {
         completionStatus: 'excellent',
         completedSteps: 11,
         totalSteps: 11,
-        gitStatus: { isGitRepo: false },
         changeImpact: 'low',
         impactScore: 2,
         issues: { total: 0, critical: 0, warnings: 0, passed: 11 },
@@ -205,20 +204,12 @@ describe('Step 11: Context Analysis', () => {
       expect(report).toContain('LOW');
     });
 
-    test('formats report with git status', () => {
+    test('formats report with git-based impact (git status not shown)', () => {
       const context = {
         completionRate: 80,
         completionStatus: 'good',
         completedSteps: 8,
         totalSteps: 10,
-        gitStatus: {
-          isGitRepo: true,
-          branch: 'main',
-          modifiedFiles: 5,
-          untrackedFiles: 2,
-          stagedFiles: 3,
-          commitsAhead: 1,
-        },
         changeImpact: 'medium',
         impactScore: 4,
         issues: { total: 1, critical: 0, warnings: 1, passed: 8 },
@@ -227,9 +218,9 @@ describe('Step 11: Context Analysis', () => {
 
       const report = formatContextReport(context);
 
-      expect(report).toContain('Git Repository State');
-      expect(report).toContain('**Branch**: main');
-      expect(report).toContain('**Modified Files**: 5');
+      expect(report).not.toContain('Git Repository State');
+      expect(report).toContain('Change Impact Assessment');
+      expect(report).toContain('MEDIUM');
     });
 
     test('formats report with critical issues', () => {
@@ -238,7 +229,6 @@ describe('Step 11: Context Analysis', () => {
         completionStatus: 'moderate',
         completedSteps: 6,
         totalSteps: 10,
-        gitStatus: { isGitRepo: false },
         changeImpact: 'high',
         impactScore: 6,
         issues: { total: 3, critical: 2, warnings: 1, passed: 6 },
