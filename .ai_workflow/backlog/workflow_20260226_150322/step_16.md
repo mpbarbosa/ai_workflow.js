@@ -16,7 +16,7 @@
 ## Version Update
 
 - **Previous Version**: 1.3.9
-- **New Version**: 1.3.10
+- **New Version**: 1.3.11
 - **Bump Type**: patch
 
 ## Update Statistics
