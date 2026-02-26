@@ -324,7 +324,11 @@ export class Step3ScriptAnalyzer {
       const readmeContent = await this.loadReadme(projectRoot);
 
       // Phase 4: Extract and validate script references
-      const references = extractScriptReferences(readmeContent);
+      const allReferences = extractScriptReferences(readmeContent);
+      // Only validate references matching the detected language's extensions
+      // to avoid false positives (e.g. .ts refs when language is bash)
+      const patternExts = patterns.map((p) => p.replace('*.', ''));
+      const references = allReferences.filter((ref) => patternExts.includes(ref.split('.').pop()));
       const existingScripts = new Set(scripts);
       const missingReferences = validateScriptReferences(references, existingScripts);
 

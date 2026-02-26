@@ -375,6 +375,21 @@ describe('Step 3: Script Reference Validation', () => {
       expect(savedContent).toContain('Step 3');
     });
 
+    test('ignores cross-language references to avoid false positives', async () => {
+      // bash project with .ts and .js references in README → should not flag as missing
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'bash' });
+      mockFileOps.glob = () => Promise.resolve(['scripts/deploy.sh']);
+      // README references a .ts file and a .sh file that doesn't exist
+      mockFileOps.readFile = () => Promise.resolve('Run `src/api.ts` and `./scripts/missing.sh`');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      // Only the missing .sh reference should be flagged, not the .ts reference
+      expect(result.missingReferences.every((r) => r.reference.endsWith('.sh'))).toBe(true);
+      expect(result.referencesChecked).toBe(1); // only the .sh reference
+    });
+
     test('handles errors gracefully', async () => {
       mockTechStack.detectTechStack = () => Promise.reject(new Error('Detection failed'));
 
