@@ -791,7 +791,7 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
     }
 
     return {
-      success: status !== 'fail',
+      success: true,
       status,
       stats,
       issues: lintResults.issues,

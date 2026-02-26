@@ -1,9 +1,0 @@
-{
-  "cacheKey": "870f53e3cec207c2b287c36f98938da3949bd21043e57af218a8f03b60c6f806",
-  "timestamp": "2026-02-21T18:07:41.000Z",
-  "timestampEpoch": 1771697261,
-  "promptPreview": "**Role**: You are a senior dependency security and maintenance analyst specializing in javascript ec...",
-  "context": "step_09|javascript|vuln0|outdated1",
-  "responseSize": 870,
-  "prompt": "**Role**: You are a senior dependency security and maintenance analyst specializing in javascript ecosystem best practices.\n\n**Task**: Analyze the dependency health report for a javascript project:\n- Total dependencies: 1 (0 dev, 1 production)\n- Vulnerabilities: 0 total (0 critical, 0 high)\n- Outdated packages: 1\n\n**Approach**: Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.\n\n**Project Context**:\n- **Language**: javascript"
-}

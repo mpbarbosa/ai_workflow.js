@@ -1,1 +1,0 @@
-{"content":"The directory /home/mpb/Documents/GitHub/ai_workflow.js/.test-e2e/step-02-artefacts-1771699104537-pzmy46uhsd does not exist, so documentation consistency analysis cannot proceed. Please verify the path or provide the correct artefact directory.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

@@ -16,11 +16,12 @@ import { AiCache } from '../lib/ai_cache.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
-  buildYamlStepPrompt,
   AI_HELPERS_PATH,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { execFile } from 'child_process';
+import { join } from 'path';
+import { readdirSync, statSync } from 'fs';
 
 // Constants
 export const SEMVER_PATTERN = /\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?/;
@@ -144,6 +145,88 @@ export function replaceVersion(content, oldVersion, newVersion) {
   // Use a global regex to replace all occurrences
   const regex = new RegExp(oldVersion.replace(/\./g, '\\.'), 'g');
   return content.replace(regex, newVersion);
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Service Worker Cache Name Support
+// ============================================================================
+
+/**
+ * Pattern matching service worker files that define a CACHE_NAME constant.
+ * Example: const CACHE_NAME = 'my-app-v1.0.0-20260101';
+ * @constant {RegExp}
+ */
+export const SERVICE_WORKER_CACHE_PATTERN = /const\s+CACHE_NAME\s*=\s*['"][^'"]+['"]/;
+
+/**
+ * Detect whether a file is a service worker with a CACHE_NAME constant.
+ * @param {string} content - File content
+ * @returns {boolean}
+ */
+export function isServiceWorkerFile(content) {
+  return SERVICE_WORKER_CACHE_PATTERN.test(content);
+}
+
+/**
+ * Update CACHE_NAME in a service worker file with the new version and date.
+ * Replaces the embedded version string and refreshes the date suffix to force
+ * cache invalidation on next deployment.
+ *
+ * Input:  const CACHE_NAME = 'app-v0.9.0-alpha-20260101-abc1234';
+ * Output: const CACHE_NAME = 'app-v0.11.0-alpha-20260223';
+ *
+ * @param {string} content - File content
+ * @param {string} oldVersion - Old version string (e.g. '0.9.0-alpha')
+ * @param {string} newVersion - New version string (e.g. '0.11.0-alpha')
+ * @param {string} buildDate - Build date in YYYYMMDD format (e.g. '20260223')
+ * @returns {string} - Updated content
+ */
+export function updateServiceWorkerCacheName(content, oldVersion, newVersion, buildDate) {
+  const escaped = oldVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(const\\s+CACHE_NAME\\s*=\\s*['"][^'"]*?-v)${escaped}[^'"]*(['"])`);
+  return content.replace(regex, `$1${newVersion}-${buildDate}$2`);
+}
+
+// ============================================================================
+// PURE FUNCTIONS - JS Version Config File Support
+// ============================================================================
+
+/**
+ * Pattern matching JS version config files that export VERSION and BUILD_DATE constants.
+ * Example: export const VERSION = '1.0.0'; export const BUILD_DATE = '2026-01-01';
+ * @constant {RegExp}
+ */
+export const VERSION_CONFIG_FILE_PATTERN = /export\s+const\s+VERSION\s*=\s*['"][^'"]+['"]/;
+
+/**
+ * Detect whether a file is a JS version config file with VERSION + BUILD_DATE constants.
+ * @param {string} content - File content
+ * @returns {boolean}
+ */
+export function isVersionConfigFile(content) {
+  return (
+    VERSION_CONFIG_FILE_PATTERN.test(content) &&
+    /export\s+const\s+BUILD_DATE\s*=\s*['"][^'"]+['"]/.test(content)
+  );
+}
+
+/**
+ * Replace VERSION and BUILD_DATE constants in a JS version config file.
+ * @param {string} content - File content
+ * @param {string} newVersion - New version string
+ * @param {string} buildDate - New build date (YYYY-MM-DD)
+ * @returns {string} - Updated content
+ */
+export function replaceVersionConfig(content, newVersion, buildDate) {
+  let updated = content.replace(
+    /(export\s+const\s+VERSION\s*=\s*)(['"])[^'"]+\2/,
+    `$1$2${newVersion}$2`
+  );
+  updated = updated.replace(
+    /(export\s+const\s+BUILD_DATE\s*=\s*)(['"])[^'"]+\2/,
+    `$1$2${buildDate}$2`
+  );
+  return updated;
 }
 
 // ============================================================================
@@ -345,6 +428,101 @@ ${updatesSection}
 // ============================================================================
 
 /**
+ * Recursively collect files in a directory that contain an exact version string.
+ *
+ * Skips: node_modules, .git, dist, build, coverage, .ai_workflow, and binary-like extensions.
+ *
+ * @pure - no side effects; takes an explicit readFn for testability
+ * @param {string} dir - Absolute directory path to search
+ * @param {string} version - Version string to search for
+ * @param {Function} readFn - (path: string) => string  (sync read)
+ * @param {Function} [readdirFn] - Optional override for readdirSync
+ * @param {Function} [statFn] - Optional override for statSync
+ * @returns {Array<string>} Absolute file paths that contain the version string
+ */
+export function scanFilesContainingVersion(
+  dir,
+  version,
+  readFn,
+  readdirFn = readdirSync,
+  statFn = statSync
+) {
+  const SKIP_DIRS = new Set([
+    'node_modules',
+    '.git',
+    'dist',
+    'build',
+    'coverage',
+    '.ai_workflow',
+    '.workflow_core',
+    '__pycache__',
+  ]);
+  const SKIP_EXTS = new Set([
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.svg',
+    '.ico',
+    '.woff',
+    '.woff2',
+    '.ttf',
+    '.eot',
+    '.zip',
+    '.tar',
+    '.gz',
+    '.lock',
+    '.min.js',
+    '.min.css',
+  ]);
+
+  const results = [];
+
+  function walk(current) {
+    let entries;
+    try {
+      entries = readdirFn(current);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = join(current, entry);
+      let stat;
+      try {
+        stat = statFn(fullPath);
+      } catch {
+        continue;
+      }
+
+      if (stat.isDirectory()) {
+        if (!SKIP_DIRS.has(entry)) walk(fullPath);
+        continue;
+      }
+
+      // Skip binary/undesired extensions
+      const lower = entry.toLowerCase();
+      if (SKIP_EXTS.has(lower.slice(lower.lastIndexOf('.')))) continue;
+      // Skip combined extensions like .min.js
+      if (lower.endsWith('.min.js') || lower.endsWith('.min.css')) continue;
+
+      let content;
+      try {
+        content = readFn(fullPath);
+      } catch {
+        continue;
+      }
+      if (typeof content === 'string' && content.includes(version)) {
+        results.push(fullPath);
+      }
+    }
+  }
+
+  walk(dir);
+  return results;
+}
+
+/**
  * Step 16: AI-Powered Semantic Version Update
  * Updates versions in modified files and project metadata.
  */
@@ -452,38 +630,70 @@ export class Step16VersionUpdate {
         try {
           await this.aiCache.init();
           const cats = gitStats.categories || {};
-          let prompt;
+          const gitCtx = await this._gatherGitContext();
+
+          // version_manager_prompt uses `role_prefix` (not `role`) and has no `task_template`,
+          // so buildYamlStepPrompt produces a hollow prompt (empty role + empty task).
+          // Build the prompt directly with real git data instead.
+          let yamlExpertise = '';
+          let yamlApproach = '';
+          let yamlOutputFormat = '';
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
             const parsedYaml = yaml.load(yamlContent);
-            prompt = buildYamlStepPrompt(parsedYaml, 'version_manager_prompt', {
-              current_version: currentVersion,
-              modified_count: String(modifiedFiles.length),
-              docs_count: String(cats.documentation || 0),
-              tests_count: String(cats.tests || 0),
-              code_count: String(cats.code || 0),
-              config_count: String(cats.config || 0),
-              heuristic_bump: bumpType,
-            });
+            const cfg = parsedYaml?.version_manager_prompt || {};
+            yamlExpertise = cfg.specific_expertise || '';
+            yamlApproach = cfg.approach || '';
+            yamlOutputFormat = cfg.output_format || '';
           } catch {
-            /* fallback to generic prompt */
+            /* use generic strings below */
           }
-          if (!prompt) {
-            const role = `You are a semantic versioning expert. Determine the correct semver bump type (major/minor/patch).`;
-            const task = `Current version: ${currentVersion}. Change summary:
-- Modified files: ${modifiedFiles.length} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
-- Heuristic recommendation: ${bumpType}`;
-            const approach = `Reply with ONLY one word: major, minor, or patch. No explanation.`;
-            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-          }
-          const cacheKey = `step_16|${currentVersion}|${bumpType}|${modifiedFiles.length}`;
+
+          const role = `You are a Version Manager and Semantic Versioning Expert.
+${yamlExpertise}`.trim();
+
+          const task = `Determine the correct semantic version bump type for this project.
+
+**Current version:** ${currentVersion}
+**Heuristic recommendation:** ${bumpType}
+
+**Change statistics:**
+- Total modified files: ${modifiedFiles.length}
+- Documentation files: ${cats.documentation || 0}
+- Test files: ${cats.tests || 0}
+- Code files: ${cats.code || 0}
+- Config files: ${cats.config || 0}
+- Insertions: ${gitCtx.insertions}, Deletions: ${gitCtx.deletions}
+
+**Recent git log:**
+${gitCtx.gitLog}
+
+**Diff statistics:**
+${gitCtx.diffSummary}
+
+**Diff sample (first 80 lines):**
+${gitCtx.diffSample}
+${yamlOutputFormat}`.trim();
+
+          const approach =
+            yamlApproach ||
+            `Review the git diff and change statistics to determine the minimum required semver bump.
+Reply with ONLY one word: major, minor, or patch.`;
+
+          const prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+          const cacheKey = `step_16|${currentVersion}|${bumpType}|${modifiedFiles.length}|${gitCtx.insertions}|${gitCtx.deletions}`;
           const response = await this.aiCache.withCache(prompt, cacheKey, () =>
             this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
           );
-          const aiSuggestion = response?.content?.trim().toLowerCase();
-          if (aiSuggestion && ['major', 'minor', 'patch'].includes(aiSuggestion)) {
-            this.logger.info(`AI refined bump type: ${aiSuggestion} (was: ${bumpType})`);
-            bumpType = aiSuggestion;
+          // Accept first word of response if it is a valid bump type
+          const firstWord =
+            response?.content
+              ?.trim()
+              .toLowerCase()
+              .split(/[\s\n,:]+/)[0] || '';
+          if (firstWord && ['major', 'minor', 'patch'].includes(firstWord)) {
+            this.logger.info(`AI refined bump type: ${firstWord} (was: ${bumpType})`);
+            bumpType = firstWord;
           }
         } catch (err) {
           this.logger.warn(`AI bump type verification failed: ${err.message} — using heuristic`);
@@ -500,17 +710,59 @@ export class Step16VersionUpdate {
       // Phase 4: Update versions in files
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Updating versions in files...`);
       const extraFiles = context.versionConfig?.files || [];
-      const updates = await this.updateVersionsInFiles(
-        modifiedFiles,
-        currentVersion,
-        newVersion,
-        extraFiles
+
+      // Scan entire project for any file still referencing the old version,
+      // so files like README.md or .github/copilot-instructions.md are not missed.
+      const scannedFiles = await this._scanForVersionFiles(currentVersion);
+      this.logger.info(
+        `Version scan found ${scannedFiles.length} file(s) referencing ${currentVersion}`
       );
+
+      const updates = await this.updateVersionsInFiles(modifiedFiles, currentVersion, newVersion, [
+        ...extraFiles,
+        ...scannedFiles,
+      ]);
+
+      // Phase 4b: Update JS version config files (VERSION + BUILD_DATE constants)
+      const configFilesFromContext = context.versionConfig?.configFiles || [];
+      const configFilesFromYaml = await this.loadVersionConfigFilesFromWorkflowConfig();
+      const allConfigFiles = [...new Set([...configFilesFromContext, ...configFilesFromYaml])];
+      if (allConfigFiles.length > 0) {
+        this.logger.info(`${colors.blue}Phase 3b:${colors.reset} Updating version config files...`);
+        const configUpdates = await this.updateVersionConfigFiles(allConfigFiles, newVersion);
+        updates.push(...configUpdates);
+        const configUpdated = configUpdates.filter((u) => u.success).length;
+        if (configUpdated > 0) {
+          this.logger.success(
+            `Updated ${configUpdated} version config file(s) (VERSION + BUILD_DATE)`
+          );
+        }
+      }
 
       const stats = calculateUpdateStats(updates);
       this.logger.success(
         `Updated ${stats.updated} files, skipped ${stats.skipped}, failed ${stats.failed}`
       );
+
+      // Phase 4c: Update service worker cache names
+      const swFilesFromContext = context.versionConfig?.serviceWorkerFiles || [];
+      const swFilesFromYaml = await this.loadServiceWorkerFilesFromWorkflowConfig();
+      const allSwFiles = [...new Set([...swFilesFromContext, ...swFilesFromYaml])];
+      if (allSwFiles.length > 0) {
+        this.logger.info(
+          `${colors.blue}Phase 3c:${colors.reset} Updating service worker cache names...`
+        );
+        const swUpdates = await this.updateServiceWorkerFiles(
+          allSwFiles,
+          currentVersion,
+          newVersion
+        );
+        updates.push(...swUpdates);
+        const swUpdated = swUpdates.filter((u) => u.success).length;
+        if (swUpdated > 0) {
+          this.logger.success(`Updated ${swUpdated} service worker file(s) (CACHE_NAME)`);
+        }
+      }
 
       // Phase 4 (optional): Run project check:version script to verify consistency
       const consistencyCheck = await this.runVersionConsistencyCheck();
@@ -679,6 +931,145 @@ export class Step16VersionUpdate {
   }
 
   /**
+   * Update JS version config files that export VERSION and BUILD_DATE constants.
+   * This handles files like `src/config/version.js` that maintain both the
+   * application version string and the build date as named exports.
+   *
+   * @param {Array<string>} configFilePaths - Paths to version config files (relative or absolute)
+   * @param {string} newVersion - New version string
+   * @param {string} [buildDate] - Build date (YYYY-MM-DD); defaults to today
+   * @returns {Promise<Array<Object>>} - Update results [{ file, success, skipped?, error? }]
+   */
+  async updateVersionConfigFiles(configFilePaths, newVersion, buildDate) {
+    const date = buildDate || new Date().toISOString().slice(0, 10);
+    const results = [];
+
+    for (const filePath of configFilePaths) {
+      const abs = filePath.startsWith('/') ? filePath : `${this.projectRoot}/${filePath}`;
+      const relPath = filePath.startsWith('/')
+        ? filePath.replace(`${this.projectRoot}/`, '')
+        : filePath;
+
+      try {
+        const content = await this.fileOps.readFile(abs);
+        if (!content || !isVersionConfigFile(content)) {
+          results.push({ file: relPath, skipped: true, reason: 'not a version config file' });
+          continue;
+        }
+
+        const updated = replaceVersionConfig(content, newVersion, date);
+        if (updated === content) {
+          results.push({ file: relPath, skipped: true });
+          continue;
+        }
+
+        if (!this.dryRun) {
+          await this.fileOps.writeFile(abs, updated);
+        }
+        results.push({ file: relPath, success: true });
+      } catch (err) {
+        const isNotFound =
+          err.code === 'ENOENT' ||
+          (err.message && err.message.toLowerCase().includes('no such file'));
+        if (isNotFound) {
+          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        } else {
+          results.push({ file: relPath, success: false, error: err.message });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Update CACHE_NAME in service worker files with the new version and today's date.
+   * Handles files listed under `version.service_worker_files` in .workflow-config.yaml
+   * or passed via `context.versionConfig.serviceWorkerFiles`.
+   *
+   * @param {Array<string>} swFilePaths - Paths to service worker files (relative or absolute)
+   * @param {string} oldVersion - Old version string
+   * @param {string} newVersion - New version string
+   * @param {string} [buildDate] - Date in YYYYMMDD format; defaults to today
+   * @returns {Promise<Array<Object>>} - Update results [{ file, success, skipped?, error? }]
+   */
+  async updateServiceWorkerFiles(swFilePaths, oldVersion, newVersion, buildDate) {
+    const date = (buildDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const results = [];
+
+    for (const filePath of swFilePaths) {
+      const abs = filePath.startsWith('/') ? filePath : `${this.projectRoot}/${filePath}`;
+      const relPath = filePath.startsWith('/')
+        ? filePath.replace(`${this.projectRoot}/`, '')
+        : filePath;
+
+      try {
+        const content = await this.fileOps.readFile(abs);
+        if (!content || !isServiceWorkerFile(content)) {
+          results.push({ file: relPath, skipped: true, reason: 'no CACHE_NAME found' });
+          continue;
+        }
+
+        const updated = updateServiceWorkerCacheName(content, oldVersion, newVersion, date);
+        if (updated === content) {
+          results.push({ file: relPath, skipped: true });
+          continue;
+        }
+
+        if (!this.dryRun) {
+          await this.fileOps.writeFile(abs, updated);
+        }
+        results.push({ file: relPath, success: true });
+      } catch (err) {
+        const isNotFound =
+          err.code === 'ENOENT' ||
+          (err.message && err.message.toLowerCase().includes('no such file'));
+        if (isNotFound) {
+          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        } else {
+          results.push({ file: relPath, success: false, error: err.message });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Load service worker files declared in .workflow-config.yaml under version.service_worker_files.
+   * @returns {Promise<Array<string>>} - List of relative file paths
+   */
+  async loadServiceWorkerFilesFromWorkflowConfig() {
+    const configPath = join(this.projectRoot, '.workflow-config.yaml');
+    try {
+      const content = await this.fileOps.readFile(configPath);
+      if (!content) return [];
+      const config = yaml.load(content);
+      const files = config?.version?.service_worker_files;
+      return Array.isArray(files) ? files : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Load version config files declared in .workflow-config.yaml under version.config_files.
+   * @returns {Promise<Array<string>>} - List of relative file paths
+   */
+  async loadVersionConfigFilesFromWorkflowConfig() {
+    const configPath = join(this.projectRoot, '.workflow-config.yaml');
+    try {
+      const content = await this.fileOps.readFile(configPath);
+      if (!content) return [];
+      const config = yaml.load(content);
+      const files = config?.version?.config_files;
+      return Array.isArray(files) ? files : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Run the project's check:version npm script (if present) to validate version consistency.
    * This is a best-effort check; failures are reported as warnings, not step failures.
    * @returns {Promise<Object>} - { ran, exitCode, output }
@@ -713,5 +1104,53 @@ export class Step16VersionUpdate {
         }
       );
     });
+  }
+
+  /**
+   * Scan the entire project for files containing the given version string.
+   * This ensures files like README.md, docs/, .github/ etc. are not missed.
+   * @private
+   * @param {string} version - Version string to search for
+   * @returns {Promise<Array<string>>} Relative file paths containing the version
+   */
+  async _scanForVersionFiles(version) {
+    const root = this.projectRoot;
+    const { readFileSync } = await import('fs');
+    const found = scanFilesContainingVersion(root, version, (p) => readFileSync(p, 'utf-8'));
+    // Return relative paths
+    return found.map((abs) => (abs.startsWith(root + '/') ? abs.slice(root.length + 1) : abs));
+  }
+
+  /**
+   * Gather git context data for AI version bump analysis
+   * @private
+   * @returns {Promise<Object>} { gitLog, diffSummary, diffSample, insertions, deletions }
+   */
+  async _gatherGitContext() {
+    const run = (cmd) =>
+      new Promise((resolve) => {
+        const [bin, ...args] = cmd.split(' ');
+        execFile(bin, args, { cwd: this.projectRoot, timeout: 15_000 }, (err, stdout) => {
+          resolve(err ? '' : stdout.trim());
+        });
+      });
+
+    const [gitLog, diffShortstat, rawDiff] = await Promise.all([
+      run('git log --oneline -n 10'),
+      run('git diff --shortstat HEAD'),
+      run('git diff HEAD'),
+    ]);
+
+    // Parse insertions/deletions from shortstat
+    const insertMatch = diffShortstat.match(/(\d+)\s+insertion/);
+    const deleteMatch = diffShortstat.match(/(\d+)\s+deletion/);
+
+    return {
+      gitLog: gitLog || '(log unavailable)',
+      diffSummary: diffShortstat || '(diff stats unavailable)',
+      diffSample: rawDiff ? rawDiff.split('\n').slice(0, 80).join('\n') : '(diff unavailable)',
+      insertions: insertMatch ? parseInt(insertMatch[1], 10) : 0,
+      deletions: deleteMatch ? parseInt(deleteMatch[1], 10) : 0,
+    };
   }
 }

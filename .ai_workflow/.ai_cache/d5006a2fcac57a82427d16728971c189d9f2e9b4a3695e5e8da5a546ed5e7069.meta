@@ -1,9 +1,0 @@
-{
-  "cacheKey": "d5006a2fcac57a82427d16728971c189d9f2e9b4a3695e5e8da5a546ed5e7069",
-  "timestamp": "2026-02-21T17:56:19.000Z",
-  "timestampEpoch": 1771696579,
-  "promptPreview": "**Role**: You are a semantic versioning expert. Determine the correct semver bump type (major/minor/...",
-  "context": "step_16|1.2.3|patch|2",
-  "responseSize": 541,
-  "prompt": "**Role**: You are a semantic versioning expert. Determine the correct semver bump type (major/minor/patch).\n\n**Task**: Current version: 1.2.3. Change summary:\n- Modified files: 2 (docs: 0, tests: 0, code: 0, config: 0)\n- Heuristic recommendation: patch\n\n**Approach**: Reply with ONLY one word: major, minor, or patch. No explanation."
-}

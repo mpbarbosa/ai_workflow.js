@@ -117,6 +117,16 @@ describe('Step 8: Test Execution', () => {
       expect(result.skipped).toBe(2);
     });
 
+    test('parses real Jest output with failed, skipped, passed order', () => {
+      const output = 'Tests:       3 failed, 19 skipped, 4771 passed, 4793 total';
+      const result = parseJestOutput(output);
+
+      expect(result.total).toBe(4793);
+      expect(result.passed).toBe(4771);
+      expect(result.failed).toBe(3);
+      expect(result.skipped).toBe(19);
+    });
+
     test('handles output without test summary', () => {
       const output = 'No tests found';
       const result = parseJestOutput(output);
@@ -413,6 +423,19 @@ describe('Step 8: Test Execution', () => {
       await executor.execute('/project');
 
       expect(savedTitle).toBe('Test Execution');
+    });
+
+    // [BUG FIX 0f99feb] promptsDir must be forwarded so AI exchanges are saved
+    test('[BUG FIX] promptsDir option is accepted without error', () => {
+      const instance = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        promptsDir: '/tmp/prompts/step_08',
+      });
+      expect(instance).toBeDefined();
+      expect(instance.aiHelper).toBeDefined();
     });
   });
 });

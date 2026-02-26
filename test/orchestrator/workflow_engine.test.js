@@ -388,6 +388,27 @@ describe('Workflow Engine Module - Pure Functions', () => {
       expect(context.config.key).toBe('value');
     });
 
+    test('preserves extra orchestrator fields (e.g. projectType)', () => {
+      const workflow = { name: 'test', version: '1.0.0' };
+      const options = { projectType: 'nodejs_api', workflowDir: '/tmp/wf', auto: true };
+
+      const context = createExecutionContext(workflow, options);
+
+      expect(context.projectType).toBe('nodejs_api');
+      expect(context.workflowDir).toBe('/tmp/wf');
+      expect(context.auto).toBe(true);
+    });
+
+    test('state and results are always fresh objects regardless of options', () => {
+      const workflow = { name: 'test', version: '1.0.0' };
+      const options = { state: { old: true }, results: [{ old: true }] };
+
+      const context = createExecutionContext(workflow, options);
+
+      expect(context.state).toEqual({});
+      expect(context.results).toEqual([]);
+    });
+
     test('uses workflow id or name', () => {
       const workflow1 = { id: 'wf1', name: 'test', version: '1.0.0' };
       const workflow2 = { name: 'test', version: '1.0.0' };
@@ -538,6 +559,47 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       expect(result.summary.failed).toBe(1);
     });
 
+    test('treats step returning {success: false} as failed', async () => {
+      const workflow = {
+        name: 'soft-failure',
+        version: '1.0.0',
+        steps: [
+          {
+            id: 'step1',
+            name: 'Step 1',
+            handler: async () => ({ success: false, error: 'Soft failure' }),
+          },
+          { id: 'step2', name: 'Step 2', critical: false },
+        ],
+      };
+
+      await engine.loadWorkflow(workflow);
+      const result = await engine.executeWorkflow();
+
+      const step1Result = result.results.find((r) => r.stepId === 'step1');
+      expect(step1Result.success).toBe(false);
+    });
+
+    test('treats step returning {success: true} as succeeded', async () => {
+      const workflow = {
+        name: 'explicit-success',
+        version: '1.0.0',
+        steps: [
+          {
+            id: 'step1',
+            name: 'Step 1',
+            handler: async () => ({ success: true, data: 'ok' }),
+          },
+        ],
+      };
+
+      await engine.loadWorkflow(workflow);
+      const result = await engine.executeWorkflow();
+
+      const step1Result = result.results.find((r) => r.stepId === 'step1');
+      expect(step1Result.success).toBe(true);
+    });
+
     test('skips steps with skip:true', async () => {
       const workflow = {
         name: 'with-skip',
@@ -633,6 +695,35 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
 
       expect(startEventCalled).toBe(true);
       expect(completeEventCalled).toBe(true);
+    });
+
+    test('merges contextUpdate from step output into shared context', async () => {
+      const workflow = {
+        name: 'ctx-update',
+        version: '1.0.0',
+        steps: [
+          {
+            id: 'step_00',
+            name: 'Pre-Analysis',
+            handler: async () => ({
+              success: true,
+              analysis: { projectKind: { kind: 'nodejs_api' } },
+              contextUpdate: { projectType: 'nodejs_api' },
+            }),
+          },
+          {
+            id: 'step_01',
+            name: 'Next Step',
+            handler: async (ctx) => ({ success: true, capturedType: ctx.projectType }),
+          },
+        ],
+      };
+
+      await engine.loadWorkflow(workflow);
+      const result = await engine.executeWorkflow();
+
+      // step_01 should have seen projectType written by step_00's contextUpdate
+      expect(result.results[1].output.capturedType).toBe('nodejs_api');
     });
   });
 

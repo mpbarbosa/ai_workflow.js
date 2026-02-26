@@ -546,5 +546,16 @@ docs/guide.md:10: MD022 Blank lines around headers`;
         '✅'
       );
     });
+
+    // [BUG FIX 9a42860] promptsDir must be forwarded to AiHelper
+    test('[BUG FIX] promptsDir option is accepted without error', () => {
+      const step = new Step13MarkdownLint({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        promptsDir: '/tmp/prompts/step_13',
+      });
+      expect(step).toBeDefined();
+      expect(step.aiHelper).toBeDefined();
+    });
   });
 });

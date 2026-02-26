@@ -33,6 +33,17 @@ describe('Step 7: Test Generation', () => {
       expect(patterns).toContain('src/**/*.tsx');
     });
 
+    // [BUG FIX a24b86d] jsx was missing — TypeScript/React projects use .jsx
+    test('[BUG FIX] JavaScript patterns include JSX for React projects', () => {
+      const patterns = getSourcePatterns('javascript');
+      expect(patterns).toContain('src/**/*.jsx');
+    });
+
+    test('[BUG FIX] TypeScript patterns include tsx for React/TypeScript projects', () => {
+      const patterns = getSourcePatterns('typescript');
+      expect(patterns).toContain('src/**/*.tsx');
+    });
+
     test('TypeScript patterns include Vue files', () => {
       const patterns = getSourcePatterns('typescript');
       expect(patterns).toContain('src/**/*.ts');

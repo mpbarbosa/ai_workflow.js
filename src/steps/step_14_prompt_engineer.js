@@ -649,9 +649,25 @@ export class Step14PromptEngineer {
         prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
       }
       const cacheKey = `step_14|${stats.totalPrompts}|${stats.averageScore}`;
-      await this.aiCache.withCache(prompt, cacheKey, () =>
+      const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
         this.aiHelper.executeRequest(prompt, { persona: 'prompt_engineer' })
       );
+      const aiContent = aiResult?.content ?? '';
+      if (aiContent && this.backlogManager) {
+        const statusEmoji =
+          stats.averageScore >= QUALITY_THRESHOLDS.excellent
+            ? '✅'
+            : stats.averageScore >= QUALITY_THRESHOLDS.good
+              ? '✅'
+              : '⚠️';
+        const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+        await this.backlogManager.saveStepSummary(
+          '14',
+          'Prompt_Engineer_Analysis',
+          enrichedReport,
+          statusEmoji
+        );
+      }
     } else {
       this.logger.warn('AI helper not available - skipping AI analysis');
     }

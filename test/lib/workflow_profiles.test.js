@@ -166,9 +166,9 @@ describe('Workflow Profiles', () => {
         expect(selectProfile(counts)).toBe('test_changes');
       });
 
-      test('selects infrastructure when infrastructure files change', () => {
+      test('selects full_validation for infrastructure mixed with code changes', () => {
         const counts = { docs: 1, code: 1, tests: 0, infrastructure: 1, other: 0, total: 3 };
-        expect(selectProfile(counts)).toBe('infrastructure');
+        expect(selectProfile(counts)).toBe('full_validation');
       });
 
       test('selects full_validation for no changes', () => {
@@ -181,8 +181,18 @@ describe('Workflow Profiles', () => {
         expect(selectProfile(counts)).toBe('full_validation');
       });
 
-      test('prioritizes infrastructure over other changes', () => {
+      test('selects full_validation for infrastructure mixed with code/test changes', () => {
         const counts = { docs: 5, code: 3, tests: 2, infrastructure: 1, other: 0, total: 11 };
+        expect(selectProfile(counts)).toBe('full_validation');
+      });
+
+      test('selects infrastructure for infra-only changes', () => {
+        const counts = { docs: 0, code: 0, tests: 0, infrastructure: 4, other: 0, total: 4 };
+        expect(selectProfile(counts)).toBe('infrastructure');
+      });
+
+      test('selects infrastructure for infra and docs changes only', () => {
+        const counts = { docs: 3, code: 0, tests: 0, infrastructure: 2, other: 0, total: 5 };
         expect(selectProfile(counts)).toBe('infrastructure');
       });
     });
@@ -486,6 +496,87 @@ describe('Workflow Profiles', () => {
         manager.reset();
         expect(manager.getCurrentProfile()).toBeNull();
         expect(manager.changeCounts).toBeNull();
+      });
+    });
+
+    // [BUG FIX f5fbf32] refreshWithFiles() — update profile from CommitHistory file list
+    describe('refreshWithFiles', () => {
+      test('[BUG FIX] updates currentProfile based on provided file list', () => {
+        // Provide only doc files → profile should be docs_only
+        manager.refreshWithFiles(['README.md', 'docs/guide.md', 'CHANGELOG.md']);
+        expect(manager.currentProfile).toBe('docs_only');
+        expect(manager.changeCounts).toBeDefined();
+        expect(manager.changeCounts.docs).toBeGreaterThan(0);
+      });
+
+      test('[BUG FIX] updates to code_changes profile for source files', () => {
+        manager.refreshWithFiles(['src/index.js', 'src/utils.js', 'src/api.ts']);
+        expect(manager.currentProfile).toBe('code_changes');
+      });
+
+      test('[BUG FIX] ignores empty array and leaves profile unchanged', () => {
+        manager.setProfile('docs_only');
+        manager.refreshWithFiles([]);
+        // Profile must remain as previously set
+        expect(manager.getCurrentProfile()).toBe('docs_only');
+      });
+
+      test('[BUG FIX] ignores non-array input and leaves profile unchanged', () => {
+        manager.setProfile('code_changes');
+        manager.refreshWithFiles(null);
+        manager.refreshWithFiles(undefined);
+        manager.refreshWithFiles('not-an-array');
+        expect(manager.getCurrentProfile()).toBe('code_changes');
+      });
+
+      test('[BUG FIX] full_validation for mixed code + infra files', () => {
+        manager.refreshWithFiles([
+          'src/api.js',
+          'src/utils.ts',
+          'package.json',
+          '.github/workflows/ci.yml',
+        ]);
+        // infra + code → full_validation
+        expect(manager.currentProfile).toBe('full_validation');
+      });
+    });
+
+    // [BUG FIX f5fbf32] detectProfile handles both git status output formats
+    describe('detectProfile status format disambiguation', () => {
+      test('[BUG FIX] handles flat {modified, added, deleted} string-array git status format', async () => {
+        // The pre-fix code assumed only this format — must still work
+        mockGitAutomation.status.mockResolvedValue({
+          modified: ['src/index.js'],
+          added: [],
+          deleted: [],
+        });
+
+        const profile = await manager.detectProfile();
+        expect(profile).toBe('code_changes');
+      });
+
+      test('[BUG FIX] handles {staged, unstaged, untracked} object-array git status format', async () => {
+        // parseGitStatus() returns objects with .file property — this format was ignored before the fix
+        mockGitAutomation.status.mockResolvedValue({
+          staged: [{ file: 'src/index.js', status: 'M' }],
+          unstaged: [{ file: 'src/utils.js', status: 'M' }],
+          untracked: [],
+        });
+
+        const profile = await manager.detectProfile();
+        expect(profile).toBe('code_changes');
+        expect(manager.changeCounts.code).toBeGreaterThan(0);
+      });
+
+      test('[BUG FIX] staged-format with only doc files yields docs_only profile', async () => {
+        mockGitAutomation.status.mockResolvedValue({
+          staged: [{ file: 'README.md', status: 'M' }],
+          unstaged: [{ file: 'docs/guide.md', status: 'M' }],
+          untracked: [],
+        });
+
+        const profile = await manager.detectProfile();
+        expect(profile).toBe('docs_only');
       });
     });
   });

@@ -1,1 +1,0 @@
-{"content":"All tests passed (10/10), coverage is 85%, and exit code is 0.  \nNo failures to analyze; focus should be on increasing test coverage.  \nRecommendation: Add tests for untested code paths to reach ≥90% coverage.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

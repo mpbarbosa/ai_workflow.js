@@ -135,11 +135,52 @@ export function getConfigType(filePath) {
  * @returns {string} Content with comments removed
  */
 export function stripJsonComments(content) {
-  // Remove block comments /* ... */ then line comments // ...
-  // String literals are not affected because config files rarely embed // or /* in values
-  return content
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')) // preserve line numbers
-    .replace(/\/\/[^\n\r]*/g, '');
+  // State-machine approach: track string literals so /* or // inside them are not treated as comments
+  let result = '';
+  let i = 0;
+  while (i < content.length) {
+    const ch = content[i];
+    // Inside a string literal: copy chars, honour escape sequences
+    if (ch === '"') {
+      result += ch;
+      i++;
+      while (i < content.length) {
+        const sc = content[i];
+        if (sc === '\\') {
+          // Escape sequence — copy both characters
+          result += sc + (content[i + 1] ?? '');
+          i += 2;
+        } else if (sc === '"') {
+          result += sc;
+          i++;
+          break;
+        } else {
+          result += sc;
+          i++;
+        }
+      }
+      continue;
+    }
+    // Block comment /* ... */ — preserve newlines to keep line numbers intact
+    if (ch === '/' && content[i + 1] === '*') {
+      const end = content.indexOf('*/', i + 2);
+      if (end === -1) break; // unterminated — stop
+      const comment = content.slice(i, end + 2);
+      result += comment.replace(/[^\n]/g, ' ');
+      i = end + 2;
+      continue;
+    }
+    // Line comment // ... — drop until end of line
+    if (ch === '/' && content[i + 1] === '/') {
+      const end = content.indexOf('\n', i + 2);
+      if (end === -1) break;
+      i = end; // keep the newline itself
+      continue;
+    }
+    result += ch;
+    i++;
+  }
+  return result;
 }
 
 /**

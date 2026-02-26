@@ -1,6 +1,6 @@
 # Workflow Execution Validation Guide
 
-**Version:** 1.2.0  
+**Version:** 1.4.0  
 **Last Updated:** 2026-02-21  
 **Applies to:** ai_workflow.js v1.2.0+
 
@@ -16,6 +16,7 @@ This guide documents the process for validating a workflow execution run. It was
 4. [Step-by-Step Validation Process](#step-by-step-validation-process)
 5. [Persona Registry](#persona-registry)
 6. [Which Steps Call AI](#which-steps-call-ai)
+   - [Prompt Key Reference](#prompt-key-reference)
 7. [Common Failure Patterns](#common-failure-patterns)
 8. [Validated Run Examples](#validated-run-examples)
 9. [AI Workflow Execution Report](#ai-workflow-execution-report)
@@ -155,34 +156,35 @@ The saved file must contain:
 
 These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any other string used as a persona bypasses role/context configuration.
 
-| Persona ID              | Display Name          | Primary Use                             |
-| ----------------------- | --------------------- | --------------------------------------- |
-| `documentation_expert`  | Documentation Expert  | Step 1 – incremental doc updates        |
-| `technical_writer`      | Technical Writer      | Step 0b – bootstrap documentation       |
-| `test_engineer`         | Test Engineer         | Steps 6, 7 – test review and generation |
-| `code_quality_analyst`  | Code Quality Analyst  | Step 10 – code quality / linting        |
-| `git_specialist`        | Git Specialist        | Step 12 – git operations                |
-| `ux_analyst`            | UX Analyst            | Step 15 – UX/accessibility analysis     |
-| `prompt_engineer`       | Prompt Engineer       | Step 14 – prompt analysis               |
-| `security_expert`       | Security Expert       | Security scanning                       |
-| `performance_engineer`  | Performance Engineer  | Performance analysis                    |
-| `dependency_analyst`    | Dependency Analyst    | Step 9 – dependency validation          |
-| `architecture_reviewer` | Architecture Reviewer | Architecture review                     |
-| `api_designer`          | API Designer          | API documentation                       |
-| `devops_engineer`       | DevOps Engineer       | CI/CD and deployment                    |
-| `accessibility_expert`  | Accessibility Expert  | Accessibility audits                    |
+| Persona ID                | Display Name            | Primary Use                                                                              |
+| ------------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `documentation_expert`    | Documentation Expert    | Step 1 – incremental doc updates                                                         |
+| `technical_writer`        | Technical Writer        | Steps 0b, 13 – bootstrap docs, markdown linting                                          |
+| `test_engineer`           | Test Engineer           | Steps 6, 8 – test review and execution                                                   |
+| `code_quality_analyst`    | Code Quality Analyst    | Step 2 – consistency analysis                                                            |
+| `git_specialist`          | Git Specialist          | Step 12 – git commit message generation                                                  |
+| `ux_analyst`              | UX Analyst              | Step 15 – UX/accessibility analysis                                                      |
+| `prompt_engineer`         | Prompt Engineer         | Step 14 – prompt analysis                                                                |
+| `security_expert`         | Security Expert         | Step 4 – config validation / security scanning                                           |
+| `performance_engineer`    | Performance Engineer    | Performance analysis _(no workflow step)_                                                |
+| `dependency_analyst`      | Dependency Analyst      | Step 9 – dependency validation                                                           |
+| `architecture_reviewer`   | Architecture Reviewer   | Steps 5, 10 – directory structure, code quality                                          |
+| `api_designer`            | API Designer            | API documentation _(no workflow step)_                                                   |
+| `devops_engineer`         | DevOps Engineer         | Steps 3, 16 – script refs, version update                                                |
+| `accessibility_expert`    | Accessibility Expert    | Accessibility audits _(no workflow step)_                                                |
+| `aws_serverless_engineer` | AWS Serverless Engineer | Step 11.6 – AWS serverless AI review (FULL stage, `aws_lbs_backend_setup` projects only) |
 
 ### Common Mismatches Found
 
-| Config / Step uses         | Should be               |
-| -------------------------- | ----------------------- |
-| `documentation_analyst`    | `documentation_expert`  |
-| `documentation_specialist` | `documentation_expert`  |
-| `requirements_engineer`    | `documentation_expert`  |
-| `consistency_checker`      | `architecture_reviewer` |
-| `code_reviewer`            | `code_quality_analyst`  |
-| `ux_designer`              | `ux_analyst`            |
-| `version_manager`          | `devops_engineer`       |
+| Config / Step uses         | Should be              |
+| -------------------------- | ---------------------- |
+| `documentation_analyst`    | `documentation_expert` |
+| `documentation_specialist` | `documentation_expert` |
+| `requirements_engineer`    | `documentation_expert` |
+| `consistency_checker`      | `code_quality_analyst` |
+| `code_reviewer`            | `code_quality_analyst` |
+| `ux_designer`              | `ux_analyst`           |
+| `version_manager`          | `devops_engineer`      |
 
 ---
 
@@ -190,19 +192,55 @@ These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any 
 
 Not every step makes an AI call on every run. The following table documents when AI is expected to be invoked and under what conditions it is skipped. Steps are listed in execution order; **step_12 always runs last**.
 
-| Step    | AI Persona              | When AI is triggered                                                                           | Common skip reasons           |
-| ------- | ----------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------- |
-| step_0b | `technical_writer`      | Project has < threshold doc files                                                              | Sufficient docs already exist |
-| step_01 | `documentation_expert`  | Changed doc or source files detected                                                           | No changed files in scope     |
-| step_02 | `architecture_reviewer` | Inconsistencies found (future)                                                                 | No issues detected            |
-| step_06 | `test_engineer`         | Test files exist                                                                               | No test files found           |
-| step_07 | `test_engineer`         | Source files exist with no tests                                                               | No source files found         |
-| step_10 | `code_quality_analyst`  | Source files exist with linter configured                                                      | No source files / no linter   |
-| step_14 | `prompt_engineer`       | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind     |
-| step_15 | `ux_analyst`            | Project has UI components                                                                      | Project kind has no UI        |
-| step_12 | _(none)_                | **Always last** — stages, commits and pushes all modifications from all prior steps            | Non-git repository            |
+| Step      | AI Persona                | Prompt Key                                | When AI is triggered                                                                           | Common skip reasons                     |
+| --------- | ------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
+| step_0b   | `technical_writer`        | `technical_writer_prompt`                 | Project has < threshold doc files                                                              | Sufficient docs already exist           |
+| step_01   | `documentation_expert`    | `doc_analysis_prompt`                     | Changed doc files detected                                                                     | No changed doc files in scope           |
+| step_02   | `code_quality_analyst`    | `step2_consistency_prompt`                | Source / doc files analyzed                                                                    | No issues detected                      |
+| step_03   | `devops_engineer`         | `step3_script_refs_prompt`                | Shell script files found                                                                       | No script files in scope                |
+| step_04   | `security_expert`         | `configuration_specialist_prompt`         | Config files found                                                                             | No config files found                   |
+| step_05   | `architecture_reviewer`   | `step4_directory_prompt`                  | Directory structure analyzed                                                                   | N/A (always runs analysis)              |
+| step_06   | `test_engineer`           | `step5_test_review_prompt`                | Test files exist                                                                               | No test files found                     |
+| step_08   | `test_engineer`           | `step7_test_exec_prompt`                  | Test execution ran                                                                             | No test command configured / no tests   |
+| step_09   | `dependency_analyst`      | `step8_dependencies_prompt`               | Dependency files exist                                                                         | No dependency manager found             |
+| step_10   | `architecture_reviewer`   | `step9_code_quality_prompt`               | Source files exist with linter configured                                                      | No source files / no linter             |
+| step_11_6 | `aws_serverless_engineer` | `buildAwsServerlessPrompt` (programmatic) | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
+| step_12   | `git_specialist`          | `step11_git_commit_prompt`                | Changes staged for commit                                                                      | No changes to commit / non-git repo     |
+| step_13   | `technical_writer`        | `markdown_lint_prompt`                    | Markdown files found                                                                           | No markdown files / enumeration failed  |
+| step_14   | `prompt_engineer`         | `step13_prompt_engineer_prompt`           | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind               |
+| step_15   | `ux_analyst`              | `ui_ux_designer_prompt`                   | Project has UI components                                                                      | Project kind has no UI                  |
+| step_16   | `devops_engineer`         | `version_manager_prompt`                  | Source files analyzed                                                                          | N/A (always runs analysis)              |
 
-All other steps (step_00, step_02_5, step_03, step_04, step_05, step_08, step_09, step_11, step_13, step_16, step_17, step_0f) do not make AI calls.
+**Steps with no AI calls** (by design):
+
+| Step      | Name               | Reason                                     |
+| --------- | ------------------ | ------------------------------------------ |
+| step_00   | Pre-Analysis       | Structural project detection only          |
+| step_02_5 | Doc Optimization   | Heuristics-based analysis                  |
+| step_07   | Test Generation    | Runs test commands directly                |
+| step_11   | Context Management | File aggregation                           |
+| step_11_5 | AWS LBS Validation | Structural file/schema checks only (no AI) |
+| step_0f   | Commit Artifacts   | Git operations                             |
+| step_17   | Workflow Summary   | Aggregation of step results                |
+
+### Prompt Key Reference
+
+Each AI-calling step loads its prompt at runtime from `.workflow_core/config/ai_helpers.yaml` using `buildYamlStepPrompt()` from `src/lib/ai_prompt_builder.js`. The **Prompt Key** column above is the top-level YAML key passed to that function.
+
+Five steps use dedicated programmatic builders instead of YAML loading:
+
+| Step      | Builder Function             | Source                 |
+| --------- | ---------------------------- | ---------------------- |
+| step_01   | `buildDocAnalysisPrompt`     | `ai_prompt_builder.js` |
+| step_02   | `buildConsistencyPrompt`     | `ai_prompt_builder.js` |
+| step_06   | `buildTestReviewPrompt`      | `ai_prompt_builder.js` |
+| step_0b   | `buildTechnicalWriterPrompt` | `ai_prompt_builder.js` |
+| step_10   | `buildCodeQualityPrompt`     | `ai_prompt_builder.js` |
+| step_11_6 | `buildAwsServerlessPrompt`   | `ai_prompt_builder.js` |
+
+All programmatic builders fall back to a hardcoded generic prompt if `ai_helpers.yaml` is unavailable.
+
+> **Note on key numbering:** `step4_directory_prompt` is named after the original shell workflow "Step 4" (directory validation). In the JS implementation directory validation runs as **step_05**; JS **step_04** is Configuration Validation (`configuration_specialist_prompt`). For the full prompt key ↔ step mapping table, see [`docs/prompts_steps.md`](../prompts_steps.md).
 
 ---
 
@@ -397,6 +435,36 @@ But `git log --oneline origin/main..HEAD` confirms commits were never pushed.
 
 ---
 
+### Pattern 10: Step class implemented but never registered — step silently absent from all runs
+
+**Symptom:**  
+A step's backlog `.md` file is completely absent from every workflow run, even for projects where it should apply (e.g., no `step_11_5.md` in any `aws_lbs_backend_setup` run).
+
+**Root cause:**  
+The step class was fully implemented in `src/steps/` but never imported or registered in `main_orchestrator.js`. The `getStepsForStage()` FULL array did not include it, so `buildExecutionPlan()` never schedules it. No error is raised — it simply does not exist in the plan.
+
+**Confirmed case — `onde_estou_backend/workflow_20260221_183838`:**  
+Project kind: `aws_lbs_backend_setup`. Backlog folder contained step_00 through step_16 but no `step_11_5.md`. `Step11_5AwsLbsValidator` was a complete implementation but had no import or step definition in `main_orchestrator.js`.
+
+**Fix applied (2026-02-21):**
+
+- Added import for `Step11_5AwsLbsValidator` in `main_orchestrator.js`.
+- Added step definition `{ id: 'step_11_5', ..., dependencies: ['step_11'] }`.
+- Added `'step_11_5'` to FULL stage in `getStepsForStage()`.
+- Created `step_11_6_aws_serverless_review.js` (new AI step) depending on `step_11_5`, also registered.
+
+**How to detect:**  
+Search for step class names in `src/steps/` vs. imports in `main_orchestrator.js`:
+
+```bash
+grep -h "^export class" src/steps/*.js | sed 's/export class //' | sed 's/ {.*//'
+grep "from '../steps/" src/orchestrator/main_orchestrator.js | sed "s/.*\///;s/\.js.*//"
+```
+
+Any class not matching an import is unregistered.
+
+---
+
 ## Validated Run Examples
 
 This section records real workflow executions and their step 12 (Git Finalization) outcomes, to serve as a reference baseline for future validations.
@@ -583,6 +651,45 @@ Local is 1 commit(s) ahead of remote
 When `ai_workflow_core` (or any other `configuration_library` project) is processed, step 14 will attempt to load `configPath` (default: `.workflow_core/config/ai_helpers.yaml`). If the file exists, prompts are analyzed; if not, the step gracefully skips with reason `configuration not found`.
 
 **"Which Steps Call AI" table updated** to reflect `configuration_library` as a trigger condition.
+
+---
+
+### Run: `workflow_20260221_183838` — unregistered step_11_5 found; step_11_5 + step_11_6 added (2026-02-21)
+
+**Project:** `onde_estou_backend` (aws_lbs_backend_setup)  
+**Stage:** FULL | **Triggered by:** Manual analysis of missing backlog entries
+
+#### Finding
+
+Backlog folder `.ai_workflow/backlog/workflow_20260221_183838/` contained entries for step_00 through step_16 but **no `step_11_5.md`**, despite the project kind being `aws_lbs_backend_setup` — the exact kind that step should gate on.
+
+#### Root cause
+
+`Step11_5AwsLbsValidator` was a complete implementation in `src/steps/step_11_5_aws_lbs_validation.js` (structural file/schema checks for LBS deployments) but had **never been imported or registered** in `main_orchestrator.js`. It was absent from the FULL stage in `getStepsForStage()`. No error surfaces; the step simply does not appear in the execution plan.
+
+Additionally, the `aws_serverless_engineer` AI persona defined in `ai_personas.js` was **orphaned** — referenced by no workflow step.
+
+#### Fixes applied (all in same session)
+
+| Change                                                              | File                                                 |
+| ------------------------------------------------------------------- | ---------------------------------------------------- |
+| Added import `Step11_5AwsLbsValidator`                              | `src/orchestrator/main_orchestrator.js`              |
+| Added step definition `step_11_5` (depends on `step_11`)            | `src/orchestrator/main_orchestrator.js`              |
+| Added `'step_11_5'` to FULL stage                                   | `src/orchestrator/main_orchestrator.js`              |
+| Added `buildAwsServerlessPrompt()` pure function                    | `src/lib/ai_prompt_builder.js`                       |
+| Created `step_11_6_aws_serverless_review.js` (new AI step)          | `src/steps/step_11_6_aws_serverless_review.js`       |
+| Added import + step definition `step_11_6` (depends on `step_11_5`) | `src/orchestrator/main_orchestrator.js`              |
+| Added 32 tests for step_11_6 (all passing ✅)                       | `test/steps/step_11_6_aws_serverless_review.test.js` |
+
+#### Post-fix FULL stage order (relevant slice)
+
+```
+step_11 → step_11_5 → step_11_6 → step_13 → step_14 → … → step_0f → step_12
+```
+
+Both steps skip silently for any project kind other than `aws_lbs_backend_setup`.
+
+> This run documented as **Pattern 10** in the Common Failure Patterns section above.
 
 ---
 

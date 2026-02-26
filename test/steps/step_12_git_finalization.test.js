@@ -587,5 +587,73 @@ describe('Step 12: Git Finalization', () => {
       expect(calls.some((cmd) => cmd.includes('git push origin'))).toBe(true);
       expect(result.pushed).toBe(true);
     });
+
+    // [BUG FIX 9a42860] promptsDir must be forwarded to AiHelper
+    test('[BUG FIX] promptsDir option is accepted without error', () => {
+      const step = new Step12GitFinalization({
+        promptsDir: '/tmp/prompts/step_12',
+      });
+      expect(step).toBeDefined();
+      expect(step.aiHelper).toBeDefined();
+    });
+
+    // Automated commits must skip pre-commit hooks so lint-staged does not abort the commit
+    test('git commit uses --no-verify to skip pre-commit hooks', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: '' }); // git push
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      await step.execute();
+
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      const commitCall = calls.find((cmd) => cmd.includes('git commit'));
+      expect(commitCall).toBeDefined();
+      expect(commitCall).toContain('--no-verify');
+    });
+
+    // "nothing to commit" must be treated as success, not an error
+    test('handles "nothing to commit" from git gracefully', async () => {
+      const nothingToCommitError = Object.assign(
+        new Error('Command failed: git commit --no-verify -F ...'),
+        { stderr: 'nothing to commit, working tree clean', exitCode: 1 }
+      );
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockRejectedValueOnce(nothingToCommitError); // git commit fails
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      const result = await step.execute();
+      expect(result.success).toBe(true);
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
   });
 });

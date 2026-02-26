@@ -38,10 +38,11 @@ export function parseGitStatus(output) {
     return { staged: [], unstaged: [], untracked: [] };
   }
 
-  const lines = output
-    .trim()
-    .split('\n')
-    .filter((line) => line.length > 0);
+  // Do NOT call .trim() on the full output — git status lines start with meaningful
+  // spaces (e.g. " M file" means unstaged-modified), and trimming the output would
+  // strip that leading space from the very first line, shifting the XY status columns
+  // and producing corrupt file paths (e.g. "README.md" → "EADME.md").
+  const lines = output.split(/\r?\n/).filter((line) => line.length > 0);
   const staged = [];
   const unstaged = [];
   const untracked = [];
@@ -450,6 +451,100 @@ export function validateCommitMessage(message) {
 }
 
 /**
+ * Parse `git diff --name-status` output into file objects.
+ * Returns the same `{ file, status }` shape used by parseGitStatus().
+ *
+ * @pure
+ * @param {string} output - Output of `git diff --name-status <hash>..HEAD`
+ * @returns {Array<Object>} Array of { file, status } objects
+ * @example
+ * parseGitDiffNameStatus('M\tsrc/app.js\nA\tsrc/new.js\nD\tsrc/old.js')
+ * // => [
+ * //   { file: 'src/app.js', status: 'modified' },
+ * //   { file: 'src/new.js', status: 'added' },
+ * //   { file: 'src/old.js', status: 'deleted' }
+ * // ]
+ */
+export function parseGitDiffNameStatus(output) {
+  if (!output || typeof output !== 'string') {
+    return [];
+  }
+
+  const files = [];
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    // Format: <status>\t<file>  or  R<score>\t<old>\t<new>
+    const parts = line.split('\t');
+    if (parts.length < 2) continue;
+
+    const code = parts[0].charAt(0); // M, A, D, R, C, U, T
+    // For renames/copies the new path is the last column
+    const filePath = parts.length >= 3 ? parts[parts.length - 1] : parts[1];
+
+    if (!filePath) continue;
+
+    files.push({
+      file: filePath.trim(),
+      status: categorizeGitStatus(code),
+    });
+  }
+
+  return files;
+}
+
+/**
+ * Parse `git log --name-status` output (with empty --pretty=format:) into a
+ * deduplicated list of file objects.  Used to collect files changed in the
+ * last N commits when no prior run commit is available.
+ *
+ * @pure
+ * @param {string} output - Output of `git log -N --name-status --pretty=format:`
+ * @returns {Array<Object>} Deduplicated array of { file, status } objects
+ * @example
+ * parseGitLogNameStatus('M\tsrc/a.js\n\nA\tsrc/b.js\nM\tsrc/a.js')
+ * // => [{ file: 'src/a.js', status: 'modified' }, { file: 'src/b.js', status: 'added' }]
+ */
+export function parseGitLogNameStatus(output) {
+  if (!output || typeof output !== 'string') {
+    return [];
+  }
+
+  const seen = new Set();
+  const files = [];
+  const lines = output
+    .trim()
+    .split('\n')
+    .filter((line) => line.length > 0);
+
+  for (const line of lines) {
+    if (!line.includes('\t')) continue; // skip commit/blank lines
+
+    const parts = line.split('\t');
+    if (parts.length < 2) continue;
+
+    const code = parts[0].charAt(0);
+    const filePath = parts.length >= 3 ? parts[parts.length - 1] : parts[1];
+
+    if (!filePath) continue;
+
+    const key = filePath.trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      files.push({
+        file: key,
+        status: categorizeGitStatus(code),
+      });
+    }
+  }
+
+  return files;
+}
+
+/**
  * Build status summary from parsed status
  * @pure
  * @param {Object} parsedStatus - Parsed git status
@@ -530,6 +625,16 @@ export class GitAutomation {
   }
 
   /**
+   * Check if a path is a git repository
+   * @param {string} [repoPath] - Path to check (defaults to this.repoPath)
+   * @returns {Promise<boolean>} True if path is a git repository
+   */
+  async isRepository(repoPath = this.repoPath) {
+    const targetPath = repoPath || this.repoPath;
+    return existsSync(join(targetPath, '.git'));
+  }
+
+  /**
    * Execute git command
    * @private
    * @param {string} command - Git command to execute
@@ -550,6 +655,17 @@ export class GitAutomation {
         stderr: error.stderr,
       });
     }
+  }
+
+  /**
+   * Execute an arbitrary git command with the given argument list
+   * @param {Array<string>} args - Git arguments (not including 'git')
+   * @returns {Promise<{stdout: string}>} Command output
+   */
+  async executeGitCommand(args) {
+    const command = `git ${args.join(' ')}`;
+    const stdout = this._exec(command);
+    return { stdout };
   }
 
   /**
@@ -761,8 +877,8 @@ export class GitAutomation {
     try {
       const statusResult = await this.status();
       const files = [
-        ...statusResult.staged.map((f) => f.file),
-        ...statusResult.unstaged.map((f) => f.file),
+        ...statusResult.staged.filter((f) => f.status !== 'deleted').map((f) => f.file),
+        ...statusResult.unstaged.filter((f) => f.status !== 'deleted').map((f) => f.file),
         ...statusResult.untracked.map((f) => f.file),
       ];
       return [...new Set(files)]; // Remove duplicates
@@ -781,6 +897,48 @@ export class GitAutomation {
       return result.success ? result.stdout : '';
     } catch {
       return '';
+    }
+  }
+
+  /**
+   * Get the current HEAD commit hash (full 40-character SHA).
+   * @returns {string|null} HEAD commit hash, or null if not in a git repo / no commits
+   */
+  getCurrentHead() {
+    try {
+      return this._exec('git rev-parse HEAD').trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get all files changed between `fromHash` and HEAD as file objects.
+   * Returns the same `{ file, status }` shape produced by `status()`.
+   *
+   * @param {string} fromHash - Starting commit hash (exclusive)
+   * @returns {Array<Object>} Array of { file, status } objects
+   * @throws {ExecutionError} If the hash does not exist in the repository
+   */
+  getChangedFilesSince(fromHash) {
+    const output = this._exec(`git diff --name-status ${fromHash}..HEAD`);
+    return parseGitDiffNameStatus(output);
+  }
+
+  /**
+   * Get a deduplicated list of files touched in the last `n` commits.
+   * Used as the fallback when no prior run commit hash is available.
+   *
+   * @param {number} [n=30] - Number of commits to inspect
+   * @returns {Array<Object>} Deduplicated array of { file, status } objects
+   */
+  getLastNCommitsFiles(n = 30) {
+    const count = typeof n === 'number' && n > 0 ? Math.floor(n) : 30;
+    try {
+      const output = this._exec(`git log -${count} --name-status --pretty=format:`);
+      return parseGitLogNameStatus(output);
+    } catch {
+      return [];
     }
   }
 }

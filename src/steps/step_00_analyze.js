@@ -351,14 +351,30 @@ export class Step0Analyzer {
    * @param {string} projectRoot - Project root directory
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot) {
+  async execute(projectRoot, context = {}) {
     try {
       logger.step('Step 0: Pre-Analysis - Analyzing Recent Changes');
 
-      // Get git state
+      // Get git working-tree state
       const commitsAhead = await this.gitOps.getCommitsAhead();
-      const modifiedFiles = await this.gitOps.getTotalChanges();
-      const modifiedFilesList = await this.gitOps.getModifiedFiles();
+      const totalChanges = await this.gitOps.getTotalChanges();
+      let modifiedFilesList = await this.gitOps.getModifiedFiles();
+      let modifiedFiles = totalChanges;
+
+      // When the working tree is clean AND the orchestrator already computed a
+      // commit-history-aware file list (files changed since the previous run),
+      // use that list so downstream steps see all real changes even after a push.
+      if (
+        totalChanges === 0 &&
+        Array.isArray(context.modifiedFiles) &&
+        context.modifiedFiles.length > 0
+      ) {
+        modifiedFilesList = context.modifiedFiles;
+        modifiedFiles = modifiedFilesList.length;
+        logger.info(
+          `Working tree is clean — using ${modifiedFiles} file(s) from commit history since last run`
+        );
+      }
 
       logger.info(`Commits ahead of remote: ${commitsAhead}`);
       logger.info(`Modified files: ${modifiedFiles}`);

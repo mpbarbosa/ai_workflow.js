@@ -1,1 +1,0 @@
-{"content":"No documentation files found in /home/mpb/Documents/GitHub/ai_workflow.js/.test-e2e/step-02-1771697376724-d437tw2t0dr; directory does not exist.  \nPlease verify the path or provide a valid directory containing documentation for analysis.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

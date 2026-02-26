@@ -1,1 +1,0 @@
-{"content":"The directory /home/mpb/Documents/GitHub/ai_workflow.js/.test-e2e/step-02-1771697250957-m9mimuqbpei does not exist, so documentation files cannot be analyzed. Please verify the path and ensure the directory is present before proceeding.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

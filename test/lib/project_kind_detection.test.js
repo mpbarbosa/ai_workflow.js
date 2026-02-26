@@ -95,6 +95,48 @@ describe('Project Kind Detection - Pure Functions', () => {
       expect(result.kind).toBeNull();
       expect(result.confidence).toBe(0);
     });
+
+    it('should detect Location-Based Service from geolocation keywords', () => {
+      const packageJson = {
+        name: 'guia_turistico',
+        keywords: ['tourist-guide', 'geolocation', 'brazil', 'spa'],
+        dependencies: { vite: '^5.0.0' },
+        devDependencies: { jest: '^29.0.0' },
+      };
+
+      const result = analyzePackageJson(packageJson);
+
+      expect(result.kind).toBe('location_based_service');
+      expect(result.confidence).toBeGreaterThanOrEqual(80);
+      expect(result.indicators).toContain('lbs_keyword');
+    });
+
+    it('should detect Location-Based Service from LBS dependency (guia.js)', () => {
+      const packageJson = {
+        name: 'my-lbs-app',
+        dependencies: { 'guia.js': 'github:mpbarbosa/guia_js#v0.6.0' },
+        devDependencies: { jest: '^29.0.0' },
+      };
+
+      const result = analyzePackageJson(packageJson);
+
+      expect(result.kind).toBe('location_based_service');
+      expect(result.confidence).toBeGreaterThanOrEqual(80);
+      expect(result.indicators).toContain('lbs_dependency');
+    });
+
+    it('should detect Location-Based Service from LBS dependency (leaflet)', () => {
+      const packageJson = {
+        name: 'my-map-app',
+        dependencies: { leaflet: '^1.9.0' },
+      };
+
+      const result = analyzePackageJson(packageJson);
+
+      expect(result.kind).toBe('location_based_service');
+      expect(result.confidence).toBeGreaterThanOrEqual(80);
+      expect(result.indicators).toContain('lbs_dependency');
+    });
   });
 
   describe('analyzeRequirementsTxt', () => {
@@ -216,6 +258,31 @@ describe('Project Kind Detection - Pure Functions', () => {
 
       expect(result.kind).toBeNull();
       expect(result.confidence).toBe(0);
+    });
+
+    it('should detect Location-Based Service from geolocation-specific filenames', () => {
+      const files = [
+        'GeolocationService.js',
+        'GeoPosition.js',
+        'ReverseGeocoder.js',
+        'PositionManager.js',
+        'app.js',
+        'index.html',
+      ];
+
+      const result = detectByFilePatterns(files);
+
+      expect(result.kind).toBe('location_based_service');
+      expect(result.confidence).toBeGreaterThanOrEqual(75);
+      expect(result.indicators).toContain('lbs_geo_files');
+    });
+
+    it('should not detect LBS from a single geolocation filename (threshold is 2)', () => {
+      const files = ['GeolocationService.js', 'app.js', 'index.html', 'styles.css'];
+
+      const result = detectByFilePatterns(files);
+
+      expect(result.kind).not.toBe('location_based_service');
     });
   });
 

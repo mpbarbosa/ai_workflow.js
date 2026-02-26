@@ -135,16 +135,20 @@ export function parseJestOutput(output) {
     skipped: 0,
   };
 
-  // Extract total tests
-  const totalMatch = output.match(
-    /Tests:\s+(?:(\d+)\s+skipped,\s+)?(\d+)\s+passed(?:,\s+(\d+)\s+failed)?(?:,\s+)?(\d+)\s+total/i
-  );
-  if (totalMatch) {
-    results.skipped = parseInt(totalMatch[1] || '0', 10);
-    results.passed = parseInt(totalMatch[2] || '0', 10);
-    results.failed = parseInt(totalMatch[3] || '0', 10);
-    results.total = parseInt(totalMatch[4] || '0', 10);
-  }
+  // Find the "Tests:" summary line (Jest order varies: failed, skipped, passed, total)
+  const testsLine = output.match(/^Tests:\s+.+$/m);
+  if (!testsLine) return results;
+
+  const line = testsLine[0];
+  const passedMatch = line.match(/(\d+)\s+passed/);
+  const failedMatch = line.match(/(\d+)\s+failed/);
+  const skippedMatch = line.match(/(\d+)\s+skipped/);
+  const totalMatch = line.match(/(\d+)\s+total/);
+
+  if (passedMatch) results.passed = parseInt(passedMatch[1], 10);
+  if (failedMatch) results.failed = parseInt(failedMatch[1], 10);
+  if (skippedMatch) results.skipped = parseInt(skippedMatch[1], 10);
+  if (totalMatch) results.total = parseInt(totalMatch[1], 10);
 
   return results;
 }

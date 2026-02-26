@@ -1,1 +1,0 @@
-{"content":"The /project directory does not exist, so documentation files cannot be analyzed. Please specify a valid directory containing documentation for consistency analysis.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

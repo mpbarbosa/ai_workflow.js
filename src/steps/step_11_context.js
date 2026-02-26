@@ -196,10 +196,7 @@ export function formatContextReport(context) {
     duration = 0,
   } = context;
 
-  let report = '# Workflow Context Analysis\n\n';
-
-  // Workflow Completion
-  report += '## Workflow Completion\n\n';
+  let report = '## Workflow Completion\n\n';
   report += `- **Completion Rate**: ${completionRate}%\n`;
   report += `- **Steps Completed**: ${completedSteps}/${totalSteps}\n`;
 
@@ -305,19 +302,27 @@ export class Step11ContextAnalyzer {
 
   /**
    * Execute Step 11 context analysis
-   * @param {Object} context - Workflow context (includes projectRoot, stepResults, etc.)
+   * @param {Object} context - Workflow context (includes projectRoot, results, startTime, etc.)
    * @returns {Promise<Object>} Analysis result
    */
   async execute(context = {}) {
-    const { projectRoot, stepResults = [], ...workflowContext } = context;
+    // The workflow engine accumulates step results in context.results (not context.stepResults).
+    // context.startTime is set by createExecutionContext at workflow start.
+    const {
+      projectRoot,
+      results: stepResults = [],
+      startTime: workflowStartTime,
+      ...workflowContext
+    } = context;
     try {
       logger.step('Step 11: Context Analysis');
 
       // Phase 1: Analyze workflow completion
+      // Engine result objects use { success: true/false, skipped: true/false }, not status:'completed'
       const completedSteps =
         typeof workflowContext.completedSteps === 'number'
           ? workflowContext.completedSteps
-          : stepResults.filter((r) => r && r.status === 'completed').length;
+          : stepResults.filter((r) => r && r.success === true && !r.skipped).length;
       const totalSteps =
         typeof workflowContext.totalSteps === 'number'
           ? workflowContext.totalSteps
@@ -349,14 +354,15 @@ export class Step11ContextAnalyzer {
 
       logger.info(`Change impact: ${changeImpact} (score: ${impactScore})`);
 
-      // Phase 4: Aggregate issues
+      // Phase 4: Aggregate issues from all prior step results
       const issues = aggregateIssues(stepResults);
 
       logger.info(`Issues: ${issues.total} total, ${issues.critical} critical`);
 
-      // Phase 5: Calculate workflow metrics
+      // Phase 5: Calculate workflow duration from the workflow's own startTime
       const endTime = Date.now();
-      const duration = calculateDuration(this.startTime, endTime);
+      const effectiveStartTime = workflowStartTime || this.startTime;
+      const duration = calculateDuration(effectiveStartTime, endTime);
 
       logger.info(`Workflow duration: ${formatDuration(duration)}`);
 

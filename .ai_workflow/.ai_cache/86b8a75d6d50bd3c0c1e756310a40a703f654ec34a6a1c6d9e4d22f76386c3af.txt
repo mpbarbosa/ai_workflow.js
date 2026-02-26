@@ -1,1 +1,0 @@
-{"content":"All 10 tests passed with no failures, but coverage is not reported. Recommendations: Enable code coverage reporting to assess test completeness, increase test count for broader coverage, and review test duration (4ms) to ensure meaningful assertions.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

@@ -199,7 +199,7 @@ describe('Step 11: Context Analysis', () => {
 
       const report = formatContextReport(context);
 
-      expect(report).toContain('Workflow Context Analysis');
+      expect(report).toContain('Workflow Completion');
       expect(report).toContain('100%');
       expect(report).toContain('Excellent');
       expect(report).toContain('LOW');
@@ -294,7 +294,7 @@ describe('Step 11: Context Analysis', () => {
         projectRoot: '/project',
         completedSteps: 10,
         totalSteps: 11,
-        stepResults: [{ success: true }],
+        results: [{ success: true }],
       };
 
       const result = await analyzer.execute(workflowContext);
@@ -318,7 +318,7 @@ describe('Step 11: Context Analysis', () => {
         projectRoot: '/project',
         completedSteps: 8,
         totalSteps: 10,
-        stepResults: [],
+        results: [],
       };
 
       const result = await analyzer.execute(workflowContext);
@@ -340,7 +340,7 @@ describe('Step 11: Context Analysis', () => {
         projectRoot: '/project',
         completedSteps: 9,
         totalSteps: 10,
-        stepResults: [],
+        results: [],
       };
 
       const result = await analyzer.execute(workflowContext);
@@ -354,7 +354,7 @@ describe('Step 11: Context Analysis', () => {
         projectRoot: '/project',
         completedSteps: 8,
         totalSteps: 10,
-        stepResults: [
+        results: [
           { success: false },
           { success: false },
           { success: true, warnings: ['warning'] },
@@ -375,7 +375,7 @@ describe('Step 11: Context Analysis', () => {
         projectRoot: '/project',
         completedSteps: 10,
         totalSteps: 10,
-        stepResults: [],
+        results: [],
       };
 
       const result = await analyzer.execute(workflowContext);

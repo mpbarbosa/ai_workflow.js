@@ -1,1 +1,0 @@
-{"content":"No documentation files found in the specified directory: `.test-e2e/step-02-artefacts-1771699326907-btmxupfj746`. Please verify the path or ensure artefacts are present before analysis.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

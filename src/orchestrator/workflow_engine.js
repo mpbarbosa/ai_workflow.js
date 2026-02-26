@@ -344,6 +344,7 @@ export function validateStepDefinition(step) {
  */
 export function createExecutionContext(workflow, options = {}) {
   return {
+    ...options, // preserve extra orchestrator fields (projectType, workflowDir, auto, …)
     workflowId: workflow.id || workflow.name,
     workflowName: workflow.name,
     workflowVersion: workflow.version,
@@ -352,8 +353,8 @@ export function createExecutionContext(workflow, options = {}) {
     projectRoot: options.projectRoot || process.cwd(),
     environment: options.environment || 'development',
     config: options.config || {},
-    state: {},
-    results: [],
+    state: {}, // always fresh
+    results: [], // always fresh
   };
 }
 
@@ -503,6 +504,11 @@ export class WorkflowEngine extends EventEmitter {
         // Update context state
         this.context.results.push(result);
 
+        // Propagate any context fields the step wants to share with later steps
+        if (result.output?.contextUpdate) {
+          Object.assign(this.context, result.output.contextUpdate);
+        }
+
         // Check if workflow was aborted (e.g. via Ctrl+C)
         if (this.aborted) {
           logger.warn('Workflow aborted by user.');
@@ -615,7 +621,7 @@ export class WorkflowEngine extends EventEmitter {
         const result = {
           stepId: step.id,
           stepName: step.name,
-          success: true,
+          success: output?.success !== false,
           output,
           duration,
         };

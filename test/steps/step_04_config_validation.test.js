@@ -79,6 +79,8 @@ describe('Step 4: Configuration Validation', () => {
   // ========================================================================
 
   describe('stripJsonComments', () => {
+    // ── Basic comment removal ──────────────────────────────────────────────
+
     test('removes line comments', () => {
       const content = '{\n  "name": "test" // this is a comment\n}';
       expect(JSON.parse(stripJsonComments(content))).toEqual({ name: 'test' });
@@ -89,15 +91,194 @@ describe('Step 4: Configuration Validation', () => {
       expect(JSON.parse(stripJsonComments(content))).toEqual({ name: 'test' });
     });
 
+    test('removes multiple line comments', () => {
+      const content = '{\n  "a": 1, // first\n  "b": 2 // second\n}';
+      expect(JSON.parse(stripJsonComments(content))).toEqual({ a: 1, b: 2 });
+    });
+
+    test('removes multiple block comments', () => {
+      const content = '{ /* one */ "a": 1, /* two */ "b": 2 }';
+      expect(JSON.parse(stripJsonComments(content))).toEqual({ a: 1, b: 2 });
+    });
+
     test('preserves line numbers (block comment replaced with spaces)', () => {
       const stripped = stripJsonComments('{\n  /* line1\n  line2 */\n  "a": 1\n}');
       // block comment content replaced by spaces to keep line count intact
       expect(stripped.split('\n').length).toBe(5);
     });
 
+    test('multi-line block comment preserves all inner newlines', () => {
+      const content = '{\n  /*\n   * line 2\n   * line 3\n   */\n  "x": 1\n}';
+      const stripped = stripJsonComments(content);
+      expect(stripped.split('\n').length).toBe(7);
+      expect(JSON.parse(stripped)).toEqual({ x: 1 });
+    });
+
     test('leaves plain JSON unchanged', () => {
       const content = '{"name": "test"}';
       expect(stripJsonComments(content)).toBe(content);
+    });
+
+    // ── BUG FIX: string-literal awareness ─────────────────────────────────
+    // Before the fix, /* or // inside a string value was treated as a comment
+    // start, silently deleting content and producing corrupt JSON.
+
+    test('[BUG FIX] does not treat /* inside a string key as a comment start', () => {
+      // "@/*" is a TypeScript path alias key — the /* MUST NOT be stripped
+      const content =
+        '{\n  "paths": {\n    "@/*": ["src/*"]\n  },\n  /* real comment */\n  "strict": true\n}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.paths['@/*']).toEqual(['src/*']);
+      expect(parsed.strict).toBe(true);
+    });
+
+    test('[BUG FIX] does not treat /* inside a string value as a comment start', () => {
+      // Jest collectCoverageFrom globs contain /* patterns
+      const content = '{"include": ["src/**/*.js", "!node_modules/**"], "strict": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.include).toEqual(['src/**/*.js', '!node_modules/**']);
+      expect(parsed.strict).toBe(true);
+    });
+
+    test('[BUG FIX] does not treat // inside a string value as a comment start', () => {
+      const content = '{"url": "https://example.com", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.url).toBe('https://example.com');
+      expect(parsed.ok).toBe(true);
+    });
+
+    test('[BUG FIX] /* in string key does not consume content up to next */', () => {
+      // Exact pattern from guia_turistico tsconfig.json that triggered the bug:
+      // "@/*" key appears before a "/* Output */" block comment — without the fix
+      // the regex consumed everything between them as a single "comment".
+      const content = [
+        '{',
+        '  "compilerOptions": {',
+        '    "paths": {',
+        '      "@/*": ["src/*"]',
+        '    }',
+        '  },',
+        '  /* Output */',
+        '  "outDir": "./dist"',
+        '}',
+      ].join('\n');
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.compilerOptions.paths['@/*']).toEqual(['src/*']);
+      expect(parsed.outDir).toBe('./dist');
+    });
+
+    test('[BUG FIX] multiple glob patterns in the same string array all preserved', () => {
+      const content = '{"files": ["src/**/*", "!dist/**/*", "!node_modules/**/*"], "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.files).toHaveLength(3);
+      expect(parsed.files[0]).toBe('src/**/*');
+      expect(parsed.files[1]).toBe('!dist/**/*');
+    });
+
+    test('[BUG FIX] URL in string followed by real line comment', () => {
+      // The // in the URL must not swallow the real comment or the next key
+      const content = '{\n  "homepage": "https://example.com", // website\n  "private": true\n}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.homepage).toBe('https://example.com');
+      expect(parsed.private).toBe(true);
+    });
+
+    // ── Escape sequences inside strings ───────────────────────────────────
+
+    test('handles escaped double-quote inside a string (does not end string early)', () => {
+      const content = '{"msg": "say \\"hello\\"", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.msg).toBe('say "hello"');
+      expect(parsed.ok).toBe(true);
+    });
+
+    test('handles backslash-backslash followed by closing quote', () => {
+      // "\\\\" in source is the string \\, so the " after it closes the string
+      const content = '{"path": "C:\\\\Users\\\\foo", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.path).toBe('C:\\Users\\foo');
+      expect(parsed.ok).toBe(true);
+    });
+
+    test('handles escaped backslash before escaped quote: \\\\"', () => {
+      // Content: {"k": "a\\\"b"} — the \\\" is \ then escaped "
+      const content = '{"k": "a\\\\\\"b", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.k).toBe('a\\"b');
+      expect(parsed.ok).toBe(true);
+    });
+
+    test('string containing literal /* and */ is preserved unchanged', () => {
+      // A value that embeds "/* docs */" as plain text — not a comment
+      const content = '{"note": "see /* docs */ inline", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.note).toBe('see /* docs */ inline');
+      expect(parsed.ok).toBe(true);
+    });
+
+    // ── Edge cases ────────────────────────────────────────────────────────
+
+    test('handles empty string value', () => {
+      const content = '{"empty": "", "ok": true}';
+      expect(JSON.parse(stripJsonComments(content))).toEqual({ empty: '', ok: true });
+    });
+
+    test('handles empty object', () => {
+      expect(JSON.parse(stripJsonComments('{}'))).toEqual({});
+    });
+
+    test('handles empty input', () => {
+      expect(stripJsonComments('')).toBe('');
+    });
+
+    test('line comment at end of file without trailing newline is dropped safely', () => {
+      // Without a newline after the comment the loop must not hang or throw
+      const content = '{"a": 1} // trailing comment — no newline';
+      const stripped = stripJsonComments(content);
+      // The content before the comment must still produce valid JSON
+      expect(JSON.parse(stripped.trim())).toEqual({ a: 1 });
+    });
+
+    test('block comment at end of file without */ is handled safely', () => {
+      // Unterminated block comment — parser stops; what came before is preserved
+      const content = '{"a": 1} /* unterminated';
+      const stripped = stripJsonComments(content);
+      expect(JSON.parse(stripped.trim())).toEqual({ a: 1 });
+    });
+
+    test('string with /* followed immediately by */ does not interfere with later real comment', () => {
+      const content = '{"glob": "**/*", /* actual comment */ "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.glob).toBe('**/*');
+      expect(parsed.ok).toBe(true);
+    });
+
+    test('numeric, boolean and null values are not affected', () => {
+      const content = '/* header */\n{"n": 42, "b": true, "nil": null}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed).toEqual({ n: 42, b: true, nil: null });
+    });
+
+    test('unicode and emoji inside strings are preserved', () => {
+      const content = '{"emoji": "✅ done", "ok": true}';
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.emoji).toBe('✅ done');
+    });
+
+    test('deeply nested JSON with comments at every level', () => {
+      const content = [
+        '{',
+        '  /* root comment */',
+        '  "a": {',
+        '    // nested comment',
+        '    "b": {',
+        '      "paths": {"@/*": ["src/*"]} /* inline */',
+        '    }',
+        '  }',
+        '}',
+      ].join('\n');
+      const parsed = JSON.parse(stripJsonComments(content));
+      expect(parsed.a.b.paths['@/*']).toEqual(['src/*']);
     });
   });
 
@@ -137,6 +318,92 @@ describe('Step 4: Configuration Validation', () => {
       const result = validateJsonSyntax(content);
 
       expect(result.valid).toBe(false);
+    });
+
+    // ── Real-world config patterns (regression suite for the bug fix) ──────
+
+    test('[BUG FIX] tsconfig.json with @/* path alias and block comment', () => {
+      // This exact pattern caused false-positive syntax errors before the fix
+      const content = [
+        '{',
+        '  "compilerOptions": {',
+        '    "baseUrl": ".",',
+        '    "paths": {',
+        '      "@/*": ["src/*"]',
+        '    },',
+        '    /* Output */',
+        '    "outDir": "./dist",',
+        '    "strict": true',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('[BUG FIX] jest config with collectCoverageFrom glob array', () => {
+      const content = JSON.stringify({
+        collectCoverageFrom: [
+          'src/**/*.js',
+          '!src/**/*.test.js',
+          '!src/**/*.spec.js',
+          '!node_modules/**',
+          '!coverage/**',
+        ],
+        testMatch: ['**/__tests__/**/*.js', '**/*.test.js'],
+      });
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('[BUG FIX] package.json with npm scripts containing shell commands', () => {
+      const content = JSON.stringify({
+        scripts: {
+          test: 'jest --coverage',
+          build: 'tsc && cp -r public/* dist/',
+          deploy: "npm run build && echo '✅ done'",
+        },
+      });
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('[BUG FIX] package.json with repository URL containing //', () => {
+      const content = JSON.stringify({
+        name: 'my-pkg',
+        repository: { type: 'git', url: 'https://github.com/org/repo.git' },
+        homepage: 'https://org.github.io/repo/',
+      });
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('[BUG FIX] .vscode/settings.json with exclude globs and line comments', () => {
+      const content = [
+        '{',
+        '  // VS Code settings',
+        '  "files.exclude": {',
+        '    "**/.git": true,',
+        '    "**/node_modules/**": true,',
+        '    "dist/**/*": false',
+        '  },',
+        '  /* editor */',
+        '  "editor.tabSize": 2',
+        '}',
+      ].join('\n');
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('[BUG FIX] eslint config JSON with parser options and glob patterns', () => {
+      const content = JSON.stringify({
+        ignorePatterns: ['dist/**/*', 'node_modules/**/*', 'coverage/**/*'],
+        rules: { 'no-console': 'warn' },
+      });
+      expect(validateJsonSyntax(content).valid).toBe(true);
+    });
+
+    test('returns error object with message on invalid JSONC', () => {
+      const content = '{\n  "a": /* unclosed\n  "b": 1\n}';
+      const result = validateJsonSyntax(content);
+      // Unterminated block comment — parser stops early, resulting in invalid JSON
+      expect(result.valid).toBe(false);
+      expect(result.error).toBeTruthy();
     });
   });
 
@@ -492,6 +759,170 @@ describe('Step 4: Configuration Validation', () => {
     // EXCLUDE_DIRS export
     test('EXCLUDE_DIRS includes .ai_cache', () => {
       expect(EXCLUDE_DIRS).toContain('.ai_cache');
+    });
+  });
+
+  // ========================================================================
+  // END-TO-END: Real-world config file content through the full pipeline
+  // Exercises stripJsonComments → validateJsonSyntax → Step4ConfigAnalyzer
+  // ========================================================================
+
+  describe('End-to-end: real-world config content through Step4ConfigAnalyzer', () => {
+    let analyzer;
+    let mockFileOps;
+    let mockBacklog;
+    let mockGitOps;
+
+    // Realistic file content fixtures matching the files that triggered the bug
+    const FIXTURES = {
+      'tsconfig.json': [
+        '{',
+        '  "compilerOptions": {',
+        '    "target": "ES2020",',
+        '    "baseUrl": ".",',
+        '    "paths": {',
+        '      "@/*": ["src/*"],',
+        '      "@components/*": ["src/components/*"]',
+        '    },',
+        '    /* Output */',
+        '    "outDir": "./dist",',
+        '    "rootDir": "./src",',
+        '    // strict mode enabled',
+        '    "strict": true',
+        '  }',
+        '}',
+      ].join('\n'),
+
+      'package.json': JSON.stringify(
+        {
+          name: 'guia-turistico',
+          version: '1.0.0',
+          scripts: {
+            test: 'jest --coverage',
+            build: 'tsc',
+            deploy: "npm run build && echo '✅ done'",
+            'ci:test-local': './.github/scripts/test-workflow-locally.sh',
+          },
+          jest: {
+            collectCoverageFrom: [
+              'src/**/*.js',
+              '!src/**/*.test.js',
+              '!node_modules/**',
+              '!coverage/**',
+            ],
+          },
+          repository: { url: 'https://github.com/org/guia_turistico.git' },
+        },
+        null,
+        2
+      ),
+
+      '.vscode/settings.json': [
+        '{',
+        '  // VS Code workspace settings',
+        '  "files.exclude": {',
+        '    "**/.git": true,',
+        '    "**/node_modules/**": true,',
+        '    "dist/**/*": false',
+        '  },',
+        '  /* editor preferences */',
+        '  "editor.tabSize": 2,',
+        '  "editor.formatOnSave": true',
+        '}',
+      ].join('\n'),
+
+      '.eslintrc.json': JSON.stringify({
+        ignorePatterns: ['dist/**/*', 'node_modules/**/*'],
+        rules: { 'no-console': 'warn', 'no-unused-vars': 'error' },
+      }),
+    };
+
+    beforeEach(() => {
+      mockFileOps = {
+        readFile: (filePath) => {
+          const name = Object.keys(FIXTURES).find((k) => filePath.endsWith(k));
+          return name ? Promise.resolve(FIXTURES[name]) : Promise.reject(new Error('not found'));
+        },
+        glob: () => Promise.resolve([]),
+      };
+
+      mockBacklog = { saveStepSummary: () => Promise.resolve() };
+
+      mockGitOps = {
+        getModifiedFiles: () =>
+          Promise.resolve([
+            'tsconfig.json',
+            'package.json',
+            '.vscode/settings.json',
+            '.eslintrc.json',
+          ]),
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+    });
+
+    test('[BUG FIX] tsconfig.json with @/* path alias is not reported as a syntax error', async () => {
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['tsconfig.json']);
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
+      expect(result.syntaxErrors).toHaveLength(0);
+    });
+
+    test('[BUG FIX] package.json with jest glob config is not reported as a syntax error', async () => {
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package.json']);
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
+      expect(result.syntaxErrors).toHaveLength(0);
+    });
+
+    test('[BUG FIX] .vscode/settings.json with glob excludes is not reported as a syntax error', async () => {
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['.vscode/settings.json']);
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
+      expect(result.syntaxErrors).toHaveLength(0);
+    });
+
+    test('[BUG FIX] all four real-world config files validate without syntax errors', async () => {
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
+      expect(result.filesChecked).toBe(4);
+      expect(result.syntaxErrors).toHaveLength(0);
+    });
+
+    test('genuinely invalid JSON is still caught alongside valid files', async () => {
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve(['tsconfig.json', 'package.json', 'broken.json']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('broken.json')) return Promise.resolve('{"bad":}');
+        const name = Object.keys(FIXTURES).find((k) => filePath.endsWith(k));
+        return name ? Promise.resolve(FIXTURES[name]) : Promise.reject(new Error('not found'));
+      };
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.syntaxErrors).toHaveLength(1);
+      expect(result.syntaxErrors[0].file).toContain('broken.json');
+      // Valid files must not be included in errors
+      expect(result.syntaxErrors.map((e) => e.file).join(',')).not.toContain('tsconfig');
+      expect(result.syntaxErrors.map((e) => e.file).join(',')).not.toContain('package');
+    });
+
+    test('result report mentions the correct file count', async () => {
+      let savedReport = '';
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedReport = content;
+        return Promise.resolve();
+      };
+
+      await analyzer.execute('/project');
+
+      expect(savedReport).toContain('4'); // files checked
     });
   });
 });

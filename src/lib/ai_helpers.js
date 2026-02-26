@@ -743,7 +743,7 @@ export class AiHelper {
 
     // Merge options with defaults
     const requestOptions = mergeRequestOptions(options, this.config);
-    this.logger.debug(`Request Options: ${requestOptions}`);
+    this.logger.debug(`Request Options: ${JSON.stringify(requestOptions)}`);
     const persona = requestOptions.persona || this.config.persona || 'default';
     this.logger.debug(`Persona: ${persona}`);
     const model = requestOptions.model || this.config.model || 'default';

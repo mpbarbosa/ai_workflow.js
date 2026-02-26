@@ -3,6 +3,7 @@
  */
 
 import { jest } from '@jest/globals';
+import path from 'path';
 import {
   DEFAULT_CONFIG,
   PHASES,
@@ -193,6 +194,18 @@ describe('DocumentationOptimizer - Integration', () => {
       const result = optimizer.initialize({ similarityThreshold: 2.0 });
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    // [BUG FIX f5fbf32] archiveRoot must be absolute for FileOperations compatibility
+    test('[BUG FIX] resolves relative archiveDir to absolute path using projectRoot', () => {
+      optimizer.initialize({ archiveDir: 'archived', projectRoot: '/my/project' });
+      expect(path.isAbsolute(optimizer.consolidation.archiveRoot)).toBe(true);
+      expect(optimizer.consolidation.archiveRoot).toBe('/my/project/archived');
+    });
+
+    test('[BUG FIX] preserves already-absolute archiveDir unchanged', () => {
+      optimizer.initialize({ archiveDir: '/abs/archive', projectRoot: '/my/project' });
+      expect(optimizer.consolidation.archiveRoot).toBe('/abs/archive');
     });
   });
 

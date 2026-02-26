@@ -1,9 +1,0 @@
-{
-  "cacheKey": "f17cf3b9f5d5c3faa2ded3b3a65222c9b9ff11becacc724cc7ebe2e5ab3ca557",
-  "timestamp": "2026-02-21T19:16:07.000Z",
-  "timestampEpoch": 1771701367,
-  "promptPreview": "**Approach**: 1. Review provided git diff and change statistics\n2. Analyze context from workflow ana...",
-  "context": "step_16|1.2.3|patch|2",
-  "responseSize": 384,
-  "prompt": "**Approach**: 1. Review provided git diff and change statistics\n2. Analyze context from workflow analysis steps (documentation, code quality, tests)\n3. Identify breaking changes, new features, or bug fixes\n4. Determine minimum required version bump\n5. Provide clear reasoning for recommendation\n"
-}

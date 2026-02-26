@@ -58,6 +58,25 @@ export function analyzePackageJson(packageJson) {
     return { kind: 'nodejs_automation', confidence: 75, indicators };
   }
 
+  // Check for Location-Based Service (geolocation keywords or LBS dependencies)
+  const lbsKeywords = ['geolocation', 'location', 'maps', 'gps', 'tourist-guide', 'poi'];
+  const lbsDependencies = [
+    'guia.js',
+    'ibira.js',
+    'leaflet',
+    'maplibre-gl',
+    'mapbox-gl',
+    '@aws-amplify/geo',
+    '@aws-sdk/client-location',
+  ];
+  const hasLbsKeyword = lbsKeywords.some((kw) => keywords.includes(kw));
+  const hasLbsDependency = lbsDependencies.some((dep) => dependencies[dep]);
+  if (hasLbsKeyword || hasLbsDependency) {
+    if (hasLbsKeyword) indicators.push('lbs_keyword');
+    if (hasLbsDependency) indicators.push('lbs_dependency');
+    return { kind: 'location_based_service', confidence: 85, indicators };
+  }
+
   // Check for Node.js backend frameworks
   if (
     dependencies.express ||
@@ -146,8 +165,19 @@ export function detectByFilePatterns(files) {
     yamlFiles: 0,
     mdFiles: 0,
     awsConfigJson: 0,
+    lbsGeoFiles: 0,
     totalFiles: files.length,
   };
+
+  const lbsGeoFilenames = new Set([
+    'geolocationservice.js',
+    'geoposition.js',
+    'reversegeocoder.js',
+    'positionmanager.js',
+    'geocodingstate.js',
+    'awsgeocoder.js',
+    'geolocationprovider.js',
+  ]);
 
   files.forEach((file) => {
     const ext = path.extname(file).toLowerCase();
@@ -159,13 +189,21 @@ export function detectByFilePatterns(files) {
     if (ext === '.yaml' || ext === '.yml') fileStats.yamlFiles++;
     if (ext === '.md') fileStats.mdFiles++;
     if (basename === 'aws-config.json') fileStats.awsConfigJson++;
+    if (lbsGeoFilenames.has(basename)) fileStats.lbsGeoFiles++;
   });
 
   // AWS LBS backend (aws-config.json + shell scripts + Lambda JS functions)
+  // Checked before location_based_service because it is more specific.
   if (fileStats.awsConfigJson > 0 && fileStats.shellScripts > 0 && fileStats.jsFiles > 0) {
     indicators.push('aws_config_json');
     indicators.push('aws_lambda_js');
     return { kind: 'aws_lbs_backend_setup', confidence: 85, indicators };
+  }
+
+  // Location-Based Service (geolocation-specific filenames)
+  if (fileStats.lbsGeoFiles >= 2) {
+    indicators.push('lbs_geo_files');
+    return { kind: 'location_based_service', confidence: 80, indicators };
   }
 
   // Shell script automation (high shell script percentage)

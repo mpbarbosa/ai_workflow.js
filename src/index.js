@@ -40,6 +40,22 @@ export { Backlog } from './lib/backlog.js';
 export { SessionManager } from './lib/session_manager.js';
 export { Metrics } from './lib/metrics.js';
 
+// Phase 5 extension exports (v2.0.0)
+export {
+  CommitHistory,
+  readCommitHistory,
+  createEmptyHistory,
+  getLastRunCommit,
+  createRunEntry,
+  appendRunEntry,
+  capHistory,
+  serializeHistory,
+  isValidCommitHash,
+  COMMIT_HISTORY_VERSION,
+  DEFAULT_MAX_RUNS,
+  COMMIT_HISTORY_FILENAME,
+} from './lib/commit_history.js';
+
 // Phase 8 exports (v2.0.0)
 export { PerformanceTracker } from './lib/performance.js';
 export {

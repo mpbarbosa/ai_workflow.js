@@ -438,8 +438,9 @@ export class DocumentationOptimizer {
     this.logger.info('Phase 7: Generating Report');
     this.state = updateState(this.state, { phase: PHASES.REPORTING });
 
+    const archiveRoot = path.resolve(this.consolidation.archiveRoot);
     const reportPath = path.join(
-      this.consolidation.archiveRoot,
+      archiveRoot,
       optimizationResults.timestamp,
       'optimization_report.md'
     );

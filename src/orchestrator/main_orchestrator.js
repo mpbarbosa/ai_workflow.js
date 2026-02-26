@@ -616,7 +616,9 @@ export class MainOrchestrator {
 
       // Merge committed + uncommitted changes into a single file list used both
       // for optimizer hints and as the modifiedFiles passed to all steps.
-      let allChangedFiles = committedChangedFiles.map((f) => f.file || f);
+      let allChangedFiles = committedChangedFiles
+        .filter((f) => f.status !== 'deleted')
+        .map((f) => f.file || f);
 
       // Run change-type optimizer for savings estimate (advisory only)
       try {
@@ -632,7 +634,7 @@ export class MainOrchestrator {
         const mergedFiles = [
           ...committedChangedFiles,
           ...uncommittedFiles.filter((f) => !seenPaths.has(f.file)),
-        ];
+        ].filter((f) => f.status !== 'deleted');
         const changedFiles = mergedFiles.map((f) => f.file || f);
         allChangedFiles = changedFiles;
 

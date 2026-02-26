@@ -608,5 +608,37 @@ describe('Step 15: UX Analysis', () => {
       expect(mockBacklog.saveStepIssues).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalled();
     });
+
+    // [BUG FIX 9a42860] persona renamed from 'ui_ux_designer' to 'ux_analyst'
+    test('[BUG FIX] performAnalysis calls executeRequest with persona: ux_analyst', async () => {
+      const requests = [];
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+      step.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(false),
+        executeRequest: jest.fn().mockImplementation(async (prompt, opts) => {
+          requests.push(opts);
+          return '**Severity**: None';
+        }),
+      };
+
+      await step.performAnalysis('/project', 'react_spa', ['src/App.jsx'], {});
+
+      expect(requests.length).toBeGreaterThan(0);
+      expect(requests[0].persona).toBe('ux_analyst');
+    });
+
+    // [BUG FIX 9a42860] promptsDir must be forwarded to AiHelper
+    test('[BUG FIX] promptsDir option is accepted without error', () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        promptsDir: '/tmp/prompts/step_15',
+      });
+      expect(step).toBeDefined();
+      expect(step.aiHelper).toBeDefined();
+    });
   });
 });

@@ -1,9 +1,0 @@
-{
-  "cacheKey": "573a8ba4755f023eb0d5779b67a62a93f22767381c96224bef7286235c7f16fe",
-  "timestamp": "2026-02-21T17:55:54.000Z",
-  "timestampEpoch": 1771696554,
-  "promptPreview": "**Role**: You are an expert in shell scripting and script reference validation.\n\n**Task**: Analyze t...",
-  "context": "step_03|1|2",
-  "responseSize": 448,
-  "prompt": "**Role**: You are an expert in shell scripting and script reference validation.\n\n**Task**: Analyze these script reference validation results and provide recommendations:\n- Total scripts: 1\n- Missing references: 1\n- Non-executable scripts: 0\n- Undocumented scripts: 1\n- Total issues: 2\n\n**Approach**: List the top 3 actionable recommendations to fix the script reference issues. Be concise."
-}

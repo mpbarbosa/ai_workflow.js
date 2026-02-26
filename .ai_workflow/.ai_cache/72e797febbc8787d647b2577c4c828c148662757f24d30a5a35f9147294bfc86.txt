@@ -1,1 +1,0 @@
-{"content":"All 10 tests passed (0 failed), exit code is 0, and duration is 3ms. There are no failures to analyze or fix. Recommendation: Enable and review code coverage reporting (currently N/A%) to ensure test completeness.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

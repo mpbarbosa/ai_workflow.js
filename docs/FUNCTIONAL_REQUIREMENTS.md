@@ -2,7 +2,7 @@
 
 **Project:** ai_workflow.js  
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration  
-**Version:** 1.3.0  
+**Version:** 1.3.1  
 **Date:** February 2, 2026  
 **Status:** Active
 

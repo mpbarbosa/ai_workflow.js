@@ -13,6 +13,10 @@ import {
   incrementVersion,
   detectVersionPatterns,
   replaceVersion,
+  isVersionConfigFile,
+  replaceVersionConfig,
+  isServiceWorkerFile,
+  updateServiceWorkerCacheName,
   determineHeuristicBumpType,
   parseAiBumpRecommendation,
   buildVersionBumpPrompt,
@@ -93,7 +97,7 @@ describe('Step 16: Version Update', () => {
     });
 
     test('increments minor version', () => {
-      expect(incrementVersion('1.2.3', BUMP_TYPES.minor)).toBe('1.3.0');
+      expect(incrementVersion('1.2.3', BUMP_TYPES.minor)).toBe('1.3.1');
       expect(incrementVersion('5.10.15', BUMP_TYPES.minor)).toBe('5.11.0');
     });
 
@@ -114,7 +118,7 @@ describe('Step 16: Version Update', () => {
 
     test('preserves prerelease suffix on minor bump', () => {
       expect(incrementVersion('0.9.0-alpha', BUMP_TYPES.minor)).toBe('0.10.0-alpha');
-      expect(incrementVersion('1.2.3-rc.2', BUMP_TYPES.minor)).toBe('1.3.0-rc.2');
+      expect(incrementVersion('1.2.3-rc.2', BUMP_TYPES.minor)).toBe('1.3.1-rc.2');
     });
 
     test('preserves prerelease suffix on major bump', () => {
@@ -154,6 +158,133 @@ export const version = '3.5.7';`;
       const content = 'version: 1.2.3';
       const result = replaceVersion(content, '1.2.3', '1.2.4');
       expect(result).toBe('version: 1.2.4');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - JS Version Config File Support
+  // ========================================================================
+
+  describe('isVersionConfigFile', () => {
+    const validConfig = `export const VERSION = '1.0.0';\nexport const BUILD_DATE = '2026-01-01';`;
+
+    test('returns true for files with VERSION and BUILD_DATE exports', () => {
+      expect(isVersionConfigFile(validConfig)).toBe(true);
+    });
+
+    test('returns false when BUILD_DATE is missing', () => {
+      expect(isVersionConfigFile(`export const VERSION = '1.0.0';`)).toBe(false);
+    });
+
+    test('returns false when VERSION is missing', () => {
+      expect(isVersionConfigFile(`export const BUILD_DATE = '2026-01-01';`)).toBe(false);
+    });
+
+    test('returns false for empty content', () => {
+      expect(isVersionConfigFile('')).toBe(false);
+    });
+  });
+
+  describe('replaceVersionConfig', () => {
+    const content = [
+      `export const VERSION = '0.9.0-alpha';`,
+      `export const BUILD_DATE = '2026-02-11';`,
+    ].join('\n');
+
+    test('updates VERSION constant', () => {
+      const result = replaceVersionConfig(content, '0.11.1-alpha', '2026-02-23');
+      expect(result).toContain(`export const VERSION = '0.11.1-alpha';`);
+    });
+
+    test('updates BUILD_DATE constant', () => {
+      const result = replaceVersionConfig(content, '0.11.1-alpha', '2026-02-23');
+      expect(result).toContain(`export const BUILD_DATE = '2026-02-23';`);
+    });
+
+    test('works with double-quoted strings', () => {
+      const dqContent = `export const VERSION = "0.9.0-alpha";\nexport const BUILD_DATE = "2026-02-11";`;
+      const result = replaceVersionConfig(dqContent, '0.11.1-alpha', '2026-02-23');
+      expect(result).toContain(`export const VERSION = "0.11.1-alpha";`);
+      expect(result).toContain(`export const BUILD_DATE = "2026-02-23";`);
+    });
+
+    test('does not modify unrelated content', () => {
+      const full = `${content}\nexport const VERSION_STRING = \`Guia v\${VERSION}\`;`;
+      const result = replaceVersionConfig(full, '0.11.1-alpha', '2026-02-23');
+      expect(result).toContain('VERSION_STRING');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - Service Worker Cache Name Support
+  // ========================================================================
+
+  describe('isServiceWorkerFile', () => {
+    test('detects file with CACHE_NAME constant', () => {
+      const sw = `const CACHE_NAME = 'my-app-v1.0.0-20260101';\nself.addEventListener('install', () => {});`;
+      expect(isServiceWorkerFile(sw)).toBe(true);
+    });
+
+    test('detects single-quoted CACHE_NAME', () => {
+      expect(
+        isServiceWorkerFile(`const CACHE_NAME = 'guia-turistico-v0.9.0-alpha-20260223c';`)
+      ).toBe(true);
+    });
+
+    test('detects double-quoted CACHE_NAME', () => {
+      expect(isServiceWorkerFile(`const CACHE_NAME = "app-v1.0.0";`)).toBe(true);
+    });
+
+    test('returns false for regular JS files without CACHE_NAME', () => {
+      expect(isServiceWorkerFile(`export const VERSION = '1.0.0';`)).toBe(false);
+      expect(isServiceWorkerFile(`const name = 'my-app';`)).toBe(false);
+      expect(isServiceWorkerFile('')).toBe(false);
+    });
+  });
+
+  describe('updateServiceWorkerCacheName', () => {
+    const swContent = `/**\n * @version 0.9.0-alpha\n */\nconst CACHE_NAME = 'guia-turistico-v0.9.0-alpha-20260223c';\n`;
+
+    test('updates version and date in CACHE_NAME', () => {
+      const result = updateServiceWorkerCacheName(
+        swContent,
+        '0.9.0-alpha',
+        '0.11.3-alpha',
+        '20260223'
+      );
+      expect(result).toContain(`CACHE_NAME = 'guia-turistico-v0.11.3-alpha-20260223'`);
+    });
+
+    test('does not change other version references (e.g. @version jsdoc)', () => {
+      const result = updateServiceWorkerCacheName(
+        swContent,
+        '0.9.0-alpha',
+        '0.11.3-alpha',
+        '20260223'
+      );
+      expect(result).toContain('@version 0.9.0-alpha');
+    });
+
+    test('handles cache name with commit hash suffix', () => {
+      const content = `const CACHE_NAME = 'app-v0.9.0-alpha-20260101-1981f9e';`;
+      const result = updateServiceWorkerCacheName(
+        content,
+        '0.9.0-alpha',
+        '0.11.3-alpha',
+        '20260223'
+      );
+      expect(result).toContain(`CACHE_NAME = 'app-v0.11.3-alpha-20260223'`);
+    });
+
+    test('returns unchanged content when old version not in CACHE_NAME', () => {
+      const content = `const CACHE_NAME = 'app-v2.0.0-20260101';`;
+      const result = updateServiceWorkerCacheName(
+        content,
+        '0.9.0-alpha',
+        '0.11.3-alpha',
+        '20260223'
+      );
+      expect(result).toBe(content);
     });
   });
 
@@ -297,7 +428,7 @@ Confidence: high`;
     test('formats complete report', () => {
       const data = {
         oldVersion: '1.2.3',
-        newVersion: '1.3.0',
+        newVersion: '1.3.1',
         bumpType: 'minor',
         stats: { updated: 2, skipped: 1, failed: 0 },
         updates: [
@@ -311,7 +442,7 @@ Confidence: high`;
       const report = formatVersionUpdateReport(data);
       expect(report).toContain('Step 16: Semantic Version Update Report');
       expect(report).toContain('Previous Version**: 1.2.3');
-      expect(report).toContain('New Version**: 1.3.0');
+      expect(report).toContain('New Version**: 1.3.1');
       expect(report).toContain('Bump Type**: minor');
       expect(report).toContain('Files Updated**: 2');
       expect(report).toContain('package.json');
@@ -598,7 +729,11 @@ Confidence: high`;
       step.updateVersionsInFiles = jest
         .fn()
         .mockResolvedValue([{ file: 'package.json', success: true }]);
+      step.updateVersionConfigFiles = jest.fn().mockResolvedValue([]);
+      step.updateServiceWorkerFiles = jest.fn().mockResolvedValue([]);
+      step.loadServiceWorkerFilesFromWorkflowConfig = jest.fn().mockResolvedValue([]);
       step.runVersionConsistencyCheck = jest.fn().mockResolvedValue({ ran: false });
+      step._scanForVersionFiles = jest.fn().mockResolvedValue([]);
 
       await step.execute({
         modifiedFiles: ['src/app.js'],
@@ -616,7 +751,129 @@ Confidence: high`;
         expect.any(Array),
         '1.0.0',
         expect.any(String),
-        ['src/config/defaults.js', 'docs/INDEX.md']
+        expect.arrayContaining(['src/config/defaults.js', 'docs/INDEX.md'])
+      );
+    });
+
+    // E — updateServiceWorkerFiles
+    describe('updateServiceWorkerFiles', () => {
+      const swContent = `const CACHE_NAME = 'app-v0.9.0-alpha-20260101';\nself.addEventListener('install', () => {});`;
+
+      test('updates CACHE_NAME in a service worker file', async () => {
+        const writeFile = jest.fn().mockResolvedValue(undefined);
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue(swContent),
+            writeFile,
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateServiceWorkerFiles(
+          ['service-worker.js'],
+          '0.9.0-alpha',
+          '0.11.3-alpha'
+        );
+
+        expect(results).toHaveLength(1);
+        expect(results[0].success).toBe(true);
+        expect(writeFile).toHaveBeenCalledTimes(1);
+        const written = writeFile.mock.calls[0][1];
+        expect(written).toContain('v0.11.3-alpha-');
+      });
+
+      test('skips file when CACHE_NAME not found', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue(`export const foo = 'bar';`),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateServiceWorkerFiles(
+          ['sw.js'],
+          '0.9.0-alpha',
+          '0.11.3-alpha'
+        );
+        expect(results[0].skipped).toBe(true);
+      });
+
+      test('skips missing file gracefully', async () => {
+        const err = new Error('ENOENT: no such file');
+        err.code = 'ENOENT';
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockRejectedValue(err), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateServiceWorkerFiles(
+          ['missing.js'],
+          '0.9.0-alpha',
+          '0.11.3-alpha'
+        );
+        expect(results[0].skipped).toBe(true);
+        expect(results[0].reason).toBe('file not found');
+      });
+
+      test('does not write in dry-run mode', async () => {
+        const writeFile = jest.fn();
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockResolvedValue(swContent), writeFile },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+          dryRun: true,
+        });
+
+        await step.updateServiceWorkerFiles(['service-worker.js'], '0.9.0-alpha', '0.11.3-alpha');
+        expect(writeFile).not.toHaveBeenCalled();
+      });
+    });
+
+    // F — versionConfig.serviceWorkerFiles passed through execute()
+    test('passes versionConfig.serviceWorkerFiles to updateServiceWorkerFiles', async () => {
+      const step = new Step16VersionUpdate({
+        aiHelper: { initialize: () => Promise.resolve(false) },
+        backlog: mockBacklog,
+        logger: mockLogger,
+      });
+
+      step.detectCurrentVersion = jest.fn().mockResolvedValue('1.0.0');
+      step.updateVersionsInFiles = jest.fn().mockResolvedValue([]);
+      step.updateVersionConfigFiles = jest.fn().mockResolvedValue([]);
+      step.updateServiceWorkerFiles = jest
+        .fn()
+        .mockResolvedValue([{ file: 'service-worker.js', success: true }]);
+      step.loadServiceWorkerFilesFromWorkflowConfig = jest.fn().mockResolvedValue([]);
+      step.runVersionConsistencyCheck = jest.fn().mockResolvedValue({ ran: false });
+
+      await step.execute({
+        modifiedFiles: ['src/app.js'],
+        gitStats: {
+          modifiedCount: 1,
+          addedCount: 0,
+          deletedCount: 0,
+          insertions: 10,
+          deletions: 2,
+        },
+        versionConfig: { serviceWorkerFiles: ['service-worker.js', 'public/service-worker.js'] },
+      });
+
+      expect(step.updateServiceWorkerFiles).toHaveBeenCalledWith(
+        ['service-worker.js', 'public/service-worker.js'],
+        '1.0.0',
+        expect.any(String)
       );
     });
   });

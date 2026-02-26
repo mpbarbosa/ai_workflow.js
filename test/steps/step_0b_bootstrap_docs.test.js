@@ -406,14 +406,17 @@ technical_writer_prompt:
       expect(extractGitignoreDirNames(content)).toEqual(['dist']);
     });
 
-    test('extracts top-level directory from path patterns', () => {
+    test('skips nested path patterns to avoid wrongly excluding parent directories', () => {
+      // e.g. "docs/api-generated/" must NOT cause the entire "docs/" to be excluded
       const content = 'src/generated/\nfoo/bar\ndist\n';
-      expect(extractGitignoreDirNames(content)).toEqual(['src', 'foo', 'dist']);
+      expect(extractGitignoreDirNames(content)).toEqual(['dist']);
     });
 
-    test('deduplicates top-level directories from multiple subdirectory patterns', () => {
+    test('skips nested path patterns even when they share a top-level prefix', () => {
+      // ".ai_workflow/backlog/" etc. should NOT imply excluding ".ai_workflow" unless
+      // ".ai_workflow/" is listed as a top-level entry on its own.
       const content = '.ai_workflow/backlog/\n.ai_workflow/logs/\n.ai_workflow/metrics/\ndist\n';
-      expect(extractGitignoreDirNames(content)).toEqual(['.ai_workflow', 'dist']);
+      expect(extractGitignoreDirNames(content)).toEqual(['dist']);
     });
 
     test('includes dot-prefixed names like .ai_workflow', () => {

@@ -331,10 +331,12 @@ export class Step11_5AwsLbsValidator {
    * @param {Object} [deps={}] - Injected dependencies
    * @param {Object} [deps.fileOps] - FileOperations instance
    * @param {Object} [deps.backlog] - Backlog instance
+   * @param {Object} [deps.projectKindConfig] - ProjectKindConfigManager instance
    */
   constructor(deps = {}) {
     this.fileOps = deps.fileOps || new FileOperations();
     this.backlog = deps.backlog || new Backlog();
+    this.projectKindConfig = deps.projectKindConfig || null;
   }
 
   /**
@@ -350,7 +352,10 @@ export class Step11_5AwsLbsValidator {
       logger.step('Step 11.5: AWS LBS Backend Validation');
 
       // ── Gate: only run for aws_lbs_backend_setup ──────────────────────────
-      const projectKind = options.projectKind ?? '';
+      const projectKind =
+        options.projectKind ??
+        (this.projectKindConfig ? await this.projectKindConfig.getProjectKind() : null) ??
+        '';
       if (!shouldRunAwsLbsValidation(projectKind)) {
         const msg = projectKind
           ? `Step 11.5 skipped — project kind '${projectKind}' is not aws_lbs_backend_setup`

@@ -19,7 +19,9 @@ import {
   calculateDiffStats,
   validateCommitMessage,
   buildStatusSummary,
-  GitAutomation
+  parseGitDiffNameStatus,
+  parseGitLogNameStatus,
+  GitAutomation,
 } from '../../src/lib/git_automation.js';
 
 describe('git_automation - Pure Functions', () => {
@@ -28,14 +30,14 @@ describe('git_automation - Pure Functions', () => {
       expect(parseGitStatus('')).toEqual({
         staged: [],
         unstaged: [],
-        untracked: []
+        untracked: [],
       });
     });
 
     test('parses staged files', () => {
       const output = 'M  src/app.js\nA  src/new.js';
       const result = parseGitStatus(output);
-      
+
       expect(result.staged).toHaveLength(2);
       expect(result.staged[0]).toEqual({ file: 'src/app.js', status: 'modified' });
       expect(result.staged[1]).toEqual({ file: 'src/new.js', status: 'added' });
@@ -44,15 +46,57 @@ describe('git_automation - Pure Functions', () => {
     test('parses unstaged files', () => {
       const output = ' M src/app.js\n D src/old.js';
       const result = parseGitStatus(output);
-      
-      expect(result.unstaged).toHaveLength(1); // Only 'D' is deletion, ' M' has space first
-      expect(result.unstaged[0]).toEqual({ file: 'src/old.js', status: 'deleted' });
+
+      expect(result.unstaged).toHaveLength(2); // both ' M' and ' D' are unstaged changes
+      expect(result.unstaged[0]).toEqual({ file: 'src/app.js', status: 'modified' });
+      expect(result.unstaged[1]).toEqual({ file: 'src/old.js', status: 'deleted' });
+    });
+
+    // Regression: leading-space trim bug (2026-02-21)
+    // .trim() on the full output stripped the space from " M README.md" → "M README.md",
+    // causing parseGitStatus to misclassify it as staged and corrupt the filename:
+    //   line[0]='M' (wrong staged status), line[2]='R' (first char of filename),
+    //   line.substring(3) → "EADME.md" instead of "README.md".
+    test('correctly parses file starting with R when first status line is unstaged ( M)', () => {
+      // " M README.md" — space in staged column means not staged; M in unstaged column
+      const output = ' M README.md';
+      const result = parseGitStatus(output);
+
+      expect(result.staged).toHaveLength(0);
+      expect(result.unstaged).toHaveLength(1);
+      expect(result.unstaged[0]).toEqual({ file: 'README.md', status: 'modified' });
+    });
+
+    test('preserves full filename when output begins with a space-prefixed status line', () => {
+      // Verifies .trim() is NOT applied to the full output (which strips meaningful
+      // leading spaces). Both files should land in unstaged, not staged.
+      const output = ' M README.md\n M CHANGELOG.md\n?? src/new.js';
+      const result = parseGitStatus(output);
+
+      expect(result.staged).toHaveLength(0);
+      expect(result.unstaged).toHaveLength(2);
+      expect(result.unstaged[0]).toEqual({ file: 'README.md', status: 'modified' });
+      expect(result.unstaged[1]).toEqual({ file: 'CHANGELOG.md', status: 'modified' });
+      expect(result.untracked).toHaveLength(1);
+      expect(result.untracked[0]).toEqual({ file: 'src/new.js', status: 'untracked' });
+    });
+
+    test('handles Windows CRLF line endings in git status output', () => {
+      const output = ' M README.md\r\nM  staged.js\r\n?? new.txt\r\n';
+      const result = parseGitStatus(output);
+
+      expect(result.unstaged).toHaveLength(1);
+      expect(result.unstaged[0]).toEqual({ file: 'README.md', status: 'modified' });
+      expect(result.staged).toHaveLength(1);
+      expect(result.staged[0]).toEqual({ file: 'staged.js', status: 'modified' });
+      expect(result.untracked).toHaveLength(1);
+      expect(result.untracked[0]).toEqual({ file: 'new.txt', status: 'untracked' });
     });
 
     test('parses untracked files', () => {
       const output = '?? new-file.js\n?? another.txt';
       const result = parseGitStatus(output);
-      
+
       expect(result.untracked).toHaveLength(2);
       expect(result.untracked[0]).toEqual({ file: 'new-file.js', status: 'untracked' });
     });
@@ -60,7 +104,7 @@ describe('git_automation - Pure Functions', () => {
     test('parses mixed status', () => {
       const output = 'M  staged.js\n M unstaged.js\n?? untracked.js';
       const result = parseGitStatus(output);
-      
+
       expect(result.staged).toHaveLength(1);
       expect(result.unstaged).toHaveLength(1);
       expect(result.untracked).toHaveLength(1);
@@ -79,7 +123,7 @@ describe('git_automation - Pure Functions', () => {
         files: [],
         insertions: 0,
         deletions: 0,
-        changes: []
+        changes: [],
       });
     });
 
@@ -94,7 +138,7 @@ index abc123..def456 100644
 -removed line`;
 
       const result = parseGitDiff(output);
-      
+
       expect(result.files).toEqual(['file.js']);
       expect(result.insertions).toBe(1);
       expect(result.deletions).toBe(1);
@@ -111,7 +155,7 @@ diff --git a/file2.js b/file2.js
 +line3`;
 
       const result = parseGitDiff(output);
-      
+
       expect(result.files).toEqual(['file1.js', 'file2.js']);
       expect(result.insertions).toBe(3);
     });
@@ -132,7 +176,7 @@ def456a fix: bug fix
 789abcd docs: update readme`;
 
       const result = parseGitLog(output);
-      
+
       expect(result).toHaveLength(3);
       expect(result[0]).toEqual({ hash: 'abc123f', message: 'feat: add feature' });
       expect(result[1]).toEqual({ hash: 'def456a', message: 'fix: bug fix' });
@@ -142,7 +186,7 @@ def456a fix: bug fix
     test('handles long hashes', () => {
       const output = 'abcdef1234567890 commit message';
       const result = parseGitLog(output);
-      
+
       expect(result[0].hash).toBe('abcdef1234567890');
     });
 
@@ -163,7 +207,7 @@ def456a fix: bug fix
   feature-x`;
 
       const result = parseGitBranch(output);
-      
+
       expect(result.current).toBe('develop');
       expect(result.all).toEqual(['main', 'develop', 'feature-x']);
     });
@@ -171,7 +215,7 @@ def456a fix: bug fix
     test('handles single branch', () => {
       const output = '* main';
       const result = parseGitBranch(output);
-      
+
       expect(result.current).toBe('main');
       expect(result.all).toEqual(['main']);
     });
@@ -192,12 +236,12 @@ origin\thttps://github.com/user/repo.git (push)
 upstream\thttps://github.com/org/repo.git (fetch)`;
 
       const result = parseGitRemote(output);
-      
+
       expect(result).toHaveLength(2); // Deduplicated by name:url
       expect(result[0]).toEqual({
         name: 'origin',
         url: 'https://github.com/user/repo.git',
-        type: 'fetch'
+        type: 'fetch',
       });
     });
 
@@ -212,13 +256,15 @@ upstream\thttps://github.com/org/repo.git (fetch)`;
     });
 
     test('builds command with args', () => {
-      expect(buildGitCommand('status', ['--porcelain', '--short']))
-        .toBe('git status --porcelain --short');
+      expect(buildGitCommand('status', ['--porcelain', '--short'])).toBe(
+        'git status --porcelain --short'
+      );
     });
 
     test('filters invalid args', () => {
-      expect(buildGitCommand('status', ['--porcelain', '', null, '--short']))
-        .toBe('git status --porcelain --short');
+      expect(buildGitCommand('status', ['--porcelain', '', null, '--short'])).toBe(
+        'git status --porcelain --short'
+      );
     });
   });
 
@@ -329,12 +375,12 @@ upstream\thttps://github.com/org/repo.git (fetch)`;
     test('calculates stats', () => {
       const diff = { files: ['a.js', 'b.js'], insertions: 10, deletions: 5 };
       const result = calculateDiffStats(diff);
-      
+
       expect(result).toEqual({
         files: 2,
         insertions: 10,
         deletions: 5,
-        netChange: 5
+        netChange: 5,
       });
     });
 
@@ -387,9 +433,9 @@ upstream\thttps://github.com/org/repo.git (fetch)`;
       const status = {
         staged: [{}, {}],
         unstaged: [{}],
-        untracked: []
+        untracked: [],
       };
-      
+
       expect(buildStatusSummary(status)).toBe('2 staged, 1 unstaged');
     });
 
@@ -402,15 +448,75 @@ upstream\thttps://github.com/org/repo.git (fetch)`;
       const status = {
         staged: [{}],
         unstaged: [{}],
-        untracked: [{}]
+        untracked: [{}],
       };
-      
+
       expect(buildStatusSummary(status)).toBe('1 staged, 1 unstaged, 1 untracked');
     });
 
     test('handles null', () => {
       expect(buildStatusSummary(null)).toBe('No changes');
     });
+  });
+});
+
+// ============================================================================
+// NEW PURE FUNCTION TESTS
+// ============================================================================
+
+describe('git_automation - parseGitDiffNameStatus', () => {
+  test('parses modified, added, deleted files', () => {
+    const output = 'M\tsrc/app.js\nA\tsrc/new.js\nD\tsrc/old.js';
+    const result = parseGitDiffNameStatus(output);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ file: 'src/app.js', status: 'modified' });
+    expect(result[1]).toEqual({ file: 'src/new.js', status: 'added' });
+    expect(result[2]).toEqual({ file: 'src/old.js', status: 'deleted' });
+  });
+
+  test('parses renamed files (uses new path)', () => {
+    const output = 'R100\tsrc/old-name.js\tsrc/new-name.js';
+    const result = parseGitDiffNameStatus(output);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ file: 'src/new-name.js', status: 'renamed' });
+  });
+
+  test('returns empty array for empty output', () => {
+    expect(parseGitDiffNameStatus('')).toEqual([]);
+  });
+
+  test('returns empty array for null', () => {
+    expect(parseGitDiffNameStatus(null)).toEqual([]);
+  });
+
+  test('skips malformed lines', () => {
+    const output = 'M\tsrc/app.js\nbad line without tab\nA\tsrc/new.js';
+    const result = parseGitDiffNameStatus(output);
+    expect(result).toHaveLength(2);
+  });
+});
+
+describe('git_automation - parseGitLogNameStatus', () => {
+  test('deduplicates files across commits', () => {
+    const output = 'M\tsrc/app.js\n\nA\tsrc/b.js\nM\tsrc/app.js';
+    const result = parseGitLogNameStatus(output);
+    expect(result).toHaveLength(2);
+    expect(result.map((f) => f.file)).toContain('src/app.js');
+    expect(result.map((f) => f.file)).toContain('src/b.js');
+  });
+
+  test('returns empty array for empty output', () => {
+    expect(parseGitLogNameStatus('')).toEqual([]);
+  });
+
+  test('returns empty array for null', () => {
+    expect(parseGitLogNameStatus(null)).toEqual([]);
+  });
+
+  test('skips blank lines and commit header lines', () => {
+    const output = '\nM\tsrc/app.js\n\nA\tsrc/b.js\n';
+    const result = parseGitLogNameStatus(output);
+    expect(result.every((f) => f.file && f.status)).toBe(true);
   });
 });
 
@@ -425,15 +531,55 @@ describe('git_automation - GitAutomation Class', () => {
     test('creates instance with custom options', () => {
       const git = new GitAutomation({
         repoPath: '/custom/path',
-        timeout: 5000
+        timeout: 5000,
       });
-      
+
       expect(git.repoPath).toBe('/custom/path');
       expect(git.timeout).toBe(5000);
     });
   });
 
-  // Note: Integration tests for GitAutomation class methods would require
-  // a real git repository or extensive mocking. These should be in a separate
-  // integration test file that sets up a test git repo.
+  describe('getCurrentHead', () => {
+    test('returns a string that looks like a git hash when in a repo', () => {
+      const git = new GitAutomation({ repoPath: process.cwd() });
+      const head = git.getCurrentHead();
+      // In CI or test environment this may be null; just check type
+      if (head !== null) {
+        expect(typeof head).toBe('string');
+        expect(head.length).toBeGreaterThanOrEqual(7);
+        expect(/^[a-f0-9]+$/.test(head)).toBe(true);
+      }
+    });
+
+    test('returns null gracefully when not in a git repo', () => {
+      const git = new GitAutomation({ repoPath: '/nonexistent/path/that/is/not/a/repo' });
+      expect(git.getCurrentHead()).toBeNull();
+    });
+  });
+
+  describe('getLastNCommitsFiles', () => {
+    test('returns an array when in a valid repo', () => {
+      const git = new GitAutomation({ repoPath: process.cwd() });
+      const files = git.getLastNCommitsFiles(5);
+      expect(Array.isArray(files)).toBe(true);
+      if (files.length > 0) {
+        expect(files[0]).toHaveProperty('file');
+        expect(files[0]).toHaveProperty('status');
+      }
+    });
+
+    test('returns empty array when not in a git repo', () => {
+      const git = new GitAutomation({ repoPath: '/nonexistent/repo' });
+      expect(git.getLastNCommitsFiles(10)).toEqual([]);
+    });
+
+    test('defaults to 30 commits when no argument given', () => {
+      const git = new GitAutomation({ repoPath: process.cwd() });
+      // Just check it does not throw
+      expect(() => git.getLastNCommitsFiles()).not.toThrow();
+    });
+  });
+
+  // Note: getChangedFilesSince() requires a real commit hash to test end-to-end.
+  // It is exercised indirectly via main_orchestrator integration.
 });

@@ -385,9 +385,10 @@ export function extractGitignoreDirNames(gitignoreContent) {
     if (trimmed.includes('*') || trimmed.includes('?') || trimmed.includes('[')) continue;
     // Strip trailing slash
     const name = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
-    // For path patterns (e.g. .ai_workflow/backlog/), extract the top-level directory
-    const topLevel = name.includes('/') ? name.split('/')[0] : name;
-    if (topLevel) nameSet.add(topLevel);
+    // Skip nested path patterns (e.g. docs/api-generated/) — extracting only the
+    // top-level segment would wrongly exclude the entire parent directory.
+    if (name.includes('/')) continue;
+    if (name) nameSet.add(name);
   }
   return [...nameSet];
 }
@@ -699,7 +700,6 @@ export class Step0bBootstrapDocs {
       this.logger.debug(`Project root: ${this.projectRoot}`);
       const exclude = await this.loadGitignoreExclusions();
       const allFiles = await this.fileOps.listDirectoryRecursive(this.projectRoot, { exclude });
-      this.logger.debug(`All files: ${allFiles} found`);
       this.logger.debug(`Total files found: ${allFiles.length}`);
       this.logger.debug('Converting to relative paths...');
       allRelativeFiles = allFiles.map((f) => path.relative(this.projectRoot, f));

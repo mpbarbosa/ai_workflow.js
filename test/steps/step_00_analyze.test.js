@@ -511,6 +511,21 @@ describe('Step 0: Pre-Analysis', () => {
       expect(result.analysis.fileCounts.config).toBe(2);
     });
 
+    test('includes contextUpdate with detected projectType', async () => {
+      const result = await analyzer.execute('/test/project');
+
+      expect(result.contextUpdate).toBeDefined();
+      expect(result.contextUpdate.projectType).toBe(result.analysis.projectKind?.kind ?? null);
+    });
+
+    test('contextUpdate uses configured project kind when available', async () => {
+      analyzer.projectKindConfig.getProjectKind = () => Promise.resolve('react_spa');
+
+      const result = await analyzer.execute('/test/project');
+
+      expect(result.contextUpdate.projectType).toBe('react_spa');
+    });
+
     test('uses configured project kind if available', async () => {
       // Override mock for this test
       analyzer.projectKindConfig.getProjectKind = () => Promise.resolve('react_spa');

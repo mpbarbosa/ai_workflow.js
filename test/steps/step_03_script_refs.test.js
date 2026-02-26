@@ -390,6 +390,46 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.referencesChecked).toBe(1); // only the .sh reference
     });
 
+    // [BUG FIX fdfb34d] filter by detected language extension
+    test('[BUG FIX] TypeScript project ignores .sh script references in README', async () => {
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = () => Promise.resolve(['src/api.ts', 'src/server.ts']);
+      // README references a shell script — must not be flagged as missing
+      mockFileOps.readFile = () => Promise.resolve('Run `./scripts/deploy.sh` to deploy.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.missingReferences).toHaveLength(0);
+    });
+
+    test('[BUG FIX] Python project ignores .js script references in README', async () => {
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'python' });
+      mockFileOps.glob = () => Promise.resolve(['src/main.py', 'src/utils.py']);
+      // README references a JS file — must not be flagged
+      mockFileOps.readFile = () => Promise.resolve('Frontend built with `src/app.js`.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.missingReferences).toHaveLength(0);
+    });
+
+    test('[BUG FIX] only same-language missing references are reported', async () => {
+      // bash project: .sh ref is missing but .py ref must be ignored
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'bash' });
+      mockFileOps.glob = () => Promise.resolve(['scripts/setup.sh']); // only setup exists
+      mockFileOps.readFile = () =>
+        Promise.resolve('Run `scripts/setup.sh` and `scripts/deploy.sh` and `src/helper.py`');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      const flaggedRefs = result.missingReferences.map((r) => r.reference);
+      expect(flaggedRefs).toContain('scripts/deploy.sh'); // .sh is missing → flagged
+      expect(flaggedRefs.every((r) => r.endsWith('.sh'))).toBe(true); // no .py
+    });
+
     test('handles errors gracefully', async () => {
       mockTechStack.detectTechStack = () => Promise.reject(new Error('Detection failed'));
 

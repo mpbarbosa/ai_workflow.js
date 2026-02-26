@@ -1,9 +1,0 @@
-{
-  "cacheKey": "a65f400b67c067e42ec48640b9a7cc7b217678685556f1a9eedeee00e51d247b",
-  "timestamp": "2026-02-21T18:08:31.000Z",
-  "timestampEpoch": 1771697311,
-  "promptPreview": "**Role**: You are an expert in software project structure and organization.\n\n**Task**: Analyze these...",
-  "context": "step_05|10|11",
-  "responseSize": 579,
-  "prompt": "**Role**: You are an expert in software project structure and organization.\n\n**Task**: Analyze these directory structure validation results:\n- Total directories: 10\n- Misplaced docs: 0\n- Organized docs: 0\n- Missing critical dirs: 1\n- Issues: 11\n\n**Approach**: Provide concise recommendations to improve the project directory structure. Be specific."
-}

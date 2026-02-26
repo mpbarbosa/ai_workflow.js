@@ -1,1 +1,0 @@
-{"content":"1. Move the 2 misplaced documentation files to a dedicated docs/ directory at the project root.\n2. Create a docs/ directory if it does not exist.\n3. Review and organize all documentation files within docs/ for clarity and consistency.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

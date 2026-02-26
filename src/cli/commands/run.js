@@ -177,9 +177,13 @@ export async function runCommand(options) {
 
     // Display summary if available
     if (result.summary) {
-      console.log();
-      console.log(chalk.cyan('Summary:'));
-      console.log(chalk.gray(`  ${result.summary}`));
+      const summaryText =
+        typeof result.summary === 'string' ? result.summary : result.summary.report;
+      if (summaryText) {
+        console.log();
+        console.log(chalk.cyan('Summary:'));
+        console.log(chalk.gray(`  ${summaryText}`));
+      }
     }
 
     console.log();
