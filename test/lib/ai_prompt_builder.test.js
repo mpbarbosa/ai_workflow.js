@@ -462,6 +462,52 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('security');
       expect(result).toContain('performance');
     });
+
+    test('injects file contents when fileContents provided', () => {
+      const options = {
+        codeFiles: ['src/app.js'],
+        language: 'javascript',
+        fileContents: { 'src/app.js': 'const x = 1;' },
+      };
+      const result = buildCodeQualityPrompt(options);
+
+      expect(result).toContain('# File Contents');
+      expect(result).toContain('`src/app.js`');
+      expect(result).toContain('const x = 1;');
+    });
+
+    test('truncates individual files exceeding MAX_CHARS_PER_FILE', () => {
+      const bigContent = 'x'.repeat(5_000);
+      const options = {
+        codeFiles: ['big.js'],
+        fileContents: { 'big.js': bigContent },
+      };
+      const result = buildCodeQualityPrompt(options);
+
+      expect(result).toContain('...(truncated)');
+      // Should not contain all 5000 chars
+      expect(result.length).toBeLessThan(bigContent.length + 1_000);
+    });
+
+    test('omits files beyond total content budget', () => {
+      // Each file ~15 000 chars — 3 files exceeds the 30 000 char total budget
+      const bigContent = 'y'.repeat(15_000);
+      const options = {
+        codeFiles: ['a.js', 'b.js', 'c.js'],
+        fileContents: { 'a.js': bigContent, 'b.js': bigContent, 'c.js': bigContent },
+      };
+      const result = buildCodeQualityPrompt(options);
+
+      expect(result).toContain('context budget exhausted');
+    });
+
+    test('works without fileContents (backward compatible)', () => {
+      const options = { codeFiles: ['src/app.js'], language: 'javascript' };
+      const result = buildCodeQualityPrompt(options);
+
+      expect(result).toContain('src/app.js');
+      expect(result).not.toContain('# File Contents');
+    });
   });
 
   describe('buildTechnicalWriterPrompt', () => {

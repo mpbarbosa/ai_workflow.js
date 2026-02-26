@@ -353,30 +353,53 @@ ${docList}`;
  *
  * @param {Object} options - Prompt options
  * @param {string} options.docDirectory - Documentation directory to check
+ * @param {string[]} [options.docFiles] - Actual documentation files found by the programmatic scan
+ * @param {Object} [options.scanResults] - Programmatic scan results {totalIssues, brokenLinks, versionIssues, filesChecked}
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Consistency check prompt
  */
 export function buildConsistencyPrompt(options) {
-  const { docDirectory, projectInfo = {} } = options;
+  const { docDirectory, docFiles = [], scanResults = {}, projectInfo = {} } = options;
 
   const role = `You are a senior technical documentation specialist and information architect with expertise in documentation quality assurance, technical writing standards, and cross-reference validation.
 
 **Critical Behavioral Guidelines**:
-- ALWAYS provide structured, prioritized analysis (never general observations)
-- Identify specific files, line numbers, and exact issues
-- Include concrete recommended fixes for each problem
-- Prioritize issues by severity and impact on user experience
-- Focus on accuracy and consistency over style preferences`;
+- ONLY report issues that are verifiable from the provided file list and scan results below
+- Do NOT fabricate file paths, line numbers, or references not present in the provided context
+- Do NOT invent issues about file content you have not been shown
+- The programmatic scan already covers broken links and version mismatches definitively — do not duplicate those findings
+- Focus exclusively on semantic issues requiring human-readable understanding: terminology inconsistencies, ambiguous cross-references, example inconsistencies
+- If the scan found 0 issues and you have no evidence of semantic problems, say so explicitly rather than inventing issues`;
 
-  const task = `Perform comprehensive consistency analysis on documentation in: ${docDirectory}`;
+  const fileCount = docFiles.length || scanResults.filesChecked || 0;
+  const fileList = docFiles.length > 0 ? buildFileListContext(docFiles) : 'No file list provided';
+  const brokenCount = scanResults.brokenLinks?.length ?? 0;
+  const versionCount = scanResults.versionIssues?.length ?? 0;
+  const totalIssues = scanResults.totalIssues ?? 0;
 
-  const approach = `**Analysis Methodology**:
-1. **Prioritize by Category**: Focus on Critical and User documentation first
-2. **Systematic Validation**: Check cross-references, terminology, versions, examples
-3. **Structured Reporting**: Organize by severity (Critical > High > Medium > Low)
-4. **Actionable Recommendations**: For each issue provide file:line, problem, fix, impact
+  const task = `Review documentation consistency for project: ${docDirectory}
 
-Check for: broken references, version mismatches, terminology inconsistencies, format violations`;
+**Programmatic scan already completed — do not re-derive these results:**
+- Files checked: ${fileCount}
+- Broken file references: ${brokenCount} (already reported)
+- Version mismatches: ${versionCount} (already reported)
+- Total programmatic issues: ${totalIssues}
+
+**Documentation files found:**
+${fileList}`;
+
+  const approach = `**Your task — supplement the programmatic scan with semantic analysis:**
+1. **Terminology Consistency**: Flag terms used interchangeably that should be standardised (e.g. service names, API names, tool versions)
+2. **Example Consistency**: Identify if code examples use different conventions across files (env vars vs hardcoded values, variable naming)
+3. **Cross-Reference Clarity**: Identify ambiguous or missing cross-references between the files listed above
+4. **Structured Reporting**: Organise only genuine issues by severity (Critical > High > Medium > Low)
+
+**For each issue you report, you MUST**:
+- Cite only files from the list provided above
+- Describe the specific inconsistency without fabricating line numbers
+- Provide a concrete fix
+
+If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan."`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -468,8 +491,30 @@ ${codeList}`;
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Code quality review prompt
  */
+/** Maximum characters per file injected into the code review prompt (~1 000 tokens). */
+const MAX_CHARS_PER_FILE = 4_000;
+
+/** Maximum total characters for all injected file contents (~7 500 tokens). */
+const MAX_CHARS_TOTAL_CONTENTS = 30_000;
+
+/**
+ * Build a fenced code block section for a single file, truncating if needed.
+ *
+ * @param {string} filePath - Relative file path used as the section header.
+ * @param {string} content  - Raw file content.
+ * @returns {string} Markdown fenced block.
+ */
+function buildFileContentBlock(filePath, content) {
+  const truncated =
+    content.length > MAX_CHARS_PER_FILE
+      ? content.substring(0, MAX_CHARS_PER_FILE) + '\n...(truncated)'
+      : content;
+  const ext = filePath.split('.').pop() ?? '';
+  return `### \`${filePath}\`\n\`\`\`${ext}\n${truncated}\n\`\`\``;
+}
+
 export function buildCodeQualityPrompt(options) {
-  const { codeFiles = [], language = '', projectInfo = {} } = options;
+  const { codeFiles = [], language = '', projectInfo = {}, fileContents = {} } = options;
 
   const role = `You are a senior software architect and code quality expert with deep expertise in ${language || 'software development'} best practices, design patterns, and maintainability.
 
@@ -481,16 +526,47 @@ export function buildCodeQualityPrompt(options) {
 
   const codeList = buildFileListContext(codeFiles);
 
+  // Inject actual file contents when available so the model can review real code.
+  // Budget is tracked against raw content length (before per-file truncation) so the
+  // limit is predictable regardless of how many files are included.
+  const contentKeys = Object.keys(fileContents);
+  let fileContentsSection = '';
+  if (contentKeys.length > 0) {
+    let totalContentChars = 0;
+    const blocks = [];
+    for (const filePath of codeFiles) {
+      if (!Object.prototype.hasOwnProperty.call(fileContents, filePath)) continue;
+      const content = fileContents[filePath];
+      if (!content) continue;
+      totalContentChars += content.length;
+      if (totalContentChars > MAX_CHARS_TOTAL_CONTENTS) {
+        blocks.push(`### \`${filePath}\`\n*(omitted — context budget exhausted)*`);
+        break;
+      }
+      blocks.push(buildFileContentBlock(filePath, content));
+    }
+    if (blocks.length > 0) {
+      fileContentsSection = `\n\n# File Contents\n\n${blocks.join('\n\n')}`;
+    }
+  }
+
   const task = `Perform comprehensive code quality review for these files:
-${codeList}`;
+${codeList}${fileContentsSection}`;
 
   const approach = `**Review Methodology**:
 1. **Code Analysis**: Examine structure, patterns, and complexity
-2. **Issue Identification**: Find bugs, security issues, design problems
+2. **Issue Identification**: Find bugs, security issues, TODOs, and design problems
 3. **Best Practices**: Check adherence to language and project standards
 4. **Recommendations**: Provide specific fixes with code examples
 
-**Focus**: Bugs, security, performance, maintainability, design patterns`;
+**Focus**: Bugs, security, performance, maintainability, design patterns
+
+**Important**: If no critical issues (bugs, security risks, or anti-patterns) are found, do NOT stop at "no issues found". Instead, automatically perform a deeper analysis covering:
+- Code structure and architecture quality
+- Design pattern usage and appropriateness
+- Maintainability concerns (naming, complexity, cohesion, coupling)
+- Opportunities for simplification or refactoring
+- Adherence to SOLID principles and language idioms`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -540,9 +616,73 @@ export function buildTechnicalWriterPrompt(options) {
   return injectProjectContext(basePrompt, projectInfo);
 }
 
-// ==============================================================================
-// IMPURE WRAPPER - Prompt Builder with Configuration
-// ==============================================================================
+/**
+ * Build AWS serverless engineer prompt (Step 11.6 - AWS Serverless AI Review)
+ *
+ * @param {Object} options - Prompt options
+ * @param {string[]} [options.shellScripts] - Shell script paths found in the project
+ * @param {string[]} [options.lambdaFunctions] - Lambda handler paths (src/lambda/<fn>/index.js)
+ * @param {string[]} [options.awsConfigKeys] - Top-level keys present in aws-config.json
+ * @param {string} [options.projectRoot] - Project root directory
+ * @param {Object} [options.projectInfo] - Additional project metadata
+ * @returns {string} Structured prompt for the aws_serverless_engineer persona
+ *
+ * @pure
+ */
+export function buildAwsServerlessPrompt(options) {
+  const {
+    shellScripts = [],
+    lambdaFunctions = [],
+    awsConfigKeys = [],
+    projectRoot = '',
+    projectInfo = {},
+  } = options;
+
+  const role = `You are a Senior AWS Serverless Engineer and deployment specialist with deep expertise in Lambda, API Gateway, IAM least-privilege policies, and shell-provisioned serverless backends.
+
+**Critical Behavioral Guidelines**:
+- Evaluate deployment readiness and infrastructure safety
+- Identify IAM over-permission risks and missing error handling
+- Validate Lambda packaging standards (index.js + package.json per function)
+- Review shell scripts for idempotency and strict-mode compliance
+- Be precise and security-conscious in all recommendations`;
+
+  const scriptList =
+    shellScripts.length > 0
+      ? shellScripts.map((s) => `  - ${s}`).join('\n')
+      : '  (no file list provided — do NOT infer files are missing; state that you cannot assess this area)';
+
+  const lambdaList =
+    lambdaFunctions.length > 0
+      ? lambdaFunctions.map((f) => `  - ${f}`).join('\n')
+      : '  (no file list provided — do NOT infer files are missing; state that you cannot assess this area)';
+
+  const configKeysStr =
+    awsConfigKeys.length > 0 ? awsConfigKeys.join(', ') : '(none / file missing)';
+
+  const task = `Review the serverless AWS backend${projectRoot ? ` at: ${projectRoot}` : ''} for deployment readiness.
+
+**Shell Scripts (${shellScripts.length} found):**
+${scriptList}
+
+**Lambda Handlers (${lambdaFunctions.length} found):**
+${lambdaList}
+
+**aws-config.json keys present:** ${configKeysStr}`;
+
+  const approach = `**Review Checklist**:
+1. **Shell Script Safety**: shebang present, \`set -euo pipefail\` enforced, idempotent resource creation
+2. **Lambda Packaging**: each function has \`index.js\` + \`package.json\`, exports a valid handler
+3. **IAM Hygiene**: least-privilege principle, no wildcard \`*\` on sensitive actions
+4. **API Gateway**: CORS headers, route definitions, authorizer configuration
+5. **AWS Config**: required keys (region, stackName, apiId, mapName) present and correctly typed
+6. **Deployment Readiness**: overall go/no-go recommendation with prioritised action items
+
+**Output Format**: Provide findings grouped by category, severity (🔴 Critical / 🟡 Warning / 🟢 Info), and a final readiness verdict.`;
+
+  const basePrompt = buildStructuredPrompt({ role, task, approach });
+  return injectProjectContext(basePrompt, projectInfo);
+}
 
 /**
  * Prompt Builder

@@ -645,10 +645,24 @@ export class Step10CodeQualityAnalyzer {
           `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
         );
 
+        // Read file contents so the AI receives real code, not just file names.
+        const fileContents = {};
+        await Promise.all(
+          partition.files.map(async (relPath) => {
+            try {
+              const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
+              fileContents[relPath] = await this.fileOps.readFile(abs);
+            } catch {
+              // File unreadable — the prompt will still list it by name.
+            }
+          })
+        );
+
         const prompt = buildCodeQualityPrompt({
           codeFiles: partition.files,
           language: primaryLanguage,
           projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
+          fileContents,
         });
         const cacheKey = `step_10|p${partition.index}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
