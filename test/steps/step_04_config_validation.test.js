@@ -7,6 +7,7 @@ import {
   Step4ConfigAnalyzer,
   isConfigFile,
   getConfigType,
+  stripJsonComments,
   validateJsonSyntax,
   validateYamlSyntax,
   validateConfigSyntax,
@@ -77,9 +78,47 @@ describe('Step 4: Configuration Validation', () => {
   // PURE FUNCTIONS - Syntax Validation
   // ========================================================================
 
+  describe('stripJsonComments', () => {
+    test('removes line comments', () => {
+      const content = '{\n  "name": "test" // this is a comment\n}';
+      expect(JSON.parse(stripJsonComments(content))).toEqual({ name: 'test' });
+    });
+
+    test('removes block comments', () => {
+      const content = '{\n  /* block comment */\n  "name": "test"\n}';
+      expect(JSON.parse(stripJsonComments(content))).toEqual({ name: 'test' });
+    });
+
+    test('preserves line numbers (block comment replaced with spaces)', () => {
+      const stripped = stripJsonComments('{\n  /* line1\n  line2 */\n  "a": 1\n}');
+      // block comment content replaced by spaces to keep line count intact
+      expect(stripped.split('\n').length).toBe(5);
+    });
+
+    test('leaves plain JSON unchanged', () => {
+      const content = '{"name": "test"}';
+      expect(stripJsonComments(content)).toBe(content);
+    });
+  });
+
   describe('validateJsonSyntax', () => {
     test('validates correct JSON', () => {
       const content = '{"name": "test", "version": "1.0.0"}';
+      const result = validateJsonSyntax(content);
+
+      expect(result.valid).toBe(true);
+    });
+
+    test('accepts JSONC with line comments (tsconfig.json style)', () => {
+      const content =
+        '{\n  "compilerOptions": {\n    // enable strict mode\n    "strict": true\n  }\n}';
+      const result = validateJsonSyntax(content);
+
+      expect(result.valid).toBe(true);
+    });
+
+    test('accepts JSONC with block comments', () => {
+      const content = '{\n  /* project config */\n  "name": "test"\n}';
       const result = validateJsonSyntax(content);
 
       expect(result.valid).toBe(true);

@@ -129,14 +129,28 @@ export function getConfigType(filePath) {
 // ============================================================================
 
 /**
- * Validate JSON syntax
+ * Strip JSON comments to support JSONC format (tsconfig.json, .vscode/settings.json, etc.)
  * @pure
- * @param {string} content - JSON content
+ * @param {string} content - JSONC content
+ * @returns {string} Content with comments removed
+ */
+export function stripJsonComments(content) {
+  // Remove block comments /* ... */ then line comments // ...
+  // String literals are not affected because config files rarely embed // or /* in values
+  return content
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')) // preserve line numbers
+    .replace(/\/\/[^\n\r]*/g, '');
+}
+
+/**
+ * Validate JSON syntax (JSONC-aware: supports // and block comments)
+ * @pure
+ * @param {string} content - JSON or JSONC content
  * @returns {Object} Validation result
  */
 export function validateJsonSyntax(content) {
   try {
-    JSON.parse(content);
+    JSON.parse(stripJsonComments(content));
     return { valid: true };
   } catch (error) {
     return {
