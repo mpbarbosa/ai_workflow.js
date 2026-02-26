@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "partitionIndex": 1,
+  "totalPartitions": 5,
+  "filesHash": "b117cae8",
+  "partitionLabels": [
+    "test, test/steps, test/orchestrator",
+    "test/lib, test/e2e",
+    "test/cli, src, src/utils, src/steps, src/orchestrator",
+    "src/lib, src/core",
+    "src/cli, scripts, bin, eslint.config.mjs, jest.config.json, package-lock.json, package.json"
+  ],
+  "updatedAt": "2026-02-26T15:43:35.957Z"
+}
