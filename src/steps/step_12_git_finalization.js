@@ -651,10 +651,43 @@ export class Step12GitFinalization {
    * Stage all changes
    * @private
    */
-  async _stageChanges(_gitState) {
+  async _stageChanges(gitState) {
     this.logger.info('Staging all changes...');
+    // Commit any dirty changes inside submodules before staging the parent repo.
+    // Without this, `git add -A` in the parent can only record a pointer change
+    // for a submodule that already has a new HEAD commit — it cannot capture
+    // uncommitted working-tree changes inside the submodule.
+    if (gitState.hasSubmodules) {
+      await this._stageSubmoduleChanges();
+    }
     await this._executeGit('git add -A');
     this.logger.info('Changes staged successfully');
+  }
+
+  /**
+   * Stage and commit any dirty changes inside submodules so the parent repo
+   * can pick up the updated submodule pointers via `git add -A`.
+   * @private
+   */
+  async _stageSubmoduleChanges() {
+    // Stage within all submodules
+    await this._executeGit('git submodule foreach git add -A');
+
+    // Commit staged changes in each submodule.
+    // The shell condition `git diff --cached --quiet || git commit ...` means:
+    //   • if nothing is staged (diff exits 0) → skip commit
+    //   • if there are staged changes (diff exits non-0) → commit them
+    try {
+      await this._executeGit(
+        'git submodule foreach \'git diff --cached --quiet || git commit --no-verify -m "chore: sync submodule [automated]"\''
+      );
+      this.logger.debug('Submodule changes committed');
+    } catch {
+      // One or more submodules could not be committed (e.g. identity not set).
+      // Log and continue — the parent staging will still include whatever the
+      // submodule pointer currently points to.
+      this.logger.warn('Could not commit changes inside one or more submodules');
+    }
   }
 
   /**

@@ -658,5 +658,85 @@ describe('Step 12: Git Finalization', () => {
       expect(result.success).toBe(true);
       expect(mockLogger.error).not.toHaveBeenCalled();
     });
+
+    // When submodules are present, dirty changes inside them must be committed
+    // before `git add -A` in the parent can capture the updated pointer.
+    test('commits dirty changes inside submodules before staging the parent repo', async () => {
+      // git config --file .gitmodules --list returns non-empty → hasSubmodules = true
+      const submoduleConfigOutput =
+        '[submodule ".workflow_core"]\n\tpath = .workflow_core\n\turl = ...';
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '1' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockResolvedValueOnce({ stdout: submoduleConfigOutput }) // git config --file .gitmodules
+        .mockResolvedValueOnce({ stdout: '' }) // git submodule update --init (processSubmodules)
+        .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach commit
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent)
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }); // git push
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      // Submodule foreach add must appear before the parent git add -A
+      const foreachAddIdx = calls.findIndex((cmd) => cmd.includes('submodule foreach git add'));
+      const parentAddIdx = calls.findIndex((cmd) => cmd === 'git add -A');
+      expect(foreachAddIdx).toBeGreaterThanOrEqual(0);
+      expect(foreachAddIdx).toBeLessThan(parentAddIdx);
+    });
+
+    // Even if submodule commits fail (e.g. identity not configured), staging must continue
+    test('continues parent staging when submodule commit fails', async () => {
+      const submoduleConfigOutput = '[submodule ".workflow_core"]\n\tpath = .workflow_core';
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '1' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockResolvedValueOnce({ stdout: submoduleConfigOutput }) // git config --file .gitmodules
+        .mockResolvedValueOnce({ stdout: '' }) // git submodule update --init
+        .mockResolvedValueOnce({ stdout: '' }) // git submodule foreach git add -A
+        .mockRejectedValueOnce(new Error('Committer identity unknown')) // submodule commit fails
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent) — must still run
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }); // git push
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      const result = await step.execute();
+
+      // Step must still succeed — submodule commit failure is only a warning
+      expect(result.success).toBe(true);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Could not commit changes inside one or more submodules')
+      );
+      // Parent git add -A must have been called
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls).toContain('git add -A');
+    });
   });
 });
