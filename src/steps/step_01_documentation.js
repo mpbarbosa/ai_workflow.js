@@ -10,7 +10,15 @@ import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { PromptBuilder, buildDocAnalysisPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  PromptBuilder,
+  buildDocAnalysisPrompt,
+  AI_HELPERS_PATH,
+  AI_PROJECT_KINDS_PATH,
+  buildYamlStepPrompt,
+  buildProjectKindPrompt,
+} from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
 import { Step1IncrementalProcessor } from '../lib/step1_incremental.js';
@@ -101,7 +109,12 @@ export function classifyChangedFiles(changedFiles) {
       file.includes('config')
     ) {
       classification.config.push(file);
-    } else if (file.endsWith('.js') || file.endsWith('.mjs')) {
+    } else if (
+      file.endsWith('.js') ||
+      file.endsWith('.mjs') ||
+      file.endsWith('.ts') ||
+      file.endsWith('.tsx')
+    ) {
       classification.source.push(file);
     }
   }
@@ -145,6 +158,86 @@ export function shouldRunAiAnalysis(classification, options = {}) {
   }
 
   return true;
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Source Code Documentation Validation
+// ============================================================================
+
+/**
+ * Validate JSDoc coverage in TypeScript/JavaScript source file content.
+ *
+ * Checks for:
+ * - Missing module-level JSDoc block (`@module` or `@fileoverview`)
+ * - Exported declarations (class, function, const, interface, type, enum) without a preceding JSDoc block
+ * - Public class methods without a JSDoc block
+ *
+ * @pure
+ * @param {string} filePath - File path (used in issue messages)
+ * @param {string} content - File content
+ * @returns {Object} { issues: Array<{file, message}>, missingModuleDoc: boolean, undocumentedExports: string[] }
+ */
+export function validateSourceDocumentation(filePath, content) {
+  const issues = [];
+  const lines = content.split('\n');
+
+  // Check 1: module-level JSDoc (first non-empty line should be part of a /** */ block)
+  const hasModuleDoc = /\/\*\*[\s\S]*?@(?:module|fileoverview)/.test(content);
+  if (!hasModuleDoc) {
+    issues.push({
+      file: filePath,
+      message: 'Missing module-level JSDoc (@module or @fileoverview)',
+    });
+  }
+
+  // Check 2: exported declarations without a preceding JSDoc block
+  const exportPattern =
+    /^export\s+(?:default\s+)?(?:(?:abstract\s+)?class|function\*?|const|let|var|interface|type|enum)\s+(\w+)/;
+  const undocumentedExports = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trimStart();
+    const match = exportPattern.exec(line);
+    if (!match) continue;
+
+    // Look backwards (skipping blank lines) for a closing */ on the immediately preceding block
+    let j = i - 1;
+    while (j >= 0 && lines[j].trim() === '') j--;
+
+    const prevLine = j >= 0 ? lines[j].trim() : '';
+    if (!prevLine.endsWith('*/') && !prevLine.startsWith('*')) {
+      undocumentedExports.push(match[1]);
+      issues.push({ file: filePath, message: `Missing JSDoc for exported symbol: ${match[1]}` });
+    }
+  }
+
+  return {
+    issues,
+    missingModuleDoc: !hasModuleDoc,
+    undocumentedExports,
+  };
+}
+
+/**
+ * Aggregate source documentation validation results across multiple files.
+ *
+ * @pure
+ * @param {Array<{filePath: string, content: string}>} sourceFiles - Files to validate
+ * @returns {Object} { success: boolean, totalIssues: number, fileResults: Object[] }
+ */
+export function validateAllSourceDocumentation(sourceFiles) {
+  const fileResults = sourceFiles.map(({ filePath, content }) => ({
+    filePath,
+    ...validateSourceDocumentation(filePath, content),
+  }));
+
+  const totalIssues = fileResults.reduce((sum, r) => sum + r.issues.length, 0);
+
+  return {
+    success: totalIssues === 0,
+    totalIssues,
+    fileResults,
+  };
 }
 
 // ============================================================================
@@ -237,9 +330,18 @@ export class Step1DocumentationAnalyzer {
 
       // Phase 5: Run validation (parallel execution)
       logger.info('Running documentation consistency validation...');
-      const validationResult = await this.runValidation(projectRoot, docsToProcess);
+      const validationResult = await this.runValidation(
+        projectRoot,
+        docsToProcess,
+        classification.source
+      );
 
       // Initialize AI helper and response cache before making requests
+      // Set workingDirectory so the SDK session reads the target project's
+      // .github/copilot-instructions.md instead of ai_workflow.js's own file.
+      if (this.aiHelper.config && !this.aiHelper.config.workingDirectory) {
+        this.aiHelper.config.workingDirectory = projectRoot;
+      }
       const aiAvailable = await this.aiHelper.initialize();
       await this.aiCache.init();
       if (!aiAvailable) {
@@ -260,7 +362,51 @@ export class Step1DocumentationAnalyzer {
               language: this.configManager?.config?.tech_stack?.primary_language,
               projectKind: this.configManager?.config?.project?.kind,
             };
-            const prompt = buildDocAnalysisPrompt({ changedFiles, docFiles: files, projectInfo });
+            let prompt;
+            // Build the relevant changed-files list from classified categories only.
+            // Using the raw changedFiles array would include unclassified/binary files
+            // (e.g. .jest-cache/*, node_modules/**) that waste tokens and add noise.
+            const relevantChangedFiles = [
+              ...classification.documentation,
+              ...classification.source,
+              ...classification.tests,
+              ...classification.config,
+            ];
+            // Try YAML-based doc_analysis_prompt first; fall back to hardcoded builder
+            try {
+              const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+              const parsedYaml = yaml.load(yamlContent);
+              prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {
+                project_name: projectInfo.projectKind ?? projectRoot,
+                primary_language: projectInfo.language ?? 'unknown',
+                changed_files: relevantChangedFiles.join(', '),
+                doc_files: files.join(', '),
+              });
+            } catch {
+              /* fallback */
+            }
+            if (!prompt) {
+              prompt = buildDocAnalysisPrompt({
+                changedFiles: relevantChangedFiles,
+                docFiles: files,
+                projectInfo,
+              });
+            }
+            // Overlay project-kind documentation specialist role if available
+            try {
+              const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+              const parsedPk = yaml.load(pkYaml);
+              const pk = buildProjectKindPrompt(
+                parsedPk,
+                projectInfo.projectKind ?? 'default',
+                'documentation_specialist'
+              );
+              if (pk?.role) {
+                prompt = `[Project-Kind Role: ${pk.role}]\n\n${prompt}`;
+              }
+            } catch {
+              /* optional */
+            }
             const cacheContext = `documentation_expert|${files.join(',')}`;
             const response = await this.aiCache.withCache(prompt, cacheContext, () =>
               this.aiHelper.executeRequest(prompt, {
@@ -316,12 +462,14 @@ export class Step1DocumentationAnalyzer {
    * Run documentation validation checks
    * @param {string} projectRoot - Project root
    * @param {string[]} docFiles - Documentation files to validate
+   * @param {string[]} [sourceFiles=[]] - Changed source files to check for JSDoc coverage
    * @returns {Promise<Object>} Validation result
    */
-  async runValidation(projectRoot, docFiles) {
+  async runValidation(projectRoot, docFiles, sourceFiles = []) {
     const results = {
       fileCount: { success: true, issues: [] },
       versionRefs: { success: true, issues: [] },
+      sourceDoc: { success: true, issues: [], totalIssues: 0 },
       totalIssues: 0,
     };
 
@@ -360,6 +508,45 @@ export class Step1DocumentationAnalyzer {
         }
       } catch {
         // package.json not found or invalid - skip version checks
+      }
+
+      // Test 3: Source code JSDoc coverage (TypeScript/JavaScript files)
+      if (sourceFiles.length > 0) {
+        const srcToCheck = sourceFiles.filter(
+          (f) => f.endsWith('.ts') || f.endsWith('.tsx') || f.endsWith('.js') || f.endsWith('.mjs')
+        );
+
+        if (srcToCheck.length > 0) {
+          logger.info(`Checking JSDoc coverage in ${srcToCheck.length} source file(s)...`);
+          const fileData = await Promise.all(
+            srcToCheck.map(async (filePath) => {
+              try {
+                const content = await this.fileOps.readFile(filePath);
+                return { filePath, content };
+              } catch {
+                return null;
+              }
+            })
+          );
+          const validData = fileData.filter(Boolean);
+          const srcDocResult = validateAllSourceDocumentation(validData);
+
+          results.sourceDoc = {
+            success: srcDocResult.success,
+            issues: srcDocResult.fileResults.flatMap((r) => r.issues),
+            totalIssues: srcDocResult.totalIssues,
+            fileResults: srcDocResult.fileResults,
+          };
+          results.totalIssues += srcDocResult.totalIssues;
+
+          if (!srcDocResult.success) {
+            logger.warn(
+              `Source JSDoc: ${srcDocResult.totalIssues} issue(s) found across ${srcToCheck.length} file(s)`
+            );
+          } else {
+            logger.success(`Source JSDoc: all ${srcToCheck.length} file(s) properly documented`);
+          }
+        }
       }
 
       results.success = results.totalIssues === 0;
@@ -406,6 +593,12 @@ export class Step1DocumentationAnalyzer {
         lines.push('\n**Version Reference Issues:**');
         validation.versionRefs.issues.forEach((issue) => {
           lines.push(`- ${issue.file}: ${issue.mismatches.join(', ')}`);
+        });
+      }
+      if (validation.sourceDoc && validation.sourceDoc.totalIssues > 0) {
+        lines.push('\n**Source Code JSDoc Issues:**');
+        validation.sourceDoc.issues.forEach((issue) => {
+          lines.push(`- ${issue.file}: ${issue.message}`);
         });
       }
       lines.push('');
