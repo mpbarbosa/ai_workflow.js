@@ -476,9 +476,7 @@ export class Step13MarkdownLint {
         if (fixResult.applied) {
           // Re-lint to capture the post-fix state
           lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
-          this.logger.info(
-            `Auto-fix applied. Remaining violations: ${lintResults.issues.length}`
-          );
+          this.logger.info(`Auto-fix applied. Remaining violations: ${lintResults.issues.length}`);
         }
       }
 
@@ -634,10 +632,16 @@ export class Step13MarkdownLint {
     const batches = chunkArray(files, MDL_BATCH_SIZE);
     const batchIssues = [];
 
+    // Use project-local .mdl_style.rb if present (lets projects align mdl rules with markdownlint-cli)
+    const { existsSync } = await import('fs');
+    const localMdlStyle = path.join(projectRoot, '.mdl_style.rb');
+    const mdlStyleFlag = existsSync(localMdlStyle) ? ` --style "${localMdlStyle}"` : '';
+    const mdlBase = `${LINTER_COMMANDS.mdl.lintBase}${mdlStyleFlag}`;
+
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       const fileArgs = batch.map((f) => `"${f}"`).join(' ');
-      const command = `${LINTER_COMMANDS.mdl.lintBase} ${fileArgs}`;
+      const command = `${mdlBase} ${fileArgs}`;
 
       try {
         const result = await this._executeCommand(command, { cwd: projectRoot });
@@ -708,7 +712,14 @@ export class Step13MarkdownLint {
    * Generate final report
    * @private
    */
-  async _generateReport(fileCount, lintResults, antiPatterns, mdlVersion, projectRoot, context = {}) {
+  async _generateReport(
+    fileCount,
+    lintResults,
+    antiPatterns,
+    mdlVersion,
+    projectRoot,
+    context = {}
+  ) {
     const stats = calculateLintStats(lintResults.issues, fileCount);
     const status = determineLintStatus(stats);
 
@@ -884,7 +895,9 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
       this.logger.info('✅ Auto-fix applied via npx markdownlint --fix');
       return { applied: true };
     } catch {
-      this.logger.warn('Auto-fix unavailable (markdownlint-cli not found) — violations require manual review');
+      this.logger.warn(
+        'Auto-fix unavailable (markdownlint-cli not found) — violations require manual review'
+      );
       return { applied: false };
     }
   }

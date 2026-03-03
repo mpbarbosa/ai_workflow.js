@@ -270,10 +270,10 @@ export function parseCoverageGaps(coverageJson, threshold = 80) {
     if (file === 'total') continue;
 
     const statements = metrics?.statements?.pct ?? 100;
-    const branches   = metrics?.branches?.pct   ?? 100;
-    const functions  = metrics?.functions?.pct  ?? 100;
-    const lines      = metrics?.lines?.pct      ?? 100;
-    const min        = Math.min(statements, branches, functions, lines);
+    const branches = metrics?.branches?.pct ?? 100;
+    const functions = metrics?.functions?.pct ?? 100;
+    const lines = metrics?.lines?.pct ?? 100;
+    const min = Math.min(statements, branches, functions, lines);
 
     if (min < threshold) {
       gaps.push({ file, statements, branches, functions, lines, min });
@@ -305,11 +305,15 @@ export function formatCoverageGapsSection(gaps, threshold = 80) {
 
   for (const g of gaps) {
     const fmt = (v) => `${v < threshold ? `**${v}%**` : `${v}%`}`;
-    lines.push(`| ${g.file} | ${fmt(g.statements)} | ${fmt(g.branches)} | ${fmt(g.functions)} | ${fmt(g.lines)} |`);
+    lines.push(
+      `| ${g.file} | ${fmt(g.statements)} | ${fmt(g.branches)} | ${fmt(g.functions)} | ${fmt(g.lines)} |`
+    );
   }
 
   lines.push('');
-  lines.push(`> **Action:** Add targeted tests for the modules above. Prioritize core logic, error handling, and edge cases.\n`);
+  lines.push(
+    `> **Action:** Add targeted tests for the modules above. Prioritize core logic, error handling, and edge cases.\n`
+  );
 
   return lines.join('\n');
 }
@@ -512,11 +516,18 @@ export class Step8TestExecutor {
 
       // Phase 5: Generate report
       const duration = Date.now() - startTime;
-      // "0 tests found" is a warning, not a workflow-halting failure (Jest exits 1 when no files found).
-      // Suite-level failures (e.g. module not found) are detected via suitesFailed.
-      const noTestsFound = testResults.total === 0 && testResults.suitesFailed === 0;
-      const anyFailure = testResults.failed > 0 || testResults.suitesFailed > 0 ||
-                         (testResult.exitCode !== 0 && !noTestsFound);
+      // "no tests found" can mean two different things:
+      //   1. Jest literally found no test files → exits 1 + prints "No tests found" → warn only
+      //   2. Runner/compiler crashed before finding tests → exits 1, silent/different output → failure
+      const noTestsMessageInOutput = (testResult.output ?? '').includes('No tests found');
+      const noTestsFound =
+        testResults.total === 0 &&
+        testResults.suitesFailed === 0 &&
+        (testResult.exitCode === 0 || noTestsMessageInOutput);
+      const anyFailure =
+        testResults.failed > 0 ||
+        testResults.suitesFailed > 0 ||
+        (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
 
       const results = {
@@ -538,9 +549,15 @@ export class Step8TestExecutor {
         await this.aiCache.init();
 
         // Build a concise coverage gaps string for the prompt
-        const coverageGapsText = coverageGaps.length > 0
-          ? coverageGaps.map(g => `  - ${g.file}: stmts=${g.statements}% branch=${g.branches}% funcs=${g.functions}% lines=${g.lines}%`).join('\n')
-          : 'none — all modules meet the threshold';
+        const coverageGapsText =
+          coverageGaps.length > 0
+            ? coverageGaps
+                .map(
+                  (g) =>
+                    `  - ${g.file}: stmts=${g.statements}% branch=${g.branches}% funcs=${g.functions}% lines=${g.lines}%`
+                )
+                .join('\n')
+            : 'none — all modules meet the threshold';
 
         let prompt;
         try {
@@ -607,10 +624,14 @@ export class Step8TestExecutor {
             );
             e2eContent = e2eResult?.content ?? '';
           }
-        } catch { /* optional */ }
+        } catch {
+          /* optional */
+        }
 
         if (aiContent || e2eContent) {
-          const sections = aiContent ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`] : [report];
+          const sections = aiContent
+            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
+            : [report];
           if (e2eContent) sections.push(`\n\n## E2E Test Engineering Analysis\n\n${e2eContent}`);
           await this.backlog.saveStepSummary(8, 'Test Execution', sections.join(''));
         }

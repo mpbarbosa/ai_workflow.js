@@ -64,6 +64,7 @@ import { Step15UxAnalysis } from '../steps/step_15_ux_analysis.js';
 import { Step16VersionUpdate } from '../steps/step_16_version_update.js';
 import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
 import { Step18Debugging } from '../steps/step_18_debugging.js';
+import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
 
 // ============================================================================
 // CONSTANTS
@@ -178,6 +179,7 @@ export function getStepsForStage(stage) {
       'step_15', // UX analysis
       'step_16', // Version update
       'step_18', // Debugging analysis
+      'step_19', // TypeScript review (Strider)
       'step_17', // Summary
       'step_0f', // Commit artifacts
       'step_12', // Git finalization (must run last)
@@ -481,11 +483,19 @@ export class MainOrchestrator {
         dependencies: ['step_16'],
       },
       {
+        id: 'step_19',
+        name: 'TypeScript Review',
+        description:
+          'AI-powered TypeScript review using the "Strider" TypeScript Developer persona',
+        class: Step19TypescriptReview,
+        dependencies: ['step_18'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
-        dependencies: ['step_18'],
+        dependencies: ['step_19'],
       },
       {
         id: 'step_0f',
@@ -588,6 +598,9 @@ export class MainOrchestrator {
       if (!healthResults.passed) {
         throw new Error('Health checks failed - cannot proceed');
       }
+
+      // Initialize metrics (creates current_run.json so step_17 can read it)
+      await this.metricsCollector.initMetrics();
 
       // Register all steps
       this.registerAllSteps();
