@@ -309,6 +309,21 @@ export class Step3ScriptAnalyzer {
       const patterns = getScriptPatterns(language);
       const directories = getScriptDirectories(language);
 
+      // Determine the project's primary language for AI prompt context.
+      // 'language' above may be 'bash' (used to find shell scripts) even when the
+      // project's primary language is TypeScript or JavaScript. Detect separately so
+      // the AI receives accurate project context.
+      let promptLanguage = language;
+      if (language === 'bash') {
+        try {
+          const det = await this.techStack.detectTechStack(projectRoot);
+          promptLanguage =
+            det.primaryLanguage || det.languages?.find((l) => l !== 'bash') || 'javascript';
+        } catch {
+          /* keep bash */
+        }
+      }
+
       logger.info(`Language: ${language}, patterns: ${patterns.join(', ')}`);
 
       // Phase 2: Find all scripts
@@ -366,12 +381,15 @@ export class Step3ScriptAnalyzer {
           const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
             project_name: projectRoot,
+            project_description: options.projectDescription || '',
+            primary_language: promptLanguage,
             scripts_dir: directories.join(', '),
             script_count: String(results.scriptsFound ?? 0),
+            change_scope: options.scope || '',
             modified_count: String(missingReferences.length),
             issues: String(totalIssues),
             script_issues_content: `Missing references: ${missingReferences.length}, Non-executable: ${nonExecutable.length}, Undocumented: ${undocumented.length}`,
-            all_scripts: scripts.length > 0 ? scripts.join('\n') : '',
+            all_scripts: scripts.length > 0 ? scripts.join('\n') : 'none',
           });
         } catch {
           /* fallback to generic prompt */
@@ -388,7 +406,9 @@ export class Step3ScriptAnalyzer {
           const approach = `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        const cacheKey = `step_03|${results.scriptsFound ?? 0}|${totalIssues}`;
+        // v2: cache key version bumped after 2026-02-28 context-completeness fix
+        // (added primary_language, project_description, change_scope; all_scripts '' → 'none')
+        const cacheKey = `step_03|v2|${results.scriptsFound ?? 0}|${totalIssues}`;
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
         );

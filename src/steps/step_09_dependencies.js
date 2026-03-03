@@ -7,6 +7,7 @@
  */
 
 import { STEP_KIND } from './step_contract.js';
+import path from 'path';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -161,6 +162,9 @@ export function parsePackageJson(packageJson) {
     production: dependencies.length,
     development: devDependencies.length,
     peer: peerDependencies.length,
+    // Raw objects for building named-package lists in prompts
+    dependencies: packageJson.dependencies || {},
+    devDependencies: packageJson.devDependencies || {},
   };
 }
 
@@ -675,7 +679,7 @@ export class Step9DependencyValidator {
    * @param {Object} _options - Execution options (reserved)
    * @returns {Promise<Object>} Validation result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 9: Dependency Validation');
 
@@ -808,15 +812,47 @@ export class Step9DependencyValidator {
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
             const parsedYaml = yaml.load(yamlContent);
+            const pkgMgrMap = {
+              javascript: 'npm',
+              typescript: 'npm',
+              python: 'pip',
+              go: 'go',
+              java: 'maven',
+              ruby: 'bundler',
+              rust: 'cargo',
+            };
+            const pkgMgr = pkgMgrMap[language] ?? 'unknown';
+            const prodDepsObj = dependencyCounts.dependencies ?? {};
+            const devDepsObj = dependencyCounts.devDependencies ?? {};
+            const prodList = Object.keys(prodDepsObj).slice(0, 30).join(', ') || 'none';
+            const devList = Object.keys(devDepsObj).slice(0, 30).join(', ') || 'none';
+            const vulnSum = vulnerabilities.summary ?? {};
+            const auditSummary = vulnSum.total
+              ? `${vulnSum.total} total (${vulnSum.critical ?? 0} critical, ${vulnSum.high ?? 0} high, ${vulnSum.moderate ?? 0} moderate, ${vulnSum.low ?? 0} low)`
+              : 'No vulnerabilities found';
+            const outdatedList = outdatedPackages.length
+              ? outdatedPackages
+                  .slice(0, 20)
+                  .map((p) => `${p.name}: ${p.current} → ${p.latest}`)
+                  .join(', ')
+              : 'none';
             prompt = buildYamlStepPrompt(parsedYaml, 'step8_dependencies_prompt', {
-              language,
-              total_deps: String(dependencyCounts.total),
-              dev_deps: String(dependencyCounts.dev || 0),
-              prod_deps: String(dependencyCounts.production || 0),
-              vulnerabilities: String(vuln),
-              critical_vulns: String(vulnerabilities.summary?.critical || 0),
-              high_vulns: String(vulnerabilities.summary?.high || 0),
-              outdated_packages: String(outdated),
+              project_name: path.basename(projectRoot),
+              project_description: options?.projectDescription ?? 'N/A',
+              primary_language: language,
+              package_manager: pkgMgr,
+              package_manager_version: 'N/A',
+              change_scope: options?.changeScope ?? 'N/A',
+              modified_count: String(options?.modifiedCount ?? 'N/A'),
+              dep_count: String(dependencyCounts.production ?? 0),
+              dev_dep_count: String(dependencyCounts.development ?? 0),
+              total_deps: String(dependencyCounts.total ?? 0),
+              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.dev ?? 0} dev)`,
+              dependency_report_content: report.slice(0, 1500) || 'none',
+              prod_deps: prodList,
+              dev_deps: devList,
+              audit_summary: auditSummary,
+              outdated_list: outdatedList,
             });
           } catch {
             /* fallback to generic prompt */
@@ -837,9 +873,83 @@ export class Step9DependencyValidator {
             this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
           );
           const aiContent = aiResult?.content ?? '';
-          if (aiContent) {
-            const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-            await this.backlog.saveStepSummary(9, 'Dependency Validation', enrichedReport);
+
+          // Supplementary: JavaScript-developer perspective on package.json
+          let jsContent = '';
+          if (language === 'javascript' || language === 'typescript') {
+            try {
+              // Read the actual package.json so the AI reviews reality, not an invention
+              let currentPackageJson = 'Not found';
+              try {
+                currentPackageJson = await this.fileOps.readFile(`${projectRoot}/package.json`);
+              } catch {
+                /* file may not exist */
+              }
+
+              const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+              const parsedYaml2 = yaml.load(yamlContent2);
+              const jsPrompt = buildYamlStepPrompt(parsedYaml2, 'javascript_developer_prompt', {
+                project_name: path.basename(projectRoot),
+                project_description: options?.projectDescription ?? 'N/A',
+                project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
+                primary_language: language,
+                build_system:
+                  {
+                    javascript: 'npm',
+                    typescript: 'npm',
+                    python: 'pip',
+                    go: 'go',
+                    ruby: 'bundler',
+                    rust: 'cargo',
+                  }[language] ?? 'npm',
+                test_framework:
+                  {
+                    javascript: 'jest',
+                    typescript: 'jest',
+                    python: 'pytest',
+                    go: 'go test',
+                    ruby: 'rspec',
+                    rust: 'cargo test',
+                  }[language] ?? 'jest',
+                test_command:
+                  {
+                    javascript: 'npm test',
+                    typescript: 'npm test',
+                    python: 'pytest',
+                    go: 'go test ./...',
+                    ruby: 'rspec',
+                    rust: 'cargo test',
+                  }[language] ?? 'npm test',
+                lint_command:
+                  {
+                    javascript: 'eslint .',
+                    typescript: 'eslint .',
+                    python: 'flake8',
+                    go: 'golint',
+                    ruby: 'rubocop',
+                    rust: 'cargo clippy',
+                  }[language] ?? 'eslint .',
+                modified_count: String(options?.modifiedCount ?? 'N/A'),
+                current_package_json: currentPackageJson,
+              });
+              if (jsPrompt) {
+                const jsKey = `step_09_js|${projectRoot}|${vuln}|${outdated}`;
+                const jsResult = await this.aiCache.withCache(jsKey, jsKey, () =>
+                  this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
+                );
+                jsContent = jsResult?.content ?? '';
+              }
+            } catch {
+              /* optional */
+            }
+          }
+
+          if (aiContent || jsContent) {
+            const sections = aiContent
+              ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
+              : [report];
+            if (jsContent) sections.push(`\n\n## JavaScript Developer Analysis\n\n${jsContent}`);
+            await this.backlog.saveStepSummary(9, 'Dependency Validation', sections.join(''));
           }
         } else {
           logger.warn('AI helper not available - skipping AI dependency analysis');

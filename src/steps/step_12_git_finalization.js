@@ -319,6 +319,31 @@ export function parseSubmoduleStatus(statusOutput) {
 }
 
 // ============================================================================
+// PURE FUNCTIONS - Tagging
+// ============================================================================
+
+/**
+ * Determine whether a version string is valid for tagging
+ * @pure
+ * @param {string} version - Semver version string (e.g. "1.2.3")
+ * @returns {boolean} True if the version is non-empty and looks like a semver
+ */
+export function shouldCreateTag(version) {
+  if (!version || typeof version !== 'string') return false;
+  return /^\d+\.\d+\.\d/.test(version.trim());
+}
+
+/**
+ * Build the git tag command for a given version
+ * @pure
+ * @param {string} version - Semver version string (e.g. "1.2.3")
+ * @returns {string} Git tag command string
+ */
+export function buildTagCommand(version) {
+  return `git tag v${version.trim()}`;
+}
+
+// ============================================================================
 // PURE FUNCTIONS - Report Generation
 // ============================================================================
 
@@ -444,6 +469,10 @@ export class Step12GitFinalization {
       // Phase 6: Commit changes
       const committed = await this._commitChanges(commitMessage);
 
+      // Phase 6b: Tag the current version (if version is available)
+      const projectVersion = await this._readProjectVersion();
+      await this._tagVersion(projectVersion);
+
       // Phase 7: Push to remote (only increment commitsAhead when a new commit was created)
       const pushResult = await this._pushToRemote({
         ...gitState,
@@ -470,6 +499,7 @@ export class Step12GitFinalization {
     this.logger.info('  - Would stage changes if any exist');
     this.logger.info('  - Would generate commit message');
     this.logger.info('  - Would commit and push to origin');
+    this.logger.info('  - Would tag current version and push tag');
 
     if (this.backlogManager) {
       await this.backlogManager.saveStepSummary(
@@ -738,10 +768,12 @@ export class Step12GitFinalization {
    */
   async _gatherGitContext(gitState) {
     const allFiles = [
-      ...(gitState.status?.modified || []),
-      ...(gitState.status?.staged || []),
-      ...(gitState.status?.untracked || []),
-      ...(gitState.status?.deleted || []),
+      ...new Set([
+        ...(gitState.status?.modified || []),
+        ...(gitState.status?.staged || []),
+        ...(gitState.status?.untracked || []),
+        ...(gitState.status?.deleted || []),
+      ]),
     ];
 
     let diffSummary = '';
@@ -768,9 +800,18 @@ export class Step12GitFinalization {
       gitLog = '(log unavailable)';
     }
 
+    // diffSummary reflects all staged files (including workflow artifacts added by
+    // git add .) and may exceed gitState.totalChanges (project-level files only).
+    const diffNote =
+      diffSummary && gitState.totalChanges > 0
+        ? ` (${gitState.totalChanges} project files + workflow artifacts)`
+        : '';
+
     return {
       changedFiles: allFiles.length > 0 ? allFiles.join('\n') : '(none)',
-      diffSummary: diffSummary.trim() || `${gitState.totalChanges} files changed`,
+      diffSummary: diffSummary.trim()
+        ? `${diffSummary.trim()}${diffNote}`
+        : `${gitState.totalChanges} files changed`,
       diffSample: diffSample || '(diff unavailable)',
       gitLog: gitLog.trim() || '(log unavailable)',
     };
@@ -902,12 +943,13 @@ export class Step12GitFinalization {
     this.logger.info(`Pushing to origin/${branch}...`);
 
     try {
-      // Stash any remaining unstaged changes before rebasing — git pull --rebase
-      // refuses to run when there are unstaged modifications (e.g. gitignore-d
-      // artifact files that were not staged in _stageChanges).
+      // Stash all changes (staged + unstaged + untracked) before rebasing.
+      // git pull --rebase refuses to run when the index contains uncommitted
+      // changes, so we must clear it entirely — including any .ai_workflow/
+      // files that were written after the last commit.
       let stashed = false;
       try {
-        const stashOut = await this._executeGit('git stash --include-untracked');
+        const stashOut = await this._executeGit('git stash push --include-untracked');
         stashed = typeof stashOut === 'string' && !stashOut.includes('No local changes to save');
       } catch {
         // stash failure is non-fatal — attempt the pull anyway
@@ -925,12 +967,53 @@ export class Step12GitFinalization {
       }
 
       await this._executeGit(`git push origin ${branch}`);
+      // Reopen log file descriptors now — git stash/pull/pop may have atomically
+      // renamed log files, orphaning the open fd. Reopening here ensures the
+      // push-result log lines below are written to the visible file.
+      this.logger.reopenLogFiles?.();
       this.logger.info('Successfully pushed to remote');
       return { pushed: true };
     } catch (error) {
+      this.logger.reopenLogFiles?.();
       const detail = error.stderr ? `: ${error.stderr.trim()}` : '';
       this.logger.error(`Push failed: ${error.message}${detail}`);
       return { pushed: false, error: `${error.message}${detail}` };
+    } finally {
+      // Final reopen to cover any edge cases not handled above.
+      this.logger.reopenLogFiles?.();
+    }
+  }
+
+  /**
+   * Create an annotated git tag for the current project version.
+   * Skips gracefully if the version is missing, invalid, or the tag already exists.
+   * @private
+   * @param {string} version - Semver version string (e.g. "1.2.3")
+   */
+  async _tagVersion(version) {
+    if (!shouldCreateTag(version)) {
+      this.logger.info('Skipping git tag: no valid version found in package.json');
+      return;
+    }
+    const tagName = `v${version.trim()}`;
+    const cmd = buildTagCommand(version);
+    try {
+      await this._executeGit(cmd);
+      this.logger.info(`Tagged release: ${tagName}`);
+      // Push the tag to remote
+      try {
+        await this._executeGit(`git push origin ${tagName}`);
+        this.logger.info(`Pushed tag ${tagName} to remote`);
+      } catch (pushErr) {
+        this.logger.warn(`Failed to push tag ${tagName}: ${pushErr.message}`);
+      }
+    } catch (err) {
+      const msg = `${err.message} ${err.stderr ?? ''}`.toLowerCase();
+      if (msg.includes('already exists')) {
+        this.logger.info(`Tag ${tagName} already exists — skipping`);
+      } else {
+        this.logger.warn(`Failed to create tag ${tagName}: ${err.message}`);
+      }
     }
   }
 
@@ -986,6 +1069,12 @@ export class Step12GitFinalization {
     const cwd = this._projectRoot || process.cwd();
     if (this.executor && typeof this.executor.execute === 'function') {
       const result = await this.executor.execute(command, { shell: true, cwd });
+      return result.stdout || '';
+    }
+
+    // Fallback: executor may be the raw execute function (default export)
+    if (typeof this.executor === 'function') {
+      const result = await this.executor(command, { shell: true, cwd });
       return result.stdout || '';
     }
 
