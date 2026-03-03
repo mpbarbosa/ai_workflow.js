@@ -42,6 +42,11 @@ export function getDefaultExclusionPatterns(projectKind) {
     // Workflow artifacts
     '.ai_workflow/**',
     '.workflow_core/**',
+
+    // Python virtual environments
+    'venv/**',
+    '.venv/**',
+    'env/**',
   ];
 
   const languageSpecific = {

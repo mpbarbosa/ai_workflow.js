@@ -14,7 +14,14 @@ import { Backlog } from '../lib/backlog.js';
 import yaml from 'js-yaml';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { buildConsistencyPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  buildConsistencyPrompt,
+  AI_HELPERS_PATH,
+  AI_PROJECT_KINDS_PATH,
+  buildYamlStepPrompt,
+  buildProjectKindPrompt,
+} from '../lib/ai_prompt_builder.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 
 // ============================================================================
 // CONSTANTS
@@ -47,6 +54,23 @@ export const ISSUE_TYPE = {
   MISSING_FILE: 'missing_file',
   INCONSISTENT_METRICS: 'inconsistent_metrics',
 };
+
+/**
+ * Maximum documentation files per AI call partition.
+ * Keeps individual prompts well under model context limits.
+ */
+export const PARTITION_SIZE = 50;
+
+/**
+ * Maximum unique broken-link source files shown per partition prompt.
+ */
+export const MAX_ISSUES_PER_PROMPT = 30;
+
+/**
+ * Hard character cap applied to every prompt before sending to the AI.
+ * ~15 000 tokens at 4 chars/token — safe for all supported models.
+ */
+export const MAX_PROMPT_CHARS = 60_000;
 
 // ============================================================================
 // PURE FUNCTIONS - Version Validation
@@ -181,25 +205,28 @@ export function isFileReference(url) {
 }
 
 /**
- * Normalize file path for comparison
+ * Normalize file path for comparison.
+ * When `baseDir` is absolute, resolves using `path.resolve` so that `../`
+ * segments are correctly traversed (returns absolute path). When `baseDir`
+ * is relative, collapses `../` with `path.normalize` (returns relative path).
  * @pure
- * @param {string} path - File path
- * @param {string} baseDir - Base directory
+ * @param {string} filePath - File path (may contain `../` segments)
+ * @param {string} baseDir - Base directory (directory of the source file)
  * @returns {string} Normalized path
  */
-export function normalizeFilePath(path, baseDir = '.') {
+export function normalizeFilePath(filePath, baseDir = '.') {
   // Remove anchor fragments
-  const withoutAnchor = path.split('#')[0];
+  const withoutAnchor = filePath.split('#')[0];
+  if (!withoutAnchor) return '';
 
-  // Remove leading ./
-  const cleaned = withoutAnchor.replace(/^\.\//, '');
-
-  // Resolve relative to base
-  if (baseDir && baseDir !== '.') {
-    return `${baseDir}/${cleaned}`.replace(/\/+/g, '/');
+  if (path.isAbsolute(baseDir)) {
+    // Absolute base: path.resolve correctly traverses ../
+    return path.resolve(baseDir, withoutAnchor);
   }
 
-  return cleaned;
+  // Relative base: collapse ../ with normalize+join (preserves relative output for tests)
+  const base = baseDir === '.' ? '' : baseDir;
+  return path.normalize(base ? path.join(base, withoutAnchor) : withoutAnchor);
 }
 
 /**
@@ -292,6 +319,120 @@ export function formatConsistencyReport(results) {
 }
 
 // ============================================================================
+// PURE FUNCTIONS - Prompt Partitioning
+// ============================================================================
+
+/**
+ * Partition an array into chunks of at most `chunkSize` elements.
+ * @pure
+ * @param {Array} files - Array to split
+ * @param {number} chunkSize - Maximum elements per chunk
+ * @returns {Array[]} Array of chunks
+ */
+export function partitionFiles(files, chunkSize) {
+  if (!Array.isArray(files) || files.length === 0) return [];
+  const chunks = [];
+  for (let i = 0; i < files.length; i += chunkSize) {
+    chunks.push(files.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+/**
+ * Build the prompt context strings for a single partition.
+ * Returns the doc-file list string and broken-refs string, both already
+ * size-bounded so the resulting prompt stays within MAX_PROMPT_CHARS.
+ *
+ * @pure
+ * @param {string[]} partFiles - Relative doc-file paths in this partition
+ * @param {Object[]} brokenLinks - All broken-link issues (full set); each has {file, line, link}
+ * @param {number} partIndex - 0-based partition index
+ * @param {number} totalParts - Total number of partitions
+ * @returns {{ docFilesList: string, brokenRefsList: string, header: string }}
+ */
+export function buildPartitionContext(partFiles, brokenLinks, partIndex, totalParts) {
+  const docFilesList = partFiles.join(', ');
+
+  // Filter broken links to those whose SOURCE file is in this partition
+  const matchingBroken = brokenLinks.filter((l) => {
+    const f = l.file || String(l);
+    return partFiles.some((pf) => f.endsWith(pf) || pf.endsWith(f.replace(/^.*[/\\]/, '')));
+  });
+
+  // Format as "source:line → target" so the AI knows WHAT is broken and WHERE,
+  // not which files happen to contain broken links (which all exist).
+  const formattedPairs = matchingBroken.map((l) => `${l.file}:${l.line} → ${l.link}`);
+
+  // Deduplicate and cap
+  const uniquePairs = [...new Set(formattedPairs)];
+  const cappedPairs = uniquePairs.slice(0, MAX_ISSUES_PER_PROMPT);
+  const suffix =
+    uniquePairs.length > MAX_ISSUES_PER_PROMPT
+      ? `, ... and ${uniquePairs.length - MAX_ISSUES_PER_PROMPT} more`
+      : '';
+  const brokenRefsList = cappedPairs.length > 0 ? cappedPairs.join(', ') + suffix : 'none';
+
+  const header =
+    totalParts > 1
+      ? `[Partition ${partIndex + 1} of ${totalParts} — analyse ONLY the files listed below]`
+      : '';
+
+  return { docFilesList, brokenRefsList, header };
+}
+
+// ============================================================================
+// PURE FUNCTIONS - AI Response Quality
+// ============================================================================
+
+/**
+ * Minimum ratio of flagged references that should be addressed in the AI response
+ * for it to be considered high-quality.
+ */
+export const MIN_COVERAGE_RATIO = 0.5;
+
+/**
+ * Validate that an AI response meaningfully addresses the flagged broken references.
+ * Returns a quality assessment without performing any I/O.
+ *
+ * @pure
+ * @param {string} aiResponse - Raw AI response text
+ * @param {string[]} flaggedItems - The "source:line → target" pairs sent to the AI
+ * @returns {{ adequate: boolean, reason: string, coverage: number }}
+ */
+export function validateAiResponseQuality(aiResponse, flaggedItems) {
+  if (!aiResponse || typeof aiResponse !== 'string' || aiResponse.trim().length === 0) {
+    return { adequate: false, reason: 'empty_response', coverage: 0 };
+  }
+
+  // Generic catch-all responses (< 200 chars) that contain no per-item analysis
+  if (aiResponse.trim().length < 200 && flaggedItems.length > 0) {
+    return { adequate: false, reason: 'too_short', coverage: 0 };
+  }
+
+  if (flaggedItems.length === 0) {
+    return { adequate: true, reason: 'no_items_to_cover', coverage: 1 };
+  }
+
+  // Check how many flagged items have a corresponding entry in the response.
+  // An item is "addressed" if its broken target (the part after →) appears in the response.
+  const addressed = flaggedItems.filter((item) => {
+    const target = item.includes(' → ') ? item.split(' → ')[1].trim() : item;
+    return aiResponse.includes(target);
+  });
+
+  const coverage = addressed.length / flaggedItems.length;
+  if (coverage < MIN_COVERAGE_RATIO) {
+    return {
+      adequate: false,
+      reason: 'low_coverage',
+      coverage,
+    };
+  }
+
+  return { adequate: true, reason: 'ok', coverage };
+}
+
+// ============================================================================
 // STEP 2 ANALYZER - Impure Wrapper
 // ============================================================================
 
@@ -306,15 +447,16 @@ export class Step2ConsistencyAnalyzer {
     this.backlog = options.backlog || new Backlog();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
+    this.techStack = options.techStack || new TechStackDetector();
   }
 
   /**
    * Execute Step 2 consistency analysis
    * @param {string} projectRoot - Project root directory
-   * @param {Object} _options - Execution options (reserved for future use)
+   * @param {Object} options - Execution options
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 2: Documentation Consistency Analysis');
 
@@ -352,23 +494,128 @@ export class Step2ConsistencyAnalyzer {
       const report = formatConsistencyReport(results);
       await this.backlog.saveStepSummary(2, 'Consistency Analysis', report);
 
-      // Phase 6: AI-powered consistency analysis
+      // Phase 6: AI-powered consistency analysis (partitioned to avoid prompt-size timeouts)
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
-        const prompt = buildConsistencyPrompt({
-          docDirectory: projectRoot,
-          docFiles: docFiles.map((f) => path.relative(projectRoot, f)),
-          scanResults: results,
-          projectInfo: { project_name: projectRoot },
-        });
-        const cacheKey = `step_02|${projectRoot}|${docFiles.length}|${totalIssues}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'code_quality_analyst' })
+        const language = options.language || (await this.detectLanguage(projectRoot));
+
+        // Load YAML prompt config and optional project-kind role overlay once
+        let parsedYaml = null;
+        let roleOverride = '';
+        try {
+          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          parsedYaml = yaml.load(yamlContent);
+        } catch {
+          /* YAML unavailable, will use fallback builder */
+        }
+        try {
+          const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+          const parsedPk = yaml.load(pkYaml);
+          const pk = buildProjectKindPrompt(
+            parsedPk,
+            options?.projectKind ?? 'default',
+            'code_reviewer'
+          );
+          if (pk?.role) roleOverride = pk.role;
+        } catch {
+          /* optional */
+        }
+
+        // Partition documentation files to keep each prompt under MAX_PROMPT_CHARS
+        const relDocFiles = docFiles.map((f) => path.relative(projectRoot, f));
+        const partitions = partitionFiles(relDocFiles, PARTITION_SIZE);
+        const totalParts = partitions.length;
+        logger.info(
+          `[step_02] Running AI analysis in ${totalParts} partition(s) of ≤${PARTITION_SIZE} files`
         );
-        const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+
+        const aiParts = [];
+        for (let i = 0; i < totalParts; i++) {
+          const partFiles = partitions[i];
+          const { docFilesList, brokenRefsList, header } = buildPartitionContext(
+            partFiles,
+            brokenLinks,
+            i,
+            totalParts
+          );
+
+          let prompt;
+          if (parsedYaml) {
+            try {
+              prompt = buildYamlStepPrompt(parsedYaml, 'step2_consistency_prompt', {
+                project_name: projectRoot,
+                project_description: options.projectDescription || '',
+                primary_language: language,
+                change_scope: options.scope || '',
+                doc_count: String(docFiles.length),
+                modified_count: String(partFiles.length),
+                broken_refs_content: brokenRefsList,
+                doc_files: docFilesList,
+              });
+              if (prompt && roleOverride) {
+                prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
+              }
+              if (prompt && header) {
+                prompt = `${header}\n\n${prompt}`;
+              }
+            } catch {
+              prompt = null;
+            }
+          }
+
+          if (!prompt) {
+            prompt = buildConsistencyPrompt({
+              docDirectory: projectRoot,
+              docFiles: partFiles,
+              scanResults: results,
+              projectInfo: { project_name: projectRoot },
+            });
+            if (header) prompt = `${header}\n\n${prompt}`;
+          }
+
+          // Safety cap: hard-truncate if still over limit
+          if (prompt.length > MAX_PROMPT_CHARS) {
+            logger.warn(
+              `[step_02] Partition ${i + 1}: prompt truncated ${prompt.length} → ${MAX_PROMPT_CHARS} chars`
+            );
+            prompt = prompt.substring(0, MAX_PROMPT_CHARS) + '\n\n...(truncated for length)';
+          }
+
+          const cacheKey = `step_02|${projectRoot}|part${i}of${totalParts}|${docFiles.length}|${totalIssues}`;
+          // Use 'documentation_expert' persona: Step 2 performs documentation consistency
+          // analysis (cross-references, version sync, terminology), not code quality review.
+          // The YAML prompt template (step2_consistency_prompt) also defines a documentation
+          // specialist role — both layers must agree to avoid misleading prompt logs.
+          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
+          );
+          const aiContent = aiResult?.content ?? '';
+
+          // Validate response quality; warn if the model gave a generic non-structured reply
+          const partitionBrokenRefs =
+            brokenRefsList !== 'none'
+              ? brokenRefsList.split(', ').filter((s) => s.includes(' → '))
+              : [];
+          const quality = validateAiResponseQuality(aiContent, partitionBrokenRefs);
+          if (!quality.adequate) {
+            logger.warn(
+              `[step_02] Partition ${i + 1}: AI response quality low` +
+                ` (reason=${quality.reason}, coverage=${(quality.coverage * 100).toFixed(0)}%).` +
+                ' Consider re-running this partition.'
+            );
+          }
+
+          if (aiContent) {
+            aiParts.push(
+              totalParts > 1 ? `### Partition ${i + 1} of ${totalParts}\n\n${aiContent}` : aiContent
+            );
+          }
+        }
+
+        if (aiParts.length > 0) {
+          const merged = aiParts.join('\n\n---\n\n');
+          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${merged}`;
           await this.backlog.saveStepSummary(2, 'Consistency Analysis', enrichedReport);
         }
       } else {
@@ -398,7 +645,7 @@ export class Step2ConsistencyAnalyzer {
    */
   async discoverDocumentationFiles(projectRoot) {
     const patterns = ['**/*.md', '**/README*', '**/CHANGELOG*', '**/CONTRIBUTING*'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage'];
+    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'venv', '.venv', 'env'];
 
     const files = [];
     for (const pattern of patterns) {
@@ -484,7 +731,7 @@ export class Step2ConsistencyAnalyzer {
    */
   async buildFileIndex(projectRoot) {
     const patterns = ['**/*'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage'];
+    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'venv', '.venv', 'env'];
 
     const files = await this.fileOps.glob(patterns[0], {
       cwd: projectRoot,
@@ -492,7 +739,20 @@ export class Step2ConsistencyAnalyzer {
       absolute: true,
     });
 
-    return new Set(files);
+    // Build Set of both file paths and all their ancestor directories (down to projectRoot),
+    // so that directory link targets (e.g. ".github/scripts/") resolve as existing.
+    const fileSet = new Set(files);
+    if (projectRoot) {
+      for (const filePath of files) {
+        let dir = path.dirname(filePath);
+        while (dir.length > projectRoot.length) {
+          fileSet.add(dir);
+          dir = path.dirname(dir);
+        }
+      }
+    }
+
+    return fileSet;
   }
 
   /**
@@ -517,6 +777,15 @@ export class Step2ConsistencyAnalyzer {
     }
 
     return allIssues;
+  }
+
+  async detectLanguage(projectRoot) {
+    try {
+      const detection = await this.techStack.detectTechStack(projectRoot);
+      return detection.primaryLanguage || 'javascript';
+    } catch {
+      return 'javascript';
+    }
   }
 }
 

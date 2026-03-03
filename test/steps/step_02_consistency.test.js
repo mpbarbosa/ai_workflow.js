@@ -13,6 +13,10 @@ import {
   normalizeFilePath,
   validateFileReferences,
   formatConsistencyReport,
+  partitionFiles,
+  buildPartitionContext,
+  validateAiResponseQuality,
+  MIN_COVERAGE_RATIO,
   ISSUE_TYPE,
 } from '../../src/steps/step_02_consistency.js';
 
@@ -262,6 +266,24 @@ describe('Step 2: Consistency Analysis', () => {
       const issues = validateFileReferences(links, existingFiles, 'docs/index.md');
       expect(issues).toHaveLength(0);
     });
+
+    test('does not flag directory link targets as broken when directory is in Set', () => {
+      // Simulates buildFileIndex Set that includes parent dirs derived from file paths.
+      // A link to ".github/scripts/" (or ".github/scripts") should not be broken
+      // if the directory itself is in the existingFiles Set.
+      const links = [
+        { url: '.github/scripts/', text: 'Scripts', line: 5 },
+        { url: '.github/scripts', text: 'Scripts no-slash', line: 6 },
+      ];
+      // Set contains the directory path (as buildFileIndex now derives and adds parent dirs)
+      const existingFiles = new Set([
+        '/project/.github/scripts/check-references.sh',
+        '/project/.github/scripts',
+      ]);
+
+      const issues = validateFileReferences(links, existingFiles, '/project/README.md');
+      expect(issues).toHaveLength(0);
+    });
   });
 
   // ========================================================================
@@ -494,6 +516,159 @@ describe('Step 2: Consistency Analysis', () => {
       // and the source code passes promptsDir, this is satisfied structurally.
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - Prompt Partitioning (new coverage)
+  // ========================================================================
+
+  describe('partitionFiles', () => {
+    test('returns empty array for empty input', () => {
+      expect(partitionFiles([], 10)).toEqual([]);
+    });
+
+    test('returns single chunk when files fit', () => {
+      const result = partitionFiles(['a.md', 'b.md'], 5);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(['a.md', 'b.md']);
+    });
+
+    test('splits into correct number of chunks', () => {
+      const files = Array.from({ length: 7 }, (_, i) => `f${i}.md`);
+      const result = partitionFiles(files, 3);
+      expect(result).toHaveLength(3); // ceil(7/3)
+      expect(result[0]).toHaveLength(3);
+      expect(result[1]).toHaveLength(3);
+      expect(result[2]).toHaveLength(1);
+    });
+  });
+
+  describe('buildPartitionContext', () => {
+    const partFiles = ['docs/testing/TESTING.md', 'docs/ux/VISUAL_HIERARCHY.md'];
+    const brokenLinks = [
+      { file: 'docs/testing/TESTING.md', line: 49, link: './.github/TDD_GUIDE.md' },
+      { file: 'docs/testing/TESTING.md', line: 63, link: './docs/TESTING.md' },
+      { file: 'docs/ux/VISUAL_HIERARCHY.md', line: 216, link: './UX_IMPROVEMENTS.md' },
+    ];
+
+    test('brokenRefsList contains "source:line → target" pairs, not source file paths', () => {
+      const { brokenRefsList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
+      expect(brokenRefsList).toContain('→');
+      expect(brokenRefsList).toContain('./.github/TDD_GUIDE.md');
+      // Must NOT just be the source file without line+target context
+      expect(brokenRefsList).not.toBe('docs/testing/TESTING.md');
+    });
+
+    test('formats each entry as "file:line → target"', () => {
+      const { brokenRefsList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
+      expect(brokenRefsList).toContain('docs/testing/TESTING.md:49 → ./.github/TDD_GUIDE.md');
+    });
+
+    test('returns "none" when no broken links match partition', () => {
+      const { brokenRefsList } = buildPartitionContext(['other.md'], brokenLinks, 0, 1);
+      expect(brokenRefsList).toBe('none');
+    });
+
+    test('adds partition header for multi-partition runs', () => {
+      const { header } = buildPartitionContext(partFiles, brokenLinks, 1, 3);
+      expect(header).toBe('[Partition 2 of 3 — analyse ONLY the files listed below]');
+    });
+
+    test('header is empty for single partition', () => {
+      const { header } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
+      expect(header).toBe('');
+    });
+
+    test('docFilesList joins partition files with comma', () => {
+      const { docFilesList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
+      expect(docFilesList).toBe('docs/testing/TESTING.md, docs/ux/VISUAL_HIERARCHY.md');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - normalizeFilePath ../ traversal (regression tests)
+  // ========================================================================
+
+  describe('normalizeFilePath - ../traversal fixes', () => {
+    test('resolves single ../ with relative base', () => {
+      expect(normalizeFilePath('../README.md', 'docs')).toBe('README.md');
+    });
+
+    test('resolves double ../ with relative base', () => {
+      expect(normalizeFilePath('../../.github/TDD.md', 'docs/testing')).toBe('.github/TDD.md');
+    });
+
+    test('resolves absolute base with ../ correctly', () => {
+      // With absolute base, path.resolve is used — verify correct traversal
+      const absBase = '/project/docs/testing';
+      const result = normalizeFilePath('../../.github/TDD.md', absBase);
+      expect(result).toBe('/project/.github/TDD.md');
+    });
+
+    test('existing relative-base tests are unaffected', () => {
+      expect(normalizeFilePath('file.md#section')).toBe('file.md');
+      expect(normalizeFilePath('./file.md')).toBe('file.md');
+      expect(normalizeFilePath('guide.md', 'docs')).toBe('docs/guide.md');
+      expect(normalizeFilePath('docs//guide.md', 'base')).toBe('base/docs/guide.md');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - validateAiResponseQuality
+  // ========================================================================
+
+  describe('validateAiResponseQuality', () => {
+    const flaggedItems = [
+      'docs/testing/TESTING.md:49 → ./.github/TDD_GUIDE.md',
+      'docs/ux/VISUAL_HIERARCHY.md:216 → ./UX_IMPROVEMENTS.md',
+    ];
+
+    test('returns adequate=false for empty response', () => {
+      const result = validateAiResponseQuality('', flaggedItems);
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('empty_response');
+    });
+
+    test('returns adequate=false for too-short response with flagged items', () => {
+      const result = validateAiResponseQuality('All broken.', flaggedItems);
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('too_short');
+    });
+
+    test('returns adequate=true when no items to cover', () => {
+      const result = validateAiResponseQuality('Some generic analysis...', []);
+      expect(result.adequate).toBe(true);
+      expect(result.reason).toBe('no_items_to_cover');
+    });
+
+    test('returns adequate=false when coverage is below threshold', () => {
+      // Response doesn't mention any broken targets
+      const longResponse = 'A'.repeat(300);
+      const result = validateAiResponseQuality(longResponse, flaggedItems);
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('low_coverage');
+      expect(result.coverage).toBe(0);
+    });
+
+    test('returns adequate=true when sufficient targets are addressed', () => {
+      const response = `
+### Reference Analysis
+The target ./.github/TDD_GUIDE.md is missing — the file was never created.
+Fix: Create .github/TDD_GUIDE.md or remove the reference.
+
+The target ./UX_IMPROVEMENTS.md is also missing from docs/ux/.
+Fix: Create the file or update the link.
+      `.repeat(5); // ensure > 200 chars
+      const result = validateAiResponseQuality(response, flaggedItems);
+      expect(result.adequate).toBe(true);
+      expect(result.coverage).toBeGreaterThanOrEqual(MIN_COVERAGE_RATIO);
+    });
+
+    test('coverage reflects partial addressing', () => {
+      const response = 'Only mentions ./.github/TDD_GUIDE.md but not the other. '.repeat(10);
+      const result = validateAiResponseQuality(response, flaggedItems);
+      expect(result.coverage).toBe(0.5); // 1 of 2 addressed
     });
   });
 });

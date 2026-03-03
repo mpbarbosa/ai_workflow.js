@@ -56,6 +56,15 @@ describe('Third-Party Exclusion - Pure Functions', () => {
       expect(patterns.length).toBeGreaterThan(5);
       expect(patterns).toContain('.git/**');
     });
+
+    it('should include venv patterns for all project types (commonPatterns)', () => {
+      for (const kind of ['nodejs_api', 'react_spa', 'generic', 'location_based_service']) {
+        const patterns = getDefaultExclusionPatterns(kind);
+        expect(patterns).toContain('venv/**');
+        expect(patterns).toContain('.venv/**');
+        expect(patterns).toContain('env/**');
+      }
+    });
   });
 
   describe('parseGitignorePatterns', () => {
