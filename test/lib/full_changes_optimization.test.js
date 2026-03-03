@@ -33,7 +33,7 @@ describe('Full Changes Optimization', () => {
 
       expect(candidates.docs_only).toBe(true);
       expect(candidates.code_changes).toBe(false);
-      expect(candidates.ml_prediction).toBe(true);
+      expect(candidates.ml_prediction).toBe(false);
       expect(candidates.standard).toBe(true);
     });
 
@@ -70,7 +70,7 @@ describe('Full Changes Optimization', () => {
 
       expect(candidates.docs_only).toBe(false);
       expect(candidates.code_changes).toBe(false);
-      expect(candidates.ml_prediction).toBe(true);
+      expect(candidates.ml_prediction).toBe(false);
       expect(candidates.standard).toBe(true);
     });
 

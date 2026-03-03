@@ -39,7 +39,6 @@ export const DOC_TYPES = Object.freeze({
 export const DOC_THRESHOLDS = Object.freeze({
   minReadmeSize: 500, // bytes
   minDocsCount: 2, // minimum docs files
-  sufficientDocsCount: 5, // skip bootstrap if this many exist
 });
 
 export const SOURCE_EXTENSIONS = Object.freeze([
@@ -473,30 +472,6 @@ export class Step0bBootstrapDocs {
       this.logger.info(
         `${colors.blue}Phase 2:${colors.reset} Evaluating documentation coverage...`
       );
-      if (stats.docCount >= DOC_THRESHOLDS.sufficientDocsCount) {
-        this.logger.info(
-          `Step 0b: Sufficient documentation exists (${stats.docCount} files) - skipping bootstrap`
-        );
-
-        await this.backlog.saveStepSummary(
-          '0b',
-          'Bootstrap_Docs',
-          `Skipped: Project has ${stats.docCount} documentation files (sufficient)`,
-          '⏭️'
-        );
-
-        return {
-          success: true,
-          skipped: true,
-          reason: 'sufficient documentation exists',
-          docCount: stats.docCount,
-        };
-      } else {
-        this.logger.warn(
-          `Documentation coverage may be inadequate (${stats.docCount} files) - further analysis needed`
-        );
-      }
-
       const needsBootstrap = shouldBootstrapDocs(stats);
 
       if (!needsBootstrap) {
@@ -617,6 +592,7 @@ export class Step0bBootstrapDocs {
           this.logger.debug(prompt);
           const response = await this.aiHelper.executeRequest(prompt, {
             persona: 'technical_writer',
+            model: 'claude-haiku-4.5',
           });
           if (response.success && response.content) {
             const parsedDocs = parseAiDocResponse(response.content);

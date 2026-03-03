@@ -1,0 +1,48 @@
+[2026-03-03T22:17:01.059Z] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-03-03T22:17:01.060Z]   AI Workflow Automation - Starting
+[2026-03-03T22:17:01.060Z] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-03-03T22:17:01.060Z] Stage: full
+[2026-03-03T22:17:01.060Z] Mode: interactive
+[2026-03-03T22:17:01.060Z] Detecting workflow profile based on changes...
+[2026-03-03T22:17:01.086Z] Detected profile: full_validation
+[2026-03-03T22:17:01.087Z]   Changed files: 465 (docs: 10, code: 28, tests: 15, infra: 3, other: 409)
+[2026-03-03T22:17:01.087Z] Profile: full_validation
+[2026-03-03T22:17:01.087Z] Performing health checks...
+[2026-03-03T22:17:01.087Z] ✓ All health checks passed
+[2026-03-03T22:17:01.087Z] Registering workflow steps...
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_00
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_0b
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_01
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_02
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_02_5
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_03
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_04
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_05
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_06
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_07
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_08
+[2026-03-03T22:17:01.087Z] [DEBUG] Registered step: step_09
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_10
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_11
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_11_5
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_11_6
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_13
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_14
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_15
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_16
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_18
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_17
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_0f
+[2026-03-03T22:17:01.088Z] [DEBUG] Registered step: step_12
+[2026-03-03T22:17:01.088Z] ✓ Registered 24 workflow steps
+[2026-03-03T22:17:01.088Z] Executing 24 steps for stage: full
+[2026-03-03T22:17:01.088Z] [DEBUG] [CommitHistory] Loaded history; lastRunCommit=e400a497c23856bd4396a145c05c6c26acde2429
+[2026-03-03T22:17:01.098Z] [CommitHistory] 26 file(s) changed since last run (e400a49)
+[2026-03-03T22:17:01.123Z] Full optimization: Analyzing changes...
+[2026-03-03T22:17:01.124Z] Docs-only analysis: NO (11.54% docs, 0% faster)
+[2026-03-03T22:17:01.126Z] Code optimization: backend (0 steps skipped)
+[2026-03-03T22:17:01.126Z] Full optimization: Selected strategy 'standard' (confidence: 30%)
+[2026-03-03T22:17:01.126Z] 
+Starting workflow execution...
+
+[2026-03-03T22:17:01.164Z] [DEBUG] No model file found, starting fresh

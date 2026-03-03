@@ -744,6 +744,7 @@ export class GitAutomation {
    * @param {string} message - Commit message
    * @param {Object} options - Commit options
    * @param {boolean} [options.allowEmpty=false] - Allow empty commit
+   * @param {boolean} [options.noVerify=false] - Skip pre-commit hooks (--no-verify)
    * @returns {Promise<string>} Commit hash
    */
   async commit(message, options = {}) {
@@ -756,6 +757,10 @@ export class GitAutomation {
 
     if (options.allowEmpty) {
       args.push('--allow-empty');
+    }
+
+    if (options.noVerify) {
+      args.push('--no-verify');
     }
 
     const command = buildGitCommand('commit', args);

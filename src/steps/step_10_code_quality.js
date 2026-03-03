@@ -7,7 +7,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
@@ -17,7 +17,8 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
-import { buildCodeQualityPrompt } from '../lib/ai_prompt_builder.js';
+import { buildCodeQualityPrompt, AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
 // ============================================================================
@@ -254,12 +255,16 @@ export function parseLinterOutput(output, language) {
     const issueMatches = output.match(/^In .+? line \d+:/gm) || [];
     const errors = (output.match(/\(error\)/g) || []).length;
     const warnings = (output.match(/\(warning\)/g) || []).length;
-    const notes = (output.match(/\(note\)/g) || []).length;
-    const total = issueMatches.length || errors + warnings + notes;
+    const infos =
+      (output.match(/\(info\)/g) || []).length +
+      (output.match(/\(style\)/g) || []).length +
+      (output.match(/\(note\)/g) || []).length;
+    const total = issueMatches.length || errors + warnings + infos;
     return {
       totalIssues: total,
       errors,
-      warnings: warnings + notes,
+      warnings,
+      infos,
       files: 0,
     };
   }
@@ -411,13 +416,14 @@ export function formatMultiLanguageQualityReport(perLanguageResults, aggregateTo
   let report = '# Code Quality Report\n\n';
 
   // Overall summary
-  const { totalIssues = 0, errors = 0, warnings = 0, fileCount = 0 } = aggregateTotals;
+  const { totalIssues = 0, errors = 0, warnings = 0, infos = 0, fileCount = 0 } = aggregateTotals;
   report += '## Summary\n\n';
   report += `- **Languages analyzed**: ${perLanguageResults.length}\n`;
   report += `- **Total Source Files**: ${fileCount}\n`;
   report += `- **Total Issues**: ${totalIssues}\n`;
   if (errors > 0) report += `- **Total Errors**: ${errors}\n`;
   if (warnings > 0) report += `- **Total Warnings**: ${warnings}\n`;
+  if (infos > 0) report += `- **Total Info**: ${infos}\n`;
   report += '\n';
 
   // Per-language sections
@@ -449,8 +455,11 @@ export function formatMultiLanguageQualityReport(perLanguageResults, aggregateTo
         report += '- **Result**: ✅ No issues found\n';
       } else {
         report += `- **Issues**: ${linterResults.totalIssues}`;
-        if (linterResults.errors > 0)
-          report += ` (${linterResults.errors} errors, ${linterResults.warnings} warnings)`;
+        if (linterResults.errors > 0) {
+          let breakdown = `${linterResults.errors} errors, ${linterResults.warnings} warnings`;
+          if (linterResults.infos > 0) breakdown += `, ${linterResults.infos} info`;
+          report += ` (${breakdown})`;
+        }
         report += '\n';
       }
     }
@@ -500,10 +509,10 @@ export class Step10CodeQualityAnalyzer {
   /**
    * Execute Step 10 code quality analysis
    * @param {string} projectRoot - Project root directory
-   * @param {Object} _options - Execution options (reserved)
+   * @param {Object} options - Execution options (reserved)
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 10: Code Quality Analysis');
 
@@ -606,9 +615,10 @@ export class Step10CodeQualityAnalyzer {
           totalIssues: acc.totalIssues + (r.linterResults?.totalIssues || 0),
           errors: acc.errors + (r.linterResults?.errors || 0),
           warnings: acc.warnings + (r.linterResults?.warnings || 0),
+          infos: acc.infos + (r.linterResults?.infos || 0),
           fileCount: acc.fileCount + r.sourceFileCount,
         }),
-        { totalIssues: 0, errors: 0, warnings: 0, fileCount: 0 }
+        { totalIssues: 0, errors: 0, warnings: 0, infos: 0, fileCount: 0 }
       );
 
       logger.info(
@@ -634,7 +644,7 @@ export class Step10CodeQualityAnalyzer {
           // rotation and review ALL files in one pass so no changes fall off the radar.
           // Slicing (below) ensures even very large sets don't produce a single huge prompt.
           const largeChangeSet =
-            Array.isArray(_options.modifiedFiles) && _options.modifiedFiles.length > 50;
+            Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 50;
 
           // Select the partition to review this run and rotate for the next run.
           const partitionCache = new Step10PartitionCache({
@@ -674,31 +684,111 @@ export class Step10CodeQualityAnalyzer {
           }
           if (slices.length === 0) slices.push([]);
 
-          const aiSections = [];
-          for (let si = 0; si < slices.length; si++) {
-            const sliceFiles = slices[si];
+          // Read YAML config once, outside the per-slice work, so all parallel requests share it.
+          let sharedParsedYaml = null;
+          let sharedRoleOverride = '';
+          try {
+            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+            sharedParsedYaml = yaml.load(yamlContent);
+            try {
+              const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+              const parsedPk = yaml.load(pkYaml);
+              const pk = buildProjectKindPrompt(parsedPk, _options?.projectKind ?? 'default', 'code_quality_auditor');
+              if (pk?.role) sharedRoleOverride = pk.role;
+            } catch { /* optional */ }
+          } catch { /* fallback to hardcoded builder below */ }
+
+          // Run all slices in parallel — each slice is independent (different file set, unique cache key).
+          const aiSectionResults = await Promise.all(slices.map(async (sliceFiles, si) => {
             const sliceContents = {};
             for (const f of sliceFiles) {
               if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
                 sliceContents[f] = fileContents[f];
               }
             }
-            const prompt = buildCodeQualityPrompt({
-              codeFiles: sliceFiles,
-              language: primaryLanguage,
-              projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
-              fileContents: sliceContents,
-            });
+
+            // Try YAML-based prompt; fall back to hardcoded builder
+            let prompt;
+            try {
+              if (sharedParsedYaml) {
+                const sampleCode = Object.values(sliceContents).slice(0, 2).join('\n---\n').slice(0, 2000);
+                const largeFList = sliceFiles.join(', ');
+                const projectName = basename(projectRoot);
+                const projectDescription = options?.projectDescription ?? '';
+                const changeScope = options?.changeScope ?? 'full';
+                const modifiedFiles = options?.modifiedFiles ?? [];
+                const modifiedCount = modifiedFiles.length;
+                const totalFiles = aggregateTotals.fileCount ?? sliceFiles.length;
+                const languageBreakdown = detectedLanguages.map(l => `${l}`).join(', ') || primaryLanguage;
+                prompt = buildYamlStepPrompt(sharedParsedYaml, 'step9_code_quality_prompt', {
+                  project_name: projectName,
+                  project_description: projectDescription,
+                  primary_language: primaryLanguage,
+                  tech_stack_summary: detectedLanguages.join(', '),
+                  change_scope: changeScope,
+                  modified_count: modifiedCount,
+                  total_files: totalFiles,
+                  language_breakdown: languageBreakdown,
+                  quality_summary: `${aggregateTotals.totalIssues} issue(s)`,
+                  quality_report_content: report.slice(0, 3000),
+                  large_files_list: largeFList,
+                  sample_code: sampleCode,
+                });
+                if (prompt && sharedRoleOverride) {
+                  prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
+                }
+                // Supplementary: issue extraction — only append when actual log content is available
+                const logFile = options?.sessionLogFile ?? '';
+                const logContent = options?.sessionLogContent ?? '';
+                if (logFile && logContent) {
+                  const issuePrompt = buildYamlStepPrompt(sharedParsedYaml, 'issue_extraction_prompt', {
+                    project_name: projectName,
+                    primary_language: primaryLanguage,
+                    log_file: logFile,
+                    log_content: logContent,
+                  });
+                  if (issuePrompt && prompt) {
+                    prompt = `${prompt}\n\n---\n\n${issuePrompt}`;
+                  }
+                }
+                // Front-end projects: add front_end_developer perspective
+                const fePks = ['react_spa', 'client_spa', 'static_website'];
+                if (fePks.includes(_options?.projectKind ?? '')) {
+                  const fePrompt = buildYamlStepPrompt(sharedParsedYaml, 'front_end_developer_prompt', {
+                    project_name: basename(projectRoot),
+                  });
+                  if (fePrompt && prompt) {
+                    prompt = `${prompt}\n\n---\n\n${fePrompt}`;
+                  }
+                }
+              }
+            } catch { /* fallback */ }
+
+            if (!prompt) {
+              prompt = buildCodeQualityPrompt({
+                codeFiles: sliceFiles,
+                language: primaryLanguage,
+                projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
+                fileContents: sliceContents,
+              });
+            }
+
             const cacheKey = `step_10|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
+            // Use 'code_quality_analyst' persona: Step 10 performs code quality review
+            // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
+            // YAML template, which defines a "comprehensive software quality engineer" role.
+            // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
+            // a misleading mismatch between the logged persona and the actual prompt content.
             const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
               this.aiHelper.executeRequest(prompt, {
-                persona: 'architecture_reviewer',
+                persona: 'code_quality_analyst',
                 timeout: 240000,
               })
             );
-            const content = aiResult?.content ?? '';
-            if (content) aiSections.push(content);
-          }
+            return aiResult?.content ?? '';
+          }));
+
+          const aiSections = aiSectionResults.filter((c) => c);
 
           const aiContent = aiSections.join('\n\n---\n\n');
           if (aiContent) {

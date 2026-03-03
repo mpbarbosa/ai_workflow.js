@@ -175,6 +175,25 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       expect(result.errors).toBe(0);
     });
 
+    test('shellcheck parser captures (info) and (style) items separately from warnings', () => {
+      const output =
+        'In script.sh line 1:\n#!/bin/bash\n^-- SC1009 (info): The mentioned syntax error was in this case statement.\n\nIn script.sh line 5:\ncmd\n^-- SC2086 (error): Double quote to prevent globbing.\n\nIn script.sh line 10:\nfoo\n^-- SC2034 (style): foo appears unused.';
+      const result = parseLinterOutput(output, 'bash');
+
+      expect(result.totalIssues).toBe(3);
+      expect(result.errors).toBe(1);
+      expect(result.warnings).toBe(0);
+      expect(result.infos).toBe(2); // (info) + (style)
+    });
+
+    test('shellcheck parser: totalIssues equals errors + warnings + infos', () => {
+      const output =
+        'In a.sh line 1:\ncmd\n^-- SC2001 (error): err1.\n\nIn a.sh line 2:\ncmd\n^-- SC2002 (warning): warn1.\n\nIn a.sh line 3:\ncmd\n^-- SC2003 (info): info1.';
+      const result = parseLinterOutput(output, 'bash');
+
+      expect(result.totalIssues).toBe(result.errors + result.warnings + result.infos);
+    });
+
     test('shellcheck parser does not count usage/error text as issues', () => {
       const output =
         'No files specified.\n\nUsage: shellcheck [OPTIONS...] FILES...\n  -a   --check-sourced\n  -C   --color';

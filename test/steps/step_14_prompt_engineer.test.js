@@ -325,6 +325,8 @@ step2_consistency_prompt:
     let mockFileOps;
     let mockBacklog;
     let mockLogger;
+    let mockAiHelper;
+    let mockAiCache;
 
     beforeEach(() => {
       mockFileOps = {
@@ -339,6 +341,14 @@ step2_consistency_prompt:
         warn: jest.fn(),
         error: jest.fn(),
         step: jest.fn(),
+      };
+      mockAiHelper = {
+        initialize: jest.fn().mockResolvedValue(false),
+        executeRequest: jest.fn(),
+      };
+      mockAiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn(),
       };
     });
 
@@ -429,6 +439,8 @@ step2_consistency_prompt:
         fileOps: mockFileOps,
         backlogManager: mockBacklog,
         logger: mockLogger,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
       });
 
       const result = await step.execute({

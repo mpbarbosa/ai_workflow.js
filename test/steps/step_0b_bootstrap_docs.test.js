@@ -486,7 +486,7 @@ technical_writer_prompt:
       expect(mockLogger.info).toHaveBeenCalledWith('[DRY RUN] Documentation gap analysis preview:');
     });
 
-    test('skips when sufficient docs exist', async () => {
+    test('skips when documentation coverage is adequate', async () => {
       const step = new Step0bBootstrapDocs({
         backlog: mockBacklog,
         logger: mockLogger,
@@ -504,7 +504,7 @@ technical_writer_prompt:
 
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('sufficient documentation exists');
+      expect(result.reason).toBe('documentation coverage adequate');
       expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
         '0b',
         'Bootstrap_Docs',

@@ -13,6 +13,8 @@ import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 import path from 'path';
 
 // ============================================================================
@@ -317,6 +319,35 @@ export const MAX_SOURCE_FILE_CHARS = 20_000;
 // ============================================================================
 
 /**
+ * Build a structured summary of test files grouped by top-level directory.
+ * Provides the AI with the full portfolio picture without flooding the prompt
+ * with hundreds of raw filenames.
+ * @pure
+ * @param {string[]} testFiles - Array of test file paths
+ * @returns {string} Formatted summary string
+ */
+export function buildTestFilesSummary(testFiles) {
+  if (!testFiles || testFiles.length === 0) return 'none';
+
+  const groups = {};
+  for (const f of testFiles) {
+    const normalized = f.replace(/\\/g, '/');
+    const topDir = normalized.includes('/') ? normalized.split('/')[0] : '(root)';
+    if (!groups[topDir]) groups[topDir] = [];
+    groups[topDir].push(path.basename(normalized));
+  }
+
+  const dirCount = Object.keys(groups).length;
+  const lines = [`${testFiles.length} test files across ${dirCount} director${dirCount === 1 ? 'y' : 'ies'}:`];
+  for (const [dir, files] of Object.entries(groups)) {
+    const sample = files.slice(0, 3).join(', ');
+    const more = files.length > 3 ? `, ... (+${files.length - 3} more)` : '';
+    lines.push(`  ${dir}/ (${files.length}): ${sample}${more}`);
+  }
+  return lines.join('\n');
+}
+
+/**
  * Compute the output path for a generated test file.
  * @pure
  * @param {string} sourceFile - Relative source file path
@@ -348,25 +379,52 @@ export function getTestOutputPath(sourceFile, language) {
   return path.join(testDir, `${base}.test${ext}`);
 }
 
+/** Map from detected language to test framework label used in the prompt. */
+const TEST_FRAMEWORK_BY_LANGUAGE = {
+  javascript: 'Jest',
+  typescript: 'Jest',
+  python: 'pytest',
+  go: 'testing (Go stdlib)',
+  java: 'JUnit 5',
+  ruby: 'RSpec',
+  rust: 'cargo test',
+};
+
 /**
  * Build an AI prompt for generating tests for a single file.
+ * Uses the `single_file_test_prompt` YAML template when parsedYaml is provided,
+ * falling back to an inline template if YAML is unavailable.
  * @pure
  * @param {string} sourceFile - Relative path of the source file
  * @param {string} content - Source file content (may be truncated)
- * @param {string} language - Programming language / framework
+ * @param {string} language - Detected programming language
+ * @param {Object|null} [parsedYaml] - Pre-loaded ai_helpers.yaml object (optional)
  * @returns {string} Prompt string
  */
-export function buildSingleFileTestPrompt(sourceFile, content, language) {
+export function buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml = null) {
   const truncated =
     content.length > MAX_SOURCE_FILE_CHARS
       ? content.substring(0, MAX_SOURCE_FILE_CHARS) + '\n...(truncated)'
       : content;
-  const ext = path.extname(sourceFile).replace('.', '');
+  const ext = path.extname(sourceFile).replace('.', '') || language;
+  const testFramework = TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
 
+  if (parsedYaml) {
+    const prompt = buildYamlStepPrompt(parsedYaml, 'single_file_test_prompt', {
+      source_file: sourceFile,
+      language,
+      test_framework: testFramework,
+      source_ext: ext,
+      source_content: truncated,
+    });
+    if (prompt) return prompt;
+  }
+
+  // Inline fallback (used when YAML is unavailable)
   return `You are a senior test engineer. Generate a complete, runnable test file for the source file below.
 
 **Source file**: \`${sourceFile}\`
-**Language / framework**: ${language}
+**Language / framework**: ${testFramework}
 
 **Requirements**:
 - Output ONLY the test file content inside a single fenced code block (\`\`\`${ext} ... \`\`\`)
@@ -414,10 +472,10 @@ export class Step7TestGenerator {
   /**
    * Execute Step 7 test generation
    * @param {string} projectRoot - Project root directory
-   * @param {Object} _options - Execution options (reserved)
+   * @param {Object} options - Execution options (reserved)
    * @returns {Promise<Object>} Generation result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 7: Test Generation');
 
@@ -498,6 +556,40 @@ export class Step7TestGenerator {
           const aiAvailable = await this.aiHelper.initialize();
           if (aiAvailable) {
             await this.aiCache.init();
+
+            // Preliminary: test strategy analysis using test_strategy_prompt + project-kind overlay
+            try {
+              const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+              const parsedYaml = yaml.load(yamlContent);
+              let roleOverride = '';
+              try {
+                const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+                const parsedPk = yaml.load(pkYaml);
+                const pk = buildProjectKindPrompt(parsedPk, options?.projectKind ?? 'default', 'test_engineer');
+                if (pk?.role) roleOverride = pk.role;
+              } catch { /* optional */ }
+              const strategyPrompt = buildYamlStepPrompt(parsedYaml, 'test_strategy_prompt', {
+                project_name: path.basename(projectRoot),
+                coverage_stats: `${coveragePercentage}% (${testedCount}/${sourceFiles.length} source files have tests, ${testFiles.length} total test files)`,
+                test_files: buildTestFilesSummary(testFiles),
+                modified_count: options?.modifiedFiles?.length ?? 0,
+              });
+              if (strategyPrompt) {
+                const stratPromptWithRole = roleOverride
+                  ? `[Project-Kind Role: ${roleOverride}]\n\n${strategyPrompt}`
+                  : strategyPrompt;
+                const stratKey = `step_07_strategy|${projectRoot}|${language}|${untestedFiles.length}`;
+                const stratResult = await this.aiCache.withCache(stratKey, stratKey, () =>
+                  this.aiHelper.executeRequest(stratPromptWithRole, { persona: 'test_engineer' })
+                );
+                const stratContent = stratResult?.content ?? '';
+                if (stratContent) {
+                  const stratReport = `${report}\n\n---\n\n## Test Strategy\n\n${stratContent}`;
+                  await this.backlog.saveStepSummary(7, 'Test Generation', stratReport);
+                }
+              }
+            } catch { /* non-fatal */ }
+
             const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
             logger.info(
               `Generating tests for ${filesToGenerate.length} file(s) via AI (cap: ${MAX_FILES_TO_GENERATE})...`
@@ -565,7 +657,7 @@ export class Step7TestGenerator {
         // File does not exist — proceed
       }
 
-      const prompt = buildSingleFileTestPrompt(sourceFile, content, language);
+      const prompt = await this._buildSingleFilePrompt(sourceFile, content, language);
       const cacheKey = `step_07|${sourceFile}|${content.length}`;
 
       logger.info(`Generating tests for: ${sourceFile}`);
@@ -587,6 +679,24 @@ export class Step7TestGenerator {
     } catch (err) {
       logger.warn(`Failed to generate test for ${sourceFile}: ${err.message}`);
       return null;
+    }
+  }
+
+  /**
+   * Build the per-file test-generation prompt using the YAML template when available.
+   * Falls back to the inline template if YAML loading fails.
+   * @param {string} sourceFile - Relative source file path
+   * @param {string} content - Source file content
+   * @param {string} language - Detected language
+   * @returns {Promise<string>} Prompt string
+   */
+  async _buildSingleFilePrompt(sourceFile, content, language) {
+    try {
+      const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+      const parsedYaml = yaml.load(yamlContent);
+      return buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml);
+    } catch {
+      return buildSingleFileTestPrompt(sourceFile, content, language);
     }
   }
 

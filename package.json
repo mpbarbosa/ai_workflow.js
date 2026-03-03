@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.3.11",
+  "version": "1.3.12",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -34,6 +34,7 @@
     "validate": "npm run validate:exports && npm run validate:versions",
     "validate:exports": "node scripts/validate-exports.js",
     "validate:versions": "node scripts/check-version-consistency.js",
+    "analyze:readability": "node scripts/analyze-readability.js",
     "analyze:changes": "node scripts/analyze-change-impact.js",
     "analyze:changes:verbose": "node scripts/analyze-change-impact.js --verbose",
     "analyze:changes:json": "node scripts/analyze-change-impact.js --json",
@@ -87,6 +88,8 @@
     "commander": "^14.0.3",
     "inquirer": "^13.2.2",
     "js-yaml": "^4.1.1",
+    "olinda_shell_interface.js": "github:mpbarbosa/olinda_shell_interface.js",
+    "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.1",
     "ora": "^9.3.0"
   },
   "devDependencies": {

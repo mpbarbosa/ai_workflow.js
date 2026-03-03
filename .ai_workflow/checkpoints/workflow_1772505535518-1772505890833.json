@@ -1,0 +1,1241 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1772505535518",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1772505890833,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 1,
+            "modifiedFilesList": [
+              "cdn-urls.txt"
+            ],
+            "changeScope": "configuration",
+            "fileCounts": {
+              "documentation": 0,
+              "test": 0,
+              "source": 0,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [],
+              "test": [],
+              "source": [],
+              "config": [
+                "cdn-urls.txt"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "nodejs_automation",
+              "confidence": 100,
+              "source": "config",
+              "description": "nodejs_automation"
+            },
+            "techStack": {
+              "primary_language": "typescript",
+              "languages": [
+                "typescript",
+                "markdown",
+                "json",
+                "html",
+                "javascript",
+                "bash",
+                "yaml",
+                "css"
+              ],
+              "frameworks": [
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^29.7.0",
+                  "package": "jest"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-03-03T02:38:55.549Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1772505535549
+          },
+          "contextUpdate": {
+            "projectType": "nodejs_automation",
+            "modifiedFiles": [
+              "cdn-urls.txt"
+            ],
+            "categorizedFiles": {
+              "documentation": [],
+              "test": [],
+              "source": [],
+              "config": [
+                "cdn-urls.txt"
+              ],
+              "workflow_artifact": []
+            },
+            "fileCounts": {
+              "documentation": 0,
+              "test": 0,
+              "source": 0,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "changeScope": "configuration",
+            "commitsAhead": 0
+          }
+        },
+        "duration": 25
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "missingDocs": [
+            "CONTRIBUTING.md",
+            "docs/GETTING_STARTED.md"
+          ],
+          "categorized": {
+            "critical": [],
+            "important": [
+              "CONTRIBUTING.md"
+            ],
+            "optional": [
+              "docs/GETTING_STARTED.md"
+            ]
+          },
+          "stats": {
+            "docCount": 46,
+            "sourceCount": 29,
+            "readmeSize": 88,
+            "hasChangelog": true,
+            "hasDocsDir": true,
+            "primaryLanguage": "TypeScript"
+          },
+          "generated": [],
+          "duration": 18953
+        },
+        "duration": 18954
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [],
+            "source": [],
+            "tests": [],
+            "config": [],
+            "counts": {
+              "documentation": 0,
+              "source": 0,
+              "tests": 0,
+              "config": 0,
+              "total": 1
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": false,
+              "issues": [
+                "No documentation files found",
+                "No README file found in project root"
+              ],
+              "counts": {
+                "markdown": 0,
+                "readme": 0,
+                "docs": 0
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "sourceDoc": {
+              "success": true,
+              "issues": [],
+              "totalIssues": 0
+            },
+            "totalIssues": 2,
+            "success": false
+          },
+          "analysis": null,
+          "filesProcessed": 0
+        },
+        "duration": 2735
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 4,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": [
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            },
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            },
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            }
+          ]
+        },
+        "duration": 176812
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 6,
+          "totalIssues": 8,
+          "brokenLinks": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "link": "./errors.md",
+              "text": "errors",
+              "line": 186,
+              "type": "broken_link"
+            }
+          ],
+          "versionIssues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "1.1.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.2.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.2.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "found": "v0.2.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "found": "0.2.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "1.0.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "v1.0.0",
+              "expected": "0.3.0",
+              "type": "invalid_version"
+            }
+          ]
+        },
+        "duration": 17955
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 9,
+          "misplacedDocs": 0,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".github",
+              "message": "Undocumented directory: .github"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 1,
+          "docMismatch": 0,
+          "existingDirs": [
+            ".github",
+            "docs",
+            "scripts",
+            "src",
+            "src/core",
+            "src/utils",
+            "test",
+            "test/core",
+            "test/utils"
+          ]
+        },
+        "duration": 15613
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Documentation base too small (4 files, minimum 5)"
+        },
+        "duration": 1
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "scriptsFound": 3,
+          "referencesChecked": 0,
+          "totalIssues": 3,
+          "missingReferences": [],
+          "nonExecutable": [],
+          "undocumented": [
+            "cdn-delivery.sh",
+            "scripts/colors.sh",
+            "scripts/deploy.sh"
+          ]
+        },
+        "duration": 24808
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [
+            "test/index.test.ts",
+            "test/utils/errors.test.ts",
+            "test/core/executor.test.ts",
+            "test/core/system.test.ts"
+          ],
+          "categories": {
+            "unit": [],
+            "integration": [],
+            "e2e": [],
+            "other": [
+              "test/index.test.ts",
+              "test/utils/errors.test.ts",
+              "test/core/executor.test.ts",
+              "test/core/system.test.ts"
+            ]
+          },
+          "statistics": {
+            "totalTests": 4,
+            "unitTests": 0,
+            "integrationTests": 0,
+            "e2eTests": 0,
+            "otherTests": 4,
+            "totalLines": 602,
+            "averageLinesPerTest": 151
+          },
+          "coverage": {
+            "found": false,
+            "path": null,
+            "percentage": null
+          },
+          "issues": [
+            {
+              "type": "no_coverage_report",
+              "message": "No coverage reports found - consider generating coverage data"
+            },
+            {
+              "type": "missing_tests",
+              "message": "No unit tests found - consider adding unit tests"
+            }
+          ]
+        },
+        "duration": 19213
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 4,
+          "totalTestFiles": 4,
+          "untestedFiles": [],
+          "coveragePercentage": 100,
+          "categories": {},
+          "generatedFiles": []
+        },
+        "duration": 8
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": true,
+          "noTestsFound": true,
+          "language": "typescript",
+          "testResults": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "suitesFailed": 0,
+            "suitesTotal": 0
+          },
+          "coverage": {},
+          "duration": 6,
+          "exitCode": 1
+        },
+        "duration": 24487
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasSecurityIssues": false,
+          "language": "typescript",
+          "dependencyCounts": {
+            "total": 9,
+            "production": 0,
+            "development": 9,
+            "peer": 0,
+            "dependencies": {},
+            "devDependencies": {
+              "@types/jest": "^29.5.0",
+              "@types/node": "^20.0.0",
+              "@typescript-eslint/eslint-plugin": "^8.56.1",
+              "@typescript-eslint/parser": "^8.56.1",
+              "eslint": "^8.57.0",
+              "jest": "^29.7.0",
+              "markdownlint-cli": "^0.47.0",
+              "ts-jest": "^29.1.0",
+              "typescript": "^5.4.0"
+            }
+          },
+          "vulnerabilities": {
+            "summary": {
+              "total": 0,
+              "critical": 0,
+              "high": 0,
+              "moderate": 0,
+              "low": 0,
+              "info": 0
+            },
+            "packages": []
+          },
+          "outdatedPackages": [],
+          "skipped": false
+        },
+        "duration": 18304
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasLintErrors": false,
+          "perLanguageResults": [
+            {
+              "language": "typescript",
+              "sourceFileCount": 8,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "json",
+              "sourceFileCount": 4,
+              "linterCommand": "(native JSON.parse)",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "javascript",
+              "sourceFileCount": 2,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "bash",
+              "sourceFileCount": 3,
+              "linterCommand": "find . -name \"*.sh\" -not -path \"*/node_modules/*\" -not -path \"*/.git/*\" | xargs shellcheck",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "infos": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            }
+          ],
+          "aggregateTotals": {
+            "totalIssues": 0,
+            "errors": 0,
+            "warnings": 0,
+            "infos": 0,
+            "fileCount": 17
+          },
+          "language": "typescript",
+          "sourceFileCount": 17
+        },
+        "duration": 16324
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 100,
+          "completionStatus": "excellent",
+          "completedSteps": 13,
+          "totalSteps": 13,
+          "gitStatus": {
+            "isGitRepo": true,
+            "branch": "unknown",
+            "modifiedFiles": 0,
+            "untrackedFiles": 7,
+            "stagedFiles": 0,
+            "commitsAhead": 0
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 13
+          },
+          "duration": 335
+        },
+        "duration": 78
+      },
+      "step_11_5": {
+        "stepId": "step_11_5",
+        "stepName": "AWS LBS Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.5 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 1
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "mdl not installed"
+        },
+        "duration": 3
+      },
+      "step_11_6": {
+        "stepId": "step_11_6",
+        "stepName": "AWS Serverless AI Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.6 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 1
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 0
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 4
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "oldVersion": "0.3.0",
+          "newVersion": "0.3.1",
+          "bumpType": "patch",
+          "stats": {
+            "updated": 6,
+            "skipped": 4,
+            "failed": 0
+          },
+          "updates": [
+            {
+              "file": "package.json",
+              "success": true
+            },
+            {
+              "file": "pyproject.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "setup.py",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "Cargo.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": ".workflow-config.yaml",
+              "skipped": true
+            },
+            {
+              "file": "cdn-urls.txt",
+              "success": true
+            },
+            {
+              "file": "docs/system.md",
+              "success": true
+            },
+            {
+              "file": "package-lock.json",
+              "success": true
+            },
+            {
+              "file": "src/core/system.ts",
+              "success": true
+            },
+            {
+              "file": "src/utils/errors.ts",
+              "success": true
+            }
+          ],
+          "consistencyCheck": {
+            "ran": false
+          },
+          "duration": 6692
+        },
+        "duration": 6693
+      },
+      "step_18": {
+        "stepId": "step_18",
+        "stepName": "Debugging Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "personaKey": "async_flow_debugger_prompt",
+          "filesAnalyzed": [
+            "eslint.config.js",
+            "jest.config.js",
+            "src/index.ts",
+            "src/utils/errors.ts",
+            "src/core/executor.ts",
+            "src/core/system.ts"
+          ],
+          "totalSourceFiles": 6,
+          "aiContent": "Async chain mapping and error/timing analysis:\n\n- Async functions are used extensively for workflow steps, CLI commands, and file operations (e.g., workflow, step1_parallel, runCommand, executeStep17).\n- Error handling uses try/catch in CLI commands and step handlers, but some catch blocks lack explicit retry/fallback logic; network errors (including timeouts) are parsed and retried in ai_helpers.js, with exponential backoff for timeouts.\n- Timeout handling is robust: step execution uses Promise.race with setTimeout, timeouts are configurable per step, and execution timestamps are tracked with Date.now(); parallel operations use Promise.all and sequential awaits, minimizing race conditions. CORS/network errors are referenced in AI persona prompts but not directly handled in source code.",
+          "report": "# Step 18: Debugging Analysis — Async Flow Debugger\n\n## Files Analyzed\n- eslint.config.js\n- jest.config.js\n- src/index.ts\n- src/utils/errors.ts\n- src/core/executor.ts\n- src/core/system.ts\n\n## AI Analysis\n\nAsync chain mapping and error/timing analysis:\n\n- Async functions are used extensively for workflow steps, CLI commands, and file operations (e.g., workflow, step1_parallel, runCommand, executeStep17).\n- Error handling uses try/catch in CLI commands and step handlers, but some catch blocks lack explicit retry/fallback logic; network errors (including timeouts) are parsed and retried in ai_helpers.js, with exponential backoff for timeouts.\n- Timeout handling is robust: step execution uses Promise.race with setTimeout, timeouts are configurable per step, and execution timestamps are tracked with Date.now(); parallel operations use Promise.all and sequential awaits, minimizing race conditions. CORS/network errors are referenced in AI persona prompts but not directly handled in source code.\n"
+        },
+        "duration": 13255
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 20,
+              "successfulSteps": 20,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 3026,
+              "avgDuration": 151.3,
+              "successRate": 100,
+              "startTime": "2026-02-10T22:33:31-03:00",
+              "endTime": "2026-03-03T02:44:50.806Z",
+              "workflowRunId": "workflow_20260302_233855",
+              "version": "2.3.0",
+              "mode": "interactive"
+            },
+            "timeline": {
+              "steps": [
+                {
+                  "id": "step_0",
+                  "name": "Pre_Analysis",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770773613,
+                  "endTime": 1770773614
+                },
+                {
+                  "id": "step_0a",
+                  "name": "Unknown_Step_0a",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770773614,
+                  "endTime": 1770773615
+                },
+                {
+                  "id": "step_0b",
+                  "name": "Unknown_Step_0b",
+                  "status": "success",
+                  "duration": 302,
+                  "startTime": 1770773615,
+                  "endTime": 1770773917
+                },
+                {
+                  "id": "step_1",
+                  "name": "Documentation_Updates",
+                  "status": "success",
+                  "duration": 193,
+                  "startTime": 1770773917,
+                  "endTime": 1770774110
+                },
+                {
+                  "id": "step_2",
+                  "name": "Consistency_Analysis",
+                  "status": "success",
+                  "duration": 505,
+                  "startTime": 1770774110,
+                  "endTime": 1770774615
+                },
+                {
+                  "id": "step_3",
+                  "name": "Script_Reference_Validation",
+                  "status": "success",
+                  "duration": 338,
+                  "startTime": 1770774615,
+                  "endTime": 1770774953
+                },
+                {
+                  "id": "step_4",
+                  "name": "Directory_Structure_Validation",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770774953,
+                  "endTime": 1770774954
+                },
+                {
+                  "id": "step_5",
+                  "name": "Test_Review",
+                  "status": "success",
+                  "duration": 284,
+                  "startTime": 1770774955,
+                  "endTime": 1770775239
+                },
+                {
+                  "id": "step_6",
+                  "name": "Test_Generation",
+                  "status": "success",
+                  "duration": 0,
+                  "startTime": 1770775239,
+                  "endTime": 1770775239
+                },
+                {
+                  "id": "step_7",
+                  "name": "Test_Execution",
+                  "status": "success",
+                  "duration": 226,
+                  "startTime": 1770775240,
+                  "endTime": 1770775466
+                },
+                {
+                  "id": "step_8",
+                  "name": "Dependency_Validation",
+                  "status": "success",
+                  "duration": 50,
+                  "startTime": 1770775467,
+                  "endTime": 1770775517
+                },
+                {
+                  "id": "step_9",
+                  "name": "Code_Quality_Validation",
+                  "status": "success",
+                  "duration": 398,
+                  "startTime": 1770775517,
+                  "endTime": 1770775915
+                },
+                {
+                  "id": "step_10",
+                  "name": "Context_Analysis",
+                  "status": "success",
+                  "duration": 438,
+                  "startTime": 1770775915,
+                  "endTime": 1770776353
+                },
+                {
+                  "id": "step_11",
+                  "name": "Git_Finalization",
+                  "status": "success",
+                  "duration": 8,
+                  "startTime": 1770776353,
+                  "endTime": 1770776361
+                },
+                {
+                  "id": "step_12",
+                  "name": "Markdown_Linting",
+                  "status": "success",
+                  "duration": 35,
+                  "startTime": 1770776361,
+                  "endTime": 1770776396
+                },
+                {
+                  "id": "step_13",
+                  "name": "Prompt_Engineer_Analysis",
+                  "status": "success",
+                  "duration": 0,
+                  "startTime": 1770776397,
+                  "endTime": 1770776397
+                },
+                {
+                  "id": "step_11.7",
+                  "name": "Unknown_Step_11.7",
+                  "status": "success",
+                  "duration": 181,
+                  "startTime": 1770776397,
+                  "endTime": 1770776578
+                },
+                {
+                  "id": "step_14",
+                  "name": "UX_Analysis",
+                  "status": "success",
+                  "duration": 1,
+                  "startTime": 1770776578,
+                  "endTime": 1770776579
+                },
+                {
+                  "id": "step_15",
+                  "name": "Unknown_Step_15",
+                  "status": "success",
+                  "duration": 24,
+                  "startTime": 1770776579,
+                  "endTime": 1770776603
+                },
+                {
+                  "id": "step_16",
+                  "name": "Unknown_Step_16",
+                  "status": "success",
+                  "duration": 40,
+                  "startTime": 1770776603,
+                  "endTime": 1770776643
+                }
+              ],
+              "phases": {
+                "initialization": [
+                  {
+                    "stepId": "step_0",
+                    "name": "Pre_Analysis",
+                    "status": "success",
+                    "startTime": 1770773613,
+                    "endTime": 1770773614,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:33:34-03:00"
+                  },
+                  {
+                    "stepId": "step_0a",
+                    "name": "Unknown_Step_0a",
+                    "status": "success",
+                    "startTime": 1770773614,
+                    "endTime": 1770773615,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:33:35-03:00"
+                  },
+                  {
+                    "stepId": "step_0b",
+                    "name": "Unknown_Step_0b",
+                    "status": "success",
+                    "startTime": 1770773615,
+                    "endTime": 1770773917,
+                    "duration": 302,
+                    "timestamp": "2026-02-10T22:38:37-03:00"
+                  }
+                ],
+                "documentation": [
+                  {
+                    "stepId": "step_1",
+                    "name": "Documentation_Updates",
+                    "status": "success",
+                    "startTime": 1770773917,
+                    "endTime": 1770774110,
+                    "duration": 193,
+                    "timestamp": "2026-02-10T22:41:50-03:00"
+                  },
+                  {
+                    "stepId": "step_2",
+                    "name": "Consistency_Analysis",
+                    "status": "success",
+                    "startTime": 1770774110,
+                    "endTime": 1770774615,
+                    "duration": 505,
+                    "timestamp": "2026-02-10T22:50:15-03:00"
+                  }
+                ],
+                "validation": [
+                  {
+                    "stepId": "step_3",
+                    "name": "Script_Reference_Validation",
+                    "status": "success",
+                    "startTime": 1770774615,
+                    "endTime": 1770774953,
+                    "duration": 338,
+                    "timestamp": "2026-02-10T22:55:53-03:00"
+                  },
+                  {
+                    "stepId": "step_4",
+                    "name": "Directory_Structure_Validation",
+                    "status": "success",
+                    "startTime": 1770774953,
+                    "endTime": 1770774954,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T22:55:54-03:00"
+                  },
+                  {
+                    "stepId": "step_5",
+                    "name": "Test_Review",
+                    "status": "success",
+                    "startTime": 1770774955,
+                    "endTime": 1770775239,
+                    "duration": 284,
+                    "timestamp": "2026-02-10T23:00:39-03:00"
+                  }
+                ],
+                "testing": [
+                  {
+                    "stepId": "step_6",
+                    "name": "Test_Generation",
+                    "status": "success",
+                    "startTime": 1770775239,
+                    "endTime": 1770775239,
+                    "duration": 0,
+                    "timestamp": "2026-02-10T23:00:39-03:00"
+                  },
+                  {
+                    "stepId": "step_7",
+                    "name": "Test_Execution",
+                    "status": "success",
+                    "startTime": 1770775240,
+                    "endTime": 1770775466,
+                    "duration": 226,
+                    "timestamp": "2026-02-10T23:04:27-03:00"
+                  },
+                  {
+                    "stepId": "step_8",
+                    "name": "Dependency_Validation",
+                    "status": "success",
+                    "startTime": 1770775467,
+                    "endTime": 1770775517,
+                    "duration": 50,
+                    "timestamp": "2026-02-10T23:05:17-03:00"
+                  }
+                ],
+                "quality": [
+                  {
+                    "stepId": "step_9",
+                    "name": "Code_Quality_Validation",
+                    "status": "success",
+                    "startTime": 1770775517,
+                    "endTime": 1770775915,
+                    "duration": 398,
+                    "timestamp": "2026-02-10T23:11:55-03:00"
+                  },
+                  {
+                    "stepId": "step_10",
+                    "name": "Context_Analysis",
+                    "status": "success",
+                    "startTime": 1770775915,
+                    "endTime": 1770776353,
+                    "duration": 438,
+                    "timestamp": "2026-02-10T23:19:13-03:00"
+                  },
+                  {
+                    "stepId": "step_11",
+                    "name": "Git_Finalization",
+                    "status": "success",
+                    "startTime": 1770776353,
+                    "endTime": 1770776361,
+                    "duration": 8,
+                    "timestamp": "2026-02-10T23:19:21-03:00"
+                  },
+                  {
+                    "stepId": "step_11.7",
+                    "name": "Unknown_Step_11.7",
+                    "status": "success",
+                    "startTime": 1770776397,
+                    "endTime": 1770776578,
+                    "duration": 181,
+                    "timestamp": "2026-02-10T23:22:58-03:00"
+                  }
+                ],
+                "finalization": [
+                  {
+                    "stepId": "step_12",
+                    "name": "Markdown_Linting",
+                    "status": "success",
+                    "startTime": 1770776361,
+                    "endTime": 1770776396,
+                    "duration": 35,
+                    "timestamp": "2026-02-10T23:19:56-03:00"
+                  },
+                  {
+                    "stepId": "step_13",
+                    "name": "Prompt_Engineer_Analysis",
+                    "status": "success",
+                    "startTime": 1770776397,
+                    "endTime": 1770776397,
+                    "duration": 0,
+                    "timestamp": "2026-02-10T23:19:57-03:00"
+                  },
+                  {
+                    "stepId": "step_14",
+                    "name": "UX_Analysis",
+                    "status": "success",
+                    "startTime": 1770776578,
+                    "endTime": 1770776579,
+                    "duration": 1,
+                    "timestamp": "2026-02-10T23:22:59-03:00"
+                  },
+                  {
+                    "stepId": "step_15",
+                    "name": "Unknown_Step_15",
+                    "status": "success",
+                    "startTime": 1770776579,
+                    "endTime": 1770776603,
+                    "duration": 24,
+                    "timestamp": "2026-02-10T23:23:23-03:00"
+                  },
+                  {
+                    "stepId": "step_16",
+                    "name": "Unknown_Step_16",
+                    "status": "success",
+                    "startTime": 1770776603,
+                    "endTime": 1770776643,
+                    "duration": 40,
+                    "timestamp": "2026-02-10T23:24:03-03:00"
+                  }
+                ]
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "performance",
+                "priority": "high",
+                "title": "Performance Bottlenecks Detected",
+                "description": "5 step(s) took longer than 300 seconds",
+                "impact": "high",
+                "suggestion": "Review steps: Consistency_Analysis, Context_Analysis, Code_Quality_Validation, Script_Reference_Validation, Unknown_Step_0b",
+                "details": [
+                  "Consistency_Analysis: 505s",
+                  "Context_Analysis: 438s",
+                  "Code_Quality_Validation: 398s",
+                  "Script_Reference_Validation: 338s",
+                  "Unknown_Step_0b: 302s"
+                ]
+              },
+              {
+                "type": "optimization",
+                "priority": "medium",
+                "title": "Slow Steps Detected",
+                "description": "4 step(s) took longer than 120 seconds",
+                "impact": "medium",
+                "suggestion": "Consider optimizing or parallelizing these steps",
+                "details": [
+                  "Documentation_Updates: 193s",
+                  "Test_Review: 284s",
+                  "Test_Execution: 226s",
+                  "Unknown_Step_11.7: 181s"
+                ]
+              },
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              },
+              {
+                "type": "parallelization",
+                "priority": "medium",
+                "title": "Parallelization Opportunities",
+                "description": "2 step group(s) could potentially run in parallel",
+                "impact": "medium",
+                "suggestion": "Review step dependencies and enable parallel execution where safe",
+                "details": [
+                  "Validation phase: Script_Reference_Validation, Directory_Structure_Validation, Test_Review",
+                  "Quality phase: Context_Analysis, Git_Finalization, Unknown_Step_11.7"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_20260302_233855\n**Version:** 2.3.0\n**Mode:** interactive\n**Start Time:** 2026-02-10T22:33:31-03:00\n**End Time:** 2026-03-03T02:44:50.806Z\n**Total Duration:** 50m 26s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ✅ Success - All steps completed successfully\n**Success Rate:** 100.0%\n**Total Steps:** 20\n**Successful:** 20 ✅\n**Average Step Duration:** 2m 31.30000000000001s\n\n---\n\n## Execution Timeline\n\n- ✅ **Pre_Analysis** (step_0): 1s\n- ✅ **Unknown_Step_0a** (step_0a): 1s\n- ✅ **Unknown_Step_0b** (step_0b): 5m 2s\n- ✅ **Documentation_Updates** (step_1): 3m 13s\n- ✅ **Consistency_Analysis** (step_2): 8m 25s\n- ✅ **Script_Reference_Validation** (step_3): 5m 38s\n- ✅ **Directory_Structure_Validation** (step_4): 1s\n- ✅ **Test_Review** (step_5): 4m 44s\n- ✅ **Test_Generation** (step_6): 0s\n- ✅ **Test_Execution** (step_7): 3m 46s\n- ✅ **Dependency_Validation** (step_8): 50s\n- ✅ **Code_Quality_Validation** (step_9): 6m 38s\n- ✅ **Context_Analysis** (step_10): 7m 18s\n- ✅ **Git_Finalization** (step_11): 8s\n- ✅ **Markdown_Linting** (step_12): 35s\n- ✅ **Prompt_Engineer_Analysis** (step_13): 0s\n- ✅ **Unknown_Step_11.7** (step_11.7): 3m 1s\n- ✅ **UX_Analysis** (step_14): 1s\n- ✅ **Unknown_Step_15** (step_15): 24s\n- ✅ **Unknown_Step_16** (step_16): 40s\n\n---\n\n## Phase Breakdown\n\n### Initialization Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 5m 4s\n\n### Documentation Phase\n**Steps:** 2\n**Successful:** 2/2\n**Duration:** 11m 38s\n\n### Validation Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 10m 23s\n\n### Testing Phase\n**Steps:** 3\n**Successful:** 3/3\n**Duration:** 4m 36s\n\n### Quality Phase\n**Steps:** 4\n**Successful:** 4/4\n**Duration:** 17m 5s\n\n### Finalization Phase\n**Steps:** 5\n**Successful:** 5/5\n**Duration:** 1m 40s\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 50m 26s |\n| Average Step Duration | 2m 31.30000000000001s |\n| Total Steps | 20 |\n| Success Rate | 100.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Performance Bottlenecks Detected\n**Priority:** HIGH\n**Type:** performance\n**Description:** 5 step(s) took longer than 300 seconds\n**Suggestion:** Review steps: Consistency_Analysis, Context_Analysis, Code_Quality_Validation, Script_Reference_Validation, Unknown_Step_0b\n\n**Details:**\n- Consistency_Analysis: 505s\n- Context_Analysis: 438s\n- Code_Quality_Validation: 398s\n- Script_Reference_Validation: 338s\n- Unknown_Step_0b: 302s\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n### 🟡 Slow Steps Detected\n**Priority:** MEDIUM\n**Type:** optimization\n**Description:** 4 step(s) took longer than 120 seconds\n**Suggestion:** Consider optimizing or parallelizing these steps\n\n**Details:**\n- Documentation_Updates: 193s\n- Test_Review: 284s\n- Test_Execution: 226s\n- Unknown_Step_11.7: 181s\n\n### 🟡 Parallelization Opportunities\n**Priority:** MEDIUM\n**Type:** parallelization\n**Description:** 2 step group(s) could potentially run in parallel\n**Suggestion:** Review step dependencies and enable parallel execution where safe\n\n**Details:**\n- Validation phase: Script_Reference_Validation, Directory_Structure_Validation, Test_Review\n- Quality phase: Context_Analysis, Git_Finalization, Unknown_Step_11.7\n\n\n---\n\n*Generated by AI Workflow Automation v2.3.0*\n\n*Report generated at: 2026-03-03T02:44:50.807Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 2
+      },
+      "step_0f": {
+        "stepId": "step_0f",
+        "stepName": "Commit Artifacts",
+        "success": true,
+        "output": {
+          "success": true,
+          "committed": true,
+          "files": [
+            ".ai_workflow/.step_cache/step_10_partition.json",
+            "docs/system.md"
+          ],
+          "summary": "Committed 2 artifact file(s)"
+        },
+        "duration": 23
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": false,
+        "error": {
+          "message": "No executor available for git commands",
+          "name": "Error",
+          "stack": "Error: No executor available for git commands\n    at Step12GitFinalization._executeGit (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:1077:11)\n    at Step12GitFinalization._analyzeGitState (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:528:37)\n    at Step12GitFinalization.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_12_git_finalization.js:440:35)\n    at Object.handler (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:969:30)\n    at WorkflowEngine.executeStep (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:618:35)\n    at WorkflowEngine.executeWorkflow (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:501:35)\n    at async MainOrchestrator.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:827:28)\n    at async runCommand (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/cli/commands/run.js:146:20)"
+        },
+        "duration": 0
+      }
+    },
+    "context": {
+      "workflowDir": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/olinda_shell_interface.js",
+      "auto": false,
+      "workflowRunId": "workflow_20260302_233855",
+      "modifiedFiles": [
+        ".workflow-config.yaml",
+        "CHANGELOG.md",
+        "dist/src/core/executor.js",
+        "dist/src/core/system.js",
+        "dist/src/index.js",
+        "dist/src/utils/errors.js",
+        "dist/types/src/core/executor.d.ts",
+        "dist/types/src/core/system.d.ts",
+        "dist/types/src/index.d.ts",
+        "dist/types/src/utils/errors.d.ts",
+        "docs/API.md",
+        "docs/executor.md",
+        "docs/system.md",
+        "package.json",
+        "src/core/executor.ts",
+        "src/core/system.ts",
+        "src/index.ts",
+        "src/utils/errors.ts",
+        "test/core/executor.test.ts",
+        "test/core/system.test.ts",
+        "test/utils/errors.test.ts",
+        "cdn-urls.txt"
+      ],
+      "projectType": "configuration_library",
+      "scope": "full_validation",
+      "projectDescription": "olinda_shell_interface.js"
+    }
+  },
+  "metadata": {
+    "totalSteps": 24,
+    "progress": 0
+  }
+}

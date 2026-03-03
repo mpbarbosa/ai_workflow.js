@@ -536,4 +536,41 @@ describe('FileOperations Integration Tests', () => {
       expect(await fileOps.exists(dirPath)).toBe(true);
     });
   });
+
+  describe('glob', () => {
+    test('finds files matching pattern', async () => {
+      await fileOps.writeFile(path.join(tempDir, 'a.md'), '# A');
+      await fileOps.writeFile(path.join(tempDir, 'b.md'), '# B');
+      await fileOps.writeFile(path.join(tempDir, 'c.txt'), 'text');
+
+      const files = await fileOps.glob('**/*.md', { cwd: tempDir });
+      expect(files).toContain('a.md');
+      expect(files).toContain('b.md');
+      expect(files).not.toContain('c.txt');
+    });
+
+    test('excludes directories by exact name, not substring match', async () => {
+      // Files whose names contain an excluded dir name as a substring must NOT be excluded
+      await fileOps.writeFile(path.join(tempDir, 'distance-report.md'), '# distance');
+      await fileOps.writeFile(path.join(tempDir, 'dist', 'bundle.md'), '# bundle');
+
+      const files = await fileOps.glob('**/*.md', {
+        cwd: tempDir,
+        ignore: ['**/dist/**'],
+      });
+
+      // 'distance-report.md' must be included (contains 'dist' as substring but is NOT inside dist/)
+      expect(files).toContain('distance-report.md');
+      // files inside the 'dist' directory must be excluded
+      expect(files).not.toContain(path.join('dist', 'bundle.md'));
+    });
+
+    test('returns absolute paths when absolute option is true', async () => {
+      await fileOps.writeFile(path.join(tempDir, 'file.md'), '# file');
+
+      const files = await fileOps.glob('**/*.md', { cwd: tempDir, absolute: true });
+      expect(files[0]).toBe(path.join(tempDir, 'file.md'));
+    });
+  });
 });
+

@@ -1,10 +1,10 @@
 # Workflow Engine Requirements (Phase 7)
 
-**Status:** 📋 Planning - Not Yet Implemented  
-**Target Phase:** Phase 7 - Workflow Orchestration  
-**Dependencies:** Phases 1-6 Complete  
-**Document Version:** 1.0.0  
-**Last Updated:** February 2, 2026
+**Status:** ✅ Complete — Phases 7–11 implemented  
+**Target Phase:** Phase 7 - Workflow Orchestration (complete); Phase 12 next  
+**Dependencies:** Phases 1-11 Complete  
+**Document Version:** 1.1.0  
+**Last Updated:** February 28, 2026
 
 ---
 
@@ -12,7 +12,7 @@
 
 This document outlines requirements for the **Workflow Engine** (Phase 7), which will orchestrate the 15-step AI-powered development workflow pipeline. The engine will coordinate between configuration, project analysis, AI integration, and execution steps.
 
-**Note:** The JavaScript workflow engine is planned but not yet implemented. The source shell-based workflow (mpbarbosa/ai_workflow v4.0.0) provides the reference implementation with config-driven step execution.
+**Implementation note:** The workflow engine is fully implemented across Phases 7–11. Six orchestrator modules (`workflow_engine.js`, `step_registry.js`, `dependency_resolver.js`, `step_executor.js`, `conditional_executor.js`, `checkpoint_manager.js`) and `main_orchestrator.js` are in production. The shell-based workflow (mpbarbosa/ai_workflow v4.0.0) served as the reference implementation.
 
 ---
 
@@ -22,7 +22,7 @@ This document outlines requirements for the **Workflow Engine** (Phase 7), which
 
 **Priority:** 🔴 Critical  
 **Phase:** 7  
-**Status:** Planned
+**Status:** ✅ Implemented (`step_08` test execution; `step_executor.js` exit-code validation)
 
 #### Requirement
 
@@ -74,7 +74,7 @@ Git pre-commit hook via Husky + lint-staged:
 
 **Priority:** 🔴 Critical  
 **Phase:** 7  
-**Status:** Planned
+**Status:** ✅ Implemented (`workflow_engine.js`, `step_registry.js`, `main_orchestrator.js`)
 
 #### Requirements
 
@@ -119,7 +119,7 @@ class WorkflowEngine {
 
 **Priority:** 🟠 High  
 **Phase:** 7  
-**Status:** Planned
+**Status:** ✅ Implemented (`step_executor.js` pre/post-condition checking, timeout management)
 
 #### Requirements
 
@@ -149,7 +149,7 @@ post_conditions:
 
 **Priority:** 🟠 High  
 **Phase:** 7 (depends on Phase 6)  
-**Status:** Planned
+**Status:** ✅ Implemented (Phase 6 complete; all AI steps wired to `AiHelper` + `AiCache`)
 
 #### Requirements
 
@@ -180,7 +180,7 @@ steps:
 
 **Priority:** 🟠 High  
 **Phase:** 7  
-**Status:** Planned
+**Status:** ✅ Implemented (`step_executor.js` retry/backoff; `checkpoint_manager.js` recovery)
 
 #### Requirements
 
@@ -218,7 +218,7 @@ const errorHandling = {
 
 **Priority:** 🟡 Medium  
 **Phase:** 7  
-**Status:** Planned
+**Status:** ✅ Implemented (`metrics.js` integrated; per-step timing/success rates collected)
 
 #### Requirements
 
@@ -246,7 +246,7 @@ const metrics = {
 
 **Priority:** 🟡 Medium  
 **Phase:** 7  
-**Status:** Planned (already implemented in library modules)
+**Status:** ✅ Implemented (all Phase 2–5 modules + `WorkflowEngine` `dryRun` option)
 
 #### Current Implementation
 
@@ -276,7 +276,7 @@ await engine.execute(workflow);
 
 **Priority:** 🟢 Low  
 **Phase:** 8 (future optimization)  
-**Status:** Future Enhancement
+**Status:** ✅ Implemented (`multi_stage_pipeline.js`, `step1_parallel.js` — Phase 8)
 
 #### Requirements
 
@@ -293,6 +293,51 @@ parallel_steps:
   - [build] # Depends on above, runs after all complete
   - [deploy_staging, deploy_production] # Conditional parallel
 ```
+
+---
+
+### 9. **AI Prompt Context Completeness**
+
+**Priority:** 🟠 High  
+**Phase:** 7  
+**Status:** ✅ Requirement codified (2026-02-28); partial fix applied to `step_03`
+
+#### Requirement
+
+Every call to `buildYamlStepPrompt()` must supply values for **all** `{placeholder}` variables in the YAML `task_template`. Empty or missing values produce malformed prompts and cause the model to hallucinate content from training data instead of the project under analysis.
+
+#### Mandatory context fields for YAML-loaded prompts
+
+Each step is responsible for passing the full set of variables consumed by its prompt key. As a minimum, every step prompt should resolve:
+
+| Variable             | Source                                          |
+| -------------------- | ----------------------------------------------- |
+| `project_name`       | `projectRoot` path passed to `execute()`        |
+| `project_description`| `options.projectDescription` or `''`            |
+| `primary_language`   | `detectLanguage(projectRoot)` result            |
+| `change_scope`       | `options.scope` or `''`                         |
+| `modified_count`     | Count of changed files in scope                 |
+
+Step-specific variables (e.g., `all_scripts`, `script_count`) must be populated from the actual analysis results, never left as empty strings.
+
+#### Known failure (fixed 2026-02-28 — `step_03`)
+
+`step_03_script_refs.js` was calling `buildYamlStepPrompt` without supplying `primary_language`, `project_description`, `change_scope`, and was passing `all_scripts: ''` instead of `'none'` when no scripts existed. The `approach` section in `ai_helpers.yaml` also lacked a leading grounding instruction, causing the model to substitute scripts from its training data (ai_workflow.js scripts) for the actual project's script list.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `src/steps/step_03_script_refs.js` | Added `primary_language`, `project_description`, `change_scope` to context; `all_scripts` fallback changed from `''` to `'none'` |
+| `.workflow_core/config/ai_helpers.yaml` | `step3_script_refs_prompt.approach` — added grounding instruction: *"Analyze ONLY the scripts explicitly listed under 'Available Scripts'. Do not reference, invent, or assume scripts not in that list."* |
+
+#### Detection
+
+When reviewing a prompt-response log file (`.ai_workflow/logs/.../prompts/<step>/<timestamp>_<persona>.md`), flag the response as invalid if:
+
+1. The `## Prompt` block contains empty lines after a `- Primary Language:`, `- Scope:`, or similar context field.
+2. The `## Response` block names files, scripts, or modules not present in the `## Prompt`'s available-items list.
+3. The `**Approach**:` line is immediately followed by another bold header (e.g., `**Approach**: **Output:**`) — this indicates a missing approach body in the YAML.
 
 ---
 
@@ -385,8 +430,8 @@ parallel_steps:
 - ✅ Phase 2: Configuration & State (COMPLETE)
 - ✅ Phase 3: File Operations (COMPLETE)
 - ✅ Phase 4: Project Detection (COMPLETE)
-- 🚧 Phase 5: Git Integration (NEXT)
-- 🚧 Phase 6: AI Integration (FUTURE)
+- ✅ Phase 5: Git Integration (COMPLETE)
+- ✅ Phase 6: AI Integration (COMPLETE)
 
 ### External Dependencies
 
@@ -443,7 +488,7 @@ parallel_steps:
 
 ---
 
-**Document Status:** Living document - will be updated as Phase 7 implementation progresses.
+**Document Status:** Living document — updated as implementation progresses.
 
-**Last Updated:** February 2, 2026  
-**Next Review:** When Phase 5 (Git Integration) completes
+**Last Updated:** February 28, 2026  
+**Next Review:** Phase 12 (Testing & Documentation) milestone

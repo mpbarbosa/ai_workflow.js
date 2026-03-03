@@ -17,6 +17,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
@@ -368,6 +369,7 @@ export class Step5DirectoryAnalyzer {
     this.config = options.config || new Config();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
+    this.techStack = options.techStack || new TechStackDetector();
   }
 
   /**
@@ -403,7 +405,7 @@ export class Step5DirectoryAnalyzer {
    * @param {Object} _options - Execution options (reserved)
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 5: Directory Structure Validation');
 
@@ -440,14 +442,31 @@ export class Step5DirectoryAnalyzer {
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
+          const language = options.language || (await this.detectLanguage(projectRoot));
+          const issueLines =
+            structureResults.issues?.length > 0
+              ? structureResults.issues
+                  .slice(0, 20)
+                  .map((i) => `- [${i.type}] ${i.directory}: ${i.message}`)
+                  .join('\n')
+              : 'No issues detected';
+          const dirTree =
+            (structureResults.existingDirs ?? []).length > 0
+              ? structureResults.existingDirs.slice(0, 50).join('\n')
+              : 'none';
+          prompt = buildYamlStepPrompt(parsedYaml, 'step4_directory_prompt', {
             project_name: projectRoot,
-            existing_dirs: (structureResults.existingDirs ?? []).join(', '),
-            total_dirs: String(results.totalDirs ?? 0),
-            misplaced_docs: String(results.misplacedDocs ?? 0),
-            organized_docs: String(results.organizedDocs ?? 0),
+            project_description: options.projectDescription || '',
+            primary_language: language,
+            dir_count: String(results.totalDirs ?? 0),
+            change_scope: options.scope || '',
+            modified_count: String(options.modifiedCount ?? 0),
             missing_critical: String(structureResults.missingCritical ?? 0),
-            issues_count: String(structureResults.issues?.length ?? 0),
+            undocumented_dirs: String(structureResults.undocumented ?? 0),
+            doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
+            structure_issues_content: issueLines,
+            dir_tree: dirTree,
+            language_specific_directory_standards: '',
           });
         } catch {
           /* fallback to generic prompt */
@@ -469,9 +488,54 @@ export class Step5DirectoryAnalyzer {
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
         const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(5, 'Directory Structure Validation', enrichedReport);
+
+        // Supplementary: requirements-engineering perspective on architecture
+        let requirementsContent = '';
+        try {
+          // Detect existing requirements documents so the AI doesn't hallucinate a gap
+          const REQUIREMENTS_PATTERN = /requirements|[-_]frs\b|FRS\b|[-_]brd\b|BRD\b|[-_]srs\b|SRS\b|func.spec|FUNC.SPEC|user.stor/i;
+          let requirementsDocsCount = 0;
+          try {
+            const docsDir = path.join(projectRoot, 'docs');
+            const docsEntries = await fs.readdir(docsDir).catch(() => []);
+            requirementsDocsCount = docsEntries.filter((f) => REQUIREMENTS_PATTERN.test(f)).length;
+          } catch { /* docs dir may not exist */ }
+
+          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml2 = yaml.load(yamlContent2);
+          const reqPrompt = buildYamlStepPrompt(
+            parsedYaml2,
+            'requirements_engineer_prompt',
+            {
+              project_name: projectRoot,
+              project_description: options?.projectDescription ?? '',
+              primary_language: options?.primaryLanguage ?? options?.language ?? language ?? '',
+              source_files: (structureResults.existingDirs ?? []).join(', '),
+              requirements_docs_count: String(requirementsDocsCount),
+              stakeholder_count: '1',
+            }
+          );
+          if (reqPrompt) {
+            const reqKey = `step_05_req|${projectRoot}|${results.totalDirs ?? 0}`;
+            const reqResult = await this.aiCache.withCache(reqKey, reqKey, () =>
+              this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
+            );
+            requirementsContent = reqResult?.content ?? '';
+          }
+        } catch {
+          /* optional supplementary analysis */
+        }
+
+        if (aiContent || requirementsContent) {
+          const sections = [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`];
+          if (requirementsContent) {
+            sections.push(`\n\n## Requirements Engineering Analysis\n\n${requirementsContent}`);
+          }
+          await this.backlog.saveStepSummary(
+            5,
+            'Directory Structure Validation',
+            sections.join('')
+          );
         }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
@@ -609,6 +673,15 @@ export class Step5DirectoryAnalyzer {
       return dirs.filter((dir) => shouldIncludeDir(dir)).length;
     } catch {
       return 0;
+    }
+  }
+
+  async detectLanguage(projectRoot) {
+    try {
+      const detection = await this.techStack.detectTechStack(projectRoot);
+      return detection.primaryLanguage || 'javascript';
+    } catch {
+      return 'javascript';
     }
   }
 }

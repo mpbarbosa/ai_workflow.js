@@ -19,11 +19,15 @@
 
 import path from 'path';
 import fs from 'fs/promises';
+import yaml from 'js-yaml';
 
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
+import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import { AI_HELPERS_PATH, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -336,6 +340,9 @@ export class Step11_5AwsLbsValidator {
   constructor(deps = {}) {
     this.fileOps = deps.fileOps || new FileOperations();
     this.backlog = deps.backlog || new Backlog();
+    // AI is opt-in: only enabled when aiHelper is explicitly injected
+    this.aiHelper = deps.aiHelper || null;
+    this.aiCache = deps.aiHelper ? (deps.aiCache || new AiCache()) : null;
     this.projectKindConfig = deps.projectKindConfig || null;
   }
 
@@ -448,6 +455,37 @@ export class Step11_5AwsLbsValidator {
       });
 
       await this.backlog.saveStepSummary('11_5', 'AWS_LBS_Validation', report);
+
+      // AI-powered architectural review using aws_cloud_architect_prompt (opt-in)
+      try {
+        if (this.aiHelper) {
+          const aiAvailable = await this.aiHelper.initialize();
+          if (aiAvailable) {
+            await this.aiCache.init();
+            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+            const parsedYaml = yaml.load(yamlContent);
+            const archPrompt = buildYamlStepPrompt(parsedYaml, 'aws_cloud_architect_prompt', {
+              project_name: projectRoot,
+              shell_script_count: String(shellScripts.length),
+              lambda_function_count: String(lambdaFunctions.length),
+              shell_issues_count: String(shellIssues.length),
+              aws_config_valid: String(awsConfigValid),
+              total_issues: String(summary.totalIssues),
+            });
+            if (archPrompt) {
+              const archKey = `step_11_5|${projectRoot}|${summary.totalIssues}`;
+              const archResult = await this.aiCache.withCache(archKey, archKey, () =>
+                this.aiHelper.executeRequest(archPrompt, { persona: 'devops_engineer' })
+              );
+              const archContent = archResult?.content ?? '';
+              if (archContent) {
+                const enrichedReport = `${report}\n\n---\n\n## AWS Architecture Review\n\n${archContent}`;
+                await this.backlog.saveStepSummary('11_5', 'AWS_LBS_Validation', enrichedReport);
+              }
+            }
+          }
+        }
+      } catch { /* AI analysis is optional */ }
 
       if (summary.passed) {
         logger.success('Step 11.5 passed — AWS LBS backend is well-structured');

@@ -34,7 +34,7 @@ import yaml from 'js-yaml';
 
 export const MARKDOWN_PATTERNS = {
   files: '**/*.md',
-  excludeDirs: ['node_modules', 'coverage', '.git', 'dist', 'build'],
+  excludeDirs: ['node_modules', 'coverage', '.git', 'dist', 'build', '.ai_workflow'],
 };
 
 export const ANTI_PATTERNS = {
@@ -49,6 +49,12 @@ export const LINTER_COMMANDS = {
     check: 'mdl --version',
     // Files are appended at runtime to avoid --git-recurse / git-lock race conditions
     lintBase: 'mdl --ignore-front-matter',
+  },
+  markdownlintFix: {
+    // Preferred: project-specific npm script (inherits .markdownlint.json config)
+    npmScript: 'npm run lint:md:fix',
+    // Fallback: npx invocation with explicit ignore patterns
+    npxBase: 'npx markdownlint --fix',
   },
 };
 
@@ -462,7 +468,19 @@ export class Step13MarkdownLint {
       }
 
       // Phase 3: Run mdl linting (pass enumerated files to avoid git-lock race)
-      const lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
+      let lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
+
+      // Phase 3.5: Auto-fix violations that markdownlint-cli can correct
+      if (lintResults.issues.length > 0) {
+        const fixResult = await this._runAutoFix(projectRoot, markdownFiles);
+        if (fixResult.applied) {
+          // Re-lint to capture the post-fix state
+          lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
+          this.logger.info(
+            `Auto-fix applied. Remaining violations: ${lintResults.issues.length}`
+          );
+        }
+      }
 
       // Phase 4: Run anti-pattern detection
       const antiPatterns = await this._detectAntiPatterns(markdownFiles);
@@ -473,7 +491,8 @@ export class Step13MarkdownLint {
         lintResults,
         antiPatterns,
         mdlInstalled.version,
-        projectRoot
+        projectRoot,
+        context
       );
     } catch (error) {
       this.logger.error(`Markdown linting failed: ${error.message}`);
@@ -689,7 +708,7 @@ export class Step13MarkdownLint {
    * Generate final report
    * @private
    */
-  async _generateReport(fileCount, lintResults, antiPatterns, mdlVersion, projectRoot) {
+  async _generateReport(fileCount, lintResults, antiPatterns, mdlVersion, projectRoot, context = {}) {
     const stats = calculateLintStats(lintResults.issues, fileCount);
     const status = determineLintStatus(stats);
 
@@ -730,6 +749,44 @@ export class Step13MarkdownLint {
         .map(([file, items]) => `${file}: ${items.length} issue(s)`)
         .join('\n');
 
+      // Skip AI when linting is clean — no data to reason about, prevents hallucination
+      if (stats.totalIssues === 0 && (antiPatterns?.length ?? 0) === 0) {
+        return { success: true, status, stats, issues: lintResults.issues };
+      }
+
+      // Assemble lint_report using the variables the YAML template actually expects
+      const lintReport = [
+        `Files linted: ${fileCount}`,
+        `Total issues: ${stats.totalIssues}`,
+        `Clean files: ${stats.cleanFiles}`,
+        `Anti-patterns: ${antiPatterns?.length ?? 0}`,
+        `Status: ${status}`,
+        '',
+        'Issues by rule:',
+        issuesByRule || '(none)',
+        '',
+        'Issues by file (top 10):',
+        issuesByFile || '(none)',
+      ].join('\n');
+
+      let currentBranch = context.currentBranch ?? context.branch ?? '';
+      if (!currentBranch) {
+        try {
+          const branchResult = await this._executeCommand(
+            `git -C "${projectRoot}" branch --show-current`,
+            {}
+          );
+          currentBranch = (branchResult?.stdout ?? '').trim();
+        } catch {
+          /* leave empty if git unavailable */
+        }
+      }
+      const modifiedFiles = context.modifiedFiles ?? [];
+      const modifiedMdCount =
+        context.modifiedCount != null
+          ? String(context.modifiedCount)
+          : String(modifiedFiles.filter((f) => /\.md$/i.test(f)).length) || 'unknown';
+
       let prompt;
       try {
         const yamlContent =
@@ -738,13 +795,9 @@ export class Step13MarkdownLint {
         const parsedYaml = yaml.load(yamlContent);
         prompt = buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
           project_name: projectRoot,
-          files_linted: String(fileCount),
-          total_issues: String(stats.totalIssues),
-          clean_files: String(stats.cleanFiles),
-          anti_patterns: String(antiPatterns?.length ?? 0),
-          issues_by_rule: issuesByRule || '(none)',
-          issues_by_file: issuesByFile || '(none)',
-          status,
+          lint_report: lintReport,
+          current_branch: currentBranch,
+          modified_md_count: modifiedMdCount,
         });
       } catch {
         /* fallback to generic prompt */
@@ -801,6 +854,42 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
   }
 
   /**
+   * Auto-fix markdown violations using markdownlint-cli.
+   * Tries `npm run lint:md:fix` first (uses project config), falls back to npx.
+   * @private
+   * @param {string} projectRoot - Project root directory
+   * @param {Array<string>} files - Markdown files to fix
+   * @returns {Promise<{applied: boolean}>} Whether auto-fix was applied
+   */
+  async _runAutoFix(projectRoot, files) {
+    this.logger.info('Auto-fixing markdown violations via markdownlint-cli...');
+
+    // Preferred: use the project's own npm script so it inherits project config
+    try {
+      await this._executeCommand(LINTER_COMMANDS.markdownlintFix.npmScript, { cwd: projectRoot });
+      this.logger.info('✅ Auto-fix applied via npm run lint:md:fix');
+      return { applied: true };
+    } catch {
+      // npm script may not exist in this project — try npx fallback
+    }
+
+    // Fallback: npx markdownlint --fix with the same ignore dirs
+    try {
+      const ignoreArgs = MARKDOWN_PATTERNS.excludeDirs.map((d) => `--ignore "${d}"`).join(' ');
+      const fileArgs = files.map((f) => `"${f}"`).join(' ');
+      await this._executeCommand(
+        `${LINTER_COMMANDS.markdownlintFix.npxBase} ${ignoreArgs} ${fileArgs}`,
+        { cwd: projectRoot }
+      );
+      this.logger.info('✅ Auto-fix applied via npx markdownlint --fix');
+      return { applied: true };
+    } catch {
+      this.logger.warn('Auto-fix unavailable (markdownlint-cli not found) — violations require manual review');
+      return { applied: false };
+    }
+  }
+
+  /**
    * Execute command
    * @private
    */
@@ -809,8 +898,13 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
       return await this.executor.execute(command, { shell: true, ...options });
     }
 
-    // Fallback: use executor module functions
+    // Fallback: executor may be the raw execute function (default export)
     const executor = this.executor;
+    if (typeof executor === 'function') {
+      return await executor(command, { shell: true, ...options });
+    }
+
+    // Fallback: use executor module functions
     if (executor && typeof executor.executeCommand === 'function') {
       return await executor.executeCommand(command, { shell: true, ...options });
     }

@@ -1,3 +1,4 @@
 [submodule ".workflow_core"]
 	path = .workflow_core
 	url = https://github.com/mpbarbosa/ai_workflow_core.git
+	pushurl = git@github.com:mpbarbosa/ai_workflow_core.git

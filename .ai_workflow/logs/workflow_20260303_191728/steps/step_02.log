@@ -1,0 +1,61 @@
+[2026-03-03T22:18:36.385Z] 
+→ Starting: Consistency Analysis
+[2026-03-03T22:18:36.385Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:36.385Z] 🔷  Step 2: Documentation Consistency Analysis
+[2026-03-03T22:18:36.385Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:36.399Z] Found 110 documentation files
+[2026-03-03T22:18:36.400Z] Expected version: 1.3.11
+[2026-03-03T22:18:36.409Z] Version check: 432 issue(s) found
+[2026-03-03T22:18:36.440Z] Link check: 80 broken link(s) found
+[2026-03-03T22:18:37.720Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:18:38.833Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:18:38.883Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:18:38.909Z] [step_02] Running AI analysis in 3 partition(s) of ≤50 files
+[2026-03-03T22:18:38.911Z] [DEBUG] Cache miss: 2291bfac...
+[2026-03-03T22:18:38.911Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:18:38.911Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:18:38.911Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:18:38.911Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 9883
+[2026-03-03T22:18:38.911Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:38.911Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:38.911Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 9883 chars
+[2026-03-03T22:18:38.911Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:07.718Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:07.718Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 12861, latency: 28807ms
+[2026-03-03T22:19:07.719Z] ✓ AI request completed successfully
+[2026-03-03T22:19:07.719Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-07-719Z_0001_documentation_expert.md
+[2026-03-03T22:19:07.722Z] [DEBUG] Response cached: 2291bfac...
+[2026-03-03T22:19:07.722Z] [DEBUG] Cache miss: 7aad2fcc...
+[2026-03-03T22:19:07.723Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:19:07.723Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:19:07.723Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:19:07.723Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 9600
+[2026-03-03T22:19:07.723Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:19:07.723Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:19:07.723Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 9600 chars
+[2026-03-03T22:19:07.723Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:35.171Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:35.171Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 12601, latency: 27448ms
+[2026-03-03T22:19:35.171Z] ✓ AI request completed successfully
+[2026-03-03T22:19:35.172Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-35-172Z_0002_documentation_expert.md
+[2026-03-03T22:19:35.176Z] [DEBUG] Response cached: 7aad2fcc...
+[2026-03-03T22:19:35.177Z] [DEBUG] Cache miss: b4c1cbf2...
+[2026-03-03T22:19:35.177Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:19:35.177Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:19:35.177Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:19:35.177Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 6117
+[2026-03-03T22:19:35.177Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:19:35.177Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:19:35.177Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6117 chars
+[2026-03-03T22:19:35.177Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:45.393Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:45.393Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 3753, latency: 10216ms
+[2026-03-03T22:19:45.393Z] ✓ AI request completed successfully
+[2026-03-03T22:19:45.394Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-45-393Z_0003_documentation_expert.md
+[2026-03-03T22:19:45.396Z] [DEBUG] Response cached: b4c1cbf2...
+[2026-03-03T22:19:45.396Z] ⚠ Step 2 completed - 512 issue(s) found
+[2026-03-03T22:19:45.396Z] ✓ Step step_02 completed in 69012ms
+[2026-03-03T22:19:45.397Z] [DEBUG] [Performance] step_02: 1m 9s
+[2026-03-03T22:19:45.397Z] ✗ [CRITICAL] Operation 'step_02' took 1m 9s (memory: 19.39MB)
+[2026-03-03T22:19:45.397Z] [DEBUG] Recorded outcome for step_02: success
+[2026-03-03T22:19:45.397Z] ✓ Completed: Consistency Analysis (69s)

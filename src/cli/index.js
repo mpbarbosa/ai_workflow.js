@@ -22,6 +22,7 @@ import { statusCommand } from './commands/status.js';
 import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
 import { cleanCommand } from './commands/clean.js';
+import { deployCommand } from './commands/deploy.js';
 
 // Package information
 const VERSION = '1.4.0';
@@ -191,6 +192,17 @@ export function createProgram() {
     .action(async (options) => {
       const globalOpts = program.opts();
       await cleanCommand({ ...globalOpts, ...options });
+    });
+
+  // Deploy command
+  program
+    .command('deploy')
+    .description('Deploy the project using the script defined in .workflow-config.yaml')
+    .option('--project-root <path>', 'Project root directory')
+    .option('--dry-run', 'Preview deployment command without executing', false)
+    .action(async (options) => {
+      const globalOpts = program.opts();
+      await deployCommand({ ...globalOpts, ...options });
     });
 
   return program;

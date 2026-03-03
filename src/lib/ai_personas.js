@@ -37,7 +37,9 @@
  * @type {Persona[]}
  */
 const PERSONAS = [
-  // Documentation Specialist (Step 1, 0b)
+  // Documentation Specialist (Step 1, 2, 0b)
+  // Step 2 (documentation consistency) also uses this persona — the step2_consistency_prompt
+  // YAML template defines a "documentation specialist" role, so the persona must match.
   {
     id: 'documentation_expert',
     name: 'Documentation Expert',
@@ -63,6 +65,7 @@ const PERSONAS = [
       'Ensures documentation follows best practices for the project type.',
     useCases: [
       'Step 1: Incremental documentation updates based on code changes',
+      'Step 2: Documentation consistency analysis (cross-references, version sync, terminology)',
       'Documentation validation and enhancement',
       'README and guide improvements',
       'API documentation reviews',
@@ -134,7 +137,10 @@ const PERSONAS = [
     ],
   },
 
-  // Code Quality Analyst (Step 2, 9)
+  // Code Quality Analyst (Step 9, 10)
+  // NOTE: Step 2 (consistency) was historically misassigned here; it uses 'documentation_expert'.
+  // Step 10 reuses the step9_code_quality_prompt YAML template ("comprehensive software quality
+  // engineer" role), so both steps use this persona to keep the persona and prompt aligned.
   {
     id: 'code_quality_analyst',
     name: 'Code Quality Analyst',
@@ -153,8 +159,9 @@ const PERSONAS = [
       'Reviews code for maintainability, performance, and adherence to best practices. ' +
       'Identifies inconsistencies and technical debt.',
     useCases: [
-      'Step 2: Consistency checking across codebase',
+      'Step 4: Supplementary file-level quality review (quality_prompt)',
       'Step 9: Code quality assessment',
+      'Step 10: Code quality review (anti-patterns, technical debt, maintainability)',
       'Architecture reviews',
       'Refactoring recommendations',
     ],
@@ -257,6 +264,10 @@ const PERSONAS = [
   },
 
   // Security Expert
+  // NOTE: Not assigned to any workflow step — scope is vulnerability/exploit analysis only.
+  // Step 4 (config validation) was historically misassigned here; it now uses 'devops_engineer'
+  // whose YAML prompt role ("Senior DevOps Engineer and Configuration Management Expert")
+  // covers the full validation scope (syntax, security, consistency, best practices).
   {
     id: 'security_expert',
     name: 'Security Expert',
@@ -353,6 +364,9 @@ const PERSONAS = [
   },
 
   // Architecture Reviewer
+  // NOTE: Not assigned to any workflow step — scope is architecture/design strategy only.
+  // Step 10 (code quality) was historically misassigned here; it now uses 'code_quality_analyst'
+  // whose prompt role ("comprehensive software quality engineer") is a better match.
   {
     id: 'architecture_reviewer',
     name: 'Architecture Reviewer',
@@ -416,7 +430,10 @@ const PERSONAS = [
     ],
   },
 
-  // DevOps Engineer
+  // DevOps Engineer (Step 4 — config validation)
+  // Step 4 uses the configuration_specialist_prompt YAML template ("Senior DevOps Engineer
+  // and Configuration Management Expert"), covering config formats, CI/CD, Docker, IaC,
+  // and environment configuration — matching this persona's domain.
   {
     id: 'devops_engineer',
     name: 'DevOps Engineer',
@@ -435,6 +452,7 @@ const PERSONAS = [
       'Reviews deployment processes and infrastructure. ' +
       'Recommends automation and reliability improvements.',
     useCases: [
+      'Step 4: Configuration file validation (syntax, security, consistency, best practices)',
       'CI/CD pipeline reviews',
       'Deployment automation',
       'Infrastructure reviews',

@@ -22,6 +22,9 @@ import {
   buildVersionBumpPrompt,
   calculateUpdateStats,
   formatVersionUpdateReport,
+  parseConsistencyCheckOutput,
+  buildDefaultVersionConstant,
+  deriveVersionConstantName,
 } from '../../src/steps/step_16_version_update.js';
 
 describe('Step 16: Version Update', () => {
@@ -428,7 +431,7 @@ Confidence: high`;
     test('formats complete report', () => {
       const data = {
         oldVersion: '1.2.3',
-        newVersion: '1.3.11',
+        newVersion: '1.3.12',
         bumpType: 'minor',
         stats: { updated: 2, skipped: 1, failed: 0 },
         updates: [
@@ -442,7 +445,7 @@ Confidence: high`;
       const report = formatVersionUpdateReport(data);
       expect(report).toContain('Step 16: Semantic Version Update Report');
       expect(report).toContain('Previous Version**: 1.2.3');
-      expect(report).toContain('New Version**: 1.3.11');
+      expect(report).toContain('New Version**: 1.3.12');
       expect(report).toContain('Bump Type**: minor');
       expect(report).toContain('Files Updated**: 2');
       expect(report).toContain('package.json');
@@ -875,6 +878,195 @@ Confidence: high`;
         '1.0.0',
         expect.any(String)
       );
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - Consistency Check Auto-Fix
+  // ========================================================================
+
+  describe('parseConsistencyCheckOutput', () => {
+    test('returns empty array for empty/null input', () => {
+      expect(parseConsistencyCheckOutput('')).toEqual([]);
+      expect(parseConsistencyCheckOutput(null)).toEqual([]);
+      expect(parseConsistencyCheckOutput(undefined)).toEqual([]);
+    });
+
+    test('parses "Version mismatch in <file> … Found: <ver>" pattern', () => {
+      const output = [
+        'Checking .github/copilot-instructions.md...',
+        '❌ Version mismatch in .github/copilot-instructions.md',
+        'Expected: 0.11.7-alpha',
+        'Found: 0.11.2-alpha',
+      ].join('\n');
+      const result = parseConsistencyCheckOutput(output);
+      expect(result.length).toBeGreaterThan(0);
+      const entry = result.find((r) => r.file.includes('copilot-instructions'));
+      expect(entry).toBeDefined();
+      expect(entry.foundVersions).toContain('0.11.2-alpha');
+      expect(entry.missingFile).toBe(false);
+    });
+
+    test('parses "❌ <file> not found" pattern', () => {
+      const output = '❌ src/config/defaults.js not found';
+      const result = parseConsistencyCheckOutput(output);
+      expect(result.length).toBe(1);
+      expect(result[0].file).toBe('src/config/defaults.js');
+      expect(result[0].missingFile).toBe(true);
+      expect(result[0].foundVersions).toEqual([]);
+    });
+
+    test('parses multi-file output with multiple mismatches', () => {
+      const output = [
+        '❌ Version mismatch in docs/INDEX.md',
+        'Expected: 0.11.7-alpha',
+        'Found: 0.9.0-alpha',
+        '',
+        '❌ src/config/defaults.js not found',
+        '',
+        '❌ Version mismatch in .github/copilot-instructions.md',
+        'Expected: 0.11.7-alpha',
+        'Found: 0.11.2-alpha',
+      ].join('\n');
+      const result = parseConsistencyCheckOutput(output);
+      const indexEntry = result.find((r) => r.file === 'docs/INDEX.md');
+      expect(indexEntry).toBeDefined();
+      expect(indexEntry.foundVersions).toContain('0.9.0-alpha');
+
+      const missingEntry = result.find((r) => r.file === 'src/config/defaults.js');
+      expect(missingEntry).toBeDefined();
+      expect(missingEntry.missingFile).toBe(true);
+    });
+
+    test('parses "Outdated: <ver>" pattern with preceding file name', () => {
+      const output = [
+        'Checking README.md',
+        '  Outdated: 1.2.3',
+      ].join('\n');
+      const result = parseConsistencyCheckOutput(output);
+      const entry = result.find((r) => r.file === 'README.md');
+      expect(entry).toBeDefined();
+      expect(entry.foundVersions).toContain('1.2.3');
+    });
+
+    test('returns no duplicates for same file mentioned multiple times', () => {
+      const output = [
+        '❌ Version mismatch in README.md Found: 0.9.0',
+        '❌ Version mismatch in README.md Found: 0.9.0',
+      ].join('\n');
+      const result = parseConsistencyCheckOutput(output);
+      const readmeEntries = result.filter((r) => r.file === 'README.md');
+      expect(readmeEntries.length).toBe(1);
+    });
+  });
+
+  describe('buildDefaultVersionConstant', () => {
+    test('generates a valid export const for a simple constant name', () => {
+      const content = buildDefaultVersionConstant('GUIA_VERSION', '0.11.7-alpha');
+      expect(content).toContain("export const GUIA_VERSION = '0.11.7-alpha';");
+    });
+
+    test('sanitises dangerous characters in constant name', () => {
+      const content = buildDefaultVersionConstant('MY-VERSION.JS', '1.0.0');
+      expect(content).toMatch(/export const MY_VERSION_JS = '1\.0\.0';/);
+    });
+
+    test('returns a string with a newline at the end', () => {
+      const content = buildDefaultVersionConstant('V', '2.0.0');
+      expect(content.endsWith('\n')).toBe(true);
+    });
+  });
+
+  describe('deriveVersionConstantName', () => {
+    test('derives VERSION from version.js', () => {
+      expect(deriveVersionConstantName('src/config/version.js')).toBe('VERSION');
+    });
+
+    test('derives DEFAULTS_VERSION from defaults.js', () => {
+      expect(deriveVersionConstantName('src/config/defaults.js')).toBe('DEFAULTS_VERSION');
+    });
+
+    test('works with a flat filename', () => {
+      expect(deriveVersionConstantName('app.js')).toBe('APP_VERSION');
+    });
+  });
+
+  describe('autoFixConsistencyIssues', () => {
+    let step;
+    let mockFileOps;
+
+    beforeEach(() => {
+      mockFileOps = {
+        readFile: jest.fn(),
+        writeFile: jest.fn().mockResolvedValue(undefined),
+      };
+      step = new Step16VersionUpdate({
+        fileOps: mockFileOps,
+        backlog: { saveStepSummary: jest.fn(), saveStepIssues: jest.fn() },
+        logger: { info: jest.fn(), success: jest.fn(), warn: jest.fn(), error: jest.fn() },
+        dryRun: false,
+        projectRoot: '/project',
+      });
+    });
+
+    test('updates file with stale version string', async () => {
+      const output = [
+        '❌ Version mismatch in docs/INDEX.md',
+        'Expected: 0.11.7-alpha',
+        'Found: 0.9.0-alpha',
+      ].join('\n');
+
+      mockFileOps.readFile.mockResolvedValue('Version: 0.9.0-alpha\nSome content');
+
+      const results = await step.autoFixConsistencyIssues(output, '0.11.7-alpha');
+      const updated = results.find((r) => r.file === 'docs/INDEX.md');
+      expect(updated).toBeDefined();
+      expect(updated.action).toBe('updated');
+      expect(mockFileOps.writeFile).toHaveBeenCalledWith(
+        '/project/docs/INDEX.md',
+        expect.stringContaining('0.11.7-alpha')
+      );
+    });
+
+    test('creates missing JS constant file', async () => {
+      const output = '❌ src/config/defaults.js not found';
+      mockFileOps.writeFile.mockResolvedValue(undefined);
+
+      const results = await step.autoFixConsistencyIssues(output, '0.11.7-alpha');
+      const created = results.find((r) => r.file === 'src/config/defaults.js');
+      expect(created).toBeDefined();
+      expect(created.action).toBe('created');
+      expect(mockFileOps.writeFile).toHaveBeenCalledWith(
+        '/project/src/config/defaults.js',
+        expect.stringContaining("export const DEFAULTS_VERSION = '0.11.7-alpha';")
+      );
+    });
+
+    test('skips file when content has no replaceable version string', async () => {
+      const output = '❌ Version mismatch in README.md\nFound: 9.9.9-alpha';
+      // File does NOT contain 9.9.9-alpha
+      mockFileOps.readFile.mockResolvedValue('Some docs without the version');
+
+      const results = await step.autoFixConsistencyIssues(output, '0.11.7-alpha');
+      const entry = results.find((r) => r.file === 'README.md');
+      expect(entry).toBeDefined();
+      expect(entry.action).toBe('skipped');
+    });
+
+    test('skips in dryRun mode without writing files', async () => {
+      step.dryRun = true;
+      const output = '❌ Version mismatch in docs/INDEX.md\nFound: 0.9.0-alpha';
+      mockFileOps.readFile.mockResolvedValue('Version 0.9.0-alpha content');
+
+      const results = await step.autoFixConsistencyIssues(output, '0.11.7-alpha');
+      const entry = results.find((r) => r.file === 'docs/INDEX.md');
+      expect(entry.action).toBe('updated');
+      expect(mockFileOps.writeFile).not.toHaveBeenCalled();
+    });
+
+    test('handles empty consistency output gracefully', async () => {
+      const results = await step.autoFixConsistencyIssues('', '0.11.7-alpha');
+      expect(results).toEqual([]);
     });
   });
 });

@@ -63,6 +63,7 @@ import { Step14PromptEngineer } from '../steps/step_14_prompt_engineer.js';
 import { Step15UxAnalysis } from '../steps/step_15_ux_analysis.js';
 import { Step16VersionUpdate } from '../steps/step_16_version_update.js';
 import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
+import { Step18Debugging } from '../steps/step_18_debugging.js';
 
 // ============================================================================
 // CONSTANTS
@@ -176,6 +177,7 @@ export function getStepsForStage(stage) {
       'step_14', // Prompt engineer
       'step_15', // UX analysis
       'step_16', // Version update
+      'step_18', // Debugging analysis
       'step_17', // Summary
       'step_0f', // Commit artifacts
       'step_12', // Git finalization (must run last)
@@ -472,11 +474,18 @@ export class MainOrchestrator {
         dependencies: ['step_15'],
       },
       {
+        id: 'step_18',
+        name: 'Debugging Analysis',
+        description: 'AI-powered debugging analysis (observer, async, data-structure personas)',
+        class: Step18Debugging,
+        dependencies: ['step_16'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
-        dependencies: ['step_16'],
+        dependencies: ['step_18'],
       },
       {
         id: 'step_0f',
@@ -725,9 +734,17 @@ export class MainOrchestrator {
         workflowDir: this.workflowDir,
         projectRoot: this.projectRoot,
         auto: this.auto,
+        workflowRunId: this.configManager.workflowRunId,
         modifiedFiles: allChangedFiles,
         projectType:
           (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ?? null,
+        // Req 9: ensure AI prompt context fields are populated for all steps
+        scope: context.scope || detectedProfile || '',
+        projectDescription:
+          context.projectDescription ||
+          this.configManager?.getConfig?.()?.project_description ||
+          this.configManager?.getConfig?.()?.project?.description ||
+          path.basename(this.projectRoot),
       };
 
       // Setup event listeners for progress tracking
@@ -874,7 +891,7 @@ export class MainOrchestrator {
         // Non-critical — never block completion
       }
 
-      logger.closeLogFile();
+      await logger.closeLogFile();
 
       return {
         success: engineResult.success,
@@ -885,7 +902,7 @@ export class MainOrchestrator {
       };
     } catch (error) {
       logger.error(`${colors.red}✗ Workflow failed: ${error.message}${colors.reset}`);
-      logger.closeLogFile();
+      await logger.closeLogFile();
 
       return {
         success: false,

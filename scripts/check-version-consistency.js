@@ -8,11 +8,13 @@
  * - CHANGELOG.md
  * - Documentation files
  *
- * Usage: node scripts/check-version-consistency.js
- * Exit codes: 0 = consistent, 1 = inconsistencies found
+ * Usage:
+ *   node scripts/check-version-consistency.js            # check only
+ *   node scripts/check-version-consistency.js --auto-fix # check and fix
+ * Exit codes: 0 = consistent (or all fixed), 1 = inconsistencies found
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { join, extname, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -174,9 +176,85 @@ function checkVersionConsistency() {
   return 1;
 }
 
+/**
+ * Auto-fix version inconsistencies by rewriting the outdated version strings
+ * in each flagged file to match the package version.
+ *
+ * @param {Array<{file: string, versions: string[]}>} inconsistencies
+ * @param {string} packageVersion - The correct version to write
+ * @returns {Array<{file: string, fixed: boolean, error?: string}>}
+ */
+function autoFixInconsistencies(inconsistencies, packageVersion) {
+  const results = [];
+
+  for (const item of inconsistencies) {
+    try {
+      let content = readFileSync(item.file, 'utf-8');
+      let changed = false;
+
+      for (const staleVersion of item.versions) {
+        const escaped = staleVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const updated = content.replace(new RegExp(escaped, 'g'), packageVersion);
+        if (updated !== content) {
+          content = updated;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        writeFileSync(item.file, content, 'utf-8');
+        results.push({ file: item.file, fixed: true });
+        console.log(
+          `  ${colors.green}✓ Fixed${colors.reset} ${item.file} (${item.versions.join(', ')} → ${packageVersion})`
+        );
+      } else {
+        results.push({ file: item.file, fixed: false, error: 'version string not found in file content' });
+        console.log(`  ${colors.yellow}⚠ Skipped${colors.reset} ${item.file} — version string not replaceable`);
+      }
+    } catch (err) {
+      results.push({ file: item.file, fixed: false, error: err.message });
+      console.log(`  ${colors.red}✗ Error${colors.reset} ${item.file} — ${err.message}`);
+    }
+  }
+
+  return results;
+}
+
 // Run check
 try {
+  const autoFix = process.argv.includes('--auto-fix') || process.argv.includes('--fix');
   const exitCode = checkVersionConsistency();
+
+  if (exitCode !== 0 && autoFix) {
+    console.log(`\n${colors.cyan}🔧 Auto-fix mode — attempting to correct inconsistencies...${colors.reset}\n`);
+
+    // Re-run check to collect the inconsistency list for fixing
+    const packageVersion = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf-8')).version;
+    const markdownFiles = findMarkdownFiles(projectRoot);
+    const toFix = [];
+    markdownFiles.forEach((filePath) => {
+      const versions = extractVersionReferences(filePath);
+      const outdated = Array.from(versions).filter((v) => v !== packageVersion);
+      if (outdated.length > 0) {
+        toFix.push({ file: filePath, versions: outdated });
+      }
+    });
+
+    const fixResults = autoFixInconsistencies(toFix, packageVersion);
+    const fixed = fixResults.filter((r) => r.fixed).length;
+    const failed = fixResults.filter((r) => !r.fixed).length;
+
+    console.log(`\n${colors.cyan}Auto-fix summary:${colors.reset} ${fixed} fixed, ${failed} could not be fixed`);
+
+    if (failed === 0) {
+      console.log(`${colors.green}✓ All inconsistencies resolved${colors.reset}`);
+      process.exit(0);
+    } else {
+      console.log(`${colors.red}✗ ${failed} file(s) still need manual attention${colors.reset}`);
+      process.exit(1);
+    }
+  }
+
   process.exit(exitCode);
 } catch (error) {
   console.error(`${colors.red}Fatal error:${colors.reset}`, error);

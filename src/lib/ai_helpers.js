@@ -45,7 +45,7 @@ const DEFAULT_REQUEST = {
   MODEL: 'gpt-4.1',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 4000,
-  TIMEOUT_MS: 120000, // 120 seconds
+  TIMEOUT_MS: 60000, // 60 seconds (doubles to 120 s on first timeout retry)
   STREAM: false,
   MAX_RETRIES: 3,
   BASE_DELAY_MS: 1000, // 1 second initial retry delay
@@ -493,6 +493,7 @@ export class AiHelper {
       baseDelay: config.baseDelay || DEFAULT_REQUEST.BASE_DELAY_MS,
       maxDelay: config.maxDelay || DEFAULT_REQUEST.MAX_DELAY_MS,
       promptsDir: config.promptsDir || null,
+      workingDirectory: config.workingDirectory || null,
     };
 
     this.logger = config.logger || logger;
@@ -584,9 +585,11 @@ export class AiHelper {
         }
 
         // Create session
-        this.session = await this.client.createSession({
-          model: this.config.model,
-        });
+        const sessionConfig = { model: this.config.model };
+        if (this.config.workingDirectory) {
+          sessionConfig.workingDirectory = this.config.workingDirectory;
+        }
+        this.session = await this.client.createSession(sessionConfig);
       }
 
       this.initialized = true;
@@ -943,8 +946,11 @@ export class AiHelper {
   }
 
   /**
-   * Destroys the current SDK session and creates a fresh one.
+   * Destroys the current SDK session and client, then creates fresh ones.
    * Called before each retry so a timed-out session is never reused.
+   * Restarting the client ensures the underlying server process is not
+   * stuck in a non-idle state, which would cause new sessions to
+   * timeout at "waiting for session.idle" as well.
    * @private
    */
   async _recreateSession() {
@@ -953,10 +959,20 @@ export class AiHelper {
         await this.session.destroy();
         this.session = null;
       }
-      this.session = await this.client.createSession({ model: this.config.model });
+      // Stop and restart the client to get a clean server process.
+      // Only recreating the session is insufficient when the server is stuck.
+      if (this.client) {
+        await this.client.stop();
+        this.client = new CopilotClient();
+        await this.client.start();
+      }
+      this.session = await this.client.createSession({
+        model: this.config.model,
+        ...(this.config.workingDirectory ? { workingDirectory: this.config.workingDirectory } : {}),
+      });
       // Reset the request queue so the fresh session isn't blocked by stale entries.
       this._requestQueue = Promise.resolve();
-      logger.info('[AI] Session recreated for retry');
+      logger.info('[AI] Client and session recreated for retry');
     } catch (error) {
       logger.warn(`[AI] Session recreation failed: ${error.message}`);
     }

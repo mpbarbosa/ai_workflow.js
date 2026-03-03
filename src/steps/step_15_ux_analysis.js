@@ -13,6 +13,9 @@ import { STEP_KIND } from './step_contract.js';
 import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
 import { AiHelper } from '../lib/ai_helpers.js';
+import { AiCache } from '../lib/ai_cache.js';
+import { AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // Constants
 export const UI_PROJECT_TYPES = Object.freeze({
@@ -152,8 +155,12 @@ export function groupUiFilesByType(files) {
 export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
   const htmlFiles = fileGroups.html || [];
   const cssFiles = fileGroups.css || [];
-  const remaining = maxFiles - htmlFiles.length;
-  const selected = [...htmlFiles, ...cssFiles.slice(0, Math.max(0, remaining))];
+  // Reserve ~30% of slots for CSS so it's always represented, even when HTML count is large.
+  const cssReserved = Math.min(cssFiles.length, Math.max(1, Math.floor(maxFiles * 0.3)));
+  const htmlAvail = maxFiles - cssReserved;
+  // If HTML underflows its budget, give the unused slots to CSS.
+  const cssAvail = cssReserved + Math.max(0, htmlAvail - htmlFiles.length);
+  const selected = [...htmlFiles.slice(0, htmlAvail), ...cssFiles.slice(0, cssAvail)];
   return selected.slice(0, maxFiles);
 }
 
@@ -513,7 +520,28 @@ export class Step15UxAnalysis {
 
       // Phase 3: Build UX analysis prompt
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Building UX analysis prompt...`);
-      const prompt = buildUxAnalysisPrompt(analysisContext);
+      let prompt = buildUxAnalysisPrompt(analysisContext);
+      // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
+      try {
+        const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+        const parsedYaml = yaml.load(yamlContent);
+        const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
+          project_name: projectRoot,
+          file_count: String(uiFiles.length),
+          project_type: projectType,
+        });
+        if (uiUxPrompt) {
+          let roleOverride = '';
+          try {
+            const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+            const parsedPk = yaml.load(pkYaml);
+            const pk = buildProjectKindPrompt(parsedPk, context?.projectType ?? 'default', 'ux_designer');
+            if (pk?.role) roleOverride = pk.role;
+          } catch { /* optional */ }
+          const prefix = roleOverride ? `[Project-Kind Role: ${roleOverride}]\n\n` : '';
+          prompt = `${prefix}${uiUxPrompt}\n\n---\n\n${prompt}`;
+        }
+      } catch { /* non-fatal: use base prompt */ }
 
       // Phase 4: Initialize AI helper and perform analysis
       this.logger.info(

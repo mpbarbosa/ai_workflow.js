@@ -85,7 +85,7 @@ export const CONFIG_ISSUE_TYPE = {
  * Maximum content size per file included in the AI prompt (characters).
  * Limits token usage while still providing actionable context.
  */
-export const MAX_FILE_CONTENT_CHARS = 4000;
+export const MAX_FILE_CONTENT_CHARS = 2000;
 
 /**
  * Minimum fraction of listed files the AI response must mention to be considered adequate.
@@ -668,7 +668,11 @@ ${filesContentBlock}`;
         // 'security_expert' only covers one of the five validation categories (Security Analysis)
         // and creates a misleading mismatch with the actual broad-scope prompt content.
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer', timeout: 120000 })
+          this.aiHelper.executeRequest(prompt, {
+            persona: 'devops_engineer',
+            model: 'claude-haiku-4.5',
+            timeout: 120000,
+          })
         );
         const aiContent = aiResult?.content ?? '';
 
@@ -692,7 +696,10 @@ ${filesContentBlock}`;
             // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
             // specialist" role (anti-patterns, best practices, maintainability) — not security.
             const qResult = await this.aiCache.withCache(qKey, qKey, () =>
-              this.aiHelper.executeRequest(qPrompt, { persona: 'code_quality_analyst' })
+              this.aiHelper.executeRequest(qPrompt, {
+                persona: 'code_quality_analyst',
+                model: 'claude-haiku-4.5',
+              })
             );
             qualityContent = qResult?.content ?? '';
           }

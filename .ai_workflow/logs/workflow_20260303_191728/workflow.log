@@ -1,0 +1,1140 @@
+[2026-03-03T22:17:28.446Z] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-03-03T22:17:28.446Z]   AI Workflow Automation - Starting
+[2026-03-03T22:17:28.446Z] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-03-03T22:17:28.446Z] Stage: full
+[2026-03-03T22:17:28.446Z] Mode: interactive
+[2026-03-03T22:17:28.446Z] Detecting workflow profile based on changes...
+[2026-03-03T22:17:28.469Z] Detected profile: full_validation
+[2026-03-03T22:17:28.470Z]   Changed files: 465 (docs: 10, code: 28, tests: 15, infra: 3, other: 409)
+[2026-03-03T22:17:28.470Z] Profile: full_validation
+[2026-03-03T22:17:28.470Z] Performing health checks...
+[2026-03-03T22:17:28.470Z] ✓ All health checks passed
+[2026-03-03T22:17:28.470Z] Registering workflow steps...
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_00
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_0b
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_01
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_02
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_02_5
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_03
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_04
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_05
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_06
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_07
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_08
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_09
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_10
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_11
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_11_5
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_11_6
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_13
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_14
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_15
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_16
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_18
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_17
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_0f
+[2026-03-03T22:17:28.470Z] [DEBUG] Registered step: step_12
+[2026-03-03T22:17:28.470Z] ✓ Registered 24 workflow steps
+[2026-03-03T22:17:28.470Z] Executing 24 steps for stage: full
+[2026-03-03T22:17:28.471Z] [DEBUG] [CommitHistory] Loaded history; lastRunCommit=e400a497c23856bd4396a145c05c6c26acde2429
+[2026-03-03T22:17:28.480Z] [CommitHistory] 26 file(s) changed since last run (e400a49)
+[2026-03-03T22:17:28.512Z] Full optimization: Analyzing changes...
+[2026-03-03T22:17:28.513Z] Docs-only analysis: NO (11.54% docs, 0% faster)
+[2026-03-03T22:17:28.515Z] Code optimization: backend (0 steps skipped)
+[2026-03-03T22:17:28.516Z] Full optimization: Selected strategy 'standard' (confidence: 30%)
+[2026-03-03T22:17:28.516Z] 
+Starting workflow execution...
+
+[2026-03-03T22:17:28.542Z] [DEBUG] No model file found, starting fresh
+[2026-03-03T22:17:28.542Z] ML Optimizer initialized
+[2026-03-03T22:17:28.542Z] Loading workflow configuration...
+[2026-03-03T22:17:28.542Z] ✓ Workflow loaded: AI Workflow Automation v2.0.0
+[2026-03-03T22:17:28.543Z] Execution plan: 24 steps
+[2026-03-03T22:17:28.543Z] Starting workflow execution: AI Workflow Automation
+[2026-03-03T22:17:28.543Z] Executing step: Pre-Analysis (step_00)
+[2026-03-03T22:17:28.543Z] [DEBUG] Prediction for step_00: skip (confidence: 0.95)
+[2026-03-03T22:17:28.543Z] [DEBUG] [MLOptimizer] step_00: predicted skippable (confidence 0.95)
+[2026-03-03T22:17:28.543Z] 
+→ Starting: Pre-Analysis
+[2026-03-03T22:17:28.543Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.543Z] 🔷  Step 0: Pre-Analysis - Analyzing Recent Changes
+[2026-03-03T22:17:28.543Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.605Z] Commits ahead of remote: 0
+[2026-03-03T22:17:28.605Z] Modified files: 465
+[2026-03-03T22:17:28.612Z] ✓ Project kind from config: nodejs_automation (configured)
+[2026-03-03T22:17:28.640Z] ✓ Pre-analysis complete:
+  • Commits ahead: 0
+  • Modified files: 465
+  • Change scope: full-stack
+  • Documentation: 8 files
+  • Tests: 18 files
+  • Source: 25 files
+  • Config: 4 files
+  • Project kind: nodejs_automation (100% confidence)
+
+[2026-03-03T22:17:28.644Z] ✓ Step step_00 completed in 101ms
+[2026-03-03T22:17:28.644Z] [DEBUG] [Performance] step_00: 101ms
+[2026-03-03T22:17:28.644Z] [DEBUG] Recorded outcome for step_00: success
+[2026-03-03T22:17:28.644Z] ✓ Completed: Pre-Analysis (0s)
+[2026-03-03T22:17:28.644Z] Executing step: Bootstrap Documentation (step_0b)
+[2026-03-03T22:17:28.644Z] [DEBUG] Prediction for step_0b: skip (confidence: 0.95)
+[2026-03-03T22:17:28.644Z] [DEBUG] [MLOptimizer] step_0b: predicted skippable (confidence 0.95)
+[2026-03-03T22:17:28.644Z] 
+→ Starting: Bootstrap Documentation
+[2026-03-03T22:17:28.645Z] [DEBUG] Step0bBootstrapDocs.execute()
+[2026-03-03T22:17:28.645Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.645Z] 🔷  Step 0b: Documentation Gap Analysis and Generation
+[2026-03-03T22:17:28.645Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.645Z] Phase 1: Gathering project statistics...
+[2026-03-03T22:17:28.645Z] [DEBUG] Gathering project statistics by scanning files...
+[2026-03-03T22:17:28.645Z] [DEBUG] Listing all files in the project directory...
+[2026-03-03T22:17:28.645Z] [DEBUG] Project root: /home/mpb/Documents/GitHub/ai_workflow.js
+[2026-03-03T22:17:28.651Z] [DEBUG] Total files found: 1422
+[2026-03-03T22:17:28.651Z] [DEBUG] Converting to relative paths...
+[2026-03-03T22:17:28.654Z] Project has 764 documentation files and 217 source files
+[2026-03-03T22:17:28.654Z] README.md size: 13808 bytes, Has CHANGELOG: true, Has docs/ directory: true
+[2026-03-03T22:17:28.654Z] Phase 2: Evaluating documentation coverage...
+[2026-03-03T22:17:28.654Z] Step 0b: Documentation coverage adequate - no bootstrap needed
+[2026-03-03T22:17:28.654Z] ✓ Step step_0b completed in 10ms
+[2026-03-03T22:17:28.654Z] [DEBUG] [Performance] step_0b: 10ms
+[2026-03-03T22:17:28.654Z] [DEBUG] Recorded outcome for step_0b: success
+[2026-03-03T22:17:28.654Z] ✓ Completed: Bootstrap Documentation (0s)
+[2026-03-03T22:17:28.654Z] Executing step: Documentation Updates (step_01)
+[2026-03-03T22:17:28.654Z] [DEBUG] Prediction for step_01: skip (confidence: 0.95)
+[2026-03-03T22:17:28.654Z] [DEBUG] [MLOptimizer] step_01: predicted skippable (confidence 0.95)
+[2026-03-03T22:17:28.654Z] 
+→ Starting: Documentation Updates
+[2026-03-03T22:17:28.655Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.655Z] 🔷  Step 1: AI-Powered Documentation Updates
+[2026-03-03T22:17:28.655Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:17:28.655Z] Changed files detected: 60 files
+[2026-03-03T22:17:28.655Z] Classification: 9 docs, 27 source, 15 tests
+[2026-03-03T22:17:28.655Z] Checking documentation changes (incremental mode)...
+[2026-03-03T22:17:28.655Z] Step1: No cache found, starting fresh
+[2026-03-03T22:17:28.656Z] Step1: Detected 9 changed files, 0 unchanged
+[2026-03-03T22:17:28.657Z] Running documentation consistency validation...
+[2026-03-03T22:17:28.657Z] Checking JSDoc coverage in 27 source file(s)...
+[2026-03-03T22:17:28.658Z] ✓ Source JSDoc: all 27 file(s) properly documented
+[2026-03-03T22:17:30.083Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:17:34.056Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:17:34.116Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:17:34.116Z] Running parallel documentation analysis...
+[2026-03-03T22:17:34.116Z] Step1Parallel: Validating 9 files across 4 categories (BALANCED)
+[2026-03-03T22:17:34.128Z] [DEBUG] Cache miss: b0e4cc4f...
+[2026-03-03T22:17:34.128Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:17:34.128Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:17:34.128Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:17:34.128Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 4508
+[2026-03-03T22:17:34.129Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:17:34.129Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:17:34.129Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4508 chars
+[2026-03-03T22:17:34.129Z] [DEBUG] Sending prompt...
+[2026-03-03T22:17:44.051Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:17:44.051Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1079, latency: 9922ms
+[2026-03-03T22:17:44.051Z] ✓ AI request completed successfully
+[2026-03-03T22:17:44.052Z] [DEBUG] Prompt logged to: 2026-03-03T22-17-44-052Z_0001_documentation_expert.md
+[2026-03-03T22:17:44.055Z] [DEBUG] Response cached: b0e4cc4f...
+[2026-03-03T22:17:44.055Z] Step1Parallel: Validated api (4 files) in 10s
+[2026-03-03T22:17:44.062Z] [DEBUG] Cache miss: fde7ef51...
+[2026-03-03T22:17:44.062Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:17:44.062Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:17:44.062Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:17:44.062Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 4459
+[2026-03-03T22:17:44.062Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:17:44.062Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:17:44.062Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4459 chars
+[2026-03-03T22:17:44.062Z] [DEBUG] Sending prompt...
+[2026-03-03T22:18:00.179Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:18:00.179Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 7480, latency: 16117ms
+[2026-03-03T22:18:00.179Z] ✓ AI request completed successfully
+[2026-03-03T22:18:00.180Z] [DEBUG] Prompt logged to: 2026-03-03T22-18-00-179Z_0002_documentation_expert.md
+[2026-03-03T22:18:00.183Z] [DEBUG] Response cached: fde7ef51...
+[2026-03-03T22:18:00.183Z] Step1Parallel: Validated guide (1 files) in 16s
+[2026-03-03T22:18:00.186Z] [DEBUG] Cache miss: 31b7347e...
+[2026-03-03T22:18:00.186Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:18:00.186Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:18:00.186Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:18:00.186Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 4434
+[2026-03-03T22:18:00.186Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:00.186Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:00.186Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4434 chars
+[2026-03-03T22:18:00.186Z] [DEBUG] Sending prompt...
+[2026-03-03T22:18:08.288Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:18:08.288Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 373, latency: 8102ms
+[2026-03-03T22:18:08.289Z] ✓ AI request completed successfully
+[2026-03-03T22:18:08.290Z] [DEBUG] Prompt logged to: 2026-03-03T22-18-08-289Z_0003_documentation_expert.md
+[2026-03-03T22:18:08.294Z] [DEBUG] Response cached: 31b7347e...
+[2026-03-03T22:18:08.294Z] Step1Parallel: Validated contributing (1 files) in 8s
+[2026-03-03T22:18:08.297Z] [DEBUG] Cache miss: a2bb5610...
+[2026-03-03T22:18:08.297Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:18:08.297Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:18:08.297Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:18:08.297Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 4549
+[2026-03-03T22:18:08.297Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:08.297Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:08.297Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4549 chars
+[2026-03-03T22:18:08.297Z] [DEBUG] Sending prompt...
+[2026-03-03T22:18:16.407Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:18:16.407Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 997, latency: 8110ms
+[2026-03-03T22:18:16.407Z] ✓ AI request completed successfully
+[2026-03-03T22:18:16.408Z] [DEBUG] Prompt logged to: 2026-03-03T22-18-16-407Z_0004_documentation_expert.md
+[2026-03-03T22:18:16.412Z] [DEBUG] Response cached: a2bb5610...
+[2026-03-03T22:18:16.412Z] Step1Parallel: Validated other (3 files) in 8s
+[2026-03-03T22:18:16.412Z] Step1Parallel: Completed validation in 42s (9/9 files)
+[2026-03-03T22:18:16.412Z] ✓ Parallel analysis completed: 9 docs in 42ms
+[2026-03-03T22:18:16.413Z] ✓ Step 1 completed successfully
+[2026-03-03T22:18:16.413Z] ✓ Step step_01 completed in 47759ms
+[2026-03-03T22:18:16.413Z] [DEBUG] [Performance] step_01: 47.8s
+[2026-03-03T22:18:16.414Z] ✗ [CRITICAL] Operation 'step_01' took 47.8s (memory: 29.08MB)
+[2026-03-03T22:18:16.414Z] [DEBUG] Recorded outcome for step_01: success
+[2026-03-03T22:18:16.414Z] ✓ Completed: Documentation Updates (48s)
+[2026-03-03T22:18:16.414Z] Executing step: Configuration Validation (step_04)
+[2026-03-03T22:18:16.414Z] [DEBUG] Prediction for step_04: skip (confidence: 0.95)
+[2026-03-03T22:18:16.414Z] [DEBUG] [MLOptimizer] step_04: predicted skippable (confidence 0.95)
+[2026-03-03T22:18:16.414Z] 
+→ Starting: Configuration Validation
+[2026-03-03T22:18:16.414Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:16.414Z] 🔷  Step 4: Configuration Validation
+[2026-03-03T22:18:16.414Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:16.441Z] Found 3 configuration file(s)
+[2026-03-03T22:18:16.450Z] Syntax validation: 0 error(s)
+[2026-03-03T22:18:16.456Z] Security scan: 0 finding(s)
+[2026-03-03T22:18:16.457Z] Best practices: 1 issue(s)
+[2026-03-03T22:18:17.744Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:18:18.761Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:18:18.806Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:18:18.831Z] [DEBUG] Cache miss: 21967dae...
+[2026-03-03T22:18:18.831Z] [DEBUG] Request Options: {"model":"claude-haiku-4.5","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"devops_engineer","cache":true,"timeout":120000}
+[2026-03-03T22:18:18.831Z] [DEBUG] Persona: devops_engineer
+[2026-03-03T22:18:18.831Z] [DEBUG] Model: claude-haiku-4.5
+[2026-03-03T22:18:18.831Z] [AI] SDK call starting — persona: devops_engineer, model: claude-haiku-4.5, prompt_chars: 10144
+[2026-03-03T22:18:18.831Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:18.831Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:18.831Z] [Copilot SDK] Calling sendMessage — model: claude-haiku-4.5, prompt_length: 10144 chars
+[2026-03-03T22:18:18.831Z] [DEBUG] Sending prompt...
+[2026-03-03T22:18:29.527Z] [Copilot SDK] sendAndWait returned — model: claude-haiku-4.5
+[2026-03-03T22:18:29.527Z] [AI] SDK call completed — persona: devops_engineer, model: claude-haiku-4.5, response_chars: 2217, latency: 10696ms
+[2026-03-03T22:18:29.527Z] ✓ AI request completed successfully
+[2026-03-03T22:18:29.528Z] [DEBUG] Prompt logged to: 2026-03-03T22-18-29-527Z_0001_devops_engineer.md
+[2026-03-03T22:18:29.532Z] [DEBUG] Response cached: 21967dae...
+[2026-03-03T22:18:29.536Z] [DEBUG] Cache miss: 71b39074...
+[2026-03-03T22:18:29.536Z] [DEBUG] Request Options: {"model":"claude-haiku-4.5","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true}
+[2026-03-03T22:18:29.536Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:18:29.536Z] [DEBUG] Model: claude-haiku-4.5
+[2026-03-03T22:18:29.536Z] [AI] SDK call starting — persona: code_quality_analyst, model: claude-haiku-4.5, prompt_chars: 1303
+[2026-03-03T22:18:29.536Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:29.536Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:29.536Z] [Copilot SDK] Calling sendMessage — model: claude-haiku-4.5, prompt_length: 1303 chars
+[2026-03-03T22:18:29.536Z] [DEBUG] Sending prompt...
+[2026-03-03T22:18:36.378Z] [Copilot SDK] sendAndWait returned — model: claude-haiku-4.5
+[2026-03-03T22:18:36.378Z] [AI] SDK call completed — persona: code_quality_analyst, model: claude-haiku-4.5, response_chars: 2540, latency: 6842ms
+[2026-03-03T22:18:36.378Z] ✓ AI request completed successfully
+[2026-03-03T22:18:36.379Z] [DEBUG] Prompt logged to: 2026-03-03T22-18-36-378Z_0002_code_quality_analyst.md
+[2026-03-03T22:18:36.383Z] [DEBUG] Response cached: 71b39074...
+[2026-03-03T22:18:36.383Z] ✓ Step 4 completed - no issues found
+[2026-03-03T22:18:36.384Z] ✓ Step step_04 completed in 19969ms
+[2026-03-03T22:18:36.384Z] [DEBUG] [Performance] step_04: 20.0s
+[2026-03-03T22:18:36.384Z] ⚠ [WARNING] Operation 'step_04' took 20.0s (memory: 30.28MB)
+[2026-03-03T22:18:36.384Z] [DEBUG] Recorded outcome for step_04: success
+[2026-03-03T22:18:36.384Z] ✓ Completed: Configuration Validation (20s)
+[2026-03-03T22:18:36.384Z] Executing step: Consistency Analysis (step_02)
+[2026-03-03T22:18:36.384Z] [DEBUG] Prediction for step_02: skip (confidence: 0.95)
+[2026-03-03T22:18:36.384Z] [DEBUG] [MLOptimizer] step_02: predicted skippable (confidence 0.95)
+[2026-03-03T22:18:36.385Z] 
+→ Starting: Consistency Analysis
+[2026-03-03T22:18:36.385Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:36.385Z] 🔷  Step 2: Documentation Consistency Analysis
+[2026-03-03T22:18:36.385Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:18:36.399Z] Found 110 documentation files
+[2026-03-03T22:18:36.400Z] Expected version: 1.3.11
+[2026-03-03T22:18:36.409Z] Version check: 432 issue(s) found
+[2026-03-03T22:18:36.440Z] Link check: 80 broken link(s) found
+[2026-03-03T22:18:37.720Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:18:38.833Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:18:38.883Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:18:38.909Z] [step_02] Running AI analysis in 3 partition(s) of ≤50 files
+[2026-03-03T22:18:38.911Z] [DEBUG] Cache miss: 2291bfac...
+[2026-03-03T22:18:38.911Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:18:38.911Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:18:38.911Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:18:38.911Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 9883
+[2026-03-03T22:18:38.911Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:18:38.911Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:18:38.911Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 9883 chars
+[2026-03-03T22:18:38.911Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:07.718Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:07.718Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 12861, latency: 28807ms
+[2026-03-03T22:19:07.719Z] ✓ AI request completed successfully
+[2026-03-03T22:19:07.719Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-07-719Z_0001_documentation_expert.md
+[2026-03-03T22:19:07.722Z] [DEBUG] Response cached: 2291bfac...
+[2026-03-03T22:19:07.722Z] [DEBUG] Cache miss: 7aad2fcc...
+[2026-03-03T22:19:07.723Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:19:07.723Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:19:07.723Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:19:07.723Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 9600
+[2026-03-03T22:19:07.723Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:19:07.723Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:19:07.723Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 9600 chars
+[2026-03-03T22:19:07.723Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:35.171Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:35.171Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 12601, latency: 27448ms
+[2026-03-03T22:19:35.171Z] ✓ AI request completed successfully
+[2026-03-03T22:19:35.172Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-35-172Z_0002_documentation_expert.md
+[2026-03-03T22:19:35.176Z] [DEBUG] Response cached: 7aad2fcc...
+[2026-03-03T22:19:35.177Z] [DEBUG] Cache miss: b4c1cbf2...
+[2026-03-03T22:19:35.177Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-03T22:19:35.177Z] [DEBUG] Persona: documentation_expert
+[2026-03-03T22:19:35.177Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:19:35.177Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 6117
+[2026-03-03T22:19:35.177Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:19:35.177Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:19:35.177Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6117 chars
+[2026-03-03T22:19:35.177Z] [DEBUG] Sending prompt...
+[2026-03-03T22:19:45.393Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:19:45.393Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 3753, latency: 10216ms
+[2026-03-03T22:19:45.393Z] ✓ AI request completed successfully
+[2026-03-03T22:19:45.394Z] [DEBUG] Prompt logged to: 2026-03-03T22-19-45-393Z_0003_documentation_expert.md
+[2026-03-03T22:19:45.396Z] [DEBUG] Response cached: b4c1cbf2...
+[2026-03-03T22:19:45.396Z] ⚠ Step 2 completed - 512 issue(s) found
+[2026-03-03T22:19:45.396Z] ✓ Step step_02 completed in 69012ms
+[2026-03-03T22:19:45.397Z] [DEBUG] [Performance] step_02: 1m 9s
+[2026-03-03T22:19:45.397Z] ✗ [CRITICAL] Operation 'step_02' took 1m 9s (memory: 19.39MB)
+[2026-03-03T22:19:45.397Z] [DEBUG] Recorded outcome for step_02: success
+[2026-03-03T22:19:45.397Z] ✓ Completed: Consistency Analysis (69s)
+[2026-03-03T22:19:45.397Z] Executing step: Directory Structure (step_05)
+[2026-03-03T22:19:45.397Z] [DEBUG] Prediction for step_05: skip (confidence: 0.95)
+[2026-03-03T22:19:45.397Z] [DEBUG] [MLOptimizer] step_05: predicted skippable (confidence 0.95)
+[2026-03-03T22:19:45.397Z] 
+→ Starting: Directory Structure
+[2026-03-03T22:19:45.397Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:19:45.397Z] 🔷  Step 5: Directory Structure Validation
+[2026-03-03T22:19:45.397Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:19:45.398Z] Found 1 misplaced documentation file(s)
+[2026-03-03T22:19:45.462Z] Structure validation: 18 issue(s)
+[2026-03-03T22:19:46.944Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:19:47.958Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:19:47.998Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:19:48.031Z] [DEBUG] Cache miss: c40e3823...
+[2026-03-03T22:19:48.031Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"architecture_reviewer","cache":true}
+[2026-03-03T22:19:48.031Z] [DEBUG] Persona: architecture_reviewer
+[2026-03-03T22:19:48.031Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:19:48.031Z] [AI] SDK call starting — persona: architecture_reviewer, model: gpt-4.1, prompt_chars: 6217
+[2026-03-03T22:19:48.031Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:19:48.031Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:19:48.031Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6217 chars
+[2026-03-03T22:19:48.031Z] [DEBUG] Sending prompt...
+[2026-03-03T22:20:04.555Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:20:04.555Z] [AI] SDK call completed — persona: architecture_reviewer, model: gpt-4.1, response_chars: 7143, latency: 16524ms
+[2026-03-03T22:20:04.555Z] ✓ AI request completed successfully
+[2026-03-03T22:20:04.556Z] [DEBUG] Prompt logged to: 2026-03-03T22-20-04-555Z_0001_architecture_reviewer.md
+[2026-03-03T22:20:04.558Z] [DEBUG] Response cached: c40e3823...
+[2026-03-03T22:20:04.562Z] ⚠ Step 5 completed - 18 issue(s) found
+[2026-03-03T22:20:04.562Z] ✓ Step step_05 completed in 19165ms
+[2026-03-03T22:20:04.562Z] [DEBUG] [Performance] step_05: 19.2s
+[2026-03-03T22:20:04.562Z] ⚠ [WARNING] Operation 'step_05' took 19.2s (memory: 23.13MB)
+[2026-03-03T22:20:04.562Z] [DEBUG] Recorded outcome for step_05: success
+[2026-03-03T22:20:04.562Z] ✓ Completed: Directory Structure (19s)
+[2026-03-03T22:20:04.562Z] Executing step: Documentation Optimization (step_02_5)
+[2026-03-03T22:20:04.562Z] [DEBUG] Prediction for step_02_5: skip (confidence: 0.95)
+[2026-03-03T22:20:04.562Z] [DEBUG] [MLOptimizer] step_02_5: predicted skippable (confidence 0.95)
+[2026-03-03T22:20:04.562Z] 
+→ Starting: Documentation Optimization
+[2026-03-03T22:20:04.563Z] Documentation optimization initialized
+[2026-03-03T22:20:04.563Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:04.563Z] 🔷  Step 2.5: Documentation Optimization
+[2026-03-03T22:20:04.563Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:04.564Z] Phase 1: Heuristics Analysis (103 files)
+[2026-03-03T22:20:04.570Z] Calculating content hashes...
+[2026-03-03T22:20:04.572Z] Found 0 duplicate groups (0 redundant files)
+[2026-03-03T22:20:04.572Z] Analyzing document similarity...
+[2026-03-03T22:20:06.265Z] Found 0 redundant pairs above 80% similarity
+[2026-03-03T22:20:06.265Z] Found 0 exact duplicates, 0 redundant pairs
+[2026-03-03T22:20:06.265Z] Phase 2: Git History Analysis
+[2026-03-03T22:20:06.266Z] Analyzing git history for 103 files...
+[2026-03-03T22:20:07.146Z] Completed git analysis for 103 files
+[2026-03-03T22:20:07.147Z] Found 0 outdated files
+[2026-03-03T22:20:07.147Z] Phase 3: Version Reference Analysis
+[2026-03-03T22:20:07.148Z] Detected version from package.json: 1.3.11
+[2026-03-03T22:20:07.148Z] Analyzing version references in 103 files (current: 1.3.11)...
+[2026-03-03T22:20:07.159Z] Completed version analysis for 103 files
+[2026-03-03T22:20:07.159Z] Version analysis complete (0 total outdated)
+[2026-03-03T22:20:07.159Z] Phase 4: AI Edge Case Analysis (skipped - no AI analyzer)
+[2026-03-03T22:20:07.159Z] Phase 5: Optimization Summary
+[2026-03-03T22:20:07.159Z] 
+📊 Analysis Results:
+───────────────────
+  Total files analyzed: 103
+  Exact duplicates: 0
+  Redundant pairs: 0
+  Outdated files: 0
+  Files to optimize: 0
+
+[2026-03-03T22:20:07.159Z] No optimizations needed
+[2026-03-03T22:20:07.159Z] ✓ Workflow complete (3s)
+[2026-03-03T22:20:07.159Z] ✓ Step step_02_5 completed in 2597ms
+[2026-03-03T22:20:07.159Z] [DEBUG] [Performance] step_02_5: 2.6s
+[2026-03-03T22:20:07.159Z] [DEBUG] Recorded outcome for step_02_5: success
+[2026-03-03T22:20:07.159Z] ✓ Completed: Documentation Optimization (3s)
+[2026-03-03T22:20:07.159Z] Executing step: Script References (step_03)
+[2026-03-03T22:20:07.159Z] [DEBUG] Prediction for step_03: skip (confidence: 0.95)
+[2026-03-03T22:20:07.159Z] [DEBUG] [MLOptimizer] step_03: predicted skippable (confidence 0.95)
+[2026-03-03T22:20:07.159Z] 
+→ Starting: Script References
+[2026-03-03T22:20:07.160Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:07.160Z] 🔷  Step 3: Script Reference Validation
+[2026-03-03T22:20:07.160Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:07.181Z] Language: bash, patterns: *.sh
+[2026-03-03T22:20:07.187Z] Found 5 script(s)
+[2026-03-03T22:20:07.188Z] References: 0, missing: 0
+[2026-03-03T22:20:07.188Z] Non-executable: 0
+[2026-03-03T22:20:07.189Z] Undocumented: 5
+[2026-03-03T22:20:08.346Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:20:09.465Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:20:09.515Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:20:09.518Z] [DEBUG] Cache miss: 1b082594...
+[2026-03-03T22:20:09.518Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"devops_engineer","cache":true}
+[2026-03-03T22:20:09.518Z] [DEBUG] Persona: devops_engineer
+[2026-03-03T22:20:09.518Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:20:09.518Z] [AI] SDK call starting — persona: devops_engineer, model: gpt-4.1, prompt_chars: 4348
+[2026-03-03T22:20:09.518Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:20:09.518Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:20:09.518Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4348 chars
+[2026-03-03T22:20:09.518Z] [DEBUG] Sending prompt...
+[2026-03-03T22:20:30.873Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:20:30.873Z] [AI] SDK call completed — persona: devops_engineer, model: gpt-4.1, response_chars: 8762, latency: 21355ms
+[2026-03-03T22:20:30.874Z] ✓ AI request completed successfully
+[2026-03-03T22:20:30.875Z] [DEBUG] Prompt logged to: 2026-03-03T22-20-30-874Z_0001_devops_engineer.md
+[2026-03-03T22:20:30.879Z] [DEBUG] Response cached: 1b082594...
+[2026-03-03T22:20:30.879Z] ⚠ Step 3 completed - 5 issue(s) found
+[2026-03-03T22:20:30.879Z] ✓ Step step_03 completed in 23720ms
+[2026-03-03T22:20:30.879Z] [DEBUG] [Performance] step_03: 23.7s
+[2026-03-03T22:20:30.879Z] ⚠ [WARNING] Operation 'step_03' took 23.7s (memory: 27.95MB)
+[2026-03-03T22:20:30.880Z] [DEBUG] Recorded outcome for step_03: success
+[2026-03-03T22:20:30.880Z] ✓ Completed: Script References (24s)
+[2026-03-03T22:20:30.880Z] Executing step: Test Review (step_06)
+[2026-03-03T22:20:30.880Z] [DEBUG] Prediction for step_06: skip (confidence: 0.95)
+[2026-03-03T22:20:30.880Z] [DEBUG] [MLOptimizer] step_06: predicted skippable (confidence 0.95)
+[2026-03-03T22:20:30.880Z] 
+→ Starting: Test Review
+[2026-03-03T22:20:30.880Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:30.880Z] 🔷  Step 6: Test Review
+[2026-03-03T22:20:30.880Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:30.901Z] Detected language: javascript
+[2026-03-03T22:20:30.910Z] Found 108 test file(s)
+[2026-03-03T22:20:30.917Z] Unit: 0, Integration: 10, E2E: 5
+[2026-03-03T22:20:30.917Z] ⚠ No coverage reports found
+[2026-03-03T22:20:32.208Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:20:33.253Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:20:33.291Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:20:33.303Z] [DEBUG] Cache miss: 7279562d...
+[2026-03-03T22:20:33.304Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:20:33.304Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:20:33.304Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:20:33.304Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 318295
+[2026-03-03T22:20:33.304Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:20:33.304Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:20:33.304Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 318295 chars
+[2026-03-03T22:20:33.304Z] [DEBUG] Sending prompt...
+[2026-03-03T22:20:56.695Z] ⚠ [AI] SDK call failed — persona: test_engineer, model: gpt-4.1, error: Execution failed: Error: Failed to get response from the AI model; retried 5 times (total retry wait time: 5.9214344561149455 seconds) (Request-ID 9B80:3DF555:29C4C0:2E7F08:69A75EC3) Last error: CAPIError: 400 prompt token count of 94137 exceeds the limit of 64000
+[2026-03-03T22:20:56.695Z] ⚠ AI test review skipped: AI request failed after 1 attempts: Execution failed: Error: Failed to get response from the AI model; retried 5 times (total retry wait time: 5.9214344561149455 seconds) (Request-ID 9B80:3DF555:29C4C0:2E7F08:69A75EC3) Last error: CAPIError: 400 prompt token count of 94137 exceeds the limit of 64000
+[2026-03-03T22:20:56.695Z] ⚠ Step 6 completed - 2 issue(s) identified
+[2026-03-03T22:20:56.695Z] ✓ Step step_06 completed in 25815ms
+[2026-03-03T22:20:56.696Z] [DEBUG] [Performance] step_06: 25.8s
+[2026-03-03T22:20:56.696Z] ⚠ [WARNING] Operation 'step_06' took 25.8s (memory: 35.39MB)
+[2026-03-03T22:20:56.696Z] [DEBUG] Recorded outcome for step_06: success
+[2026-03-03T22:20:56.696Z] ✓ Completed: Test Review (26s)
+[2026-03-03T22:20:56.696Z] Executing step: Test Generation (step_07)
+[2026-03-03T22:20:56.696Z] [DEBUG] Prediction for step_07: skip (confidence: 0.95)
+[2026-03-03T22:20:56.696Z] [DEBUG] [MLOptimizer] step_07: predicted skippable (confidence 0.95)
+[2026-03-03T22:20:56.696Z] 
+→ Starting: Test Generation
+[2026-03-03T22:20:56.697Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:56.697Z] 🔷  Step 7: Test Generation
+[2026-03-03T22:20:56.697Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:20:56.723Z] Detected language: javascript
+[2026-03-03T22:20:56.738Z] Found 104 source file(s), 105 test file(s)
+[2026-03-03T22:20:56.744Z] Identified 14 untested file(s)
+[2026-03-03T22:20:56.744Z] Test coverage: 87%
+[2026-03-03T22:20:57.961Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:20:59.030Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:20:59.085Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:20:59.090Z] [DEBUG] Cache miss: 00828e71...
+[2026-03-03T22:20:59.090Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:20:59.090Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:20:59.090Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:20:59.090Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 2605
+[2026-03-03T22:20:59.090Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:20:59.090Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:20:59.090Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 2605 chars
+[2026-03-03T22:20:59.091Z] [DEBUG] Sending prompt...
+[2026-03-03T22:21:08.766Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:21:08.766Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 3738, latency: 9676ms
+[2026-03-03T22:21:08.767Z] ✓ AI request completed successfully
+[2026-03-03T22:21:08.768Z] [DEBUG] Prompt logged to: 2026-03-03T22-21-08-767Z_0001_test_engineer.md
+[2026-03-03T22:21:08.772Z] [DEBUG] Response cached: 00828e71...
+[2026-03-03T22:21:08.772Z] Generating tests for 5 file(s) via AI (cap: 5)...
+[2026-03-03T22:21:08.775Z] Generating tests for: src/utils/errors.js
+[2026-03-03T22:21:08.776Z] [DEBUG] Cache miss: e9243d8b...
+[2026-03-03T22:21:08.776Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:21:08.776Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:21:08.776Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:21:08.776Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 3055
+[2026-03-03T22:21:08.776Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:21:08.776Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:21:08.776Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 3055 chars
+[2026-03-03T22:21:08.776Z] [DEBUG] Sending prompt...
+[2026-03-03T22:21:26.478Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:21:26.478Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 5121, latency: 17702ms
+[2026-03-03T22:21:26.478Z] ✓ AI request completed successfully
+[2026-03-03T22:21:26.479Z] [DEBUG] Prompt logged to: 2026-03-03T22-21-26-478Z_0002_test_engineer.md
+[2026-03-03T22:21:26.483Z] [DEBUG] Response cached: e9243d8b...
+[2026-03-03T22:21:26.484Z] ✓ Generated: test/utils/errors.test.js
+[2026-03-03T22:21:26.488Z] Generating tests for: src/steps/step_0f_commit_artifacts.js
+[2026-03-03T22:21:26.488Z] [DEBUG] Cache miss: c1496cb2...
+[2026-03-03T22:21:26.488Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:21:26.488Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:21:26.488Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:21:26.488Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 4991
+[2026-03-03T22:21:26.488Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:21:26.488Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:21:26.488Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4991 chars
+[2026-03-03T22:21:26.488Z] [DEBUG] Sending prompt...
+[2026-03-03T22:21:39.160Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:21:39.160Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 7176, latency: 12672ms
+[2026-03-03T22:21:39.160Z] ✓ AI request completed successfully
+[2026-03-03T22:21:39.161Z] [DEBUG] Prompt logged to: 2026-03-03T22-21-39-160Z_0003_test_engineer.md
+[2026-03-03T22:21:39.165Z] [DEBUG] Response cached: c1496cb2...
+[2026-03-03T22:21:39.165Z] ✓ Generated: test/steps/step_0f_commit_artifacts.test.js
+[2026-03-03T22:21:39.169Z] Generating tests for: src/steps/step_18_debugging.js
+[2026-03-03T22:21:39.169Z] [DEBUG] Cache miss: 1d4ce4e3...
+[2026-03-03T22:21:39.169Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:21:39.169Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:21:39.169Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:21:39.169Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 11547
+[2026-03-03T22:21:39.169Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:21:39.169Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:21:39.169Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 11547 chars
+[2026-03-03T22:21:39.169Z] [DEBUG] Sending prompt...
+[2026-03-03T22:21:57.207Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:21:57.208Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 10649, latency: 18039ms
+[2026-03-03T22:21:57.208Z] ✓ AI request completed successfully
+[2026-03-03T22:21:57.209Z] [DEBUG] Prompt logged to: 2026-03-03T22-21-57-208Z_0004_test_engineer.md
+[2026-03-03T22:21:57.213Z] [DEBUG] Response cached: 1d4ce4e3...
+[2026-03-03T22:21:57.213Z] ✓ Generated: test/steps/step_18_debugging.test.js
+[2026-03-03T22:21:57.217Z] Generating tests for: src/steps/step_contract.js
+[2026-03-03T22:21:57.217Z] [DEBUG] Cache miss: a89e1f37...
+[2026-03-03T22:21:57.217Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:21:57.218Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:21:57.218Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:21:57.218Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 4524
+[2026-03-03T22:21:57.218Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:21:57.218Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:21:57.218Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4524 chars
+[2026-03-03T22:21:57.218Z] [DEBUG] Sending prompt...
+[2026-03-03T22:22:04.162Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:22:04.162Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 2903, latency: 6944ms
+[2026-03-03T22:22:04.162Z] ✓ AI request completed successfully
+[2026-03-03T22:22:04.163Z] [DEBUG] Prompt logged to: 2026-03-03T22-22-04-163Z_0005_test_engineer.md
+[2026-03-03T22:22:04.166Z] [DEBUG] Response cached: a89e1f37...
+[2026-03-03T22:22:04.167Z] ✓ Generated: test/steps/step_contract.test.js
+[2026-03-03T22:22:04.169Z] Generating tests for: src/core/colors.js
+[2026-03-03T22:22:04.169Z] [DEBUG] Cache miss: 11e7b603...
+[2026-03-03T22:22:04.169Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:22:04.169Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:22:04.169Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:22:04.169Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 1385
+[2026-03-03T22:22:04.169Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:22:04.169Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:22:04.169Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 1385 chars
+[2026-03-03T22:22:04.169Z] [DEBUG] Sending prompt...
+[2026-03-03T22:22:12.150Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:22:12.150Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 1878, latency: 7981ms
+[2026-03-03T22:22:12.150Z] ✓ AI request completed successfully
+[2026-03-03T22:22:12.151Z] [DEBUG] Prompt logged to: 2026-03-03T22-22-12-150Z_0006_test_engineer.md
+[2026-03-03T22:22:12.154Z] [DEBUG] Response cached: 11e7b603...
+[2026-03-03T22:22:12.155Z] ✓ Generated: test/core/colors.test.js
+[2026-03-03T22:22:12.155Z] ✓ AI generated 5 test file(s)
+[2026-03-03T22:22:12.155Z] ⚠ Step 7 completed - 14 file(s) need testing
+[2026-03-03T22:22:12.155Z] ✓ Step step_07 completed in 75459ms
+[2026-03-03T22:22:12.155Z] [DEBUG] [Performance] step_07: 1m 15s
+[2026-03-03T22:22:12.155Z] ✗ [CRITICAL] Operation 'step_07' took 1m 15s (memory: 19.81MB)
+[2026-03-03T22:22:12.156Z] [DEBUG] Recorded outcome for step_07: success
+[2026-03-03T22:22:12.156Z] ✓ Completed: Test Generation (75s)
+[2026-03-03T22:22:12.156Z] Executing step: Test Execution (step_08)
+[2026-03-03T22:22:12.156Z] [DEBUG] Prediction for step_08: skip (confidence: 0.95)
+[2026-03-03T22:22:12.156Z] [DEBUG] [MLOptimizer] step_08: predicted skippable (confidence 0.95)
+[2026-03-03T22:22:12.156Z] 
+→ Starting: Test Execution
+[2026-03-03T22:22:12.157Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:22:12.157Z] 🔷  Step 8: Test Execution
+[2026-03-03T22:22:12.157Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:22:12.184Z] Detected language: javascript
+[2026-03-03T22:22:12.185Z] Test command: npm test
+[2026-03-03T22:22:12.185Z] Tests: 0 passed, 0 failed, 0 skipped
+[2026-03-03T22:22:12.186Z] Coverage: 87.42% statements
+[2026-03-03T22:22:12.186Z] ⚠ Coverage gaps: 11 module(s) below 80%
+[2026-03-03T22:22:13.490Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:22:14.606Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:22:14.655Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:22:14.658Z] [DEBUG] Cache miss: 6ce88820...
+[2026-03-03T22:22:14.658Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:22:14.658Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:22:14.658Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:22:14.658Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 4465
+[2026-03-03T22:22:14.658Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:22:14.658Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:22:14.658Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 4465 chars
+[2026-03-03T22:22:14.658Z] [DEBUG] Sending prompt...
+[2026-03-03T22:22:24.442Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:22:24.443Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 3597, latency: 9785ms
+[2026-03-03T22:22:24.443Z] ✓ AI request completed successfully
+[2026-03-03T22:22:24.444Z] [DEBUG] Prompt logged to: 2026-03-03T22-22-24-443Z_0001_test_engineer.md
+[2026-03-03T22:22:24.448Z] [DEBUG] Response cached: 6ce88820...
+[2026-03-03T22:22:24.450Z] [DEBUG] Cache miss: cd5435dc...
+[2026-03-03T22:22:24.450Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"test_engineer","cache":true}
+[2026-03-03T22:22:24.450Z] [DEBUG] Persona: test_engineer
+[2026-03-03T22:22:24.450Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:22:24.450Z] [AI] SDK call starting — persona: test_engineer, model: gpt-4.1, prompt_chars: 10124
+[2026-03-03T22:22:24.450Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:22:24.450Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:22:24.450Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 10124 chars
+[2026-03-03T22:22:24.450Z] [DEBUG] Sending prompt...
+[2026-03-03T22:22:34.782Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:22:34.783Z] [AI] SDK call completed — persona: test_engineer, model: gpt-4.1, response_chars: 4890, latency: 10333ms
+[2026-03-03T22:22:34.783Z] ✓ AI request completed successfully
+[2026-03-03T22:22:34.784Z] [DEBUG] Prompt logged to: 2026-03-03T22-22-34-783Z_0002_test_engineer.md
+[2026-03-03T22:22:34.788Z] [DEBUG] Response cached: cd5435dc...
+[2026-03-03T22:22:34.789Z] ⚠ Step 8 completed - no tests found
+[2026-03-03T22:22:34.789Z] ✓ Step step_08 completed in 22633ms
+[2026-03-03T22:22:34.790Z] [DEBUG] [Performance] step_08: 22.6s
+[2026-03-03T22:22:34.790Z] ⚠ [WARNING] Operation 'step_08' took 22.6s (memory: 25.79MB)
+[2026-03-03T22:22:34.790Z] [DEBUG] Recorded outcome for step_08: success
+[2026-03-03T22:22:34.790Z] ✓ Completed: Test Execution (23s)
+[2026-03-03T22:22:34.790Z] Executing step: Dependency Analysis (step_09)
+[2026-03-03T22:22:34.790Z] [DEBUG] Prediction for step_09: skip (confidence: 0.95)
+[2026-03-03T22:22:34.790Z] [DEBUG] [MLOptimizer] step_09: predicted skippable (confidence 0.95)
+[2026-03-03T22:22:34.790Z] 
+→ Starting: Dependency Analysis
+[2026-03-03T22:22:34.791Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:22:34.791Z] 🔷  Step 9: Dependency Validation
+[2026-03-03T22:22:34.791Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:22:34.814Z] Detected language: javascript
+[2026-03-03T22:22:34.815Z] Found dependency files: package.json, package-lock.json
+[2026-03-03T22:22:34.815Z] Total dependencies: 17
+[2026-03-03T22:22:34.815Z] ✓ No vulnerabilities found
+[2026-03-03T22:22:36.126Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:22:41.436Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:22:41.485Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:22:41.487Z] [DEBUG] Cache miss: 61c46939...
+[2026-03-03T22:22:41.487Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"dependency_analyst","cache":true}
+[2026-03-03T22:22:41.487Z] [DEBUG] Persona: dependency_analyst
+[2026-03-03T22:22:41.487Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:22:41.487Z] [AI] SDK call starting — persona: dependency_analyst, model: gpt-4.1, prompt_chars: 3409
+[2026-03-03T22:22:41.487Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:22:41.487Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:22:41.487Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 3409 chars
+[2026-03-03T22:22:41.487Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:00.274Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:00.274Z] [AI] SDK call completed — persona: dependency_analyst, model: gpt-4.1, response_chars: 2607, latency: 18787ms
+[2026-03-03T22:23:00.274Z] ✓ AI request completed successfully
+[2026-03-03T22:23:00.276Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-00-275Z_0001_dependency_analyst.md
+[2026-03-03T22:23:00.281Z] [DEBUG] Response cached: 61c46939...
+[2026-03-03T22:23:00.285Z] [DEBUG] Cache miss: 18695e00...
+[2026-03-03T22:23:00.285Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"dependency_analyst","cache":true}
+[2026-03-03T22:23:00.285Z] [DEBUG] Persona: dependency_analyst
+[2026-03-03T22:23:00.285Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:00.285Z] [AI] SDK call starting — persona: dependency_analyst, model: gpt-4.1, prompt_chars: 11663
+[2026-03-03T22:23:00.286Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:00.286Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:00.286Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 11663 chars
+[2026-03-03T22:23:00.286Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:08.717Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:08.718Z] [AI] SDK call completed — persona: dependency_analyst, model: gpt-4.1, response_chars: 4211, latency: 8432ms
+[2026-03-03T22:23:08.718Z] ✓ AI request completed successfully
+[2026-03-03T22:23:08.719Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-08-718Z_0002_dependency_analyst.md
+[2026-03-03T22:23:08.722Z] [DEBUG] Response cached: 18695e00...
+[2026-03-03T22:23:08.722Z] ✓ Step 9 completed - dependencies validated!
+[2026-03-03T22:23:08.722Z] ✓ Step step_09 completed in 33932ms
+[2026-03-03T22:23:08.723Z] [DEBUG] [Performance] step_09: 33.9s
+[2026-03-03T22:23:08.723Z] ✗ [CRITICAL] Operation 'step_09' took 33.9s (memory: 21.68MB)
+[2026-03-03T22:23:08.723Z] [DEBUG] Recorded outcome for step_09: success
+[2026-03-03T22:23:08.723Z] ✓ Completed: Dependency Analysis (34s)
+[2026-03-03T22:23:08.723Z] Executing step: Code Quality (step_10)
+[2026-03-03T22:23:08.723Z] [DEBUG] Prediction for step_10: skip (confidence: 0.95)
+[2026-03-03T22:23:08.723Z] [DEBUG] [MLOptimizer] step_10: predicted skippable (confidence 0.95)
+[2026-03-03T22:23:08.723Z] 
+→ Starting: Code Quality
+[2026-03-03T22:23:08.724Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:23:08.724Z] 🔷  Step 10: Code Quality Analysis
+[2026-03-03T22:23:08.724Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:23:08.753Z] Detected languages: javascript, markdown, html, json, yaml, bash, python, css
+[2026-03-03T22:23:08.768Z] javascript: 217 source file(s), linter: npm run lint
+[2026-03-03T22:23:08.768Z] [DEBUG] [AnalysisCache] Cache miss: linter_fa2ea3df
+[2026-03-03T22:23:08.769Z] [DEBUG] [AnalysisCache] Cached: linter_fa2ea3df (51 bytes)
+[2026-03-03T22:23:08.769Z] ✓ javascript: no issues
+[2026-03-03T22:23:08.771Z] json: 3 source file(s), linter: (native JSON.parse)
+[2026-03-03T22:23:08.771Z] [DEBUG] [AnalysisCache] Cache miss: linter_bcda9f1f
+[2026-03-03T22:23:08.773Z] [DEBUG] [AnalysisCache] Cached: linter_bcda9f1f (51 bytes)
+[2026-03-03T22:23:08.773Z] ✓ json: no issues
+[2026-03-03T22:23:08.777Z] bash: 5 source file(s), linter: find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.git/*" | xargs shellcheck
+[2026-03-03T22:23:08.777Z] [DEBUG] [AnalysisCache] Cache miss: linter_0a9904d6
+[2026-03-03T22:23:08.777Z] [DEBUG] [AnalysisCache] Cached: linter_0a9904d6 (61 bytes)
+[2026-03-03T22:23:08.778Z] ✓ bash: no issues
+[2026-03-03T22:23:08.780Z] python: no source files found, skipping linter
+[2026-03-03T22:23:08.780Z] Total: 0 issue(s) across 3 language(s)
+[2026-03-03T22:23:10.118Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:23:11.339Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:23:11.384Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:23:11.385Z] Reviewing partition 1/1 (225 files): all (large change set)
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 062feac7...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6510
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6510 chars
+[2026-03-03T22:23:11.432Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 3dcbc4a2...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6529
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 5fe5ab30...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6540
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 9b7ff8e2...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6400
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: da9ca017...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6395
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 1b768230...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6458
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 7590bdfc...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6429
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 6dd2ae86...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6360
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 4fdc5c78...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6425
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: bd465edd...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6457
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: d2ef42f3...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6193
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 7c9bd66d...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6316
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: c49d5550...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6270
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.432Z] [DEBUG] Cache miss: 2fc8cbf6...
+[2026-03-03T22:23:11.432Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.432Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.432Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.432Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6261
+[2026-03-03T22:23:11.432Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.432Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:11.433Z] [DEBUG] Cache miss: 8466fa2d...
+[2026-03-03T22:23:11.433Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true,"timeout":240000}
+[2026-03-03T22:23:11.433Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:23:11.433Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:23:11.433Z] [AI] SDK call starting — persona: code_quality_analyst, model: gpt-4.1, prompt_chars: 6254
+[2026-03-03T22:23:11.433Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:23:11.433Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:23:19.023Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:19.023Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6529 chars
+[2026-03-03T22:23:19.023Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:19.023Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2350, latency: 7591ms
+[2026-03-03T22:23:19.023Z] ✓ AI request completed successfully
+[2026-03-03T22:23:19.024Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-19-023Z_0001_code_quality_analyst.md
+[2026-03-03T22:23:19.027Z] [DEBUG] Response cached: 062feac7...
+[2026-03-03T22:23:24.278Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:24.278Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6540 chars
+[2026-03-03T22:23:24.278Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:24.278Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2331, latency: 12846ms
+[2026-03-03T22:23:24.279Z] ✓ AI request completed successfully
+[2026-03-03T22:23:24.279Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-24-279Z_0002_code_quality_analyst.md
+[2026-03-03T22:23:24.281Z] [DEBUG] Response cached: 3dcbc4a2...
+[2026-03-03T22:23:28.238Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:28.238Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6400 chars
+[2026-03-03T22:23:28.238Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:28.238Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2338, latency: 16806ms
+[2026-03-03T22:23:28.238Z] ✓ AI request completed successfully
+[2026-03-03T22:23:28.239Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-28-238Z_0003_code_quality_analyst.md
+[2026-03-03T22:23:28.241Z] [DEBUG] Response cached: 5fe5ab30...
+[2026-03-03T22:23:32.987Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:32.987Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6395 chars
+[2026-03-03T22:23:32.987Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:32.987Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2333, latency: 21555ms
+[2026-03-03T22:23:32.987Z] ✓ AI request completed successfully
+[2026-03-03T22:23:32.988Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-32-988Z_0004_code_quality_analyst.md
+[2026-03-03T22:23:32.992Z] [DEBUG] Response cached: 9b7ff8e2...
+[2026-03-03T22:23:38.480Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:38.480Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6458 chars
+[2026-03-03T22:23:38.480Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:38.480Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2349, latency: 27048ms
+[2026-03-03T22:23:38.480Z] ✓ AI request completed successfully
+[2026-03-03T22:23:38.481Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-38-480Z_0005_code_quality_analyst.md
+[2026-03-03T22:23:38.485Z] [DEBUG] Response cached: da9ca017...
+[2026-03-03T22:23:43.052Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:43.052Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6429 chars
+[2026-03-03T22:23:43.052Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:43.052Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2352, latency: 31620ms
+[2026-03-03T22:23:43.052Z] ✓ AI request completed successfully
+[2026-03-03T22:23:43.053Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-43-053Z_0006_code_quality_analyst.md
+[2026-03-03T22:23:43.056Z] [DEBUG] Response cached: 1b768230...
+[2026-03-03T22:23:47.781Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:47.781Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6360 chars
+[2026-03-03T22:23:47.781Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:47.781Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2386, latency: 36349ms
+[2026-03-03T22:23:47.781Z] ✓ AI request completed successfully
+[2026-03-03T22:23:47.783Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-47-782Z_0007_code_quality_analyst.md
+[2026-03-03T22:23:47.786Z] [DEBUG] Response cached: 7590bdfc...
+[2026-03-03T22:23:53.124Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:53.124Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6425 chars
+[2026-03-03T22:23:53.124Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:53.124Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2334, latency: 41692ms
+[2026-03-03T22:23:53.124Z] ✓ AI request completed successfully
+[2026-03-03T22:23:53.125Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-53-125Z_0008_code_quality_analyst.md
+[2026-03-03T22:23:53.129Z] [DEBUG] Response cached: 6dd2ae86...
+[2026-03-03T22:23:57.762Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:23:57.762Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6457 chars
+[2026-03-03T22:23:57.763Z] [DEBUG] Sending prompt...
+[2026-03-03T22:23:57.763Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2327, latency: 46331ms
+[2026-03-03T22:23:57.763Z] ✓ AI request completed successfully
+[2026-03-03T22:23:57.764Z] [DEBUG] Prompt logged to: 2026-03-03T22-23-57-763Z_0009_code_quality_analyst.md
+[2026-03-03T22:23:57.767Z] [DEBUG] Response cached: 4fdc5c78...
+[2026-03-03T22:24:02.750Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:02.750Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6193 chars
+[2026-03-03T22:24:02.750Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:02.750Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2422, latency: 51318ms
+[2026-03-03T22:24:02.750Z] ✓ AI request completed successfully
+[2026-03-03T22:24:02.751Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-02-750Z_0010_code_quality_analyst.md
+[2026-03-03T22:24:02.754Z] [DEBUG] Response cached: bd465edd...
+[2026-03-03T22:24:07.880Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:07.880Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6316 chars
+[2026-03-03T22:24:07.880Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:07.880Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2319, latency: 56448ms
+[2026-03-03T22:24:07.880Z] ✓ AI request completed successfully
+[2026-03-03T22:24:07.881Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-07-881Z_0011_code_quality_analyst.md
+[2026-03-03T22:24:07.885Z] [DEBUG] Response cached: d2ef42f3...
+[2026-03-03T22:24:12.618Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:12.618Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6270 chars
+[2026-03-03T22:24:12.618Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:12.618Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2425, latency: 61186ms
+[2026-03-03T22:24:12.618Z] ✓ AI request completed successfully
+[2026-03-03T22:24:12.619Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-12-619Z_0012_code_quality_analyst.md
+[2026-03-03T22:24:12.623Z] [DEBUG] Response cached: 7c9bd66d...
+[2026-03-03T22:24:17.599Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:17.599Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6261 chars
+[2026-03-03T22:24:17.599Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:17.599Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2366, latency: 66167ms
+[2026-03-03T22:24:17.599Z] ✓ AI request completed successfully
+[2026-03-03T22:24:17.601Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-17-600Z_0013_code_quality_analyst.md
+[2026-03-03T22:24:17.605Z] [DEBUG] Response cached: c49d5550...
+[2026-03-03T22:24:22.923Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:22.923Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 6254 chars
+[2026-03-03T22:24:22.923Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:22.923Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2342, latency: 71491ms
+[2026-03-03T22:24:22.923Z] ✓ AI request completed successfully
+[2026-03-03T22:24:22.925Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-22-924Z_0014_code_quality_analyst.md
+[2026-03-03T22:24:22.928Z] [DEBUG] Response cached: 2fc8cbf6...
+[2026-03-03T22:24:31.947Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:31.947Z] [AI] SDK call completed — persona: code_quality_analyst, model: gpt-4.1, response_chars: 2398, latency: 80514ms
+[2026-03-03T22:24:31.947Z] ✓ AI request completed successfully
+[2026-03-03T22:24:31.948Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-31-947Z_0015_code_quality_analyst.md
+[2026-03-03T22:24:31.952Z] [DEBUG] Response cached: 8466fa2d...
+[2026-03-03T22:24:31.952Z] ✓ Step 10 completed - code quality validated!
+[2026-03-03T22:24:31.952Z] ✓ Step step_10 completed in 83229ms
+[2026-03-03T22:24:31.952Z] [DEBUG] [Performance] step_10: 1m 23s
+[2026-03-03T22:24:31.952Z] ✗ [CRITICAL] Operation 'step_10' took 1m 23s (memory: 41.21MB)
+[2026-03-03T22:24:31.952Z] [DEBUG] Recorded outcome for step_10: success
+[2026-03-03T22:24:31.952Z] ✓ Completed: Code Quality (83s)
+[2026-03-03T22:24:31.952Z] Executing step: Context Management (step_11)
+[2026-03-03T22:24:31.952Z] [DEBUG] Prediction for step_11: skip (confidence: 0.95)
+[2026-03-03T22:24:31.952Z] [DEBUG] [MLOptimizer] step_11: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:31.953Z] 
+→ Starting: Context Management
+[2026-03-03T22:24:31.953Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:31.953Z] 🔷  Step 11: Context Analysis
+[2026-03-03T22:24:31.953Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:31.953Z] Workflow completion: 100% (13/13)
+[2026-03-03T22:24:31.983Z] Git state: 0 modified, 460 staged
+[2026-03-03T22:24:32.057Z] Change impact: low (score: 0)
+[2026-03-03T22:24:32.057Z] Issues: 0 total, 0 critical
+[2026-03-03T22:24:32.057Z] Workflow duration: 7m 4s
+[2026-03-03T22:24:32.058Z] ✓ Step 11 completed - workflow context analyzed!
+[2026-03-03T22:24:32.058Z] ✓ Step step_11 completed in 106ms
+[2026-03-03T22:24:32.058Z] [DEBUG] [Performance] step_11: 106ms
+[2026-03-03T22:24:32.058Z] [DEBUG] Recorded outcome for step_11: success
+[2026-03-03T22:24:32.058Z] ✓ Completed: Context Management (0s)
+[2026-03-03T22:24:32.058Z] Executing step: AWS LBS Validation (step_11_5)
+[2026-03-03T22:24:32.058Z] [DEBUG] Prediction for step_11_5: skip (confidence: 0.95)
+[2026-03-03T22:24:32.058Z] [DEBUG] [MLOptimizer] step_11_5: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:32.058Z] 
+→ Starting: AWS LBS Validation
+[2026-03-03T22:24:32.059Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:32.059Z] 🔷  Step 11.5: AWS LBS Backend Validation
+[2026-03-03T22:24:32.059Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:32.059Z] Step 11.5 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup
+[2026-03-03T22:24:32.059Z] ✓ Step step_11_5 completed in 1ms
+[2026-03-03T22:24:32.059Z] [DEBUG] [Performance] step_11_5: 1ms
+[2026-03-03T22:24:32.059Z] [DEBUG] Recorded outcome for step_11_5: success
+[2026-03-03T22:24:32.059Z] ✓ Completed: AWS LBS Validation (0s)
+[2026-03-03T22:24:32.059Z] Executing step: Markdown Linting (step_13)
+[2026-03-03T22:24:32.059Z] [DEBUG] Prediction for step_13: skip (confidence: 0.95)
+[2026-03-03T22:24:32.059Z] [DEBUG] [MLOptimizer] step_13: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:32.059Z] 
+→ Starting: Markdown Linting
+[2026-03-03T22:24:32.059Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:32.059Z] 🔷  Step 13: Markdown Linting
+[2026-03-03T22:24:32.059Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:32.059Z] Enumerating markdown files...
+[2026-03-03T22:24:32.077Z] Found 197 markdown files
+[2026-03-03T22:24:32.078Z] Checking for mdl (markdownlint)...
+[2026-03-03T22:24:32.180Z] mdl is installed: 0.13.0
+[2026-03-03T22:24:32.180Z] Running mdl on all markdown files...
+[2026-03-03T22:24:34.932Z] ⚠ Found 8667 markdown linting violations
+[2026-03-03T22:24:34.932Z] Auto-fixing markdown violations via markdownlint-cli...
+[2026-03-03T22:24:35.944Z] ⚠ Auto-fix unavailable (markdownlint-cli not found) — violations require manual review
+[2026-03-03T22:24:35.944Z] Checking for common markdown anti-patterns...
+[2026-03-03T22:24:35.961Z] ⚠ Detected 681 anti-pattern occurrences
+[2026-03-03T22:24:37.266Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:24:38.590Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:24:38.646Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:24:38.655Z] [DEBUG] Cache miss: 168bc5bd...
+[2026-03-03T22:24:38.655Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"technical_writer","cache":true}
+[2026-03-03T22:24:38.655Z] [DEBUG] Persona: technical_writer
+[2026-03-03T22:24:38.655Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:24:38.655Z] [AI] SDK call starting — persona: technical_writer, model: gpt-4.1, prompt_chars: 5299
+[2026-03-03T22:24:38.655Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:24:38.655Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:24:38.655Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 5299 chars
+[2026-03-03T22:24:38.655Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:48.838Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:48.838Z] [AI] SDK call completed — persona: technical_writer, model: gpt-4.1, response_chars: 3584, latency: 10183ms
+[2026-03-03T22:24:48.838Z] ✓ AI request completed successfully
+[2026-03-03T22:24:48.839Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-48-838Z_0001_technical_writer.md
+[2026-03-03T22:24:48.841Z] [DEBUG] Response cached: 168bc5bd...
+[2026-03-03T22:24:48.842Z] ✓ Step step_13 completed in 16783ms
+[2026-03-03T22:24:48.842Z] [DEBUG] [Performance] step_13: 16.8s
+[2026-03-03T22:24:48.842Z] ⚠ [WARNING] Operation 'step_13' took 16.8s (memory: 25.95MB)
+[2026-03-03T22:24:48.842Z] [DEBUG] Recorded outcome for step_13: success
+[2026-03-03T22:24:48.842Z] ✓ Completed: Markdown Linting (17s)
+[2026-03-03T22:24:48.842Z] Executing step: AWS Serverless AI Review (step_11_6)
+[2026-03-03T22:24:48.842Z] [DEBUG] Prediction for step_11_6: skip (confidence: 0.95)
+[2026-03-03T22:24:48.842Z] [DEBUG] [MLOptimizer] step_11_6: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:48.842Z] 
+→ Starting: AWS Serverless AI Review
+[2026-03-03T22:24:48.842Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.842Z] 🔷  Step 11.6: AWS Serverless AI Review
+[2026-03-03T22:24:48.842Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.842Z] Step 11.6 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup
+[2026-03-03T22:24:48.842Z] ✓ Step step_11_6 completed in 0ms
+[2026-03-03T22:24:48.842Z] [DEBUG] [Performance] step_11_6: 0ms
+[2026-03-03T22:24:48.842Z] [DEBUG] Recorded outcome for step_11_6: success
+[2026-03-03T22:24:48.842Z] ✓ Completed: AWS Serverless AI Review 
+[2026-03-03T22:24:48.842Z] Executing step: Prompt Engineering (step_14)
+[2026-03-03T22:24:48.842Z] [DEBUG] Prediction for step_14: skip (confidence: 0.95)
+[2026-03-03T22:24:48.842Z] [DEBUG] [MLOptimizer] step_14: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:48.842Z] 
+→ Starting: Prompt Engineering
+[2026-03-03T22:24:48.843Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.843Z] 🔷  Step 14: Prompt Engineer Analysis
+[2026-03-03T22:24:48.843Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.843Z] Project type: nodejs_automation - analysis skipped
+[2026-03-03T22:24:48.843Z] This step only runs on workflow automation projects
+[2026-03-03T22:24:48.843Z] ✓ Step step_14 completed in 1ms
+[2026-03-03T22:24:48.843Z] [DEBUG] [Performance] step_14: 1ms
+[2026-03-03T22:24:48.843Z] [DEBUG] Recorded outcome for step_14: success
+[2026-03-03T22:24:48.843Z] ✓ Completed: Prompt Engineering (0s)
+[2026-03-03T22:24:48.843Z] Executing step: UX Analysis (step_15)
+[2026-03-03T22:24:48.843Z] [DEBUG] Prediction for step_15: skip (confidence: 0.95)
+[2026-03-03T22:24:48.843Z] [DEBUG] [MLOptimizer] step_15: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:48.844Z] 
+→ Starting: UX Analysis
+[2026-03-03T22:24:48.844Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.844Z] 🔷  Step 15: UX Analysis
+[2026-03-03T22:24:48.844Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.867Z] Step 15: UX Analysis skipped - project type 'nodejs_automation' has no UI components
+[2026-03-03T22:24:48.867Z] ✓ Step step_15 completed in 24ms
+[2026-03-03T22:24:48.867Z] [DEBUG] [Performance] step_15: 24ms
+[2026-03-03T22:24:48.867Z] [DEBUG] Recorded outcome for step_15: success
+[2026-03-03T22:24:48.867Z] ✓ Completed: UX Analysis (0s)
+[2026-03-03T22:24:48.867Z] Executing step: Version Update (step_16)
+[2026-03-03T22:24:48.867Z] [DEBUG] Prediction for step_16: skip (confidence: 0.95)
+[2026-03-03T22:24:48.867Z] [DEBUG] [MLOptimizer] step_16: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:48.868Z] 
+→ Starting: Version Update
+[2026-03-03T22:24:48.868Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.868Z] 🔷  Step 16: Version Update
+[2026-03-03T22:24:48.868Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:48.868Z] Phase 1: Detecting current version...
+[2026-03-03T22:24:48.868Z] ✓ Current version: 1.3.11
+[2026-03-03T22:24:48.868Z] Phase 2: Determining bump type...
+[2026-03-03T22:24:48.868Z] Heuristic bump type: patch
+[2026-03-03T22:24:50.272Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:24:51.492Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:24:51.539Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:24:51.773Z] [DEBUG] Cache miss: 4cb856fd...
+[2026-03-03T22:24:51.773Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"devops_engineer","cache":true}
+[2026-03-03T22:24:51.773Z] [DEBUG] Persona: devops_engineer
+[2026-03-03T22:24:51.773Z] [DEBUG] Model: gpt-4.1
+[2026-03-03T22:24:51.773Z] [AI] SDK call starting — persona: devops_engineer, model: gpt-4.1, prompt_chars: 2423
+[2026-03-03T22:24:51.773Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:24:51.773Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:24:51.773Z] [Copilot SDK] Calling sendMessage — model: gpt-4.1, prompt_length: 2423 chars
+[2026-03-03T22:24:51.773Z] [DEBUG] Sending prompt...
+[2026-03-03T22:24:56.314Z] [Copilot SDK] sendAndWait returned — model: gpt-4.1
+[2026-03-03T22:24:56.314Z] [AI] SDK call completed — persona: devops_engineer, model: gpt-4.1, response_chars: 348, latency: 4541ms
+[2026-03-03T22:24:56.314Z] ✓ AI request completed successfully
+[2026-03-03T22:24:56.315Z] [DEBUG] Prompt logged to: 2026-03-03T22-24-56-314Z_0001_devops_engineer.md
+[2026-03-03T22:24:56.319Z] [DEBUG] Response cached: 4cb856fd...
+[2026-03-03T22:24:56.319Z] AI refined bump type: patch (was: patch, confidence: high)
+[2026-03-03T22:24:56.319Z] [VERSION BUMP] previous: 1.3.11 → next: 1.3.12 (patch)
+[2026-03-03T22:24:56.319Z] ✓ New version: 1.3.11 → 1.3.12
+[2026-03-03T22:24:56.319Z] Phase 3: Updating versions in files...
+[2026-03-03T22:24:56.326Z] Version scan found 8 file(s) referencing 1.3.11
+[2026-03-03T22:24:56.335Z] ✓ Updated 9 files, skipped 59, failed 1
+[2026-03-03T22:24:56.336Z] ✓ Step 16: Version update completed
+[2026-03-03T22:24:56.336Z] ✓ Step step_16 completed in 7469ms
+[2026-03-03T22:24:56.336Z] [DEBUG] [Performance] step_16: 7.5s
+[2026-03-03T22:24:56.336Z] ⚠ [WARNING] Operation 'step_16' took 7.5s (memory: 27.84MB)
+[2026-03-03T22:24:56.336Z] [DEBUG] Recorded outcome for step_16: success
+[2026-03-03T22:24:56.336Z] ✓ Completed: Version Update (7s)
+[2026-03-03T22:24:56.336Z] Executing step: Debugging Analysis (step_18)
+[2026-03-03T22:24:56.336Z] [DEBUG] Prediction for step_18: skip (confidence: 0.95)
+[2026-03-03T22:24:56.336Z] [DEBUG] [MLOptimizer] step_18: predicted skippable (confidence 0.95)
+[2026-03-03T22:24:56.336Z] 
+→ Starting: Debugging Analysis
+[2026-03-03T22:24:56.336Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:56.336Z] 🔷  Step 18: Debugging Analysis
+[2026-03-03T22:24:56.336Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:24:56.344Z] Analyzing 100 source file(s) for debugging patterns
+[2026-03-03T22:24:56.348Z] Selected debugger persona: async_flow_debugger_prompt
+[2026-03-03T22:24:57.544Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-03T22:24:58.558Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-03T22:24:58.602Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-03T22:24:58.605Z] [DEBUG] Cache miss: 7ac7c869...
+[2026-03-03T22:24:58.605Z] [DEBUG] Request Options: {"model":"claude-haiku-4.5","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"code_quality_analyst","cache":true}
+[2026-03-03T22:24:58.605Z] [DEBUG] Persona: code_quality_analyst
+[2026-03-03T22:24:58.605Z] [DEBUG] Model: claude-haiku-4.5
+[2026-03-03T22:24:58.605Z] [AI] SDK call starting — persona: code_quality_analyst, model: claude-haiku-4.5, prompt_chars: 3243
+[2026-03-03T22:24:58.605Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-03T22:24:58.605Z] [DEBUG] AiHelper._sendRequest called
+[2026-03-03T22:24:58.605Z] [Copilot SDK] Calling sendMessage — model: claude-haiku-4.5, prompt_length: 3243 chars
+[2026-03-03T22:24:58.605Z] [DEBUG] Sending prompt...
+[2026-03-03T22:25:34.679Z] [Copilot SDK] sendAndWait returned — model: claude-haiku-4.5
+[2026-03-03T22:25:34.679Z] [AI] SDK call completed — persona: code_quality_analyst, model: claude-haiku-4.5, response_chars: 3321, latency: 36074ms
+[2026-03-03T22:25:34.679Z] ✓ AI request completed successfully
+[2026-03-03T22:25:34.680Z] [DEBUG] Prompt logged to: 2026-03-03T22-25-34-680Z_0001_code_quality_analyst.md
+[2026-03-03T22:25:34.683Z] [DEBUG] Response cached: 7ac7c869...
+[2026-03-03T22:25:34.683Z] ✓ Step 18 completed - debugging analysis report generated
+[2026-03-03T22:25:34.683Z] ✓ Step step_18 completed in 38347ms
+[2026-03-03T22:25:34.683Z] [DEBUG] [Performance] step_18: 38.3s
+[2026-03-03T22:25:34.683Z] ✗ [CRITICAL] Operation 'step_18' took 38.3s (memory: 30.13MB)
+[2026-03-03T22:25:34.683Z] [DEBUG] Recorded outcome for step_18: success
+[2026-03-03T22:25:34.683Z] ✓ Completed: Debugging Analysis (38s)
+[2026-03-03T22:25:34.683Z] Executing step: Workflow Summary (step_17)
+[2026-03-03T22:25:34.683Z] [DEBUG] Prediction for step_17: skip (confidence: 0.95)
+[2026-03-03T22:25:34.683Z] [DEBUG] [MLOptimizer] step_17: predicted skippable (confidence 0.95)
+[2026-03-03T22:25:34.683Z] 
+→ Starting: Workflow Summary
+[2026-03-03T22:25:34.684Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.684Z] 🔷  Step 17: Workflow Summary
+[2026-03-03T22:25:34.684Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.684Z] Generating workflow summary report...
+[2026-03-03T22:25:34.685Z] Summary report written to: .ai_workflow/summaries/workflow_20260303_191728/workflow_summary.md
+[2026-03-03T22:25:34.685Z] ✓ Workflow summary generated successfully
+[2026-03-03T22:25:34.685Z] ✓ Step step_17 completed in 2ms
+[2026-03-03T22:25:34.685Z] [DEBUG] [Performance] step_17: 2ms
+[2026-03-03T22:25:34.685Z] [DEBUG] Recorded outcome for step_17: success
+[2026-03-03T22:25:34.685Z] ✓ Completed: Workflow Summary (0s)
+[2026-03-03T22:25:34.685Z] Executing step: Commit Artifacts (step_0f)
+[2026-03-03T22:25:34.685Z] [DEBUG] Prediction for step_0f: skip (confidence: 0.95)
+[2026-03-03T22:25:34.685Z] [DEBUG] [MLOptimizer] step_0f: predicted skippable (confidence 0.95)
+[2026-03-03T22:25:34.685Z] 
+→ Starting: Commit Artifacts
+[2026-03-03T22:25:34.685Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.685Z] 🔷  Step 0f: Commit Workflow Artifacts
+[2026-03-03T22:25:34.685Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.724Z] Found 421 artifact file(s) to commit
+[2026-03-03T22:25:34.744Z] ✗ Failed to auto-commit: Git command failed: git add -f .ai_workflow/.ai_cache/009532318926a7361b767fca3a9ae3fbb7adf47d927ffd09008ca42a5ff505a0.meta .ai_workflow/.ai_cache/009532318926a7361b767fca3a9ae3fbb7adf47d927ffd09008ca42a5ff505a0.txt .ai_workflow/.ai_cache/04c94e5d0ab8949d05da81bec60c33ee83d8e0b244a66694a2d318a0cca107c6.meta .ai_workflow/.ai_cache/04c94e5d0ab8949d05da81bec60c33ee83d8e0b244a66694a2d318a0cca107c6.txt .ai_workflow/.ai_cache/04dfdca5871034131a20084e7efbb8a401bce9e91a8ea8d61e2c7137af78daf7.meta .ai_workflow/.ai_cache/04dfdca5871034131a20084e7efbb8a401bce9e91a8ea8d61e2c7137af78daf7.txt .ai_workflow/.ai_cache/04f24c39e593aa2074170597e254e2147c94ef43550787e575b9c7366702488a.meta .ai_workflow/.ai_cache/04f24c39e593aa2074170597e254e2147c94ef43550787e575b9c7366702488a.txt .ai_workflow/.ai_cache/05220deb62aa11405a22ad0d7795540ed95f059a31cb56faa009ea04e439372b.meta .ai_workflow/.ai_cache/05220deb62aa11405a22ad0d7795540ed95f059a31cb56faa009ea04e439372b.txt .ai_workflow/.ai_cache/06d958950c3407c23c6fdd65db86646cf1e5661326b4c84341e982a54b51ff05.meta .ai_workflow/.ai_cache/06d958950c3407c23c6fdd65db86646cf1e5661326b4c84341e982a54b51ff05.txt .ai_workflow/.ai_cache/06f3f527ee364dce3767a390d8e70f1b3eff483dabc17a90f9ef05b43676aa5c.meta .ai_workflow/.ai_cache/06f3f527ee364dce3767a390d8e70f1b3eff483dabc17a90f9ef05b43676aa5c.txt .ai_workflow/.ai_cache/08780002c62f1949a7d19e9ee22dcd64ccb1a862dd39d92e822f8e23707453cb.meta .ai_workflow/.ai_cache/08780002c62f1949a7d19e9ee22dcd64ccb1a862dd39d92e822f8e23707453cb.txt .ai_workflow/.ai_cache/0880438603d778d391e2e9b816e09e2fdd06fd92a94b4e094abc8b69a33fa7d8.meta .ai_workflow/.ai_cache/0880438603d778d391e2e9b816e09e2fdd06fd92a94b4e094abc8b69a33fa7d8.txt .ai_workflow/.ai_cache/0c207dba87666456bf5659c15c6eb51dcc188a326938b942913c7fc203b7cb2e.meta .ai_workflow/.ai_cache/0c207dba87666456bf5659c15c6eb51dcc188a326938b942913c7fc203b7cb2e.txt .ai_workflow/.ai_cache/0c4ae592f13ac61a6449027c5281a95249b9fb9e969567bd70cb713b0c9677c7.meta .ai_workflow/.ai_cache/0c4ae592f13ac61a6449027c5281a95249b9fb9e969567bd70cb713b0c9677c7.txt .ai_workflow/.ai_cache/0cdb7c9af952ef9b8e5feff511e10e88edffb2317849717470aa7c982b309af4.meta .ai_workflow/.ai_cache/0cdb7c9af952ef9b8e5feff511e10e88edffb2317849717470aa7c982b309af4.txt .ai_workflow/.ai_cache/0d701ab26466402546dcc6552881804847dbd4b5819fa3209e6eabc7f0a6279b.meta .ai_workflow/.ai_cache/0d701ab26466402546dcc6552881804847dbd4b5819fa3209e6eabc7f0a6279b.txt .ai_workflow/.ai_cache/0d95bf9e5369929ac4594d2897d24e2ca4bddfe2a8572ed65a5892f39f23bd68.meta .ai_workflow/.ai_cache/0d95bf9e5369929ac4594d2897d24e2ca4bddfe2a8572ed65a5892f39f23bd68.txt .ai_workflow/.ai_cache/10d0ef6aa37b41aa62b2d538e80d30624218850a0bda967744e4d245b09cd122.meta .ai_workflow/.ai_cache/10d0ef6aa37b41aa62b2d538e80d30624218850a0bda967744e4d245b09cd122.txt .ai_workflow/.ai_cache/112facf1b2607e53f3ae4597ffc98f987c81b9b03874f6302f9481467ad8879e.meta .ai_workflow/.ai_cache/112facf1b2607e53f3ae4597ffc98f987c81b9b03874f6302f9481467ad8879e.txt .ai_workflow/.ai_cache/140b083972a00108dfea4b4da1eca16503107c6bfda821d2e33266d21967a403.meta .ai_workflow/.ai_cache/140b083972a00108dfea4b4da1eca16503107c6bfda821d2e33266d21967a403.txt .ai_workflow/.ai_cache/15c989d1d02a0b5d3ff9afaa8bb3bed566257a8864c2ba9399caec3c57b9d198.meta .ai_workflow/.ai_cache/15c989d1d02a0b5d3ff9afaa8bb3bed566257a8864c2ba9399caec3c57b9d198.txt .ai_workflow/.ai_cache/1662cf78c7972658d2333b19f8963f8f7c42653a4aad74d49a169970bfe902c0.meta .ai_workflow/.ai_cache/1662cf78c7972658d2333b19f8963f8f7c42653a4aad74d49a169970bfe902c0.txt .ai_workflow/.ai_cache/16b24cd08e01222b3b228a859ac0991cf4919d564c8de1c5b45d556e741b5964.meta .ai_workflow/.ai_cache/16b24cd08e01222b3b228a859ac0991cf4919d564c8de1c5b45d556e741b5964.txt .ai_workflow/.ai_cache/17741711e4ecbe427f9a291b1322b810eeb79b7b070335658cb54e31d348d707.meta .ai_workflow/.ai_cache/17741711e4ecbe427f9a291b1322b810eeb79b7b070335658cb54e31d348d707.txt .ai_workflow/.ai_cache/185fad2945f78b018a534c2d729ff91ac870a1193bf17e4a82303a7eef2c29aa.meta .ai_workflow/.ai_cache/185fad2945f78b018a534c2d729ff91ac870a1193bf17e4a82303a7eef2c29aa.txt .ai_workflow/.ai_cache/18a1279a4a29779fcaeac72ad5d784f454fab3a334d571f3aec1d66639451f0a.meta .ai_workflow/.ai_cache/18a1279a4a29779fcaeac72ad5d784f454fab3a334d571f3aec1d66639451f0a.txt .ai_workflow/.ai_cache/18f3928d104a8668e50231e0599a5572a3871bedac29a5a2c808d0c87f4beb1e.meta .ai_workflow/.ai_cache/18f3928d104a8668e50231e0599a5572a3871bedac29a5a2c808d0c87f4beb1e.txt .ai_workflow/.ai_cache/18fd6ebd90957f24d3b431c43b247f4026b2dc695e3367cffbb709c374750f36.meta .ai_workflow/.ai_cache/18fd6ebd90957f24d3b431c43b247f4026b2dc695e3367cffbb709c374750f36.txt .ai_workflow/.ai_cache/1b451589f6704b94828d47b912643ed505a09508e6c54e32c84005a13f420205.meta .ai_workflow/.ai_cache/1b451589f6704b94828d47b912643ed505a09508e6c54e32c84005a13f420205.txt .ai_workflow/.ai_cache/1c101678432543a89be88dfd8c84e665c2363b5c3d2edcab3591b53fd1a1352d.meta .ai_workflow/.ai_cache/1c101678432543a89be88dfd8c84e665c2363b5c3d2edcab3591b53fd1a1352d.txt .ai_workflow/.ai_cache/2060589ce49ddd637ba011fafab56e591c2f7742bab55c431a722cd0cfee232a.meta .ai_workflow/.ai_cache/2060589ce49ddd637ba011fafab56e591c2f7742bab55c431a722cd0cfee232a.txt .ai_workflow/.ai_cache/22a40983f0be018824a89f9b19ab21ca712185c857c4006699645fbb11a88fe5.meta .ai_workflow/.ai_cache/22a40983f0be018824a89f9b19ab21ca712185c857c4006699645fbb11a88fe5.txt .ai_workflow/.ai_cache/23d0090273941f500ef6993e01cbfcb0c923e0d8edf3eeb1c268d6379555332a.meta .ai_workflow/.ai_cache/23d0090273941f500ef6993e01cbfcb0c923e0d8edf3eeb1c268d6379555332a.txt .ai_workflow/.ai_cache/28d30663f49ab218f034d26bd9838553454052a16179229e60f54ebabb994058.meta .ai_workflow/.ai_cache/28d30663f49ab218f034d26bd9838553454052a16179229e60f54ebabb994058.txt .ai_workflow/.ai_cache/2c5aa680aed61bb36bbe76948c24fd3d67cbd07f694b505881167c5498fe3c90.meta .ai_workflow/.ai_cache/2c5aa680aed61bb36bbe76948c24fd3d67cbd07f694b505881167c5498fe3c90.txt .ai_workflow/.ai_cache/2c9e671bcfa5f6f26b3659ea546879ea13e540debb1cf4b5eb388cab2a6a7514.meta .ai_workflow/.ai_cache/2c9e671bcfa5f6f26b3659ea546879ea13e540debb1cf4b5eb388cab2a6a7514.txt .ai_workflow/.ai_cache/2cfffeba32ec65f713ebf912bd46a7dc434177ecda5b4f52fa7c957fb5be5ee7.meta .ai_workflow/.ai_cache/2cfffeba32ec65f713ebf912bd46a7dc434177ecda5b4f52fa7c957fb5be5ee7.txt .ai_workflow/.ai_cache/2d879ae5fac555037147116a781c7fb8a82848374653c0d3154917bb50903a6c.meta .ai_workflow/.ai_cache/2d879ae5fac555037147116a781c7fb8a82848374653c0d3154917bb50903a6c.txt .ai_workflow/.ai_cache/303c83ec6638e9033e50af290e9370d60da9eb50634590735d5d9aa410b05e58.meta .ai_workflow/.ai_cache/303c83ec6638e9033e50af290e9370d60da9eb50634590735d5d9aa410b05e58.txt .ai_workflow/.ai_cache/30741e3d882445b4d99630d9e7e92f6bf7f996d0d413ed8f2a70850f8c831c30.meta .ai_workflow/.ai_cache/30741e3d882445b4d99630d9e7e92f6bf7f996d0d413ed8f2a70850f8c831c30.txt .ai_workflow/.ai_cache/30ac3f5bc44f47e9799cfd61f21f54381db97f5425d711883759547c69eb2519.meta .ai_workflow/.ai_cache/30ac3f5bc44f47e9799cfd61f21f54381db97f5425d711883759547c69eb2519.txt .ai_workflow/.ai_cache/3192c8d8706f3963f3cd1d0f9da8c36ac3003db8cd7174c6f918b0666f6ce232.meta .ai_workflow/.ai_cache/3192c8d8706f3963f3cd1d0f9da8c36ac3003db8cd7174c6f918b0666f6ce232.txt .ai_workflow/.ai_cache/3355accd46578773291e9464a0e66faa0ebaa6cfcf3e1273c3be840c70f1e67e.meta .ai_workflow/.ai_cache/3355accd46578773291e9464a0e66faa0ebaa6cfcf3e1273c3be840c70f1e67e.txt .ai_workflow/.ai_cache/33e116c3d0f86a00e0bcf393a452684b04db44f55258d3eeefb91e92c9349623.meta .ai_workflow/.ai_cache/33e116c3d0f86a00e0bcf393a452684b04db44f55258d3eeefb91e92c9349623.txt .ai_workflow/.ai_cache/34ed9aa9f922180eb7ddeaf3bccd5c4502c5d8e50828d0d32dd76df479dc3eb2.meta .ai_workflow/.ai_cache/34ed9aa9f922180eb7ddeaf3bccd5c4502c5d8e50828d0d32dd76df479dc3eb2.txt .ai_workflow/.ai_cache/3984776554f834a52ce83fd5c8a9c74ffae35a0dc0f6db002672cae1d8d3fb6e.meta .ai_workflow/.ai_cache/3984776554f834a52ce83fd5c8a9c74ffae35a0dc0f6db002672cae1d8d3fb6e.txt .ai_workflow/.ai_cache/3de981bf28ed4837d18f4e95ff28cde375e3bc0746d39ac93ee3ddee435e47a3.meta .ai_workflow/.ai_cache/3de981bf28ed4837d18f4e95ff28cde375e3bc0746d39ac93ee3ddee435e47a3.txt .ai_workflow/.ai_cache/3df3ac10c974a7ed286c39e4ad1983f8350acb0f7a96a46313cd080546dff8bf.meta .ai_workflow/.ai_cache/3df3ac10c974a7ed286c39e4ad1983f8350acb0f7a96a46313cd080546dff8bf.txt .ai_workflow/.ai_cache/3e36dd610b9256afe34f56ed538e59016c88882fd9981468bbc29785d34348b6.meta .ai_workflow/.ai_cache/3e36dd610b9256afe34f56ed538e59016c88882fd9981468bbc29785d34348b6.txt .ai_workflow/.ai_cache/3efae65805753e3598d73525cbb958dd71fbdf6f4aab4f2148ee909b795e8290.meta .ai_workflow/.ai_cache/3efae65805753e3598d73525cbb958dd71fbdf6f4aab4f2148ee909b795e8290.txt .ai_workflow/.ai_cache/3f5c56af4c9fb76260994f9489018f5461eb14447349e010f8f1f0caa256aea3.meta .ai_workflow/.ai_cache/3f5c56af4c9fb76260994f9489018f5461eb14447349e010f8f1f0caa256aea3.txt .ai_workflow/.ai_cache/4099133adbaf50932fb27fc5f5b8e5b8b35e1be65b9809453a86960bcd23a6c8.meta .ai_workflow/.ai_cache/4099133adbaf50932fb27fc5f5b8e5b8b35e1be65b9809453a86960bcd23a6c8.txt .ai_workflow/.ai_cache/48ce950e25edbe8df5f06de203b8a7abff934598c431744fe2ddc15541811074.meta .ai_workflow/.ai_cache/48ce950e25edbe8df5f06de203b8a7abff934598c431744fe2ddc15541811074.txt .ai_workflow/.ai_cache/4943608660dc8b19cc8c4e82cc5f0acf9cae2c54f7f5058fb74c510aa8eb6132.meta .ai_workflow/.ai_cache/4943608660dc8b19cc8c4e82cc5f0acf9cae2c54f7f5058fb74c510aa8eb6132.txt .ai_workflow/.ai_cache/4ab30ad6dbb7ee0be7dc74dabc37afbb44a93e6cdd6b776b55412d35da323c28.meta .ai_workflow/.ai_cache/4ab30ad6dbb7ee0be7dc74dabc37afbb44a93e6cdd6b776b55412d35da323c28.txt .ai_workflow/.ai_cache/4aeb0e862a854514896b970899bedae071271ed3c01edc9f9a8c1bf1aa002117.meta .ai_workflow/.ai_cache/4aeb0e862a854514896b970899bedae071271ed3c01edc9f9a8c1bf1aa002117.txt .ai_workflow/.ai_cache/4d6e2ad3a59103f571715ec9f7df8bc723b19b93c7fcd0c019d0cb298e87885a.meta .ai_workflow/.ai_cache/4d6e2ad3a59103f571715ec9f7df8bc723b19b93c7fcd0c019d0cb298e87885a.txt .ai_workflow/.ai_cache/4e37582444a5d0ff7d0a70ca8d77aeab738f15ba70b8288b3d35f9a8f6c7ee3b.meta .ai_workflow/.ai_cache/4e37582444a5d0ff7d0a70ca8d77aeab738f15ba70b8288b3d35f9a8f6c7ee3b.txt .ai_workflow/.ai_cache/500abd47fc1ec34d011416735febf9cb7f3c5c69631af0085c799d7daa76e4c6.meta .ai_workflow/.ai_cache/500abd47fc1ec34d011416735febf9cb7f3c5c69631af0085c799d7daa76e4c6.txt .ai_workflow/.ai_cache/509bf1da9b3df95067b3dc84b24a72bc052c88085b16d8be909a2857a6f03c5f.meta .ai_workflow/.ai_cache/509bf1da9b3df95067b3dc84b24a72bc052c88085b16d8be909a2857a6f03c5f.txt .ai_workflow/.ai_cache/522de7d5dbb3e9b7b5bebe530aacebf41851f76225d73deb6c3f1de3478e4432.meta .ai_workflow/.ai_cache/522de7d5dbb3e9b7b5bebe530aacebf41851f76225d73deb6c3f1de3478e4432.txt .ai_workflow/.ai_cache/529b16876cd417d57f81cda61dcdb83ca0e57f93998568b98aa874c970356380.meta .ai_workflow/.ai_cache/529b16876cd417d57f81cda61dcdb83ca0e57f93998568b98aa874c970356380.txt .ai_workflow/.ai_cache/52e0900cc6371c29eff852a728f198bf15ce2c763a4b316ce5d8cacba6ef3a9e.meta .ai_workflow/.ai_cache/52e0900cc6371c29eff852a728f198bf15ce2c763a4b316ce5d8cacba6ef3a9e.txt .ai_workflow/.ai_cache/5606c30488b2638536480dc5088308f55cc14e2c76fa3a8f3ad01c5121c6bc9b.meta .ai_workflow/.ai_cache/5606c30488b2638536480dc5088308f55cc14e2c76fa3a8f3ad01c5121c6bc9b.txt .ai_workflow/.ai_cache/5867ded6ad301b5722caa2d298570bd174d7ebb3de17e7cae531968707a385b4.meta .ai_workflow/.ai_cache/5867ded6ad301b5722caa2d298570bd174d7ebb3de17e7cae531968707a385b4.txt .ai_workflow/.ai_cache/5972a8b4464e0b8ac033dc984f095ba3c5a67feafee87e9779b859d1aeb48106.meta .ai_workflow/.ai_cache/5972a8b4464e0b8ac033dc984f095ba3c5a67feafee87e9779b859d1aeb48106.txt .ai_workflow/.ai_cache/59e8079747aa443b7578816923082f4098cf0ea58d4fba98d08b68f4c947acd1.meta .ai_workflow/.ai_cache/59e8079747aa443b7578816923082f4098cf0ea58d4fba98d08b68f4c947acd1.txt .ai_workflow/.ai_cache/5b61f73ba03696d4194ffafdb190b8dc85c1fa65efbde0c85b6a8b2faa8183ca.meta .ai_workflow/.ai_cache/5b61f73ba03696d4194ffafdb190b8dc85c1fa65efbde0c85b6a8b2faa8183ca.txt .ai_workflow/.ai_cache/5e26e65359c7ff938586a5f78206ccd1c47c59a09ae0f0b7036cfd2b4aa9ea71.meta .ai_workflow/.ai_cache/5e26e65359c7ff938586a5f78206ccd1c47c59a09ae0f0b7036cfd2b4aa9ea71.txt .ai_workflow/.ai_cache/5e367f152aa5c0f671ab8a13b8b6a0c030105df543cc5346222b3f2b1a5e0444.meta .ai_workflow/.ai_cache/5e367f152aa5c0f671ab8a13b8b6a0c030105df543cc5346222b3f2b1a5e0444.txt .ai_workflow/.ai_cache/5f4cf9ba6369cf75f60b89aa5fea20fb802eebcb7e28cddb855d43e31f591fea.meta .ai_workflow/.ai_cache/5f4cf9ba6369cf75f60b89aa5fea20fb802eebcb7e28cddb855d43e31f591fea.txt .ai_workflow/.ai_cache/5ffcd14f78194b887b219cbad3fffe3268e80669270fc35c1e5b8b94e4acb3b1.meta .ai_workflow/.ai_cache/5ffcd14f78194b887b219cbad3fffe3268e80669270fc35c1e5b8b94e4acb3b1.txt .ai_workflow/.ai_cache/6108bab49b53bcf3c44864705eccb3f2135797345d9ed7fe5d912c0bfe9e1056.meta .ai_workflow/.ai_cache/6108bab49b53bcf3c44864705eccb3f2135797345d9ed7fe5d912c0bfe9e1056.txt .ai_workflow/.ai_cache/614b7e53cf299c2f101359528b524b511c3ad519cd9feca22e08f4dcba404517.meta .ai_workflow/.ai_cache/614b7e53cf299c2f101359528b524b511c3ad519cd9feca22e08f4dcba404517.txt .ai_workflow/.ai_cache/679bf05551beffc3fcc198c323e6e7485d9c2e06213fd2471f151d8edb01e9a5.meta .ai_workflow/.ai_cache/679bf05551beffc3fcc198c323e6e7485d9c2e06213fd2471f151d8edb01e9a5.txt .ai_workflow/.ai_cache/68e3175fe35e0557a5a720325c609f69830f92dbf33cf4f9f555ba98776b7ba4.meta .ai_workflow/.ai_cache/68e3175fe35e0557a5a720325c609f69830f92dbf33cf4f9f555ba98776b7ba4.txt .ai_workflow/.ai_cache/6a239fdc8e013e5b4212735efa33992aa3aabe9293139ba6391bba9500a81b5e.meta .ai_workflow/.ai_cache/6a239fdc8e013e5b4212735efa33992aa3aabe9293139ba6391bba9500a81b5e.txt .ai_workflow/.ai_cache/6a577046801fb0c9191fc12dbad766590d02f39f850ea7a5c6fdc3c73dae52c9.meta .ai_workflow/.ai_cache/6a577046801fb0c9191fc12dbad766590d02f39f850ea7a5c6fdc3c73dae52c9.txt .ai_workflow/.ai_cache/6b44d53c3668f2f3c7b47abcb350aff73e27eca765ed54a7a095a491f2ed063b.meta .ai_workflow/.ai_cache/6b44d53c3668f2f3c7b47abcb350aff73e27eca765ed54a7a095a491f2ed063b.txt .ai_workflow/.ai_cache/6d6ffb679429adf44453c4f90c28f9d73e2485ef64258158a549095c567fde4c.meta .ai_workflow/.ai_cache/6d6ffb679429adf44453c4f90c28f9d73e2485ef64258158a549095c567fde4c.txt .ai_workflow/.ai_cache/6dde118b7ba2e721791d9954cf4aee419013bdd0063dd4f0c45bc4aca3da5ffb.meta .ai_workflow/.ai_cache/6dde118b7ba2e721791d9954cf4aee419013bdd0063dd4f0c45bc4aca3da5ffb.txt .ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.meta .ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.txt .ai_workflow/.ai_cache/6e5c18ecf319816bee926516d542ff1b06e3e8441527c6f8cdd612a6b139c183.meta .ai_workflow/.ai_cache/6e5c18ecf319816bee926516d542ff1b06e3e8441527c6f8cdd612a6b139c183.txt .ai_workflow/.ai_cache/6e5dd7a5d2c5f64644fb2a4a3e6a8162556df762fb7f884386874eeaf52b307c.meta .ai_workflow/.ai_cache/6e5dd7a5d2c5f64644fb2a4a3e6a8162556df762fb7f884386874eeaf52b307c.txt .ai_workflow/.ai_cache/6e6da441a5f122d6294304a096635ba9790871a0979ebb6408a35d89bea126a7.meta .ai_workflow/.ai_cache/6e6da441a5f122d6294304a096635ba9790871a0979ebb6408a35d89bea126a7.txt .ai_workflow/.ai_cache/70b0bde3d628858eca24a01c42a8cb947afdc3012c916bea1bc06d57c08eda31.meta .ai_workflow/.ai_cache/70b0bde3d628858eca24a01c42a8cb947afdc3012c916bea1bc06d57c08eda31.txt .ai_workflow/.ai_cache/738817a8b4ac5d84232aedb02788091b69b49a515544c320c18555a3ac7856ad.meta .ai_workflow/.ai_cache/738817a8b4ac5d84232aedb02788091b69b49a515544c320c18555a3ac7856ad.txt .ai_workflow/.ai_cache/74877e965bf4b926f133f2f05d7d1412929d30c64eeb3439cd0b37636ae08ab6.meta .ai_workflow/.ai_cache/74877e965bf4b926f133f2f05d7d1412929d30c64eeb3439cd0b37636ae08ab6.txt .ai_workflow/.ai_cache/7736809a78e551b57c4a1624c90953d2b59efd418c7aae7dc5467f0fe28ad57f.meta .ai_workflow/.ai_cache/7736809a78e551b57c4a1624c90953d2b59efd418c7aae7dc5467f0fe28ad57f.txt .ai_workflow/.ai_cache/785f172e019763ae975ad09102d1119c2ef373afe724256d32df892f5f5268ab.meta .ai_workflow/.ai_cache/785f172e019763ae975ad09102d1119c2ef373afe724256d32df892f5f5268ab.txt .ai_workflow/.ai_cache/7986ecfda250912ac389bcc7a15f434b6be081dd398cc8a2316fa8795f89ac67.meta .ai_workflow/.ai_cache/7986ecfda250912ac389bcc7a15f434b6be081dd398cc8a2316fa8795f89ac67.txt .ai_workflow/.ai_cache/7c235e95e4df6f73b3fd516a9bf5688db71dcf31abf4de6730b4dbb650c6d4d0.meta .ai_workflow/.ai_cache/7c235e95e4df6f73b3fd516a9bf5688db71dcf31abf4de6730b4dbb650c6d4d0.txt .ai_workflow/.ai_cache/7d182520263f78981fff7386e41234247ecf70c5f1b54bba1a83101f6498543e.meta .ai_workflow/.ai_cache/7d182520263f78981fff7386e41234247ecf70c5f1b54bba1a83101f6498543e.txt .ai_workflow/.ai_cache/7d49f62b99bfb5b316777d554b4303774db6147da528fd689fb7951ee5f904ff.meta .ai_workflow/.ai_cache/7d49f62b99bfb5b316777d554b4303774db6147da528fd689fb7951ee5f904ff.txt .ai_workflow/.ai_cache/7e17e1f952921e9faebcc334188daa7ce93d0780cdfdc339f57d4a086cdc87a7.meta .ai_workflow/.ai_cache/7e17e1f952921e9faebcc334188daa7ce93d0780cdfdc339f57d4a086cdc87a7.txt .ai_workflow/.ai_cache/82b96b9d41d114ccd1b5722144338f67c6c7fcd513923e0c9ec54e627f11e270.meta .ai_workflow/.ai_cache/82b96b9d41d114ccd1b5722144338f67c6c7fcd513923e0c9ec54e627f11e270.txt .ai_workflow/.ai_cache/850b5d187c6fc54dc36f81bf48e658c409a95885bdac9d1320abd8841d13ff2d.meta .ai_workflow/.ai_cache/850b5d187c6fc54dc36f81bf48e658c409a95885bdac9d1320abd8841d13ff2d.txt .ai_workflow/.ai_cache/8607230b742b12896cbc7595dd000441f7830fbe2d608649e7f9862847e3e641.meta .ai_workflow/.ai_cache/8607230b742b12896cbc7595dd000441f7830fbe2d608649e7f9862847e3e641.txt .ai_workflow/.ai_cache/8733c7d682ed9a2187e362561055739b66e8779bc015dc1e4f1ba4e2de1e92ba.meta .ai_workflow/.ai_cache/8733c7d682ed9a2187e362561055739b66e8779bc015dc1e4f1ba4e2de1e92ba.txt .ai_workflow/.ai_cache/878cb1fd43b00ca4115af7c12280192588d121a3556b8424e8e01781b2f265c0.meta .ai_workflow/.ai_cache/878cb1fd43b00ca4115af7c12280192588d121a3556b8424e8e01781b2f265c0.txt .ai_workflow/.ai_cache/8c91b70305a75fca014a17f166c00f006d57fdc7a53455a55ec0b458bac058ac.meta .ai_workflow/.ai_cache/8c91b70305a75fca014a17f166c00f006d57fdc7a53455a55ec0b458bac058ac.txt .ai_workflow/.ai_cache/8e420d21750a13cd300d6f8c3e72b17d90c76e22d6a5030f6aa465882452128e.meta .ai_workflow/.ai_cache/8e420d21750a13cd300d6f8c3e72b17d90c76e22d6a5030f6aa465882452128e.txt .ai_workflow/.ai_cache/8f936c222d37d6dcbbbc9051a2012c924737b90320cff7f36b4d03b9c800114c.meta .ai_workflow/.ai_cache/8f936c222d37d6dcbbbc9051a2012c924737b90320cff7f36b4d03b9c800114c.txt .ai_workflow/.ai_cache/94d411b3f49d106f8e54dea98a699467659bd91973d9494c6d9fb9ab4e25cda2.meta .ai_workflow/.ai_cache/94d411b3f49d106f8e54dea98a699467659bd91973d9494c6d9fb9ab4e25cda2.txt .ai_workflow/.ai_cache/96a6b460d647f21b5d3ef039b4e1eea1b9b3a062fb6e78c30533993c854a6988.meta .ai_workflow/.ai_cache/96a6b460d647f21b5d3ef039b4e1eea1b9b3a062fb6e78c30533993c854a6988.txt .ai_workflow/.ai_cache/97f0d545069f81c82019d396f267a0b33bec2e2b0c9ff223dc97315d9110c02b.meta .ai_workflow/.ai_cache/97f0d545069f81c82019d396f267a0b33bec2e2b0c9ff223dc97315d9110c02b.txt .ai_workflow/.ai_cache/98bbaa8688f69a1839993f00e57149247caaeaf754c657259766ffae3b15517a.meta .ai_workflow/.ai_cache/98bbaa8688f69a1839993f00e57149247caaeaf754c657259766ffae3b15517a.txt .ai_workflow/.ai_cache/9b14792c211ccea8df7b4f44beb9b20384b4a329efb84a3199a77fbc1957dd7a.meta .ai_workflow/.ai_cache/9b14792c211ccea8df7b4f44beb9b20384b4a329efb84a3199a77fbc1957dd7a.txt .ai_workflow/.ai_cache/9c46779ff04e681d1a2213fa89d8c0cca39c3c73205376254a349a10b0e5be40.meta .ai_workflow/.ai_cache/9c46779ff04e681d1a2213fa89d8c0cca39c3c73205376254a349a10b0e5be40.txt .ai_workflow/.ai_cache/9ddbfa54eda33228256c5943c03ee47fc82bf605b3e0c6ac9a474e7ae844144d.meta .ai_workflow/.ai_cache/9ddbfa54eda33228256c5943c03ee47fc82bf605b3e0c6ac9a474e7ae844144d.txt .ai_workflow/.ai_cache/9f391d40ff51f0a3b25d8b370b9cb09325df270c21e1fc0c8e1f7ad45d53889a.meta .ai_workflow/.ai_cache/9f391d40ff51f0a3b25d8b370b9cb09325df270c21e1fc0c8e1f7ad45d53889a.txt .ai_workflow/.ai_cache/9f89a03146ae90c64dd1746e2d637564c21b7657ff801b0dca23f7cd97afb262.meta .ai_workflow/.ai_cache/9f89a03146ae90c64dd1746e2d637564c21b7657ff801b0dca23f7cd97afb262.txt .ai_workflow/.ai_cache/a05a6b2780e73ae7cf4afe4369998dd0876fb14a54a573d6b6dd5434c6244580.meta .ai_workflow/.ai_cache/a05a6b2780e73ae7cf4afe4369998dd0876fb14a54a573d6b6dd5434c6244580.txt .ai_workflow/.ai_cache/a079f5968ad0e158abbf7855d501e8b3fb126e3eb2269280d33b3ee806c39823.meta .ai_workflow/.ai_cache/a079f5968ad0e158abbf7855d501e8b3fb126e3eb2269280d33b3ee806c39823.txt .ai_workflow/.ai_cache/a27ffa6cdb4979eea1d95226f0a20dddd26cb9297f67120d5d7f0d48b167d62a.meta .ai_workflow/.ai_cache/a27ffa6cdb4979eea1d95226f0a20dddd26cb9297f67120d5d7f0d48b167d62a.txt .ai_workflow/.ai_cache/a2ba50082cee5c78965b32e60360351fd9a2ed2f4c6cc0201ad581807de96fc3.meta .ai_workflow/.ai_cache/a2ba50082cee5c78965b32e60360351fd9a2ed2f4c6cc0201ad581807de96fc3.txt .ai_workflow/.ai_cache/a3c172beaf14a05910da90214d4ed251559d7fb718361792ed39fc304d11b074.meta .ai_workflow/.ai_cache/a3c172beaf14a05910da90214d4ed251559d7fb718361792ed39fc304d11b074.txt .ai_workflow/.ai_cache/a563d745759fc1d7c53f2c4a34d3fc2a750ff50d0dc6856ab49293880445fe4d.meta .ai_workflow/.ai_cache/a563d745759fc1d7c53f2c4a34d3fc2a750ff50d0dc6856ab49293880445fe4d.txt .ai_workflow/.ai_cache/ac2c59973f2c0cb7815f331d21a9bfe4c39208cf4ff8ceb6e5fc2a67c09f91d9.meta .ai_workflow/.ai_cache/ac2c59973f2c0cb7815f331d21a9bfe4c39208cf4ff8ceb6e5fc2a67c09f91d9.txt .ai_workflow/.ai_cache/ac2d0024411d1fb1f84bf243ac397ff626331a22b7ba3ebf162363ca361a401c.meta .ai_workflow/.ai_cache/ac2d0024411d1fb1f84bf243ac397ff626331a22b7ba3ebf162363ca361a401c.txt .ai_workflow/.ai_cache/ad2dca86fefc6436ff8ee1c5289d33bea43872ada779077c0cecdef107270ff2.meta .ai_workflow/.ai_cache/ad2dca86fefc6436ff8ee1c5289d33bea43872ada779077c0cecdef107270ff2.txt .ai_workflow/.ai_cache/adc700bded4f8c0e49171544c51ac89c10746b05606d990babd19165cdcf6b3f.meta .ai_workflow/.ai_cache/adc700bded4f8c0e49171544c51ac89c10746b05606d990babd19165cdcf6b3f.txt .ai_workflow/.ai_cache/afde57b014405ec2055f8441ae6273d785c2b195fbdbc3b1b233572a3bafaf14.meta .ai_workflow/.ai_cache/afde57b014405ec2055f8441ae6273d785c2b195fbdbc3b1b233572a3bafaf14.txt .ai_workflow/.ai_cache/b0d69614de36fe5e14f06c15e9097297cb60caadfa20d6a1d1661d5fe7d099cc.meta .ai_workflow/.ai_cache/b0d69614de36fe5e14f06c15e9097297cb60caadfa20d6a1d1661d5fe7d099cc.txt .ai_workflow/.ai_cache/b239327270e2c3a66196fe86aa2bbbe45eb86748e266adf006bb536e4a1081bb.meta .ai_workflow/.ai_cache/b239327270e2c3a66196fe86aa2bbbe45eb86748e266adf006bb536e4a1081bb.txt .ai_workflow/.ai_cache/c07646c2632b396e4520a2657cd2d73ac3e90aa79a8b4d36e9130dc59b96e1a2.meta .ai_workflow/.ai_cache/c07646c2632b396e4520a2657cd2d73ac3e90aa79a8b4d36e9130dc59b96e1a2.txt .ai_workflow/.ai_cache/c17007926ea6a4e1716406d20eda4252642ff066aa23bdd008a1359605b01b93.meta .ai_workflow/.ai_cache/c17007926ea6a4e1716406d20eda4252642ff066aa23bdd008a1359605b01b93.txt .ai_workflow/.ai_cache/c1e9452b30b6a828f79e384301efd24f21c16e688458dd26b5e494a08a13c1b2.meta .ai_workflow/.ai_cache/c1e9452b30b6a828f79e384301efd24f21c16e688458dd26b5e494a08a13c1b2.txt .ai_workflow/.ai_cache/c2541e176d3fd6d718aa09bc2f1a70b91d6a959f7b791b751d5ea6de78196944.meta .ai_workflow/.ai_cache/c2541e176d3fd6d718aa09bc2f1a70b91d6a959f7b791b751d5ea6de78196944.txt .ai_workflow/.ai_cache/c48d0ff07ce2aecd0d239a505450bad469c84d54c10a06ac366b4f4a23896654.meta .ai_workflow/.ai_cache/c48d0ff07ce2aecd0d239a505450bad469c84d54c10a06ac366b4f4a23896654.txt .ai_workflow/.ai_cache/c52502964985e529fc17c01b6472c3092fe5286c7e6e50176029aec0074d9c38.meta .ai_workflow/.ai_cache/c52502964985e529fc17c01b6472c3092fe5286c7e6e50176029aec0074d9c38.txt .ai_workflow/.ai_cache/c8a5b203e1933857ba2b0666831e7ad0989cc8c510e146753823b5a58c426fde.meta .ai_workflow/.ai_cache/c8a5b203e1933857ba2b0666831e7ad0989cc8c510e146753823b5a58c426fde.txt .ai_workflow/.ai_cache/c94d2f2d153fbe9942a4c21334918f21cebc3b6f1a04e19cd518db7e602affed.meta .ai_workflow/.ai_cache/c94d2f2d153fbe9942a4c21334918f21cebc3b6f1a04e19cd518db7e602affed.txt .ai_workflow/.ai_cache/cd048b813e01e0dc92c583af8cf1c0fb20954a13d47cfdcc32d1135af1142ac5.meta .ai_workflow/.ai_cache/cd048b813e01e0dc92c583af8cf1c0fb20954a13d47cfdcc32d1135af1142ac5.txt .ai_workflow/.ai_cache/ce788fb2000b9957ad26f98e6a3601e876d060bf3eb03c5e73332e78c9d9dff0.meta .ai_workflow/.ai_cache/ce788fb2000b9957ad26f98e6a3601e876d060bf3eb03c5e73332e78c9d9dff0.txt .ai_workflow/.ai_cache/d10e74a07989df350a566669f29e00faf09589582a7725e2a868916a83816ccb.meta .ai_workflow/.ai_cache/d10e74a07989df350a566669f29e00faf09589582a7725e2a868916a83816ccb.txt .ai_workflow/.ai_cache/d19d3bffd8fe069dd28e8e7aa74251bbfc3d925ba9cf645353b0821b5489e4a1.meta .ai_workflow/.ai_cache/d19d3bffd8fe069dd28e8e7aa74251bbfc3d925ba9cf645353b0821b5489e4a1.txt .ai_workflow/.ai_cache/d6d044add98d85aec47052d4c50777c7cda9f8d16af4df1bfeadc43107c5e8c2.meta .ai_workflow/.ai_cache/d6d044add98d85aec47052d4c50777c7cda9f8d16af4df1bfeadc43107c5e8c2.txt .ai_workflow/.ai_cache/d71751f57bc99f275adf3b54e8d9ba71cb844fb0f50c8a0058e9ae35392120df.meta .ai_workflow/.ai_cache/d71751f57bc99f275adf3b54e8d9ba71cb844fb0f50c8a0058e9ae35392120df.txt .ai_workflow/.ai_cache/d9e89aea77ad6887d0ae98a19527fd6fb269687aaaab7e74d0b600a6f2930c49.meta .ai_workflow/.ai_cache/d9e89aea77ad6887d0ae98a19527fd6fb269687aaaab7e74d0b600a6f2930c49.txt .ai_workflow/.ai_cache/da3561e4253c55354acca7ddec99ae36108f115b842fd9be5682580c8948fd69.meta .ai_workflow/.ai_cache/da3561e4253c55354acca7ddec99ae36108f115b842fd9be5682580c8948fd69.txt .ai_workflow/.ai_cache/e00685be88400da57b534f54d648dde1e9655d2d3a3e783716c9cf686f007a53.meta .ai_workflow/.ai_cache/e00685be88400da57b534f54d648dde1e9655d2d3a3e783716c9cf686f007a53.txt .ai_workflow/.ai_cache/e241f9ebfe03036796384436659625c1334f0379e896097250b119573aaca107.meta .ai_workflow/.ai_cache/e241f9ebfe03036796384436659625c1334f0379e896097250b119573aaca107.txt .ai_workflow/.ai_cache/e2892dd35fbb2e668ec69f3950e31b12b3aad9a69fd5b89c1b0698fc477af64c.meta .ai_workflow/.ai_cache/e2892dd35fbb2e668ec69f3950e31b12b3aad9a69fd5b89c1b0698fc477af64c.txt .ai_workflow/.ai_cache/e2c8db542d5e4ba60a377ff51214073d9455848a952b8246df02670a658a327c.meta .ai_workflow/.ai_cache/e2c8db542d5e4ba60a377ff51214073d9455848a952b8246df02670a658a327c.txt .ai_workflow/.ai_cache/e38d0fc24ff41e5b2917c0cde461141dafe2073043c4b77a5bd360bf0ee51ed7.meta .ai_workflow/.ai_cache/e38d0fc24ff41e5b2917c0cde461141dafe2073043c4b77a5bd360bf0ee51ed7.txt .ai_workflow/.ai_cache/e3b51d2e354398645a919ded8d53dad73f37b82892ab9de83270bee629daf79c.meta .ai_workflow/.ai_cache/e3b51d2e354398645a919ded8d53dad73f37b82892ab9de83270bee629daf79c.txt .ai_workflow/.ai_cache/e7a6d467e1955cb9045bcd2701115e5231e2adde2691c0b8eb66dc26dffd2fb3.meta .ai_workflow/.ai_cache/e7a6d467e1955cb9045bcd2701115e5231e2adde2691c0b8eb66dc26dffd2fb3.txt .ai_workflow/.ai_cache/e83c54e9787bef01dddb63786cf6b1e3d5ea85e82a3eb085af1715032ecf6e34.meta .ai_workflow/.ai_cache/e83c54e9787bef01dddb63786cf6b1e3d5ea85e82a3eb085af1715032ecf6e34.txt .ai_workflow/.ai_cache/edda41e9b86e4a684e24764cc14c953cd8efad8d47df8ecaf6854cbeda1d1bec.meta .ai_workflow/.ai_cache/edda41e9b86e4a684e24764cc14c953cd8efad8d47df8ecaf6854cbeda1d1bec.txt .ai_workflow/.ai_cache/eea617ac74d961f59fd30fd689fca26c927a754579c96860041fc261bae344de.meta .ai_workflow/.ai_cache/eea617ac74d961f59fd30fd689fca26c927a754579c96860041fc261bae344de.txt .ai_workflow/.ai_cache/eee1f4a2ae8536b0e59b21fd22d3f2777809cffe10fe055f9075bc71e37256c6.meta .ai_workflow/.ai_cache/eee1f4a2ae8536b0e59b21fd22d3f2777809cffe10fe055f9075bc71e37256c6.txt .ai_workflow/.ai_cache/ef6a33950e286fcdfef5768b9fa59525f94f9ddbb59da9c60bfd94ab3ffbcbfd.meta .ai_workflow/.ai_cache/ef6a33950e286fcdfef5768b9fa59525f94f9ddbb59da9c60bfd94ab3ffbcbfd.txt .ai_workflow/.ai_cache/f03c6814c94886b430708d21374a6511d34af9756974568fec22d5d1891396b6.meta .ai_workflow/.ai_cache/f03c6814c94886b430708d21374a6511d34af9756974568fec22d5d1891396b6.txt .ai_workflow/.ai_cache/f6236d2dc62aaf3801357d04fab44f387b3dee743ef777db194eae3f6aa7ca97.meta .ai_workflow/.ai_cache/f6236d2dc62aaf3801357d04fab44f387b3dee743ef777db194eae3f6aa7ca97.txt .ai_workflow/.ai_cache/f6863f7ea6ecaa28f7d3884d756b42ae36654194f97366fafc0b266b62467178.meta .ai_workflow/.ai_cache/f6863f7ea6ecaa28f7d3884d756b42ae36654194f97366fafc0b266b62467178.txt .ai_workflow/.ai_cache/f7c819779f55f6695aeb939ed98a67fd86daca89a9438f82d3af942a240f4b4e.meta .ai_workflow/.ai_cache/f7c819779f55f6695aeb939ed98a67fd86daca89a9438f82d3af942a240f4b4e.txt .ai_workflow/.ai_cache/f8d50f6d0eeef6913530620b47af3d44a48be189a631f8d29b73d5c85101ac19.meta .ai_workflow/.ai_cache/f8d50f6d0eeef6913530620b47af3d44a48be189a631f8d29b73d5c85101ac19.txt .ai_workflow/.ai_cache/fdf3da01c751bc40486bb4b66a4af5506e03fa1dfef7f0e2b3c45bf57b30201d.meta .ai_workflow/.ai_cache/fdf3da01c751bc40486bb4b66a4af5506e03fa1dfef7f0e2b3c45bf57b30201d.txt .ai_workflow/.ai_cache/index.json .ai_workflow/checkpoints/workflow_1771548004284-1771548004724.json .ai_workflow/checkpoints/workflow_1771548232039-1771548232485.json .ai_workflow/checkpoints/workflow_1771548494398-1771548494849.json .ai_workflow/checkpoints/workflow_1771548742189-1771548742385.json .ai_workflow/checkpoints/workflow_1771549502860-1771549503072.json .ai_workflow/checkpoints/workflow_1771550024706-1771550024922.json .ai_workflow/checkpoints/workflow_1771551252853-1771551253278.json .ai_workflow/checkpoints/workflow_1771551404011-1771551404478.json .ai_workflow/checkpoints/workflow_1771551852343-1771551852784.json .ai_workflow/checkpoints/workflow_1771552158442-1771552158880.json .ai_workflow/checkpoints/workflow_1771552254992-1771552255421.json .ai_workflow/checkpoints/workflow_1771552478309-1771552479804.json .ai_workflow/checkpoints/workflow_1771553135110-1771553136580.json .ai_workflow/checkpoints/workflow_1771553299257-1771553302123.json .ai_workflow/checkpoints/workflow_1771553449467-1771553452209.json .ai_workflow/checkpoints/workflow_1771553666831-1771554230830.json .ai_workflow/checkpoints/workflow_1771554317637-1771554611537.json .ai_workflow/checkpoints/workflow_1771554900655-1771554966370.json .ai_workflow/checkpoints/workflow_1771556099165-1771556103029.json .ai_workflow/checkpoints/workflow_1771557666914-1771557670727.json .ai_workflow/checkpoints/workflow_1771557915648-1771557919212.json .ai_workflow/checkpoints/workflow_1771558451565-1771558455297.json .ai_workflow/checkpoints/workflow_1771560583123-1771560586822.json .ai_workflow/checkpoints/workflow_1771560721674-1771560725541.json .ai_workflow/checkpoints/workflow_1771561681573-1771561685576.json .ai_workflow/checkpoints/workflow_1771585145939-1771585161446.json .ai_workflow/checkpoints/workflow_1771586321392-1771586336121.json .ai_workflow/checkpoints/workflow_1771586379016-1771586395685.json .ai_workflow/checkpoints/workflow_1771586452520-1771586469432.json .ai_workflow/checkpoints/workflow_1771586726714-1771586741986.json .ai_workflow/checkpoints/workflow_1771586826783-1771586842303.json .ai_workflow/checkpoints/workflow_1771587454462-1771587470786.json .ai_workflow/checkpoints/workflow_1771587822334-1771587871095.json .ai_workflow/checkpoints/workflow_1771589053870-1771589107509.json .ai_workflow/checkpoints/workflow_1771589506585-1771589541304.json .ai_workflow/checkpoints/workflow_1771589683499-1771589715281.json .ai_workflow/checkpoints/workflow_1771589742098-1771589783118.json .ai_workflow/checkpoints/workflow_1771608475040-1771608481839.json .ai_workflow/checkpoints/workflow_1771608883908-1771608983842.json .ai_workflow/checkpoints/workflow_1771609050178-1771609167985.json .ai_workflow/checkpoints/workflow_1771610372481-1771610415256.json .ai_workflow/checkpoints/workflow_1771611326053-1771611334262.json .ai_workflow/checkpoints/workflow_1771611468420-1771611507984.json .ai_workflow/checkpoints/workflow_1771612473103-1771612499474.json .ai_workflow/checkpoints/workflow_1771612912785-1771612950030.json .ai_workflow/checkpoints/workflow_1771614521565-1771614557036.json .ai_workflow/checkpoints/workflow_1771615654785-1771615666315.json .ai_workflow/checkpoints/workflow_1771622269827-1771622283056.json .ai_workflow/checkpoints/workflow_1771622622768-1771622634213.json .ai_workflow/checkpoints/workflow_1771622858719-1771622869585.json .ai_workflow/checkpoints/workflow_1771626260511-1771626273623.json .ai_workflow/checkpoints/workflow_1771627612867-1771627623439.json .ai_workflow/checkpoints/workflow_1771629813161-1771629823615.json .ai_workflow/checkpoints/workflow_1771630299577-1771630314271.json .ai_workflow/checkpoints/workflow_1771631299174-1771631302552.json .ai_workflow/checkpoints/workflow_1771631692464-1771631698009.json .ai_workflow/checkpoints/workflow_1771632440547-1771632450818.json .ai_workflow/checkpoints/workflow_1771633687461-1771633704402.json .ai_workflow/checkpoints/workflow_1771633990965-1771633993795.json .ai_workflow/checkpoints/workflow_1771634116529-1771634119068.json .ai_workflow/checkpoints/workflow_1771634468751-1771634475630.json .ai_workflow/checkpoints/workflow_1771635438844-1771635443715.json .ai_workflow/checkpoints/workflow_1771636368895-1771636376414.json .ai_workflow/checkpoints/workflow_1771636491913-1771636527261.json .ai_workflow/checkpoints/workflow_1771637361934-1771637387933.json .ai_workflow/checkpoints/workflow_1771638138380-1771638166073.json .ai_workflow/checkpoints/workflow_1771638405896-1771638428194.json .ai_workflow/checkpoints/workflow_1771639701867-1771639724744.json .ai_workflow/checkpoints/workflow_1771641159352-1771641184458.json .ai_workflow/checkpoints/workflow_1771678398115-1771678432868.json .ai_workflow/checkpoints/workflow_1771686413988-1771686455839.json .ai_workflow/checkpoints/workflow_1771703630478-1771703724570.json .ai_workflow/checkpoints/workflow_1771705369554-1771705550389.json .ai_workflow/checkpoints/workflow_1771709918643-1771710087627.json .ai_workflow/checkpoints/workflow_1771712306331-1771712534893.json .ai_workflow/checkpoints/workflow_1771715319077-1771715501080.json .ai_workflow/checkpoints/workflow_1771715884148-1771716057479.json .ai_workflow/checkpoints/workflow_1771717327216-1771717494052.json .ai_workflow/checkpoints/workflow_1771723673919-1771724077061.json .ai_workflow/checkpoints/workflow_1771727465272-1771727760102.json .ai_workflow/checkpoints/workflow_1771731481178-1771731645469.json .ai_workflow/checkpoints/workflow_1771799170203-1771799464956.json .ai_workflow/checkpoints/workflow_1771810970366-1771811517537.json .ai_workflow/checkpoints/workflow_1771815055303-1771815443641.json .ai_workflow/checkpoints/workflow_1771816844977-1771817194387.json .ai_workflow/checkpoints/workflow_1771868651503-1771868919069.json .ai_workflow/checkpoints/workflow_1771870398112-1771870986747.json .ai_workflow/checkpoints/workflow_1771876169554-1771876514392.json .ai_workflow/checkpoints/workflow_1771883717362-1771884286871.json .ai_workflow/checkpoints/workflow_1771889041515-1771889706546.json .ai_workflow/commit_history.json .ai_workflow/logs/workflow_20260226_153533/steps/step_12.log .ai_workflow/logs/workflow_20260226_153533/workflow.log .ai_workflow/summaries/workflow_20260210_223330/workflow_summary.md docs/GETTING_STARTED.md docs/WORKFLOW_ENGINE_REQUIREMENTS.md docs/api/core/executor.md docs/api/core/system.md docs/api/logger.md docs/api/utils.md docs/guides/WORKFLOW_VALIDATION_GUIDE.md .ai_workflow/.ai_cache/index.json .ai_workflow/logs/workflow_20260226_153533/workflow.log docs/FUNCTIONAL_REQUIREMENTS.md docs/api/EXAMPLES.md docs/api/utils.md docs/guides/CONDITIONAL_EXECUTION.md docs/reports/implementation/MIGRATION_PLAN.md
+Command failed: git add -f .ai_workflow/.ai_cache/009532318926a7361b767fca3a9ae3fbb7adf47d927ffd09008ca42a5ff505a0.meta .ai_workflow/.ai_cache/009532318926a7361b767fca3a9ae3fbb7adf47d927ffd09008ca42a5ff505a0.txt .ai_workflow/.ai_cache/04c94e5d0ab8949d05da81bec60c33ee83d8e0b244a66694a2d318a0cca107c6.meta .ai_workflow/.ai_cache/04c94e5d0ab8949d05da81bec60c33ee83d8e0b244a66694a2d318a0cca107c6.txt .ai_workflow/.ai_cache/04dfdca5871034131a20084e7efbb8a401bce9e91a8ea8d61e2c7137af78daf7.meta .ai_workflow/.ai_cache/04dfdca5871034131a20084e7efbb8a401bce9e91a8ea8d61e2c7137af78daf7.txt .ai_workflow/.ai_cache/04f24c39e593aa2074170597e254e2147c94ef43550787e575b9c7366702488a.meta .ai_workflow/.ai_cache/04f24c39e593aa2074170597e254e2147c94ef43550787e575b9c7366702488a.txt .ai_workflow/.ai_cache/05220deb62aa11405a22ad0d7795540ed95f059a31cb56faa009ea04e439372b.meta .ai_workflow/.ai_cache/05220deb62aa11405a22ad0d7795540ed95f059a31cb56faa009ea04e439372b.txt .ai_workflow/.ai_cache/06d958950c3407c23c6fdd65db86646cf1e5661326b4c84341e982a54b51ff05.meta .ai_workflow/.ai_cache/06d958950c3407c23c6fdd65db86646cf1e5661326b4c84341e982a54b51ff05.txt .ai_workflow/.ai_cache/06f3f527ee364dce3767a390d8e70f1b3eff483dabc17a90f9ef05b43676aa5c.meta .ai_workflow/.ai_cache/06f3f527ee364dce3767a390d8e70f1b3eff483dabc17a90f9ef05b43676aa5c.txt .ai_workflow/.ai_cache/08780002c62f1949a7d19e9ee22dcd64ccb1a862dd39d92e822f8e23707453cb.meta .ai_workflow/.ai_cache/08780002c62f1949a7d19e9ee22dcd64ccb1a862dd39d92e822f8e23707453cb.txt .ai_workflow/.ai_cache/0880438603d778d391e2e9b816e09e2fdd06fd92a94b4e094abc8b69a33fa7d8.meta .ai_workflow/.ai_cache/0880438603d778d391e2e9b816e09e2fdd06fd92a94b4e094abc8b69a33fa7d8.txt .ai_workflow/.ai_cache/0c207dba87666456bf5659c15c6eb51dcc188a326938b942913c7fc203b7cb2e.meta .ai_workflow/.ai_cache/0c207dba87666456bf5659c15c6eb51dcc188a326938b942913c7fc203b7cb2e.txt .ai_workflow/.ai_cache/0c4ae592f13ac61a6449027c5281a95249b9fb9e969567bd70cb713b0c9677c7.meta .ai_workflow/.ai_cache/0c4ae592f13ac61a6449027c5281a95249b9fb9e969567bd70cb713b0c9677c7.txt .ai_workflow/.ai_cache/0cdb7c9af952ef9b8e5feff511e10e88edffb2317849717470aa7c982b309af4.meta .ai_workflow/.ai_cache/0cdb7c9af952ef9b8e5feff511e10e88edffb2317849717470aa7c982b309af4.txt .ai_workflow/.ai_cache/0d701ab26466402546dcc6552881804847dbd4b5819fa3209e6eabc7f0a6279b.meta .ai_workflow/.ai_cache/0d701ab26466402546dcc6552881804847dbd4b5819fa3209e6eabc7f0a6279b.txt .ai_workflow/.ai_cache/0d95bf9e5369929ac4594d2897d24e2ca4bddfe2a8572ed65a5892f39f23bd68.meta .ai_workflow/.ai_cache/0d95bf9e5369929ac4594d2897d24e2ca4bddfe2a8572ed65a5892f39f23bd68.txt .ai_workflow/.ai_cache/10d0ef6aa37b41aa62b2d538e80d30624218850a0bda967744e4d245b09cd122.meta .ai_workflow/.ai_cache/10d0ef6aa37b41aa62b2d538e80d30624218850a0bda967744e4d245b09cd122.txt .ai_workflow/.ai_cache/112facf1b2607e53f3ae4597ffc98f987c81b9b03874f6302f9481467ad8879e.meta .ai_workflow/.ai_cache/112facf1b2607e53f3ae4597ffc98f987c81b9b03874f6302f9481467ad8879e.txt .ai_workflow/.ai_cache/140b083972a00108dfea4b4da1eca16503107c6bfda821d2e33266d21967a403.meta .ai_workflow/.ai_cache/140b083972a00108dfea4b4da1eca16503107c6bfda821d2e33266d21967a403.txt .ai_workflow/.ai_cache/15c989d1d02a0b5d3ff9afaa8bb3bed566257a8864c2ba9399caec3c57b9d198.meta .ai_workflow/.ai_cache/15c989d1d02a0b5d3ff9afaa8bb3bed566257a8864c2ba9399caec3c57b9d198.txt .ai_workflow/.ai_cache/1662cf78c7972658d2333b19f8963f8f7c42653a4aad74d49a169970bfe902c0.meta .ai_workflow/.ai_cache/1662cf78c7972658d2333b19f8963f8f7c42653a4aad74d49a169970bfe902c0.txt .ai_workflow/.ai_cache/16b24cd08e01222b3b228a859ac0991cf4919d564c8de1c5b45d556e741b5964.meta .ai_workflow/.ai_cache/16b24cd08e01222b3b228a859ac0991cf4919d564c8de1c5b45d556e741b5964.txt .ai_workflow/.ai_cache/17741711e4ecbe427f9a291b1322b810eeb79b7b070335658cb54e31d348d707.meta .ai_workflow/.ai_cache/17741711e4ecbe427f9a291b1322b810eeb79b7b070335658cb54e31d348d707.txt .ai_workflow/.ai_cache/185fad2945f78b018a534c2d729ff91ac870a1193bf17e4a82303a7eef2c29aa.meta .ai_workflow/.ai_cache/185fad2945f78b018a534c2d729ff91ac870a1193bf17e4a82303a7eef2c29aa.txt .ai_workflow/.ai_cache/18a1279a4a29779fcaeac72ad5d784f454fab3a334d571f3aec1d66639451f0a.meta .ai_workflow/.ai_cache/18a1279a4a29779fcaeac72ad5d784f454fab3a334d571f3aec1d66639451f0a.txt .ai_workflow/.ai_cache/18f3928d104a8668e50231e0599a5572a3871bedac29a5a2c808d0c87f4beb1e.meta .ai_workflow/.ai_cache/18f3928d104a8668e50231e0599a5572a3871bedac29a5a2c808d0c87f4beb1e.txt .ai_workflow/.ai_cache/18fd6ebd90957f24d3b431c43b247f4026b2dc695e3367cffbb709c374750f36.meta .ai_workflow/.ai_cache/18fd6ebd90957f24d3b431c43b247f4026b2dc695e3367cffbb709c374750f36.txt .ai_workflow/.ai_cache/1b451589f6704b94828d47b912643ed505a09508e6c54e32c84005a13f420205.meta .ai_workflow/.ai_cache/1b451589f6704b94828d47b912643ed505a09508e6c54e32c84005a13f420205.txt .ai_workflow/.ai_cache/1c101678432543a89be88dfd8c84e665c2363b5c3d2edcab3591b53fd1a1352d.meta .ai_workflow/.ai_cache/1c101678432543a89be88dfd8c84e665c2363b5c3d2edcab3591b53fd1a1352d.txt .ai_workflow/.ai_cache/2060589ce49ddd637ba011fafab56e591c2f7742bab55c431a722cd0cfee232a.meta .ai_workflow/.ai_cache/2060589ce49ddd637ba011fafab56e591c2f7742bab55c431a722cd0cfee232a.txt .ai_workflow/.ai_cache/22a40983f0be018824a89f9b19ab21ca712185c857c4006699645fbb11a88fe5.meta .ai_workflow/.ai_cache/22a40983f0be018824a89f9b19ab21ca712185c857c4006699645fbb11a88fe5.txt .ai_workflow/.ai_cache/23d0090273941f500ef6993e01cbfcb0c923e0d8edf3eeb1c268d6379555332a.meta .ai_workflow/.ai_cache/23d0090273941f500ef6993e01cbfcb0c923e0d8edf3eeb1c268d6379555332a.txt .ai_workflow/.ai_cache/28d30663f49ab218f034d26bd9838553454052a16179229e60f54ebabb994058.meta .ai_workflow/.ai_cache/28d30663f49ab218f034d26bd9838553454052a16179229e60f54ebabb994058.txt .ai_workflow/.ai_cache/2c5aa680aed61bb36bbe76948c24fd3d67cbd07f694b505881167c5498fe3c90.meta .ai_workflow/.ai_cache/2c5aa680aed61bb36bbe76948c24fd3d67cbd07f694b505881167c5498fe3c90.txt .ai_workflow/.ai_cache/2c9e671bcfa5f6f26b3659ea546879ea13e540debb1cf4b5eb388cab2a6a7514.meta .ai_workflow/.ai_cache/2c9e671bcfa5f6f26b3659ea546879ea13e540debb1cf4b5eb388cab2a6a7514.txt .ai_workflow/.ai_cache/2cfffeba32ec65f713ebf912bd46a7dc434177ecda5b4f52fa7c957fb5be5ee7.meta .ai_workflow/.ai_cache/2cfffeba32ec65f713ebf912bd46a7dc434177ecda5b4f52fa7c957fb5be5ee7.txt .ai_workflow/.ai_cache/2d879ae5fac555037147116a781c7fb8a82848374653c0d3154917bb50903a6c.meta .ai_workflow/.ai_cache/2d879ae5fac555037147116a781c7fb8a82848374653c0d3154917bb50903a6c.txt .ai_workflow/.ai_cache/303c83ec6638e9033e50af290e9370d60da9eb50634590735d5d9aa410b05e58.meta .ai_workflow/.ai_cache/303c83ec6638e9033e50af290e9370d60da9eb50634590735d5d9aa410b05e58.txt .ai_workflow/.ai_cache/30741e3d882445b4d99630d9e7e92f6bf7f996d0d413ed8f2a70850f8c831c30.meta .ai_workflow/.ai_cache/30741e3d882445b4d99630d9e7e92f6bf7f996d0d413ed8f2a70850f8c831c30.txt .ai_workflow/.ai_cache/30ac3f5bc44f47e9799cfd61f21f54381db97f5425d711883759547c69eb2519.meta .ai_workflow/.ai_cache/30ac3f5bc44f47e9799cfd61f21f54381db97f5425d711883759547c69eb2519.txt .ai_workflow/.ai_cache/3192c8d8706f3963f3cd1d0f9da8c36ac3003db8cd7174c6f918b0666f6ce232.meta .ai_workflow/.ai_cache/3192c8d8706f3963f3cd1d0f9da8c36ac3003db8cd7174c6f918b0666f6ce232.txt .ai_workflow/.ai_cache/3355accd46578773291e9464a0e66faa0ebaa6cfcf3e1273c3be840c70f1e67e.meta .ai_workflow/.ai_cache/3355accd46578773291e9464a0e66faa0ebaa6cfcf3e1273c3be840c70f1e67e.txt .ai_workflow/.ai_cache/33e116c3d0f86a00e0bcf393a452684b04db44f55258d3eeefb91e92c9349623.meta .ai_workflow/.ai_cache/33e116c3d0f86a00e0bcf393a452684b04db44f55258d3eeefb91e92c9349623.txt .ai_workflow/.ai_cache/34ed9aa9f922180eb7ddeaf3bccd5c4502c5d8e50828d0d32dd76df479dc3eb2.meta .ai_workflow/.ai_cache/34ed9aa9f922180eb7ddeaf3bccd5c4502c5d8e50828d0d32dd76df479dc3eb2.txt .ai_workflow/.ai_cache/3984776554f834a52ce83fd5c8a9c74ffae35a0dc0f6db002672cae1d8d3fb6e.meta .ai_workflow/.ai_cache/3984776554f834a52ce83fd5c8a9c74ffae35a0dc0f6db002672cae1d8d3fb6e.txt .ai_workflow/.ai_cache/3de981bf28ed4837d18f4e95ff28cde375e3bc0746d39ac93ee3ddee435e47a3.meta .ai_workflow/.ai_cache/3de981bf28ed4837d18f4e95ff28cde375e3bc0746d39ac93ee3ddee435e47a3.txt .ai_workflow/.ai_cache/3df3ac10c974a7ed286c39e4ad1983f8350acb0f7a96a46313cd080546dff8bf.meta .ai_workflow/.ai_cache/3df3ac10c974a7ed286c39e4ad1983f8350acb0f7a96a46313cd080546dff8bf.txt .ai_workflow/.ai_cache/3e36dd610b9256afe34f56ed538e59016c88882fd9981468bbc29785d34348b6.meta .ai_workflow/.ai_cache/3e36dd610b9256afe34f56ed538e59016c88882fd9981468bbc29785d34348b6.txt .ai_workflow/.ai_cache/3efae65805753e3598d73525cbb958dd71fbdf6f4aab4f2148ee909b795e8290.meta .ai_workflow/.ai_cache/3efae65805753e3598d73525cbb958dd71fbdf6f4aab4f2148ee909b795e8290.txt .ai_workflow/.ai_cache/3f5c56af4c9fb76260994f9489018f5461eb14447349e010f8f1f0caa256aea3.meta .ai_workflow/.ai_cache/3f5c56af4c9fb76260994f9489018f5461eb14447349e010f8f1f0caa256aea3.txt .ai_workflow/.ai_cache/4099133adbaf50932fb27fc5f5b8e5b8b35e1be65b9809453a86960bcd23a6c8.meta .ai_workflow/.ai_cache/4099133adbaf50932fb27fc5f5b8e5b8b35e1be65b9809453a86960bcd23a6c8.txt .ai_workflow/.ai_cache/48ce950e25edbe8df5f06de203b8a7abff934598c431744fe2ddc15541811074.meta .ai_workflow/.ai_cache/48ce950e25edbe8df5f06de203b8a7abff934598c431744fe2ddc15541811074.txt .ai_workflow/.ai_cache/4943608660dc8b19cc8c4e82cc5f0acf9cae2c54f7f5058fb74c510aa8eb6132.meta .ai_workflow/.ai_cache/4943608660dc8b19cc8c4e82cc5f0acf9cae2c54f7f5058fb74c510aa8eb6132.txt .ai_workflow/.ai_cache/4ab30ad6dbb7ee0be7dc74dabc37afbb44a93e6cdd6b776b55412d35da323c28.meta .ai_workflow/.ai_cache/4ab30ad6dbb7ee0be7dc74dabc37afbb44a93e6cdd6b776b55412d35da323c28.txt .ai_workflow/.ai_cache/4aeb0e862a854514896b970899bedae071271ed3c01edc9f9a8c1bf1aa002117.meta .ai_workflow/.ai_cache/4aeb0e862a854514896b970899bedae071271ed3c01edc9f9a8c1bf1aa002117.txt .ai_workflow/.ai_cache/4d6e2ad3a59103f571715ec9f7df8bc723b19b93c7fcd0c019d0cb298e87885a.meta .ai_workflow/.ai_cache/4d6e2ad3a59103f571715ec9f7df8bc723b19b93c7fcd0c019d0cb298e87885a.txt .ai_workflow/.ai_cache/4e37582444a5d0ff7d0a70ca8d77aeab738f15ba70b8288b3d35f9a8f6c7ee3b.meta .ai_workflow/.ai_cache/4e37582444a5d0ff7d0a70ca8d77aeab738f15ba70b8288b3d35f9a8f6c7ee3b.txt .ai_workflow/.ai_cache/500abd47fc1ec34d011416735febf9cb7f3c5c69631af0085c799d7daa76e4c6.meta .ai_workflow/.ai_cache/500abd47fc1ec34d011416735febf9cb7f3c5c69631af0085c799d7daa76e4c6.txt .ai_workflow/.ai_cache/509bf1da9b3df95067b3dc84b24a72bc052c88085b16d8be909a2857a6f03c5f.meta .ai_workflow/.ai_cache/509bf1da9b3df95067b3dc84b24a72bc052c88085b16d8be909a2857a6f03c5f.txt .ai_workflow/.ai_cache/522de7d5dbb3e9b7b5bebe530aacebf41851f76225d73deb6c3f1de3478e4432.meta .ai_workflow/.ai_cache/522de7d5dbb3e9b7b5bebe530aacebf41851f76225d73deb6c3f1de3478e4432.txt .ai_workflow/.ai_cache/529b16876cd417d57f81cda61dcdb83ca0e57f93998568b98aa874c970356380.meta .ai_workflow/.ai_cache/529b16876cd417d57f81cda61dcdb83ca0e57f93998568b98aa874c970356380.txt .ai_workflow/.ai_cache/52e0900cc6371c29eff852a728f198bf15ce2c763a4b316ce5d8cacba6ef3a9e.meta .ai_workflow/.ai_cache/52e0900cc6371c29eff852a728f198bf15ce2c763a4b316ce5d8cacba6ef3a9e.txt .ai_workflow/.ai_cache/5606c30488b2638536480dc5088308f55cc14e2c76fa3a8f3ad01c5121c6bc9b.meta .ai_workflow/.ai_cache/5606c30488b2638536480dc5088308f55cc14e2c76fa3a8f3ad01c5121c6bc9b.txt .ai_workflow/.ai_cache/5867ded6ad301b5722caa2d298570bd174d7ebb3de17e7cae531968707a385b4.meta .ai_workflow/.ai_cache/5867ded6ad301b5722caa2d298570bd174d7ebb3de17e7cae531968707a385b4.txt .ai_workflow/.ai_cache/5972a8b4464e0b8ac033dc984f095ba3c5a67feafee87e9779b859d1aeb48106.meta .ai_workflow/.ai_cache/5972a8b4464e0b8ac033dc984f095ba3c5a67feafee87e9779b859d1aeb48106.txt .ai_workflow/.ai_cache/59e8079747aa443b7578816923082f4098cf0ea58d4fba98d08b68f4c947acd1.meta .ai_workflow/.ai_cache/59e8079747aa443b7578816923082f4098cf0ea58d4fba98d08b68f4c947acd1.txt .ai_workflow/.ai_cache/5b61f73ba03696d4194ffafdb190b8dc85c1fa65efbde0c85b6a8b2faa8183ca.meta .ai_workflow/.ai_cache/5b61f73ba03696d4194ffafdb190b8dc85c1fa65efbde0c85b6a8b2faa8183ca.txt .ai_workflow/.ai_cache/5e26e65359c7ff938586a5f78206ccd1c47c59a09ae0f0b7036cfd2b4aa9ea71.meta .ai_workflow/.ai_cache/5e26e65359c7ff938586a5f78206ccd1c47c59a09ae0f0b7036cfd2b4aa9ea71.txt .ai_workflow/.ai_cache/5e367f152aa5c0f671ab8a13b8b6a0c030105df543cc5346222b3f2b1a5e0444.meta .ai_workflow/.ai_cache/5e367f152aa5c0f671ab8a13b8b6a0c030105df543cc5346222b3f2b1a5e0444.txt .ai_workflow/.ai_cache/5f4cf9ba6369cf75f60b89aa5fea20fb802eebcb7e28cddb855d43e31f591fea.meta .ai_workflow/.ai_cache/5f4cf9ba6369cf75f60b89aa5fea20fb802eebcb7e28cddb855d43e31f591fea.txt .ai_workflow/.ai_cache/5ffcd14f78194b887b219cbad3fffe3268e80669270fc35c1e5b8b94e4acb3b1.meta .ai_workflow/.ai_cache/5ffcd14f78194b887b219cbad3fffe3268e80669270fc35c1e5b8b94e4acb3b1.txt .ai_workflow/.ai_cache/6108bab49b53bcf3c44864705eccb3f2135797345d9ed7fe5d912c0bfe9e1056.meta .ai_workflow/.ai_cache/6108bab49b53bcf3c44864705eccb3f2135797345d9ed7fe5d912c0bfe9e1056.txt .ai_workflow/.ai_cache/614b7e53cf299c2f101359528b524b511c3ad519cd9feca22e08f4dcba404517.meta .ai_workflow/.ai_cache/614b7e53cf299c2f101359528b524b511c3ad519cd9feca22e08f4dcba404517.txt .ai_workflow/.ai_cache/679bf05551beffc3fcc198c323e6e7485d9c2e06213fd2471f151d8edb01e9a5.meta .ai_workflow/.ai_cache/679bf05551beffc3fcc198c323e6e7485d9c2e06213fd2471f151d8edb01e9a5.txt .ai_workflow/.ai_cache/68e3175fe35e0557a5a720325c609f69830f92dbf33cf4f9f555ba98776b7ba4.meta .ai_workflow/.ai_cache/68e3175fe35e0557a5a720325c609f69830f92dbf33cf4f9f555ba98776b7ba4.txt .ai_workflow/.ai_cache/6a239fdc8e013e5b4212735efa33992aa3aabe9293139ba6391bba9500a81b5e.meta .ai_workflow/.ai_cache/6a239fdc8e013e5b4212735efa33992aa3aabe9293139ba6391bba9500a81b5e.txt .ai_workflow/.ai_cache/6a577046801fb0c9191fc12dbad766590d02f39f850ea7a5c6fdc3c73dae52c9.meta .ai_workflow/.ai_cache/6a577046801fb0c9191fc12dbad766590d02f39f850ea7a5c6fdc3c73dae52c9.txt .ai_workflow/.ai_cache/6b44d53c3668f2f3c7b47abcb350aff73e27eca765ed54a7a095a491f2ed063b.meta .ai_workflow/.ai_cache/6b44d53c3668f2f3c7b47abcb350aff73e27eca765ed54a7a095a491f2ed063b.txt .ai_workflow/.ai_cache/6d6ffb679429adf44453c4f90c28f9d73e2485ef64258158a549095c567fde4c.meta .ai_workflow/.ai_cache/6d6ffb679429adf44453c4f90c28f9d73e2485ef64258158a549095c567fde4c.txt .ai_workflow/.ai_cache/6dde118b7ba2e721791d9954cf4aee419013bdd0063dd4f0c45bc4aca3da5ffb.meta .ai_workflow/.ai_cache/6dde118b7ba2e721791d9954cf4aee419013bdd0063dd4f0c45bc4aca3da5ffb.txt .ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.meta .ai_workflow/.ai_cache/6e203a01a3152591e7b2de3ec7ac2a6d06359bd57564d25c5bb44c4e8b99f9bb.txt .ai_workflow/.ai_cache/6e5c18ecf319816bee926516d542ff1b06e3e8441527c6f8cdd612a6b139c183.meta .ai_workflow/.ai_cache/6e5c18ecf319816bee926516d542ff1b06e3e8441527c6f8cdd612a6b139c183.txt .ai_workflow/.ai_cache/6e5dd7a5d2c5f64644fb2a4a3e6a8162556df762fb7f884386874eeaf52b307c.meta .ai_workflow/.ai_cache/6e5dd7a5d2c5f64644fb2a4a3e6a8162556df762fb7f884386874eeaf52b307c.txt .ai_workflow/.ai_cache/6e6da441a5f122d6294304a096635ba9790871a0979ebb6408a35d89bea126a7.meta .ai_workflow/.ai_cache/6e6da441a5f122d6294304a096635ba9790871a0979ebb6408a35d89bea126a7.txt .ai_workflow/.ai_cache/70b0bde3d628858eca24a01c42a8cb947afdc3012c916bea1bc06d57c08eda31.meta .ai_workflow/.ai_cache/70b0bde3d628858eca24a01c42a8cb947afdc3012c916bea1bc06d57c08eda31.txt .ai_workflow/.ai_cache/738817a8b4ac5d84232aedb02788091b69b49a515544c320c18555a3ac7856ad.meta .ai_workflow/.ai_cache/738817a8b4ac5d84232aedb02788091b69b49a515544c320c18555a3ac7856ad.txt .ai_workflow/.ai_cache/74877e965bf4b926f133f2f05d7d1412929d30c64eeb3439cd0b37636ae08ab6.meta .ai_workflow/.ai_cache/74877e965bf4b926f133f2f05d7d1412929d30c64eeb3439cd0b37636ae08ab6.txt .ai_workflow/.ai_cache/7736809a78e551b57c4a1624c90953d2b59efd418c7aae7dc5467f0fe28ad57f.meta .ai_workflow/.ai_cache/7736809a78e551b57c4a1624c90953d2b59efd418c7aae7dc5467f0fe28ad57f.txt .ai_workflow/.ai_cache/785f172e019763ae975ad09102d1119c2ef373afe724256d32df892f5f5268ab.meta .ai_workflow/.ai_cache/785f172e019763ae975ad09102d1119c2ef373afe724256d32df892f5f5268ab.txt .ai_workflow/.ai_cache/7986ecfda250912ac389bcc7a15f434b6be081dd398cc8a2316fa8795f89ac67.meta .ai_workflow/.ai_cache/7986ecfda250912ac389bcc7a15f434b6be081dd398cc8a2316fa8795f89ac67.txt .ai_workflow/.ai_cache/7c235e95e4df6f73b3fd516a9bf5688db71dcf31abf4de6730b4dbb650c6d4d0.meta .ai_workflow/.ai_cache/7c235e95e4df6f73b3fd516a9bf5688db71dcf31abf4de6730b4dbb650c6d4d0.txt .ai_workflow/.ai_cache/7d182520263f78981fff7386e41234247ecf70c5f1b54bba1a83101f6498543e.meta .ai_workflow/.ai_cache/7d182520263f78981fff7386e41234247ecf70c5f1b54bba1a83101f6498543e.txt .ai_workflow/.ai_cache/7d49f62b99bfb5b316777d554b4303774db6147da528fd689fb7951ee5f904ff.meta .ai_workflow/.ai_cache/7d49f62b99bfb5b316777d554b4303774db6147da528fd689fb7951ee5f904ff.txt .ai_workflow/.ai_cache/7e17e1f952921e9faebcc334188daa7ce93d0780cdfdc339f57d4a086cdc87a7.meta .ai_workflow/.ai_cache/7e17e1f952921e9faebcc334188daa7ce93d0780cdfdc339f57d4a086cdc87a7.txt .ai_workflow/.ai_cache/82b96b9d41d114ccd1b5722144338f67c6c7fcd513923e0c9ec54e627f11e270.meta .ai_workflow/.ai_cache/82b96b9d41d114ccd1b5722144338f67c6c7fcd513923e0c9ec54e627f11e270.txt .ai_workflow/.ai_cache/850b5d187c6fc54dc36f81bf48e658c409a95885bdac9d1320abd8841d13ff2d.meta .ai_workflow/.ai_cache/850b5d187c6fc54dc36f81bf48e658c409a95885bdac9d1320abd8841d13ff2d.txt .ai_workflow/.ai_cache/8607230b742b12896cbc7595dd000441f7830fbe2d608649e7f9862847e3e641.meta .ai_workflow/.ai_cache/8607230b742b12896cbc7595dd000441f7830fbe2d608649e7f9862847e3e641.txt .ai_workflow/.ai_cache/8733c7d682ed9a2187e362561055739b66e8779bc015dc1e4f1ba4e2de1e92ba.meta .ai_workflow/.ai_cache/8733c7d682ed9a2187e362561055739b66e8779bc015dc1e4f1ba4e2de1e92ba.txt .ai_workflow/.ai_cache/878cb1fd43b00ca4115af7c12280192588d121a3556b8424e8e01781b2f265c0.meta .ai_workflow/.ai_cache/878cb1fd43b00ca4115af7c12280192588d121a3556b8424e8e01781b2f265c0.txt .ai_workflow/.ai_cache/8c91b70305a75fca014a17f166c00f006d57fdc7a53455a55ec0b458bac058ac.meta .ai_workflow/.ai_cache/8c91b70305a75fca014a17f166c00f006d57fdc7a53455a55ec0b458bac058ac.txt .ai_workflow/.ai_cache/8e420d21750a13cd300d6f8c3e72b17d90c76e22d6a5030f6aa465882452128e.meta .ai_workflow/.ai_cache/8e420d21750a13cd300d6f8c3e72b17d90c76e22d6a5030f6aa465882452128e.txt .ai_workflow/.ai_cache/8f936c222d37d6dcbbbc9051a2012c924737b90320cff7f36b4d03b9c800114c.meta .ai_workflow/.ai_cache/8f936c222d37d6dcbbbc9051a2012c924737b90320cff7f36b4d03b9c800114c.txt .ai_workflow/.ai_cache/94d411b3f49d106f8e54dea98a699467659bd91973d9494c6d9fb9ab4e25cda2.meta .ai_workflow/.ai_cache/94d411b3f49d106f8e54dea98a699467659bd91973d9494c6d9fb9ab4e25cda2.txt .ai_workflow/.ai_cache/96a6b460d647f21b5d3ef039b4e1eea1b9b3a062fb6e78c30533993c854a6988.meta .ai_workflow/.ai_cache/96a6b460d647f21b5d3ef039b4e1eea1b9b3a062fb6e78c30533993c854a6988.txt .ai_workflow/.ai_cache/97f0d545069f81c82019d396f267a0b33bec2e2b0c9ff223dc97315d9110c02b.meta .ai_workflow/.ai_cache/97f0d545069f81c82019d396f267a0b33bec2e2b0c9ff223dc97315d9110c02b.txt .ai_workflow/.ai_cache/98bbaa8688f69a1839993f00e57149247caaeaf754c657259766ffae3b15517a.meta .ai_workflow/.ai_cache/98bbaa8688f69a1839993f00e57149247caaeaf754c657259766ffae3b15517a.txt .ai_workflow/.ai_cache/9b14792c211ccea8df7b4f44beb9b20384b4a329efb84a3199a77fbc1957dd7a.meta .ai_workflow/.ai_cache/9b14792c211ccea8df7b4f44beb9b20384b4a329efb84a3199a77fbc1957dd7a.txt .ai_workflow/.ai_cache/9c46779ff04e681d1a2213fa89d8c0cca39c3c73205376254a349a10b0e5be40.meta .ai_workflow/.ai_cache/9c46779ff04e681d1a2213fa89d8c0cca39c3c73205376254a349a10b0e5be40.txt .ai_workflow/.ai_cache/9ddbfa54eda33228256c5943c03ee47fc82bf605b3e0c6ac9a474e7ae844144d.meta .ai_workflow/.ai_cache/9ddbfa54eda33228256c5943c03ee47fc82bf605b3e0c6ac9a474e7ae844144d.txt .ai_workflow/.ai_cache/9f391d40ff51f0a3b25d8b370b9cb09325df270c21e1fc0c8e1f7ad45d53889a.meta .ai_workflow/.ai_cache/9f391d40ff51f0a3b25d8b370b9cb09325df270c21e1fc0c8e1f7ad45d53889a.txt .ai_workflow/.ai_cache/9f89a03146ae90c64dd1746e2d637564c21b7657ff801b0dca23f7cd97afb262.meta .ai_workflow/.ai_cache/9f89a03146ae90c64dd1746e2d637564c21b7657ff801b0dca23f7cd97afb262.txt .ai_workflow/.ai_cache/a05a6b2780e73ae7cf4afe4369998dd0876fb14a54a573d6b6dd5434c6244580.meta .ai_workflow/.ai_cache/a05a6b2780e73ae7cf4afe4369998dd0876fb14a54a573d6b6dd5434c6244580.txt .ai_workflow/.ai_cache/a079f5968ad0e158abbf7855d501e8b3fb126e3eb2269280d33b3ee806c39823.meta .ai_workflow/.ai_cache/a079f5968ad0e158abbf7855d501e8b3fb126e3eb2269280d33b3ee806c39823.txt .ai_workflow/.ai_cache/a27ffa6cdb4979eea1d95226f0a20dddd26cb9297f67120d5d7f0d48b167d62a.meta .ai_workflow/.ai_cache/a27ffa6cdb4979eea1d95226f0a20dddd26cb9297f67120d5d7f0d48b167d62a.txt .ai_workflow/.ai_cache/a2ba50082cee5c78965b32e60360351fd9a2ed2f4c6cc0201ad581807de96fc3.meta .ai_workflow/.ai_cache/a2ba50082cee5c78965b32e60360351fd9a2ed2f4c6cc0201ad581807de96fc3.txt .ai_workflow/.ai_cache/a3c172beaf14a05910da90214d4ed251559d7fb718361792ed39fc304d11b074.meta .ai_workflow/.ai_cache/a3c172beaf14a05910da90214d4ed251559d7fb718361792ed39fc304d11b074.txt .ai_workflow/.ai_cache/a563d745759fc1d7c53f2c4a34d3fc2a750ff50d0dc6856ab49293880445fe4d.meta .ai_workflow/.ai_cache/a563d745759fc1d7c53f2c4a34d3fc2a750ff50d0dc6856ab49293880445fe4d.txt .ai_workflow/.ai_cache/ac2c59973f2c0cb7815f331d21a9bfe4c39208cf4ff8ceb6e5fc2a67c09f91d9.meta .ai_workflow/.ai_cache/ac2c59973f2c0cb7815f331d21a9bfe4c39208cf4ff8ceb6e5fc2a67c09f91d9.txt .ai_workflow/.ai_cache/ac2d0024411d1fb1f84bf243ac397ff626331a22b7ba3ebf162363ca361a401c.meta .ai_workflow/.ai_cache/ac2d0024411d1fb1f84bf243ac397ff626331a22b7ba3ebf162363ca361a401c.txt .ai_workflow/.ai_cache/ad2dca86fefc6436ff8ee1c5289d33bea43872ada779077c0cecdef107270ff2.meta .ai_workflow/.ai_cache/ad2dca86fefc6436ff8ee1c5289d33bea43872ada779077c0cecdef107270ff2.txt .ai_workflow/.ai_cache/adc700bded4f8c0e49171544c51ac89c10746b05606d990babd19165cdcf6b3f.meta .ai_workflow/.ai_cache/adc700bded4f8c0e49171544c51ac89c10746b05606d990babd19165cdcf6b3f.txt .ai_workflow/.ai_cache/afde57b014405ec2055f8441ae6273d785c2b195fbdbc3b1b233572a3bafaf14.meta .ai_workflow/.ai_cache/afde57b014405ec2055f8441ae6273d785c2b195fbdbc3b1b233572a3bafaf14.txt .ai_workflow/.ai_cache/b0d69614de36fe5e14f06c15e9097297cb60caadfa20d6a1d1661d5fe7d099cc.meta .ai_workflow/.ai_cache/b0d69614de36fe5e14f06c15e9097297cb60caadfa20d6a1d1661d5fe7d099cc.txt .ai_workflow/.ai_cache/b239327270e2c3a66196fe86aa2bbbe45eb86748e266adf006bb536e4a1081bb.meta .ai_workflow/.ai_cache/b239327270e2c3a66196fe86aa2bbbe45eb86748e266adf006bb536e4a1081bb.txt .ai_workflow/.ai_cache/c07646c2632b396e4520a2657cd2d73ac3e90aa79a8b4d36e9130dc59b96e1a2.meta .ai_workflow/.ai_cache/c07646c2632b396e4520a2657cd2d73ac3e90aa79a8b4d36e9130dc59b96e1a2.txt .ai_workflow/.ai_cache/c17007926ea6a4e1716406d20eda4252642ff066aa23bdd008a1359605b01b93.meta .ai_workflow/.ai_cache/c17007926ea6a4e1716406d20eda4252642ff066aa23bdd008a1359605b01b93.txt .ai_workflow/.ai_cache/c1e9452b30b6a828f79e384301efd24f21c16e688458dd26b5e494a08a13c1b2.meta .ai_workflow/.ai_cache/c1e9452b30b6a828f79e384301efd24f21c16e688458dd26b5e494a08a13c1b2.txt .ai_workflow/.ai_cache/c2541e176d3fd6d718aa09bc2f1a70b91d6a959f7b791b751d5ea6de78196944.meta .ai_workflow/.ai_cache/c2541e176d3fd6d718aa09bc2f1a70b91d6a959f7b791b751d5ea6de78196944.txt .ai_workflow/.ai_cache/c48d0ff07ce2aecd0d239a505450bad469c84d54c10a06ac366b4f4a23896654.meta .ai_workflow/.ai_cache/c48d0ff07ce2aecd0d239a505450bad469c84d54c10a06ac366b4f4a23896654.txt .ai_workflow/.ai_cache/c52502964985e529fc17c01b6472c3092fe5286c7e6e50176029aec0074d9c38.meta .ai_workflow/.ai_cache/c52502964985e529fc17c01b6472c3092fe5286c7e6e50176029aec0074d9c38.txt .ai_workflow/.ai_cache/c8a5b203e1933857ba2b0666831e7ad0989cc8c510e146753823b5a58c426fde.meta .ai_workflow/.ai_cache/c8a5b203e1933857ba2b0666831e7ad0989cc8c510e146753823b5a58c426fde.txt .ai_workflow/.ai_cache/c94d2f2d153fbe9942a4c21334918f21cebc3b6f1a04e19cd518db7e602affed.meta .ai_workflow/.ai_cache/c94d2f2d153fbe9942a4c21334918f21cebc3b6f1a04e19cd518db7e602affed.txt .ai_workflow/.ai_cache/cd048b813e01e0dc92c583af8cf1c0fb20954a13d47cfdcc32d1135af1142ac5.meta .ai_workflow/.ai_cache/cd048b813e01e0dc92c583af8cf1c0fb20954a13d47cfdcc32d1135af1142ac5.txt .ai_workflow/.ai_cache/ce788fb2000b9957ad26f98e6a3601e876d060bf3eb03c5e73332e78c9d9dff0.meta .ai_workflow/.ai_cache/ce788fb2000b9957ad26f98e6a3601e876d060bf3eb03c5e73332e78c9d9dff0.txt .ai_workflow/.ai_cache/d10e74a07989df350a566669f29e00faf09589582a7725e2a868916a83816ccb.meta .ai_workflow/.ai_cache/d10e74a07989df350a566669f29e00faf09589582a7725e2a868916a83816ccb.txt .ai_workflow/.ai_cache/d19d3bffd8fe069dd28e8e7aa74251bbfc3d925ba9cf645353b0821b5489e4a1.meta .ai_workflow/.ai_cache/d19d3bffd8fe069dd28e8e7aa74251bbfc3d925ba9cf645353b0821b5489e4a1.txt .ai_workflow/.ai_cache/d6d044add98d85aec47052d4c50777c7cda9f8d16af4df1bfeadc43107c5e8c2.meta .ai_workflow/.ai_cache/d6d044add98d85aec47052d4c50777c7cda9f8d16af4df1bfeadc43107c5e8c2.txt .ai_workflow/.ai_cache/d71751f57bc99f275adf3b54e8d9ba71cb844fb0f50c8a0058e9ae35392120df.meta .ai_workflow/.ai_cache/d71751f57bc99f275adf3b54e8d9ba71cb844fb0f50c8a0058e9ae35392120df.txt .ai_workflow/.ai_cache/d9e89aea77ad6887d0ae98a19527fd6fb269687aaaab7e74d0b600a6f2930c49.meta .ai_workflow/.ai_cache/d9e89aea77ad6887d0ae98a19527fd6fb269687aaaab7e74d0b600a6f2930c49.txt .ai_workflow/.ai_cache/da3561e4253c55354acca7ddec99ae36108f115b842fd9be5682580c8948fd69.meta .ai_workflow/.ai_cache/da3561e4253c55354acca7ddec99ae36108f115b842fd9be5682580c8948fd69.txt .ai_workflow/.ai_cache/e00685be88400da57b534f54d648dde1e9655d2d3a3e783716c9cf686f007a53.meta .ai_workflow/.ai_cache/e00685be88400da57b534f54d648dde1e9655d2d3a3e783716c9cf686f007a53.txt .ai_workflow/.ai_cache/e241f9ebfe03036796384436659625c1334f0379e896097250b119573aaca107.meta .ai_workflow/.ai_cache/e241f9ebfe03036796384436659625c1334f0379e896097250b119573aaca107.txt .ai_workflow/.ai_cache/e2892dd35fbb2e668ec69f3950e31b12b3aad9a69fd5b89c1b0698fc477af64c.meta .ai_workflow/.ai_cache/e2892dd35fbb2e668ec69f3950e31b12b3aad9a69fd5b89c1b0698fc477af64c.txt .ai_workflow/.ai_cache/e2c8db542d5e4ba60a377ff51214073d9455848a952b8246df02670a658a327c.meta .ai_workflow/.ai_cache/e2c8db542d5e4ba60a377ff51214073d9455848a952b8246df02670a658a327c.txt .ai_workflow/.ai_cache/e38d0fc24ff41e5b2917c0cde461141dafe2073043c4b77a5bd360bf0ee51ed7.meta .ai_workflow/.ai_cache/e38d0fc24ff41e5b2917c0cde461141dafe2073043c4b77a5bd360bf0ee51ed7.txt .ai_workflow/.ai_cache/e3b51d2e354398645a919ded8d53dad73f37b82892ab9de83270bee629daf79c.meta .ai_workflow/.ai_cache/e3b51d2e354398645a919ded8d53dad73f37b82892ab9de83270bee629daf79c.txt .ai_workflow/.ai_cache/e7a6d467e1955cb9045bcd2701115e5231e2adde2691c0b8eb66dc26dffd2fb3.meta .ai_workflow/.ai_cache/e7a6d467e1955cb9045bcd2701115e5231e2adde2691c0b8eb66dc26dffd2fb3.txt .ai_workflow/.ai_cache/e83c54e9787bef01dddb63786cf6b1e3d5ea85e82a3eb085af1715032ecf6e34.meta .ai_workflow/.ai_cache/e83c54e9787bef01dddb63786cf6b1e3d5ea85e82a3eb085af1715032ecf6e34.txt .ai_workflow/.ai_cache/edda41e9b86e4a684e24764cc14c953cd8efad8d47df8ecaf6854cbeda1d1bec.meta .ai_workflow/.ai_cache/edda41e9b86e4a684e24764cc14c953cd8efad8d47df8ecaf6854cbeda1d1bec.txt .ai_workflow/.ai_cache/eea617ac74d961f59fd30fd689fca26c927a754579c96860041fc261bae344de.meta .ai_workflow/.ai_cache/eea617ac74d961f59fd30fd689fca26c927a754579c96860041fc261bae344de.txt .ai_workflow/.ai_cache/eee1f4a2ae8536b0e59b21fd22d3f2777809cffe10fe055f9075bc71e37256c6.meta .ai_workflow/.ai_cache/eee1f4a2ae8536b0e59b21fd22d3f2777809cffe10fe055f9075bc71e37256c6.txt .ai_workflow/.ai_cache/ef6a33950e286fcdfef5768b9fa59525f94f9ddbb59da9c60bfd94ab3ffbcbfd.meta .ai_workflow/.ai_cache/ef6a33950e286fcdfef5768b9fa59525f94f9ddbb59da9c60bfd94ab3ffbcbfd.txt .ai_workflow/.ai_cache/f03c6814c94886b430708d21374a6511d34af9756974568fec22d5d1891396b6.meta .ai_workflow/.ai_cache/f03c6814c94886b430708d21374a6511d34af9756974568fec22d5d1891396b6.txt .ai_workflow/.ai_cache/f6236d2dc62aaf3801357d04fab44f387b3dee743ef777db194eae3f6aa7ca97.meta .ai_workflow/.ai_cache/f6236d2dc62aaf3801357d04fab44f387b3dee743ef777db194eae3f6aa7ca97.txt .ai_workflow/.ai_cache/f6863f7ea6ecaa28f7d3884d756b42ae36654194f97366fafc0b266b62467178.meta .ai_workflow/.ai_cache/f6863f7ea6ecaa28f7d3884d756b42ae36654194f97366fafc0b266b62467178.txt .ai_workflow/.ai_cache/f7c819779f55f6695aeb939ed98a67fd86daca89a9438f82d3af942a240f4b4e.meta .ai_workflow/.ai_cache/f7c819779f55f6695aeb939ed98a67fd86daca89a9438f82d3af942a240f4b4e.txt .ai_workflow/.ai_cache/f8d50f6d0eeef6913530620b47af3d44a48be189a631f8d29b73d5c85101ac19.meta .ai_workflow/.ai_cache/f8d50f6d0eeef6913530620b47af3d44a48be189a631f8d29b73d5c85101ac19.txt .ai_workflow/.ai_cache/fdf3da01c751bc40486bb4b66a4af5506e03fa1dfef7f0e2b3c45bf57b30201d.meta .ai_workflow/.ai_cache/fdf3da01c751bc40486bb4b66a4af5506e03fa1dfef7f0e2b3c45bf57b30201d.txt .ai_workflow/.ai_cache/index.json .ai_workflow/checkpoints/workflow_1771548004284-1771548004724.json .ai_workflow/checkpoints/workflow_1771548232039-1771548232485.json .ai_workflow/checkpoints/workflow_1771548494398-1771548494849.json .ai_workflow/checkpoints/workflow_1771548742189-1771548742385.json .ai_workflow/checkpoints/workflow_1771549502860-1771549503072.json .ai_workflow/checkpoints/workflow_1771550024706-1771550024922.json .ai_workflow/checkpoints/workflow_1771551252853-1771551253278.json .ai_workflow/checkpoints/workflow_1771551404011-1771551404478.json .ai_workflow/checkpoints/workflow_1771551852343-1771551852784.json .ai_workflow/checkpoints/workflow_1771552158442-1771552158880.json .ai_workflow/checkpoints/workflow_1771552254992-1771552255421.json .ai_workflow/checkpoints/workflow_1771552478309-1771552479804.json .ai_workflow/checkpoints/workflow_1771553135110-1771553136580.json .ai_workflow/checkpoints/workflow_1771553299257-1771553302123.json .ai_workflow/checkpoints/workflow_1771553449467-1771553452209.json .ai_workflow/checkpoints/workflow_1771553666831-1771554230830.json .ai_workflow/checkpoints/workflow_1771554317637-1771554611537.json .ai_workflow/checkpoints/workflow_1771554900655-1771554966370.json .ai_workflow/checkpoints/workflow_1771556099165-1771556103029.json .ai_workflow/checkpoints/workflow_1771557666914-1771557670727.json .ai_workflow/checkpoints/workflow_1771557915648-1771557919212.json .ai_workflow/checkpoints/workflow_1771558451565-1771558455297.json .ai_workflow/checkpoints/workflow_1771560583123-1771560586822.json .ai_workflow/checkpoints/workflow_1771560721674-1771560725541.json .ai_workflow/checkpoints/workflow_1771561681573-1771561685576.json .ai_workflow/checkpoints/workflow_1771585145939-1771585161446.json .ai_workflow/checkpoints/workflow_1771586321392-1771586336121.json .ai_workflow/checkpoints/workflow_1771586379016-1771586395685.json .ai_workflow/checkpoints/workflow_1771586452520-1771586469432.json .ai_workflow/checkpoints/workflow_1771586726714-1771586741986.json .ai_workflow/checkpoints/workflow_1771586826783-1771586842303.json .ai_workflow/checkpoints/workflow_1771587454462-1771587470786.json .ai_workflow/checkpoints/workflow_1771587822334-1771587871095.json .ai_workflow/checkpoints/workflow_1771589053870-1771589107509.json .ai_workflow/checkpoints/workflow_1771589506585-1771589541304.json .ai_workflow/checkpoints/workflow_1771589683499-1771589715281.json .ai_workflow/checkpoints/workflow_1771589742098-1771589783118.json .ai_workflow/checkpoints/workflow_1771608475040-1771608481839.json .ai_workflow/checkpoints/workflow_1771608883908-1771608983842.json .ai_workflow/checkpoints/workflow_1771609050178-1771609167985.json .ai_workflow/checkpoints/workflow_1771610372481-1771610415256.json .ai_workflow/checkpoints/workflow_1771611326053-1771611334262.json .ai_workflow/checkpoints/workflow_1771611468420-1771611507984.json .ai_workflow/checkpoints/workflow_1771612473103-1771612499474.json .ai_workflow/checkpoints/workflow_1771612912785-1771612950030.json .ai_workflow/checkpoints/workflow_1771614521565-1771614557036.json .ai_workflow/checkpoints/workflow_1771615654785-1771615666315.json .ai_workflow/checkpoints/workflow_1771622269827-1771622283056.json .ai_workflow/checkpoints/workflow_1771622622768-1771622634213.json .ai_workflow/checkpoints/workflow_1771622858719-1771622869585.json .ai_workflow/checkpoints/workflow_1771626260511-1771626273623.json .ai_workflow/checkpoints/workflow_1771627612867-1771627623439.json .ai_workflow/checkpoints/workflow_1771629813161-1771629823615.json .ai_workflow/checkpoints/workflow_1771630299577-1771630314271.json .ai_workflow/checkpoints/workflow_1771631299174-1771631302552.json .ai_workflow/checkpoints/workflow_1771631692464-1771631698009.json .ai_workflow/checkpoints/workflow_1771632440547-1771632450818.json .ai_workflow/checkpoints/workflow_1771633687461-1771633704402.json .ai_workflow/checkpoints/workflow_1771633990965-1771633993795.json .ai_workflow/checkpoints/workflow_1771634116529-1771634119068.json .ai_workflow/checkpoints/workflow_1771634468751-1771634475630.json .ai_workflow/checkpoints/workflow_1771635438844-1771635443715.json .ai_workflow/checkpoints/workflow_1771636368895-1771636376414.json .ai_workflow/checkpoints/workflow_1771636491913-1771636527261.json .ai_workflow/checkpoints/workflow_1771637361934-1771637387933.json .ai_workflow/checkpoints/workflow_1771638138380-1771638166073.json .ai_workflow/checkpoints/workflow_1771638405896-1771638428194.json .ai_workflow/checkpoints/workflow_1771639701867-1771639724744.json .ai_workflow/checkpoints/workflow_1771641159352-1771641184458.json .ai_workflow/checkpoints/workflow_1771678398115-1771678432868.json .ai_workflow/checkpoints/workflow_1771686413988-1771686455839.json .ai_workflow/checkpoints/workflow_1771703630478-1771703724570.json .ai_workflow/checkpoints/workflow_1771705369554-1771705550389.json .ai_workflow/checkpoints/workflow_1771709918643-1771710087627.json .ai_workflow/checkpoints/workflow_1771712306331-1771712534893.json .ai_workflow/checkpoints/workflow_1771715319077-1771715501080.json .ai_workflow/checkpoints/workflow_1771715884148-1771716057479.json .ai_workflow/checkpoints/workflow_1771717327216-1771717494052.json .ai_workflow/checkpoints/workflow_1771723673919-1771724077061.json .ai_workflow/checkpoints/workflow_1771727465272-1771727760102.json .ai_workflow/checkpoints/workflow_1771731481178-1771731645469.json .ai_workflow/checkpoints/workflow_1771799170203-1771799464956.json .ai_workflow/checkpoints/workflow_1771810970366-1771811517537.json .ai_workflow/checkpoints/workflow_1771815055303-1771815443641.json .ai_workflow/checkpoints/workflow_1771816844977-1771817194387.json .ai_workflow/checkpoints/workflow_1771868651503-1771868919069.json .ai_workflow/checkpoints/workflow_1771870398112-1771870986747.json .ai_workflow/checkpoints/workflow_1771876169554-1771876514392.json .ai_workflow/checkpoints/workflow_1771883717362-1771884286871.json .ai_workflow/checkpoints/workflow_1771889041515-1771889706546.json .ai_workflow/commit_history.json .ai_workflow/logs/workflow_20260226_153533/steps/step_12.log .ai_workflow/logs/workflow_20260226_153533/workflow.log .ai_workflow/summaries/workflow_20260210_223330/workflow_summary.md docs/GETTING_STARTED.md docs/WORKFLOW_ENGINE_REQUIREMENTS.md docs/api/core/executor.md docs/api/core/system.md docs/api/logger.md docs/api/utils.md docs/guides/WORKFLOW_VALIDATION_GUIDE.md .ai_workflow/.ai_cache/index.json .ai_workflow/logs/workflow_20260226_153533/workflow.log docs/FUNCTIONAL_REQUIREMENTS.md docs/api/EXAMPLES.md docs/api/utils.md docs/guides/CONDITIONAL_EXECUTION.md docs/reports/implementation/MIGRATION_PLAN.md
+fatal: pathspec '.ai_workflow/.ai_cache/009532318926a7361b767fca3a9ae3fbb7adf47d927ffd09008ca42a5ff505a0.meta' did not match any files
+
+[2026-03-03T22:25:34.745Z] Skipped: error
+[2026-03-03T22:25:34.745Z] ✓ Step step_0f completed in 60ms
+[2026-03-03T22:25:34.745Z] [DEBUG] [Performance] step_0f: 60ms
+[2026-03-03T22:25:34.745Z] [DEBUG] Recorded outcome for step_0f: success
+[2026-03-03T22:25:34.745Z] ✓ Completed: Commit Artifacts (0s)
+[2026-03-03T22:25:34.745Z] Executing step: Git Finalization (step_12)
+[2026-03-03T22:25:34.745Z] [DEBUG] Prediction for step_12: skip (confidence: 0.95)
+[2026-03-03T22:25:34.745Z] [DEBUG] [MLOptimizer] step_12: predicted skippable (confidence 0.95)
+[2026-03-03T22:25:34.745Z] 
+→ Starting: Git Finalization
+[2026-03-03T22:25:34.745Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.745Z] 🔷  Step 12: Git Finalization
+[2026-03-03T22:25:34.745Z] ════════════════════════════════════════════════════════════
+[2026-03-03T22:25:34.746Z] Analyzing git repository state...
+[2026-03-03T22:25:34.795Z] Branch: main (ahead: 12, behind: 0)
+[2026-03-03T22:25:34.796Z] Changes: 467 files
+[2026-03-03T22:25:34.796Z] Inferred commit type: feat(implementation+tests)
+[2026-03-03T22:25:34.796Z] Processing submodules...
+[2026-03-03T22:25:34.828Z] Submodules (1 total):
+  ✅ .workflow_core (heads/main) @ 544e1cc
+  Summary: 1 initialized
+[2026-03-03T22:25:34.829Z] Staging all changes...
+[2026-03-03T22:25:34.901Z] [DEBUG] Submodule changes committed

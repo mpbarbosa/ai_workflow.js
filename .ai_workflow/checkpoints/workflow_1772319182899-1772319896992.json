@@ -1,0 +1,383 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1772319182899",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1772319896992,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 20,
+            "modifiedFilesList": [
+              "CHANGELOG.md",
+              "__tests__/coordination/EventCoordinator.test.ts",
+              "__tests__/core/GeocodingState.test.ts",
+              "__tests__/core/bug-fix-geoposition-type.test.ts",
+              "__tests__/e2e/MilhoVerde-SerroMG.e2e.test.ts",
+              "__tests__/integration/PositionManager-HTMLPositionDisplayer.integration.test.ts",
+              "__tests__/integration/WebGeocodingManager.dom.test.ts",
+              "__tests__/integration/core-modules.test.ts",
+              "dist/index.html",
+              "docs/architecture/ARCHITECTURE.md",
+              "docs/architecture/GEO_POSITION.md",
+              "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+              "docs/guides/QUICK_START.md",
+              "jest.config.unit.js",
+              "src/coordination/WebGeocodingManager.ts",
+              "src/core/GeocodingState.ts",
+              "src/core/PositionManager.ts",
+              "src/guia.js",
+              "src/types/paraty-geocore.d.ts",
+              "src/views/home.js"
+            ],
+            "changeScope": "full-stack",
+            "fileCounts": {
+              "documentation": 5,
+              "test": 7,
+              "source": 7,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                "CHANGELOG.md",
+                "docs/architecture/ARCHITECTURE.md",
+                "docs/architecture/GEO_POSITION.md",
+                "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+                "docs/guides/QUICK_START.md"
+              ],
+              "test": [
+                "__tests__/coordination/EventCoordinator.test.ts",
+                "__tests__/core/GeocodingState.test.ts",
+                "__tests__/core/bug-fix-geoposition-type.test.ts",
+                "__tests__/e2e/MilhoVerde-SerroMG.e2e.test.ts",
+                "__tests__/integration/PositionManager-HTMLPositionDisplayer.integration.test.ts",
+                "__tests__/integration/WebGeocodingManager.dom.test.ts",
+                "__tests__/integration/core-modules.test.ts"
+              ],
+              "source": [
+                "jest.config.unit.js",
+                "src/coordination/WebGeocodingManager.ts",
+                "src/core/GeocodingState.ts",
+                "src/core/PositionManager.ts",
+                "src/guia.js",
+                "src/types/paraty-geocore.d.ts",
+                "src/views/home.js"
+              ],
+              "config": [
+                "dist/index.html"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "location_based_service",
+              "confidence": 100,
+              "source": "config",
+              "description": "location_based_service"
+            },
+            "techStack": {
+              "primary_language": "javascript",
+              "languages": [
+                "javascript",
+                "python",
+                "markdown",
+                "html",
+                "typescript",
+                "css",
+                "json",
+                "bash",
+                "yaml"
+              ],
+              "frameworks": [
+                {
+                  "name": "Vue.js",
+                  "type": "frontend-framework",
+                  "version": "^3.5.29",
+                  "package": "vue"
+                },
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^30.1.3",
+                  "package": "jest"
+                },
+                {
+                  "name": "Vite",
+                  "type": "build-tool",
+                  "version": "^7.3.1",
+                  "package": "vite"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-02-28T22:53:03.087Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1772319183089
+          },
+          "contextUpdate": {
+            "projectType": "location_based_service",
+            "modifiedFiles": [
+              "CHANGELOG.md",
+              "__tests__/coordination/EventCoordinator.test.ts",
+              "__tests__/core/GeocodingState.test.ts",
+              "__tests__/core/bug-fix-geoposition-type.test.ts",
+              "__tests__/e2e/MilhoVerde-SerroMG.e2e.test.ts",
+              "__tests__/integration/PositionManager-HTMLPositionDisplayer.integration.test.ts",
+              "__tests__/integration/WebGeocodingManager.dom.test.ts",
+              "__tests__/integration/core-modules.test.ts",
+              "dist/index.html",
+              "docs/architecture/ARCHITECTURE.md",
+              "docs/architecture/GEO_POSITION.md",
+              "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+              "docs/guides/QUICK_START.md",
+              "jest.config.unit.js",
+              "src/coordination/WebGeocodingManager.ts",
+              "src/core/GeocodingState.ts",
+              "src/core/PositionManager.ts",
+              "src/guia.js",
+              "src/types/paraty-geocore.d.ts",
+              "src/views/home.js"
+            ],
+            "categorizedFiles": {
+              "documentation": [
+                "CHANGELOG.md",
+                "docs/architecture/ARCHITECTURE.md",
+                "docs/architecture/GEO_POSITION.md",
+                "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+                "docs/guides/QUICK_START.md"
+              ],
+              "test": [
+                "__tests__/coordination/EventCoordinator.test.ts",
+                "__tests__/core/GeocodingState.test.ts",
+                "__tests__/core/bug-fix-geoposition-type.test.ts",
+                "__tests__/e2e/MilhoVerde-SerroMG.e2e.test.ts",
+                "__tests__/integration/PositionManager-HTMLPositionDisplayer.integration.test.ts",
+                "__tests__/integration/WebGeocodingManager.dom.test.ts",
+                "__tests__/integration/core-modules.test.ts"
+              ],
+              "source": [
+                "jest.config.unit.js",
+                "src/coordination/WebGeocodingManager.ts",
+                "src/core/GeocodingState.ts",
+                "src/core/PositionManager.ts",
+                "src/guia.js",
+                "src/types/paraty-geocore.d.ts",
+                "src/views/home.js"
+              ],
+              "config": [
+                "dist/index.html"
+              ],
+              "workflow_artifact": []
+            },
+            "fileCounts": {
+              "documentation": 5,
+              "test": 7,
+              "source": 7,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "changeScope": "full-stack",
+            "commitsAhead": 0
+          }
+        },
+        "duration": 118
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "documentation coverage adequate"
+        },
+        "duration": 8
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [
+              "CHANGELOG.md",
+              "docs/architecture/ARCHITECTURE.md",
+              "docs/architecture/GEO_POSITION.md",
+              "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+              "docs/guides/QUICK_START.md"
+            ],
+            "source": [
+              "src/guia.js",
+              "src/views/home.js"
+            ],
+            "tests": [],
+            "config": [
+              "jest.config.unit.js"
+            ],
+            "counts": {
+              "documentation": 5,
+              "source": 2,
+              "tests": 0,
+              "config": 1,
+              "total": 20
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": false,
+              "issues": [
+                "No README file found in project root"
+              ],
+              "counts": {
+                "markdown": 1,
+                "readme": 0,
+                "docs": 0
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "totalIssues": 1,
+            "success": false
+          },
+          "analysis": {
+            "success": true,
+            "categories": {
+              "changelog": {
+                "status": "completed",
+                "fileCount": 1,
+                "duration": 7,
+                "result": {
+                  "success": true,
+                  "response": {
+                    "content": "No documentation updates can be made: only CHANGELOG.md exists among the listed files, but it is too large to read in one go. The other documentation files do not exist at the specified paths. Please provide valid paths or clarify which documentation files to update.",
+                    "metadata": {
+                      "model": "unknown",
+                      "tokens": 0,
+                      "finishReason": "complete"
+                    },
+                    "confidence": 0.8,
+                    "success": true
+                  }
+                },
+                "error": null
+              }
+            },
+            "errors": [],
+            "totalFiles": 1,
+            "validatedFiles": 1,
+            "skippedFiles": 0,
+            "stats": {
+              "processed": 1,
+              "totalTime": 7,
+              "speedup": 1
+            }
+          },
+          "filesProcessed": 1
+        },
+        "duration": 9573
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 13,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": [
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            },
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            }
+          ]
+        },
+        "duration": 30327
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": false,
+        "error": {
+          "message": "AI request failed after 4 attempts: Timeout after 300000ms waiting for session.idle",
+          "name": "SystemError",
+          "stack": "SystemError: AI request failed after 4 attempts: Timeout after 300000ms waiting for session.idle\n    at AiHelper.executeRequest (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/lib/ai_helpers.js:827:11)\n    at async AiCache.withCache (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/lib/ai_cache.js:480:22)\n    at async Step2ConsistencyAnalyzer.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/steps/step_02_consistency.js:401:26)\n    at async Object.handler (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:962:15)\n    at async WorkflowEngine.executeStep (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:618:24)\n    at async WorkflowEngine.executeWorkflow (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/workflow_engine.js:501:24)\n    at async MainOrchestrator.execute (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/orchestrator/main_orchestrator.js:819:28)\n    at async runCommand (file:///home/mpb/Documents/GitHub/ai_workflow.js/src/cli/commands/run.js:146:20)"
+        },
+        "duration": 673986
+      }
+    },
+    "context": {
+      "workflowDir": "/home/mpb/Documents/GitHub/guia_turistico/.ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/guia_turistico",
+      "auto": false,
+      "modifiedFiles": [
+        "CHANGELOG.md",
+        "__tests__/coordination/EventCoordinator.test.ts",
+        "__tests__/core/GeocodingState.test.ts",
+        "__tests__/core/bug-fix-geoposition-type.test.ts",
+        "__tests__/e2e/MilhoVerde-SerroMG.e2e.test.ts",
+        "__tests__/integration/PositionManager-HTMLPositionDisplayer.integration.test.ts",
+        "__tests__/integration/WebGeocodingManager.dom.test.ts",
+        "__tests__/integration/core-modules.test.ts",
+        "__tests__/unit/AddressDataExtractor.test.ts",
+        "__tests__/unit/GeoPosition.immutability.test.ts",
+        "dist/index.html",
+        "docs/api/GEO_POSITION.md",
+        "docs/architecture/ARCHITECTURE.md",
+        "docs/architecture/GEO_POSITION.md",
+        "docs/architecture/GEO_POSITION_FUNC_SPEC.md",
+        "docs/class-extraction/CLASS_LOCATION_GUIDE.md",
+        "docs/guides/QUICK_START.md",
+        "examples/bairro-display-test.html",
+        "examples/brazilian-voice-test.html",
+        "examples/device-detection-test.html",
+        "jest.config.unit.js",
+        "src/coordination/WebGeocodingManager.ts",
+        "src/core/GeocodingState.ts",
+        "src/core/PositionManager.ts",
+        "src/guia.js",
+        "src/test-error-handling.html",
+        "src/types/paraty-geocore.d.ts",
+        "src/views/home.js"
+      ],
+      "projectType": "location_based_service"
+    }
+  },
+  "metadata": {
+    "totalSteps": 24,
+    "progress": 0
+  }
+}

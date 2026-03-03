@@ -14,7 +14,8 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import path from 'path';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { buildTestReviewPrompt } from '../lib/ai_prompt_builder.js';
+import { buildTestReviewPrompt, AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -328,7 +329,7 @@ export class Step6TestReviewer {
    * @param {Object} _legacyOptions - Reserved (legacy calling convention)
    * @returns {Promise<Object>} Review result
    */
-  async execute(contextOrRoot = {}, _legacyOptions = {}) {
+  async execute(contextOrRoot = {}, options = {}) {
     const isLegacy = typeof contextOrRoot === 'string';
     const projectRoot = isLegacy ? contextOrRoot : contextOrRoot.projectRoot || process.cwd();
     const ctx = isLegacy ? {} : contextOrRoot;
@@ -341,25 +342,28 @@ export class Step6TestReviewer {
       logger.info(`Detected language: ${language}`);
 
       // Phase 2: Resolve test file list.
-      // Prefer step_00's authoritative change-detection result over a fresh
-      // filesystem scan, which may use patterns that don't cover this project.
-      let testFiles;
-      if (Array.isArray(ctx.categorizedFiles?.test)) {
-        testFiles = ctx.categorizedFiles.test;
-        logger.info(`Found ${testFiles.length} test file(s) (from step_00 change detection)`);
-      } else {
-        testFiles = await this.discoverTestFiles(projectRoot, language);
-        logger.info(`Found ${testFiles.length} test file(s)`);
+      // Always run a full filesystem scan so that unmodified test files are
+      // included. The step_00 change-detection list (ctx.categorizedFiles.test)
+      // only contains files touched in the current workflow run; we merge it in
+      // to capture any files the glob patterns might miss.
+      let testFiles = await this.discoverTestFiles(projectRoot, language);
 
-        // Fallback: if no test files found for detected language, try bash patterns
-        if (testFiles.length === 0 && language !== 'bash') {
-          const bashFiles = await this.discoverTestFiles(projectRoot, 'bash');
-          if (bashFiles.length > 0) {
-            logger.info(`Fallback: found ${bashFiles.length} bash test file(s) instead`);
-            testFiles = bashFiles;
-          }
+      // Fallback: if no test files found for detected language, try bash patterns
+      if (testFiles.length === 0 && language !== 'bash') {
+        const bashFiles = await this.discoverTestFiles(projectRoot, 'bash');
+        if (bashFiles.length > 0) {
+          logger.info(`Fallback: found ${bashFiles.length} bash test file(s) instead`);
+          testFiles = bashFiles;
         }
       }
+
+      // Merge in any changed test files from step_00 not caught by glob scan
+      if (Array.isArray(ctx.categorizedFiles?.test) && ctx.categorizedFiles.test.length > 0) {
+        const merged = new Set([...testFiles, ...ctx.categorizedFiles.test]);
+        testFiles = [...merged];
+      }
+
+      logger.info(`Found ${testFiles.length} test file(s)`);
 
       if (testFiles.length === 0) {
         logger.warn('No test files found!');
@@ -413,7 +417,82 @@ export class Step6TestReviewer {
         const aiAvailable = await this.aiHelper.initialize();
         if (aiAvailable) {
           await this.aiCache.init();
-          const prompt = buildTestReviewPrompt({ testFiles, framework: language });
+
+          // Try YAML-based prompt first; fall back to hardcoded builder
+          let prompt;
+          try {
+            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+            const parsedYaml = yaml.load(yamlContent);
+            let roleOverride = '';
+            try {
+              const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+              const parsedPk = yaml.load(pkYaml);
+              const pk = buildProjectKindPrompt(parsedPk, options?.projectKind ?? 'default', 'test_engineer');
+              if (pk?.role) roleOverride = pk.role;
+            } catch { /* optional */ }
+            const relativeFiles = testFiles
+              .map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f));
+            const testList = relativeFiles.join(', ');
+            const testsInTestsDir = testFiles.filter((f) =>
+              /\/__tests__\/|\/test\//.test(f)
+            ).length;
+            const testsColocated = testFiles.length - testsInTestsDir;
+            const testCmdMap = {
+              javascript: 'npm test', typescript: 'npm test',
+              python: 'pytest', go: 'go test ./...', ruby: 'rspec', rust: 'cargo test',
+            };
+            const covCmdMap = {
+              javascript: 'npm run coverage', typescript: 'npm run coverage',
+              python: 'pytest --cov', go: 'go test -cover ./...', ruby: 'rspec --format progress', rust: 'cargo tarpaulin',
+            };
+            const testFrameworkMap = {
+              javascript: 'jest', typescript: 'jest',
+              python: 'pytest', go: 'go test', ruby: 'rspec', rust: 'cargo test', bash: 'bats',
+            };
+            const testFramework = ctx.config?.tech_stack?.test_runner
+              ?? ctx.techStack?.testRunner
+              ?? testFrameworkMap[language]
+              ?? language;
+
+            // Read file contents for meaningful code review (max 3000 chars per file)
+            const fileContentSections = [];
+            for (const rel of relativeFiles) {
+              try {
+                const fullPath = path.isAbsolute(rel) ? rel : path.join(projectRoot, rel);
+                let content = await this.fileOps.readFile(fullPath);
+                if (content.length > 3000) {
+                  content = content.slice(0, 2800) + '\n... (truncated)';
+                }
+                fileContentSections.push(`### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``);
+              } catch { /* skip unreadable file */ }
+            }
+            const testFileContents = fileContentSections.length > 0
+              ? fileContentSections.join('\n\n')
+              : '(file contents unavailable)';
+
+            prompt = buildYamlStepPrompt(parsedYaml, 'step5_test_review_prompt', {
+              project_name: path.basename(projectRoot),
+              project_description: ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
+              primary_language: language,
+              test_framework: testFramework,
+              test_env: testCmdMap[language] ?? 'npm test',
+              test_command: testCmdMap[language] ?? 'npm test',
+              coverage_command: covCmdMap[language] ?? 'npm run coverage',
+              test_count: String(testFiles.length),
+              tests_in_tests_dir: String(testsInTestsDir),
+              tests_colocated: String(testsColocated),
+              test_files: testList || 'none',
+              test_file_contents: testFileContents,
+            });
+            if (prompt && roleOverride) {
+              prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
+            }
+          } catch { /* fallback */ }
+
+          if (!prompt) {
+            prompt = buildTestReviewPrompt({ testFiles, framework: language });
+          }
+
           const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
           const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
             this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })

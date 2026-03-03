@@ -16,6 +16,7 @@ import {
   getTestOutputPath,
   buildSingleFileTestPrompt,
   extractTestCode,
+  buildTestFilesSummary,
   MAX_FILES_TO_GENERATE,
   MAX_SOURCE_FILE_CHARS,
 } from '../../src/steps/step_07_test_gen.js';
@@ -646,6 +647,72 @@ describe('Step 7: Test Generation', () => {
 
       expect(writeCount).toBe(0);
       expect(result.generatedFiles).toHaveLength(0);
+    });
+  });
+
+  // ==========================================================================
+  // PURE FUNCTIONS - buildTestFilesSummary
+  // ==========================================================================
+
+  describe('buildTestFilesSummary', () => {
+    test('returns "none" for empty array', () => {
+      expect(buildTestFilesSummary([])).toBe('none');
+    });
+
+    test('returns "none" for null/undefined', () => {
+      expect(buildTestFilesSummary(null)).toBe('none');
+      expect(buildTestFilesSummary(undefined)).toBe('none');
+    });
+
+    test('reports total count and single directory', () => {
+      const files = ['test/a.test.js', 'test/b.test.js', 'test/c.test.js'];
+      const result = buildTestFilesSummary(files);
+      expect(result).toContain('3 test files');
+      expect(result).toContain('test/');
+      expect(result).toContain('(3)');
+    });
+
+    test('groups files by top-level directory', () => {
+      const files = [
+        '__tests__/unit/foo.test.ts',
+        '__tests__/integration/bar.test.ts',
+        'test/baz.test.js',
+      ];
+      const result = buildTestFilesSummary(files);
+      expect(result).toContain('__tests__/');
+      expect(result).toContain('test/');
+      expect(result).toContain('3 test files across 2 directories');
+    });
+
+    test('shows sample filenames (basenames, up to 3)', () => {
+      const files = [
+        '__tests__/a.test.ts',
+        '__tests__/b.test.ts',
+        '__tests__/c.test.ts',
+        '__tests__/d.test.ts',
+      ];
+      const result = buildTestFilesSummary(files);
+      expect(result).toContain('a.test.ts');
+      expect(result).toContain('+1 more');
+    });
+
+    test('does not append "more" when exactly 3 files in a dir', () => {
+      const files = ['t/a.test.js', 't/b.test.js', 't/c.test.js'];
+      const result = buildTestFilesSummary(files);
+      expect(result).not.toContain('more');
+    });
+
+    test('handles large portfolio (174 files) without slicing', () => {
+      const files = Array.from({ length: 174 }, (_, i) => `__tests__/unit/file${i}.test.ts`);
+      const result = buildTestFilesSummary(files);
+      expect(result).toContain('174 test files');
+      expect(result).toContain('+171 more');
+    });
+
+    test('handles root-level files (no directory separator)', () => {
+      const files = ['a.test.js', 'b.test.js'];
+      const result = buildTestFilesSummary(files);
+      expect(result).toContain('(root)/');
     });
   });
 });

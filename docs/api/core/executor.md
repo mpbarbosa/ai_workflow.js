@@ -1,12 +1,14 @@
 # executor - Command Execution Module
 
 **Module:** `core/executor`  
-**Version:** 1.0.0  
+**Version:** 0.4.1 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))  
 **Type:** Async Functions
+
+> **Note:** This module re-exports from the [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js) package (installed from GitHub). The implementation lives upstream; this file is a thin re-export layer.
 
 ## Overview
 
-Shell command execution with output capture, streaming support, and sudo handling. Wraps Node.js `child_process` with Promise-based API.
+Shell command execution with output capture, streaming support, and sudo handling. Wraps Node.js `child_process` with a Promise-based API.
 
 ---
 
@@ -20,10 +22,10 @@ Execute command and return output.
 
 - `command` (string) - Shell command
 - `options` (object) - Optional config:
-  - `cwd`: Working directory
-  - `env`: Environment variables
-  - `timeout`: Max execution time (default: 300000ms)
-  - `shell`: Use shell (default: true)
+  - `cwd`: Working directory (default: `process.cwd()`)
+  - `env`: Environment variables (default: `process.env`)
+  - `timeout`: Max execution time in ms (default: `300_000`)
+  - `shell`: Shell path (default: `'/bin/sh'`)
 
 **Returns:** Promise<`{stdout, stderr, exitCode}`>
 
@@ -217,5 +219,6 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 
 ---
 
-**Last Updated:** 2026-02-01  
-**Part of:** AI Workflow Automation v1.0.0
+**Last Updated:** 2026-03-03  
+**Source package:** [`olinda_shell_interface.js` v0.4.1](https://github.com/mpbarbosa/olinda_shell_interface.js)  
+**Part of:** AI Workflow Automation v1.2.0

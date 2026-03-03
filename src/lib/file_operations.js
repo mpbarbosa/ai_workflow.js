@@ -579,7 +579,7 @@ export class FileOperations {
       cwd,
       exclude:
         ignore.length > 0
-          ? (name) => ignore.some((p) => name.includes(p.replace('**/', '').replace('/**', '')))
+          ? (name) => ignore.some((p) => name === p.replace('**/', '').replace('/**', ''))
           : undefined,
     });
     for await (const file of globIter) {

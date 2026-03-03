@@ -7,6 +7,7 @@
  */
 
 import { STEP_KIND } from './step_contract.js';
+import path from 'path';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -133,22 +134,34 @@ export function parseJestOutput(output) {
     passed: 0,
     failed: 0,
     skipped: 0,
+    suitesFailed: 0,
+    suitesTotal: 0,
   };
 
   // Find the "Tests:" summary line (Jest order varies: failed, skipped, passed, total)
   const testsLine = output.match(/^Tests:\s+.+$/m);
-  if (!testsLine) return results;
+  if (testsLine) {
+    const line = testsLine[0];
+    const passedMatch = line.match(/(\d+)\s+passed/);
+    const failedMatch = line.match(/(\d+)\s+failed/);
+    const skippedMatch = line.match(/(\d+)\s+skipped/);
+    const totalMatch = line.match(/(\d+)\s+total/);
 
-  const line = testsLine[0];
-  const passedMatch = line.match(/(\d+)\s+passed/);
-  const failedMatch = line.match(/(\d+)\s+failed/);
-  const skippedMatch = line.match(/(\d+)\s+skipped/);
-  const totalMatch = line.match(/(\d+)\s+total/);
+    if (passedMatch) results.passed = parseInt(passedMatch[1], 10);
+    if (failedMatch) results.failed = parseInt(failedMatch[1], 10);
+    if (skippedMatch) results.skipped = parseInt(skippedMatch[1], 10);
+    if (totalMatch) results.total = parseInt(totalMatch[1], 10);
+  }
 
-  if (passedMatch) results.passed = parseInt(passedMatch[1], 10);
-  if (failedMatch) results.failed = parseInt(failedMatch[1], 10);
-  if (skippedMatch) results.skipped = parseInt(skippedMatch[1], 10);
-  if (totalMatch) results.total = parseInt(totalMatch[1], 10);
+  // Also parse "Test Suites:" line to capture suite-level failures (e.g. module not found)
+  const suitesLine = output.match(/^Test Suites:\s+.+$/m);
+  if (suitesLine) {
+    const line = suitesLine[0];
+    const suiteFailedMatch = line.match(/(\d+)\s+failed/);
+    const suiteTotalMatch = line.match(/(\d+)\s+total/);
+    if (suiteFailedMatch) results.suitesFailed = parseInt(suiteFailedMatch[1], 10);
+    if (suiteTotalMatch) results.suitesTotal = parseInt(suiteTotalMatch[1], 10);
+  }
 
   return results;
 }
@@ -236,7 +249,76 @@ export function parseJestCoverage(coverageJson) {
 }
 
 /**
- * Determine test status from results
+ * Identify files below the coverage threshold from a Jest coverage-summary.json.
+ *
+ * Iterates every file key in the summary (all keys except `"total"`) and returns
+ * an entry for each file where **any** metric (statements, branches, functions,
+ * lines) falls below `threshold`.  Entries are sorted by worst minimum coverage
+ * ascending so the most urgent gaps appear first.
+ *
+ * @pure
+ * @param {Object} coverageJson - Parsed coverage-summary.json object
+ * @param {number} [threshold=80] - Minimum acceptable coverage percentage
+ * @returns {Array<{file: string, statements: number, branches: number, functions: number, lines: number, min: number}>}
+ */
+export function parseCoverageGaps(coverageJson, threshold = 80) {
+  if (!coverageJson || typeof coverageJson !== 'object') return [];
+
+  const gaps = [];
+
+  for (const [file, metrics] of Object.entries(coverageJson)) {
+    if (file === 'total') continue;
+
+    const statements = metrics?.statements?.pct ?? 100;
+    const branches   = metrics?.branches?.pct   ?? 100;
+    const functions  = metrics?.functions?.pct  ?? 100;
+    const lines      = metrics?.lines?.pct      ?? 100;
+    const min        = Math.min(statements, branches, functions, lines);
+
+    if (min < threshold) {
+      gaps.push({ file, statements, branches, functions, lines, min });
+    }
+  }
+
+  // Worst coverage first
+  gaps.sort((a, b) => a.min - b.min);
+  return gaps;
+}
+
+/**
+ * Format a Markdown section listing per-file coverage gaps.
+ *
+ * Returns an empty string when there are no gaps so callers can safely
+ * append the result without a guard check.
+ *
+ * @pure
+ * @param {Array<{file: string, statements: number, branches: number, functions: number, lines: number}>} gaps
+ * @param {number} [threshold=80] - Threshold used (shown in header)
+ * @returns {string} Markdown section or empty string
+ */
+export function formatCoverageGapsSection(gaps, threshold = 80) {
+  if (!gaps || gaps.length === 0) return '';
+
+  const lines = [`## ⚠️ Coverage Gaps (below ${threshold}%)\n`];
+  lines.push('| File | Stmts | Branch | Funcs | Lines |');
+  lines.push('|------|------:|-------:|------:|------:|');
+
+  for (const g of gaps) {
+    const fmt = (v) => `${v < threshold ? `**${v}%**` : `${v}%`}`;
+    lines.push(`| ${g.file} | ${fmt(g.statements)} | ${fmt(g.branches)} | ${fmt(g.functions)} | ${fmt(g.lines)} |`);
+  }
+
+  lines.push('');
+  lines.push(`> **Action:** Add targeted tests for the modules above. Prioritize core logic, error handling, and edge cases.\n`);
+
+  return lines.join('\n');
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Test Status
+// ============================================================================
+
+/**
  * @pure
  * @param {Object} results - Test results
  * @returns {string} Status: 'pass', 'fail', or 'warn'
@@ -256,9 +338,11 @@ export function determineTestStatus(results) {
  * Format test execution report
  * @pure
  * @param {Object} results - Test results
+ * @param {Array} [coverageGaps=[]] - Per-file coverage gaps from {@link parseCoverageGaps}
+ * @param {number} [threshold=80] - Coverage threshold used for gap detection
  * @returns {string} Formatted report
  */
-export function formatTestReport(results) {
+export function formatTestReport(results, coverageGaps = [], threshold = 80) {
   const {
     success = false,
     language = 'javascript',
@@ -298,7 +382,7 @@ export function formatTestReport(results) {
     report += '⚠️ No test results found. Tests may not have run.\n\n';
   }
 
-  // Coverage
+  // Coverage — aggregate totals
   if (coverage.statements !== undefined) {
     report += '## Coverage Metrics\n\n';
     report += `- **Statements**: ${coverage.statements}%\n`;
@@ -317,6 +401,17 @@ export function formatTestReport(results) {
     } else {
       report += '⚠️ Coverage below recommended 60% threshold\n\n';
     }
+
+    // Per-file gap breakdown (only when gaps exist)
+    const gapsSection = formatCoverageGapsSection(coverageGaps, threshold);
+    if (gapsSection) {
+      report += gapsSection;
+    } else {
+      report += `✅ All modules meet the ${threshold}% coverage threshold.\n\n`;
+    }
+  } else {
+    report += '## Coverage Metrics\n\n';
+    report += '⚠️ No coverage data found. Run tests with `--coverage` to enable gap detection.\n\n';
   }
 
   // Recommendations
@@ -348,6 +443,7 @@ export class Step8TestExecutor {
     this.techStack = options.techStack || new TechStackDetector();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
+    this.configManager = options.configManager || null;
   }
 
   /**
@@ -401,18 +497,31 @@ export class Step8TestExecutor {
       );
 
       // Phase 4: Collect coverage (if available)
-      const coverage = await this.collectCoverage(projectRoot, language);
+      const { coverage, coverageJson } = await this.collectCoverage(projectRoot, language);
 
       if (coverage.statements !== undefined) {
         logger.info(`Coverage: ${coverage.statements}% statements`);
       }
 
+      // Phase 4b: Identify per-file coverage gaps
+      const coverageThreshold = await this.readCoverageThreshold(projectRoot);
+      const coverageGaps = parseCoverageGaps(coverageJson, coverageThreshold);
+      if (coverageGaps.length > 0) {
+        logger.warn(`Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`);
+      }
+
       // Phase 5: Generate report
       const duration = Date.now() - startTime;
-      const success = testResult.exitCode === 0;
+      // "0 tests found" is a warning, not a workflow-halting failure (Jest exits 1 when no files found).
+      // Suite-level failures (e.g. module not found) are detected via suitesFailed.
+      const noTestsFound = testResults.total === 0 && testResults.suitesFailed === 0;
+      const anyFailure = testResults.failed > 0 || testResults.suitesFailed > 0 ||
+                         (testResult.exitCode !== 0 && !noTestsFound);
+      const success = !anyFailure;
 
       const results = {
         success,
+        noTestsFound,
         language,
         testResults,
         coverage,
@@ -420,24 +529,39 @@ export class Step8TestExecutor {
         exitCode: testResult.exitCode,
       };
 
-      const report = formatTestReport(results);
+      const report = formatTestReport(results, coverageGaps, coverageThreshold);
       await this.backlog.saveStepSummary(8, 'Test Execution', report);
 
       // Phase AI: AI-powered test result analysis
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
+
+        // Build a concise coverage gaps string for the prompt
+        const coverageGapsText = coverageGaps.length > 0
+          ? coverageGaps.map(g => `  - ${g.file}: stmts=${g.statements}% branch=${g.branches}% funcs=${g.functions}% lines=${g.lines}%`).join('\n')
+          : 'none — all modules meet the threshold';
+
         let prompt;
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'step7_test_exec_prompt', {
-            language,
+            project_name: path.basename(projectRoot),
+            project_description: options?.projectDescription ?? 'N/A',
+            primary_language: language,
+            test_framework:
+              this.configManager?.getConfig?.()?.tech_stack?.test_framework || language,
+            test_command: testCommand,
+            test_exit_code: String(testResult.exitCode),
+            tests_total: String(testResults.total ?? 0),
             tests_passed: String(testResults.passed ?? 0),
             tests_failed: String(testResults.failed ?? 0),
-            coverage: String(coverage.statements ?? 'N/A'),
-            duration: String(duration),
-            exit_code: String(testResult.exitCode),
+            execution_summary: `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
+            test_output: (testResult.output ?? '').slice(0, 2000) || 'none',
+            failed_test_list: anyFailure ? (testResult.output ?? '').slice(0, 1000) : 'none',
+            coverage_threshold: String(coverageThreshold),
+            coverage_gaps: coverageGapsText,
           });
         } catch {
           /* fallback to generic prompt */
@@ -448,29 +572,68 @@ export class Step8TestExecutor {
 - Language: ${language}
 - Tests passed: ${testResults.passed ?? 0}
 - Tests failed: ${testResults.failed ?? 0}
-- Coverage: ${coverage.statements ?? 'N/A'}%
+- Overall coverage: ${coverage.statements ?? 'N/A'}% statements
+- Coverage threshold: ${coverageThreshold}%
+- Modules below threshold:\n${coverageGapsText}
 - Duration: ${duration}ms
 - Exit code: ${testResult.exitCode}`;
-          const approach = `Identify the most likely root causes of failures and suggest concrete fixes. Be concise.`;
+          const approach = `Identify the most likely root causes of failures and coverage gaps. Suggest concrete, targeted tests for each module below threshold. Prioritize core logic, error handling, and edge cases. Be concise.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}`;
+        const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}|${coverageGaps.length}`;
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
         );
         const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(8, 'Test Execution', enrichedReport);
+
+        // Supplementary: e2e test engineering analysis
+        let e2eContent = '';
+        try {
+          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml2 = yaml.load(yamlContent2);
+          const e2ePrompt = buildYamlStepPrompt(parsedYaml2, 'e2e_test_engineer_prompt', {
+            project_name: path.basename(projectRoot),
+            project_description: options?.projectDescription ?? 'N/A',
+            project_type: options?.projectKind ?? '',
+            e2e_framework: language,
+            test_command: testCommand,
+            browser_targets: '',
+            modified_count: String((options?.modifiedFiles ?? []).length),
+          });
+          if (e2ePrompt) {
+            const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
+            const e2eResult = await this.aiCache.withCache(e2eKey, e2eKey, () =>
+              this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
+            );
+            e2eContent = e2eResult?.content ?? '';
+          }
+        } catch { /* optional */ }
+
+        if (aiContent || e2eContent) {
+          const sections = aiContent ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`] : [report];
+          if (e2eContent) sections.push(`\n\n## E2E Test Engineering Analysis\n\n${e2eContent}`);
+          await this.backlog.saveStepSummary(8, 'Test Execution', sections.join(''));
         }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
       }
 
-      if (success) {
-        logger.success('Step 8 completed - all tests passed!');
-      } else {
+      if (!success) {
         logger.warn(`Step 8 completed - ${testResults.failed} test(s) failed`);
+      } else if (noTestsFound) {
+        logger.warn('Step 8 completed - no tests found');
+        await this.backlog.saveStepSummary(
+          8,
+          'Test Execution',
+          `${report}\n\n## ⚠️ Recommendation\n\nNo test suite was found in this project. ` +
+            `Consider adding tests to enable regression detection (Req 1 — Workflow Engine Requirements).\n` +
+            `- For Node.js: \`npm init jest\` or add a \`test\` script to \`package.json\`\n` +
+            `- For Python: add \`pytest\` and a \`tests/\` directory\n` +
+            `- For shell scripts: add \`bats\` tests\n`,
+          '⚠️'
+        );
+      } else {
+        logger.success('Step 8 completed - all tests passed!');
       }
 
       return {
@@ -515,7 +678,11 @@ export class Step8TestExecutor {
         const packageJson = JSON.parse(pkgContent);
 
         if (hasTestScript(packageJson)) {
-          return extractTestCommand(packageJson);
+          // Always invoke via `npm test` so npm resolves node_modules/.bin
+          // and applies the exact script defined in package.json.
+          // Returning the raw script value (extractTestCommand) causes
+          // "jest: not found" (exit 127) because node_modules/.bin is not in PATH.
+          return 'npm test';
         }
       } catch {
         // No package.json, use default
@@ -523,7 +690,21 @@ export class Step8TestExecutor {
     }
 
     // Use default command for language
-    return getTestCommand(language);
+    const defaultCommand = getTestCommand(language);
+    if (defaultCommand) return defaultCommand;
+
+    // Fallback: read from .workflow-config.yaml tech_stack.test_command
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const configContent = await this.fileOps.readFile(configPath);
+      const config = yaml.load(configContent);
+      const testCommand = config?.tech_stack?.test_command;
+      if (testCommand) return testCommand;
+    } catch {
+      // No workflow config or parse error
+    }
+
+    return null;
   }
 
   /**
@@ -577,7 +758,8 @@ export class Step8TestExecutor {
         if (file.endsWith('.json')) {
           const content = await this.fileOps.readFile(coveragePath);
           const coverageJson = JSON.parse(content);
-          return parseJestCoverage(coverageJson);
+          // Return both aggregate metrics and the raw JSON for gap analysis
+          return { coverage: parseJestCoverage(coverageJson), coverageJson };
         }
       } catch {
         // Try next file
@@ -585,7 +767,29 @@ export class Step8TestExecutor {
     }
 
     // No coverage found
-    return {};
+    return { coverage: {}, coverageJson: null };
+  }
+
+  /**
+   * Read the minimum coverage threshold from `.workflow-config.yaml`.
+   * Falls back to 80 if the file is missing or the field is not set.
+   *
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<number>} Threshold percentage (0–100)
+   */
+  async readCoverageThreshold(projectRoot) {
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const content = await this.fileOps.readFile(configPath);
+      const config = yaml.load(content);
+      const threshold = config?.validation?.testing?.min_coverage;
+      if (typeof threshold === 'number' && threshold > 0 && threshold <= 100) {
+        return threshold;
+      }
+    } catch {
+      // Config missing or unreadable — use default
+    }
+    return 80;
   }
 }
 

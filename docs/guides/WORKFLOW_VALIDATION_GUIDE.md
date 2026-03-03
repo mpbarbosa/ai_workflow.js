@@ -161,16 +161,16 @@ These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any 
 | `documentation_expert`    | Documentation Expert    | Step 1 – incremental doc updates                                                         |
 | `technical_writer`        | Technical Writer        | Steps 0b, 13 – bootstrap docs, markdown linting                                          |
 | `test_engineer`           | Test Engineer           | Steps 6, 8 – test review and execution                                                   |
-| `code_quality_analyst`    | Code Quality Analyst    | Step 2 – consistency analysis                                                            |
+| `code_quality_analyst`    | Code Quality Analyst    | Steps 2, 4 (supplementary), 10 – consistency analysis, config quality review, code quality review |
 | `git_specialist`          | Git Specialist          | Step 12 – git commit message generation                                                  |
 | `ux_analyst`              | UX Analyst              | Step 15 – UX/accessibility analysis                                                      |
 | `prompt_engineer`         | Prompt Engineer         | Step 14 – prompt analysis                                                                |
-| `security_expert`         | Security Expert         | Step 4 – config validation / security scanning                                           |
+| `security_expert`         | Security Expert         | Security scanning _(no workflow step — step_04 uses `devops_engineer` for broader config coverage)_ |
 | `performance_engineer`    | Performance Engineer    | Performance analysis _(no workflow step)_                                                |
 | `dependency_analyst`      | Dependency Analyst      | Step 9 – dependency validation                                                           |
-| `architecture_reviewer`   | Architecture Reviewer   | Steps 5, 10 – directory structure, code quality                                          |
+| `architecture_reviewer`   | Architecture Reviewer   | Step 5 – directory structure                                                             |
 | `api_designer`            | API Designer            | API documentation _(no workflow step)_                                                   |
-| `devops_engineer`         | DevOps Engineer         | Steps 3, 16 – script refs, version update                                                |
+| `devops_engineer`         | DevOps Engineer         | Steps 3, 4, 16 – script refs, config validation, version update                          |
 | `accessibility_expert`    | Accessibility Expert    | Accessibility audits _(no workflow step)_                                                |
 | `aws_serverless_engineer` | AWS Serverless Engineer | Step 11.6 – AWS serverless AI review (FULL stage, `aws_lbs_backend_setup` projects only) |
 
@@ -196,20 +196,25 @@ Not every step makes an AI call on every run. The following table documents when
 | --------- | ------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
 | step_0b   | `technical_writer`        | `technical_writer_prompt`                 | Project has < threshold doc files                                                              | Sufficient docs already exist           |
 | step_01   | `documentation_expert`    | `doc_analysis_prompt`                     | Changed doc files detected                                                                     | No changed doc files in scope           |
-| step_02   | `code_quality_analyst`    | `step2_consistency_prompt`                | Source / doc files analyzed                                                                    | No issues detected                      |
+| step_02   | `documentation_expert`    | `step2_consistency_prompt`                | Source / doc files analyzed                                                                    | No issues detected                      |
 | step_03   | `devops_engineer`         | `step3_script_refs_prompt`                | Shell script files found                                                                       | No script files in scope                |
-| step_04   | `security_expert`         | `configuration_specialist_prompt`         | Config files found                                                                             | No config files found                   |
+| step_04   | `devops_engineer` (call 1) + `code_quality_analyst` (call 2) | `configuration_specialist_prompt` + `quality_prompt` | Config files found | No config files found |
 | step_05   | `architecture_reviewer`   | `step4_directory_prompt`                  | Directory structure analyzed                                                                   | N/A (always runs analysis)              |
 | step_06   | `test_engineer`           | `step5_test_review_prompt`                | Test files exist                                                                               | No test files found                     |
 | step_08   | `test_engineer`           | `step7_test_exec_prompt`                  | Test execution ran                                                                             | No test command configured / no tests   |
 | step_09   | `dependency_analyst`      | `step8_dependencies_prompt`               | Dependency files exist                                                                         | No dependency manager found             |
-| step_10   | `architecture_reviewer`   | `step9_code_quality_prompt`               | Source files exist with linter configured                                                      | No source files / no linter             |
+| step_10   | `code_quality_analyst`    | `step9_code_quality_prompt`               | Source files exist with linter configured                                                      | No source files / no linter             |
 | step_11_6 | `aws_serverless_engineer` | `buildAwsServerlessPrompt` (programmatic) | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
 | step_12   | `git_specialist`          | `step11_git_commit_prompt`                | Changes staged for commit                                                                      | No changes to commit / non-git repo     |
 | step_13   | `technical_writer`        | `markdown_lint_prompt`                    | Markdown files found                                                                           | No markdown files / enumeration failed  |
 | step_14   | `prompt_engineer`         | `step13_prompt_engineer_prompt`           | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind               |
 | step_15   | `ux_analyst`              | `ui_ux_designer_prompt`                   | Project has UI components                                                                      | Project kind has no UI                  |
 | step_16   | `devops_engineer`         | `version_manager_prompt`                  | Source files analyzed                                                                          | N/A (always runs analysis)              |
+| step_18   | `code_quality_analyst`    | `async_flow_debugger_prompt` / `observer_pattern_debugger_prompt` / `data_structure_debugger_prompt` | Source files found | No source files in scope |
+
+> **step_02 persona note:** Step 2 performs documentation consistency analysis (version sync, cross-references, link validation), so it uses `documentation_expert` despite the step name including "consistency". This matches the YAML `step2_consistency_prompt` role definition which also describes a documentation specialist.
+
+> **step_18 persona note:** The step selects a YAML prompt key (`async_flow_debugger_prompt`, `observer_pattern_debugger_prompt`, or `data_structure_debugger_prompt`) based on code patterns in the source files. All three prompt keys share `code_quality_analyst` as the registered persona ID for the AI context window.
 
 **Steps with no AI calls** (by design):
 
@@ -227,7 +232,7 @@ Not every step makes an AI call on every run. The following table documents when
 
 Each AI-calling step loads its prompt at runtime from `.workflow_core/config/ai_helpers.yaml` using `buildYamlStepPrompt()` from `src/lib/ai_prompt_builder.js`. The **Prompt Key** column above is the top-level YAML key passed to that function.
 
-Five steps use dedicated programmatic builders instead of YAML loading:
+Six steps use dedicated programmatic builders instead of YAML loading:
 
 | Step      | Builder Function             | Source                 |
 | --------- | ---------------------------- | ---------------------- |
@@ -465,9 +470,136 @@ Any class not matching an import is unregistered.
 
 ---
 
+### Pattern 11: AI response hallucinates content not in the prompt — missing prompt context variables
+
+**Symptom:**  
+The `## Response` block of a prompt-response log file references scripts, files, or modules that do not appear anywhere in the `## Prompt` block. The model's output is plausible but describes a *different* project (typically one from its training data).
+
+**Root cause:**  
+`buildYamlStepPrompt()` substitutes `{placeholder}` variables into the YAML `task_template`. If a variable is not supplied in the context dict, the placeholder is replaced with an empty string. The model then receives a context field with no value (e.g., `- Primary Language: ` or `- Available Scripts: `) and falls back to its priors, inventing content.
+
+A secondary cause is an approach field that is missing a grounding instruction — the model is not told to restrict its analysis to the data explicitly provided in the prompt.
+
+**Confirmed case — `paraty_geocore.js/workflow_20260227_202534`, `step_03`:**  
+Prompt listed **1 available script: `cdn-delivery.sh`**. Response named five scripts (`setup.sh`, `test-integration.sh`, `cleanup_artifacts.sh`, `validate.sh`, `prepare-release.sh`) that belong to `ai_workflow.js`, not `paraty_geocore.js`. The model also declared `cdn-delivery.sh` "not found" despite it being explicitly listed. Root causes: (1) `primary_language`, `project_description`, `change_scope` were missing from the context passed to `buildYamlStepPrompt`; (2) `all_scripts` fallback was `''` instead of `'none'`; (3) the `approach` field started with `**Output:**` and had no grounding instruction.
+
+**Fix applied (2026-02-28):**
+
+| File | Change |
+|------|--------|
+| `src/steps/step_03_script_refs.js` | Added `primary_language`, `project_description`, `change_scope` to context; changed `all_scripts` empty fallback to `'none'` |
+| `.workflow_core/config/ai_helpers.yaml` | `step3_script_refs_prompt.approach` — prepended: *"Analyze ONLY the scripts explicitly listed under 'Available Scripts'. Do not reference, invent, or assume the existence of any scripts not in that list."* |
+
+**How to detect:**
+
+1. Open the prompt-response `.md` file.
+2. In `## Prompt`, check every `- Context field:` line — flag any that have an empty value after the colon.
+3. In `## Prompt`, find the `**Available Scripts:**` (or equivalent) block and collect the listed items.
+4. In `## Response`, check whether any file/script is named that was **not** in step 3's list.
+5. Check that `**Approach**:` is not immediately followed by another `**bold header**` — if it is, the YAML `approach` field is missing a body.
+
+**Prevention checklist for new AI-calling steps:**
+
+- [ ] All `{placeholder}` variables in the YAML `task_template` have a corresponding key in the context dict passed to `buildYamlStepPrompt()`.
+- [ ] List-type placeholders (scripts, files, symbols) use `'none'` as the empty fallback, not `''`.
+- [ ] The YAML `approach` field starts with a grounding instruction restricting the model to the data in the prompt.
+
+---
+
 ## Validated Run Examples
 
 This section records real workflow executions and their step 12 (Git Finalization) outcomes, to serve as a reference baseline for future validations.
+
+---
+
+### Run: `workflow_20260301_160006` — Pattern 11 in step_02/step_05; step_04 timeout (2026-03-01)
+
+**Project:** `paraty_geocore.js`  
+**Project kind:** `location_based_service`  
+**Stage:** FULL | **Mode:** automatic  
+**Duration:** ~5m 47s | **Steps:** 23/24 ✓ (step_12 completion unconfirmed in logs)  
+**Result:** ⚠️ Non-blocking — 8 issues found, 7 fixed in same session
+
+#### Findings
+
+**C1 ✅** All 24 registered steps executed. step_12 ran last (correct). Note: `✓ Step step_12 completed` absent from `workflow.log` — log ends at `Pushing to origin/main...` with no result line.
+
+**C2 ✅** All 24 `steps/*.log` files present and non-empty.
+
+**C3 ✅** All 13 AI-calling steps used registered persona IDs matching the guide's expected mapping. `.workflow-config.yaml` has no `ai_persona` overrides.
+
+**C4 ✅** All 13 AI-calling steps have prompt subdirectories; all `.md` files contain `## Prompt` and `## Response` sections with non-empty content. step_04: 2 files; step_05: 2 files; step_08: 2 files; step_09: 2 files; step_10: 3 files; all others: 1 file.
+
+**C5 ⚠ (Pattern 11)** — 7 violations across 6 steps:
+
+| File | Rule 1 (empty context) | Rule 3 (approach body missing) |
+|------|------------------------|-------------------------------|
+| `step_02/…_documentation_expert.md` | Primary Language, Scope | ✅ |
+| `step_05/…_0001_architecture_reviewer.md` | Primary Language | — |
+| `step_05/…_0002_architecture_reviewer.md` | Primary Language | — |
+| `step_09/…_0002_dependency_analyst.md` | — | ✅ |
+| `step_12/…_git_specialist.md` | — | ✅ |
+| `step_13/…_technical_writer.md` | — | ✅ |
+| `step_18/…_code_quality_analyst.md` | — | ✅ |
+
+#### Issues found and fixed
+
+| # | Pattern | Step | Description | Fix |
+|---|---------|------|-------------|-----|
+| 1 | Pattern 11 | step_02 | `primary_language` + `change_scope` missing from context; `_options` parameter shadowed `options` | Added `TechStackDetector`, `detectLanguage()`, renamed `_options`→`options`, added all 3 fields to `buildYamlStepPrompt` in `step_02_consistency.js` |
+| 2 | Pattern 11 | step_05 | `primary_language` missing from both prompt partitions; no `detectLanguage()` fallback | Added `TechStackDetector`, `detectLanguage()`, replaced `options.language \|\| ''` with detected language in `step_05_directory.js` |
+| 3 | Pattern 11 | step_09 | `javascript_developer_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence in `.workflow_core/config/ai_helpers.yaml` |
+| 4 | Pattern 11 | step_12 | `step11_git_commit_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
+| 5 | Pattern 11 | step_13 | `markdown_lint_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
+| 6 | Pattern 11 | step_18 | `async_flow_debugger_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
+| 7 | step_02 YAML | step_02 | `step2_consistency_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
+| 8 | Timeout | step_04 | First `devops_engineer` SDK call hit 60s timeout → retry → 100s total step duration | Changed `executeRequest` call to `{ persona: 'devops_engineer', timeout: 120000 }` in `step_04_config_validation.js` |
+
+#### Outstanding (not fixed this session)
+
+- **step_12 log completeness** (medium): `✓ Step step_12 completed` not written to `workflow.log`. Commit + tag push confirmed; `origin/main` push initiated but result not logged. Investigate log-flush timing in engine after step_12.
+- **step_14 eligibility** (low): `location_based_service` not in `shouldRunPromptAnalysis()` → 2ms skip. Add if prompt quality analysis is desired for this project kind.
+
+#### Validation report
+
+Full checklist + AI Workflow Execution Report saved at:  
+`paraty_geocore.js/.ai_workflow/logs/workflow_20260301_160006/workflow_validation_report.md`
+
+---
+
+### Run: `workflow_20260227_202534` — AI hallucination in step_03 (Pattern 11) (2026-02-28)
+
+**Project:** `paraty_geocore.js`  
+**Stage:** FULL | **Triggered by:** Manual prompt-log validation
+
+#### Finding
+
+Validation of `prompts/step_03/2026-02-27T23-29-12-785Z_0001_devops_engineer.md` revealed the AI response was completely invalid:
+
+- Prompt supplied 1 script (`cdn-delivery.sh`); response described 5 unrelated scripts from `ai_workflow.js`.
+- Response declared `cdn-delivery.sh` "not found" despite it being listed in `Available Scripts`.
+- `**Approach**:` rendered as `**Approach**: **Output:**` with no actual approach text.
+- `Primary Language:` and `Scope:` were blank in the rendered prompt.
+
+#### Root cause
+
+Three bugs in `step_03_script_refs.js` + `ai_helpers.yaml` (see Pattern 11):
+
+1. Missing context variables (`primary_language`, `project_description`, `change_scope`).
+2. Empty `all_scripts` fallback (`''` → should be `'none'`).
+3. `step3_script_refs_prompt.approach` in `ai_helpers.yaml` had no body — only a `**Output:**` header.
+
+#### Issues found and fixed
+
+| # | Pattern    | Step    | Description                                                                     | Fix                                                                               |
+|---|------------|---------|---------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| 1 | Pattern 11 | step_03 | `primary_language`, `project_description`, `change_scope` missing from context | Added all three to `buildYamlStepPrompt()` context in `step_03_script_refs.js`   |
+| 2 | Pattern 11 | step_03 | `all_scripts` passed as `''` when no scripts found                             | Changed fallback to `'none'`                                                      |
+| 3 | Pattern 11 | step_03 | `approach` field in YAML rendered as `**Approach**: **Output:**`               | Added grounding instruction as first line of `step3_script_refs_prompt.approach` |
+
+#### Post-fix validation
+
+42 existing step_03 tests all pass after the fix. Next workflow run on `paraty_geocore.js` should produce a step_03 response that references only `cdn-delivery.sh`.
 
 ---
 
@@ -962,6 +1094,13 @@ For each step that called AI (check workflow.log for "[AI] SDK call starting"):
 - [ ] prompts/ subfolder exists for each step that made an AI call
 - [ ] Each .md file has both "## Prompt" and "## Response" sections
 - [ ] Response is not empty / not just an error message
+
+### C5 — Prompt Context & Response Grounding (Pattern 11)
+For each prompt-response .md file, spot-check at least one AI-calling step:
+- [ ] No context field line (e.g., `- Primary Language:`, `- Scope:`) has a blank value after the colon
+- [ ] `**Approach**:` line is NOT immediately followed by another `**bold header**` (missing approach body)
+- [ ] Every file/script/symbol named in `## Response` appears in the corresponding list in `## Prompt`
+- [ ] If a list placeholder is empty (e.g., `Available Scripts: none`), response does not invent items
 
 ### Issues Found
 | # | Priority | Step | Description |

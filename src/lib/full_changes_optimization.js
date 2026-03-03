@@ -64,11 +64,11 @@ export const STRATEGY_PRIORITIES = {
  * @param {Object} codeAnalysis - Analysis from CodeChangesOptimizer
  * @returns {Object} Candidate strategies with eligibility
  */
-export function analyzeOptimizationCandidates(changes, docsAnalysis, codeAnalysis) {
+export function analyzeOptimizationCandidates(changes, docsAnalysis, codeAnalysis, mlAnalysis = null) {
   const candidates = {
     docs_only: false,
     code_changes: false,
-    ml_prediction: true, // Always eligible
+    ml_prediction: mlAnalysis !== null, // Only eligible when ML analysis is available
     standard: true, // Always available
   };
 
@@ -281,6 +281,7 @@ export class FullChangesOptimizer {
    * @param {Object} [options={}] - Configuration options
    * @param {Object} [options.preferences] - User preferences
    * @param {string} [options.workingDir] - Working directory for analysis
+   * @param {boolean} [options.mlEnabled=false] - Whether ML optimization is enabled
    */
   constructor(options = {}) {
     this.preferences = options.preferences || {};
@@ -289,7 +290,7 @@ export class FullChangesOptimizer {
     // Initialize sub-optimizers
     this.docsOptimizer = new DocsOnlyOptimizer();
     this.codeOptimizer = new CodeChangesOptimizer();
-    this.mlOptimizer = new MLOptimizer();
+    this.mlOptimizer = options.mlEnabled ? new MLOptimizer() : null;
     this.incrementalAnalyzer = new IncrementalAnalyzer({ baseDir: this.workingDir });
 
     // State
@@ -332,7 +333,7 @@ export class FullChangesOptimizer {
     }
 
     // Analyze candidates
-    const candidates = analyzeOptimizationCandidates(changes, docsAnalysis, codeAnalysis);
+    const candidates = analyzeOptimizationCandidates(changes, docsAnalysis, codeAnalysis, mlAnalysis);
 
     // Select strategy
     const strategy = selectOptimizationStrategy(candidates, this.preferences);

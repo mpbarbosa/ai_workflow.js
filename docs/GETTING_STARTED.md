@@ -1,40 +1,42 @@
-# Getting Started
+# Getting Started with olinda_shell_interface.js
+
+This guide will help you install, configure, and run olinda_shell_interface.js for the first time.
 
 ## Prerequisites
-
-- AWS CLI installed and configured
-- Bash shell (Linux/macOS/WSL)
-- Appropriate AWS credentials with permissions for LBS
+- Node.js >= 18.x
+- npm >= 9.x
 
 ## Installation
-
-1. Clone the repository:
-   ```sh
-   git clone <repo-url>
-   cd onde_estou_backend
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-org/olinda_shell_interface.js.git
+   cd olinda_shell_interface.js
    ```
-2. Make scripts executable:
-   ```sh
-   chmod +x deploy.sh teardown.sh status.sh
+2. **Install dependencies:**
+   ```bash
+   npm install
    ```
 
-## Usage
+## Running the Project
+To start the shell interface:
+```bash
+npm start
+```
 
-- Deploy resources:
-  ```sh
-  ./deploy.sh dev
-  ```
-- Check status:
-  ```sh
-  ./status.sh dev
-  ```
-- Teardown resources:
-  ```sh
-  ./teardown.sh dev
-  ```
+## Running Tests
+To verify your setup:
+```bash
+npm test
+```
 
-## Troubleshooting
+## Directory Structure
+- `src/` — Source code
+- `docs/` — Documentation
+- `test/` — Test suite
 
-- Ensure AWS CLI is installed and configured (`aws configure`).
-- Check script permissions if you see 'Permission denied'.
-- Review AWS CLI output for error details.
+## Next Steps
+- See `docs/USER_GUIDE.md` for usage instructions
+- See `CONTRIBUTING.md` for contributing guidelines
+
+---
+For troubleshooting, see `docs/TROUBLESHOOTING.md` or open an issue on GitHub.

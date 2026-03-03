@@ -76,7 +76,6 @@ export const PROFILE_PATTERNS = {
     /^docs\//,
     /^README/i,
     /^CHANGELOG/i,
-    /\.txt$/,
     /^LICENSE/i,
     /^CONTRIBUTING/i,
   ],

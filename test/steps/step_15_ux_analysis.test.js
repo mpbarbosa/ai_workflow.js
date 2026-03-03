@@ -202,6 +202,16 @@ describe('Step 15: UX Analysis', () => {
       const result = selectKeyFiles(['src/app.vue'], {}, 5);
       expect(result).toEqual([]);
     });
+
+    test('[BUG FIX] includes CSS files even when HTML count exceeds maxFiles', () => {
+      // Real-world case: 197 html files, 27 css files, maxFiles=10
+      const htmlFiles = Array.from({ length: 197 }, (_, i) => `page${i}.html`);
+      const cssFiles = Array.from({ length: 27 }, (_, i) => `style${i}.css`);
+      const result = selectKeyFiles([...htmlFiles, ...cssFiles], { html: htmlFiles, css: cssFiles });
+      const cssInResult = result.filter((f) => f.endsWith('.css'));
+      expect(cssInResult.length).toBeGreaterThan(0); // CSS must always be represented
+      expect(result.length).toBe(10); // Total capped at maxFiles
+    });
   });
 
   // ========================================================================

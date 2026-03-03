@@ -17,6 +17,8 @@ import {
   hasSubmodules,
   parseSubmoduleStatus,
   formatGitReport,
+  shouldCreateTag,
+  buildTagCommand,
 } from '../../src/steps/step_12_git_finalization.js';
 
 describe('Step 12: Git Finalization', () => {
@@ -569,6 +571,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
+        .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/ (pre-push stage)
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push origin main
@@ -761,6 +766,9 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
+        .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/ (pre-push stage)
         .mockResolvedValueOnce({ stdout: 'Saved working directory' }) // git stash — has changes
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }) // git stash pop
@@ -785,6 +793,152 @@ describe('Step 12: Git Finalization', () => {
       const popIdx = calls.findIndex((cmd) => cmd.includes('git stash pop'));
       expect(stashIdx).toBeLessThan(pullIdx);
       expect(popIdx).toBeGreaterThan(pullIdx);
+    });
+
+    test('tags current version and pushes tag after commit', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git tag v1.2.3
+        .mockResolvedValueOnce({ stdout: '' }) // git push origin v1.2.3
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }); // git push origin main
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      jest
+        .spyOn(step, '_readProjectMeta')
+        .mockResolvedValue({ version: '1.2.3', name: 'test', description: '' });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd === 'git tag v1.2.3')).toBe(true);
+      expect(calls.some((cmd) => cmd === 'git push origin v1.2.3')).toBe(true);
+      expect(mockLogger.info).toHaveBeenCalledWith('Tagged release: v1.2.3');
+      expect(mockLogger.info).toHaveBeenCalledWith('Pushed tag v1.2.3 to remote');
+    });
+
+    test('skips tagging when no version is available', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        // no tag call expected
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }); // git push origin main
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      jest
+        .spyOn(step, '_readProjectMeta')
+        .mockResolvedValue({ version: '', name: 'test', description: '' });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.startsWith('git tag'))).toBe(false);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Skipping git tag: no valid version found in package.json'
+      );
+    });
+
+    test('skips tagging when tag already exists', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
+        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
+        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockRejectedValueOnce(
+          Object.assign(new Error('tag already exists'), {
+            stderr: 'fatal: tag already exists',
+          })
+        ) // git tag v1.2.3 — already exists
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
+        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
+        .mockResolvedValueOnce({ stdout: '' }); // git push origin main
+
+      const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: mockAiHelper,
+      });
+
+      jest
+        .spyOn(step, '_readProjectMeta')
+        .mockResolvedValue({ version: '1.2.3', name: 'test', description: '' });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      expect(mockLogger.info).toHaveBeenCalledWith('Tag v1.2.3 already exists — skipping');
+    });
+  });
+
+  // ==========================================================================
+  // PURE FUNCTIONS - Tagging
+  // ==========================================================================
+
+  describe('shouldCreateTag', () => {
+    test('returns true for valid semver', () => {
+      expect(shouldCreateTag('1.2.3')).toBe(true);
+    });
+    test('returns true for semver with pre-release', () => {
+      expect(shouldCreateTag('1.0.0-beta.1')).toBe(true);
+    });
+    test('returns false for empty string', () => {
+      expect(shouldCreateTag('')).toBe(false);
+    });
+    test('returns false for null', () => {
+      expect(shouldCreateTag(null)).toBe(false);
+    });
+    test('returns false for non-semver string', () => {
+      expect(shouldCreateTag('not-a-version')).toBe(false);
+    });
+  });
+
+  describe('buildTagCommand', () => {
+    test('builds tag command with v prefix', () => {
+      expect(buildTagCommand('1.2.3')).toBe('git tag v1.2.3');
+    });
+    test('trims whitespace from version', () => {
+      expect(buildTagCommand('  2.0.0  ')).toBe('git tag v2.0.0');
     });
   });
 });

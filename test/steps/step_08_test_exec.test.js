@@ -133,6 +133,31 @@ describe('Step 8: Test Execution', () => {
 
       expect(result.total).toBe(0);
     });
+
+    test('parses Test Suites line for suite-level failures', () => {
+      const output = [
+        'Test Suites: 2 failed, 6 passed, 8 total',
+        'Tests:       149 passed, 149 total',
+      ].join('\n');
+      const result = parseJestOutput(output);
+      expect(result.suitesFailed).toBe(2);
+      expect(result.suitesTotal).toBe(8);
+      expect(result.failed).toBe(0);
+      expect(result.passed).toBe(149);
+    });
+
+    test('suitesFailed defaults to 0 when Test Suites line absent', () => {
+      const result = parseJestOutput('Tests: 5 passed, 5 total');
+      expect(result.suitesFailed).toBe(0);
+      expect(result.suitesTotal).toBe(0);
+    });
+
+    test('captures suite failures even when no individual tests ran', () => {
+      const output = 'Test Suites: 1 failed, 1 total\nTests: 0 total';
+      const result = parseJestOutput(output);
+      expect(result.suitesFailed).toBe(1);
+      expect(result.total).toBe(0);
+    });
   });
 
   describe('parsePytestOutput', () => {
@@ -358,6 +383,24 @@ describe('Step 8: Test Execution', () => {
       });
     });
 
+    test('uses "npm test" (not raw script value) when package.json has a test script', async () => {
+      // Regression test for: step_08 passes raw jest command to executor causing
+      // "jest: not found" (exit 127) because node_modules/.bin is not in PATH.
+      // determineTestCommand must always return "npm test", not the raw script value.
+      let capturedCommand;
+      mockExecutor.execute = async (cmd, _opts) => {
+        capturedCommand = cmd;
+        return { exitCode: 0, stdout: 'Tests: 1 passed, 1 total', stderr: '' };
+      };
+      mockFileOps.readFile = async () => JSON.stringify({
+        scripts: { test: "jest --testPathPattern='test/(core|utils)' --passWithNoTests" },
+      });
+
+      await executor.execute('/project');
+
+      expect(capturedCommand).toBe('npm test');
+    });
+
     test('executes tests successfully', async () => {
       const result = await executor.execute('/project');
 
@@ -378,6 +421,24 @@ describe('Step 8: Test Execution', () => {
 
       expect(result.success).toBe(false);
       expect(result.testResults.failed).toBe(2);
+    });
+
+    test('[BUG FIX] treats 0 tests found as success=true (warning, not critical failure)', async () => {
+      // jest exits with code 1 when no test files are found — this must not halt the workflow
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'No tests found, exiting with code 1',
+          stderr: '',
+        };
+      };
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.noTestsFound).toBe(true);
+      expect(result.testResults.failed).toBe(0);
+      expect(result.testResults.total).toBe(0);
     });
 
     test('collects coverage metrics', async () => {

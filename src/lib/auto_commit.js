@@ -485,8 +485,8 @@ export class AutoCommit {
       // are still staged — these are intentional workflow artifacts.
       await this.gitAutomation.add(toCommit, { force: true });
 
-      // Commit
-      await this.gitAutomation.commit(fullMessage);
+      // Commit (--no-verify skips pre-commit hooks; artifact commits don't need project validation)
+      await this.gitAutomation.commit(fullMessage, { noVerify: true });
 
       // Track commit
       this.commitHistory.push({

@@ -62,6 +62,12 @@ describe('Step 13: Markdown Linting', () => {
       expect(shouldExcludePath('vendor/package/README.md', ['vendor'])).toBe(true);
       expect(shouldExcludePath('src/README.md', ['vendor'])).toBe(false);
     });
+
+    test('excludes .ai_workflow files', () => {
+      expect(shouldExcludePath('/project/.ai_workflow/backlog/step_01.md')).toBe(true);
+      expect(shouldExcludePath('/project/.ai_workflow/logs/workflow_123/prompts/p.md')).toBe(true);
+      expect(shouldExcludePath('/project/docs/guide.md')).toBe(false);
+    });
   });
 
   describe('parseMdlOutput', () => {

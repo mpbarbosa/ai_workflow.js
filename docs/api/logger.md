@@ -349,7 +349,7 @@ function processFiles(files, options) {
 
 ## Related Modules
 
-- **[colors](./colors.md)** - Provides ANSI color codes and color support detection
+- **[colors](./colors.md)** - Provides ANSI color codes and color support detection (re-exported from `olinda_shell_interface.js`)
 - **[errors](./errors.md)** - Custom error types often logged with `logger.error()`
 
 ---
