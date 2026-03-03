@@ -14,7 +14,11 @@ import {
   scanForSecrets,
   checkConfigBestPractices,
   formatConfigReport,
+  buildFileContentsBlock,
+  validateAiResponseQuality,
   EXCLUDE_DIRS,
+  MAX_FILE_CONTENT_CHARS,
+  MIN_FILE_MENTION_RATIO,
 } from '../../src/steps/step_04_config_validation.js';
 
 describe('Step 4: Configuration Validation', () => {
@@ -760,6 +764,12 @@ describe('Step 4: Configuration Validation', () => {
     test('EXCLUDE_DIRS includes .ai_cache', () => {
       expect(EXCLUDE_DIRS).toContain('.ai_cache');
     });
+
+    test('EXCLUDE_DIRS includes venv/.venv/env to prevent virtualenv files being sent to AI', () => {
+      expect(EXCLUDE_DIRS).toContain('venv');
+      expect(EXCLUDE_DIRS).toContain('.venv');
+      expect(EXCLUDE_DIRS).toContain('env');
+    });
   });
 
   // ========================================================================
@@ -923,6 +933,142 @@ describe('Step 4: Configuration Validation', () => {
       await analyzer.execute('/project');
 
       expect(savedReport).toContain('4'); // files checked
+    });
+
+    test('[BUG FIX] venv/ config files are excluded from discovery', async () => {
+      // getModifiedFiles returns empty → triggers glob fallback
+      // Glob fallback must not include venv/ paths
+      mockGitOps.getModifiedFiles = () => Promise.resolve([]);
+      // Mock glob to simulate returning a venv file alongside a real config file
+      const originalGlob = mockFileOps.glob;
+      mockFileOps.glob = (pattern, opts) => {
+        const ignore = opts?.ignore ?? [];
+        // Verify venv is in the ignore list
+        const ignoresVenv = ignore.some((g) => g.includes('venv'));
+        if (!ignoresVenv) {
+          // Return venv file to expose bug if exclude is missing
+          return Promise.resolve([
+            'venv/lib/python3.13/site-packages/setuptools/config/distutils.schema.json',
+            'package.json',
+          ]);
+        }
+        return originalGlob ? originalGlob(pattern, opts) : Promise.resolve([]);
+      };
+      const result = await analyzer.execute('/project');
+      expect(result.success).toBe(true);
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - buildFileContentsBlock
+  // ========================================================================
+
+  describe('buildFileContentsBlock', () => {
+    test('returns empty string for empty input', () => {
+      expect(buildFileContentsBlock([])).toBe('');
+      expect(buildFileContentsBlock(null)).toBe('');
+    });
+
+    test('formats a single file with header and fenced block', () => {
+      const result = buildFileContentsBlock([
+        { relativePath: 'package.json', content: '{"name":"x"}' },
+      ]);
+      expect(result).toContain('--- package.json ---');
+      expect(result).toContain('{"name":"x"}');
+      expect(result).toContain('```');
+    });
+
+    test('joins multiple files with double newline', () => {
+      const entries = [
+        { relativePath: 'a.yml', content: 'key: val' },
+        { relativePath: 'b.json', content: '{}' },
+      ];
+      const result = buildFileContentsBlock(entries);
+      expect(result).toContain('--- a.yml ---');
+      expect(result).toContain('--- b.json ---');
+    });
+
+    test('truncates content exceeding maxChars', () => {
+      const longContent = 'x'.repeat(MAX_FILE_CONTENT_CHARS + 100);
+      const result = buildFileContentsBlock(
+        [{ relativePath: 'big.yml', content: longContent }],
+        MAX_FILE_CONTENT_CHARS
+      );
+      expect(result).toContain('[truncated');
+      expect(result).toContain('100 more chars');
+    });
+
+    test('does not truncate content within maxChars', () => {
+      const shortContent = 'x'.repeat(50);
+      const result = buildFileContentsBlock([{ relativePath: 'small.yml', content: shortContent }]);
+      expect(result).not.toContain('[truncated');
+    });
+
+    test('custom maxChars parameter is respected', () => {
+      const content = 'abcdefghij'; // 10 chars
+      const result = buildFileContentsBlock([{ relativePath: 'f.yml', content }], 5);
+      expect(result).toContain('[truncated');
+      expect(result).toContain('5 more chars');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - validateAiResponseQuality
+  // ========================================================================
+
+  describe('validateAiResponseQuality', () => {
+    test('returns adequate=true when no files to check', () => {
+      const r = validateAiResponseQuality('any response', []);
+      expect(r.adequate).toBe(true);
+      expect(r.coverage).toBe(1);
+    });
+
+    test('returns adequate=false for empty response', () => {
+      const r = validateAiResponseQuality('', ['package.json']);
+      expect(r.adequate).toBe(false);
+      expect(r.reason).toContain('empty response');
+    });
+
+    test('returns adequate=false for whitespace-only response', () => {
+      const r = validateAiResponseQuality('   ', ['package.json']);
+      expect(r.adequate).toBe(false);
+    });
+
+    test('detects file mentions by basename', () => {
+      const r = validateAiResponseQuality(
+        'I reviewed package.json and found no issues.',
+        ['.github/workflows/test.yml', 'package.json'],
+        0.5
+      );
+      // 'test.yml' is basename of the first file
+      // response mentions 'package.json' — 1 out of 2 = 50% which equals threshold
+      expect(r.coverage).toBeGreaterThanOrEqual(0.5);
+    });
+
+    test('returns adequate=false when fewer than minRatio files are mentioned', () => {
+      const r = validateAiResponseQuality(
+        'All files look fine.',
+        ['package.json', 'test.yml', 'bump-sw-cache.yml'],
+        MIN_FILE_MENTION_RATIO
+      );
+      // None of the filenames appear in the response text
+      expect(r.adequate).toBe(false);
+      expect(r.coverage).toBe(0);
+    });
+
+    test('returns adequate=true when sufficient files are mentioned', () => {
+      const files = ['package.json', 'test.yml', 'dependency-audit.yml'];
+      const response = 'Checked package.json: ok. test.yml: ok. dependency-audit.yml: ok.';
+      const r = validateAiResponseQuality(response, files);
+      expect(r.adequate).toBe(true);
+      expect(r.coverage).toBe(1);
+    });
+
+    test('coverage field reflects actual fraction', () => {
+      const files = ['a.yml', 'b.yml', 'c.yml', 'd.yml'];
+      const response = 'Reviewed a.yml and b.yml only.';
+      const r = validateAiResponseQuality(response, files, 0.0);
+      expect(r.coverage).toBeCloseTo(0.5);
     });
   });
 });

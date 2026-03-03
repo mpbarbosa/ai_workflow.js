@@ -14,6 +14,7 @@ import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
@@ -30,7 +31,17 @@ import yaml from 'js-yaml';
  * Directories to exclude from configuration file discovery (applied to both
  * the git-modified-files path and the glob fallback).
  */
-export const EXCLUDE_DIRS = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache'];
+export const EXCLUDE_DIRS = [
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.ai_cache',
+  'venv',
+  '.venv',
+  'env',
+];
 
 /**
  * Configuration file patterns
@@ -69,6 +80,17 @@ export const CONFIG_ISSUE_TYPE = {
   INVALID_VALUE: 'invalid_value',
   MISSING_REQUIRED: 'missing_required',
 };
+
+/**
+ * Maximum content size per file included in the AI prompt (characters).
+ * Limits token usage while still providing actionable context.
+ */
+export const MAX_FILE_CONTENT_CHARS = 4000;
+
+/**
+ * Minimum fraction of listed files the AI response must mention to be considered adequate.
+ */
+export const MIN_FILE_MENTION_RATIO = 0.3;
 
 // ============================================================================
 // PURE FUNCTIONS - File Classification
@@ -435,6 +457,67 @@ export function formatConfigReport(results) {
   return lines.join('\n');
 }
 
+/**
+ * Build a formatted block of file contents for inclusion in an AI prompt.
+ * Each file is rendered as a fenced code block with its relative path as header.
+ * Content is truncated to MAX_FILE_CONTENT_CHARS to limit token usage.
+ *
+ * @pure
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - File data
+ * @param {number} [maxChars=MAX_FILE_CONTENT_CHARS] - Per-file character limit
+ * @returns {string} Formatted block suitable for prompt injection
+ */
+export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_CHARS) {
+  if (!fileEntries || fileEntries.length === 0) return '';
+  return fileEntries
+    .map(({ relativePath, content }) => {
+      const trimmed =
+        content.length > maxChars
+          ? content.slice(0, maxChars) +
+            `\n... [truncated — ${content.length - maxChars} more chars]`
+          : content;
+      return `--- ${relativePath} ---\n\`\`\`\n${trimmed}\n\`\`\``;
+    })
+    .join('\n\n');
+}
+
+/**
+ * Validate that an AI response adequately covers the listed files.
+ * Checks that at least MIN_FILE_MENTION_RATIO of the short filenames appear in the response.
+ *
+ * @pure
+ * @param {string} aiResponse - AI response text
+ * @param {string[]} relativeFilePaths - Relative paths that should be addressed
+ * @param {number} [minRatio=MIN_FILE_MENTION_RATIO] - Minimum coverage fraction
+ * @returns {{adequate: boolean, reason: string, coverage: number}}
+ */
+export function validateAiResponseQuality(
+  aiResponse,
+  relativeFilePaths,
+  minRatio = MIN_FILE_MENTION_RATIO
+) {
+  if (!relativeFilePaths || relativeFilePaths.length === 0) {
+    return { adequate: true, reason: 'no files to check', coverage: 1 };
+  }
+  if (!aiResponse || aiResponse.trim().length === 0) {
+    return { adequate: false, reason: 'empty response', coverage: 0 };
+  }
+  const mentioned = relativeFilePaths.filter((fp) => {
+    // Match by basename or any suffix of the path
+    const parts = fp.replace(/\\/g, '/').split('/');
+    return parts.some((part) => part && aiResponse.includes(part));
+  });
+  const coverage = mentioned.length / relativeFilePaths.length;
+  if (coverage < minRatio) {
+    return {
+      adequate: false,
+      reason: `AI response mentions only ${mentioned.length}/${relativeFilePaths.length} files (${Math.round(coverage * 100)}% < ${Math.round(minRatio * 100)}% threshold)`,
+      coverage,
+    };
+  }
+  return { adequate: true, reason: 'sufficient file coverage', coverage };
+}
+
 // ============================================================================
 // STEP 4 ANALYZER - Impure Wrapper
 // ============================================================================
@@ -451,15 +534,17 @@ export class Step4ConfigAnalyzer {
     this.gitOps = options.gitOps || new GitAutomation();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
+    this.techStack = options.techStack || new TechStackDetector();
   }
 
   /**
    * Execute Step 4 configuration validation
    * @param {string} projectRoot - Project root directory
-   * @param {Object} _options - Execution options (reserved)
+   * @param {Object} options - Execution options
+   * @param {string} [options.projectKind] - Detected project kind
    * @returns {Promise<Object>} Analysis result
    */
-  async execute(projectRoot, _options = {}) {
+  async execute(projectRoot, options = {}) {
     try {
       logger.step('Step 4: Configuration Validation');
 
@@ -518,42 +603,109 @@ export class Step4ConfigAnalyzer {
       const totalIssues = syntaxErrors.length + securityFindings.length;
       if (aiAvailable) {
         await this.aiCache.init();
+
+        // Detect tech stack for prompt context
+        let projectKind = options.projectKind ?? '';
+        let techStackSummary = '';
+        try {
+          const detection = await this.techStack.detectTechStack(projectRoot);
+          if (!projectKind) projectKind = detection.primary_language || '';
+          techStackSummary = [
+            detection.primary_language,
+            ...(detection.frameworks ?? []).map((f) => (typeof f === 'string' ? f : f.name)),
+          ]
+            .filter(Boolean)
+            .join(', ');
+        } catch {
+          /* tech stack detection is optional */
+        }
+
+        // Read file contents so the AI can actually analyze them
+        const relPaths = configFiles.map((f) => path.relative(projectRoot, f));
+        const fileEntries = [];
+        for (let i = 0; i < configFiles.length; i++) {
+          try {
+            const content = await this.fileOps.readFile(configFiles[i]);
+            fileEntries.push({ relativePath: relPaths[i], content });
+          } catch {
+            /* skip unreadable files */
+          }
+        }
+        const filesContentBlock = buildFileContentsBlock(fileEntries);
+
         let prompt;
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
-            project_name: projectRoot,
-            config_files: configFiles.map((f) => path.relative(projectRoot, f)).join(', '),
-            files_checked: String(results.filesChecked ?? 0),
-            syntax_errors: String(syntaxErrors.length),
-            security_findings: String(securityFindings.length),
-            best_practice_issues: String(bestPracticeIssues.length),
-            total_issues: String(totalIssues),
+            project_name: path.basename(projectRoot),
+            config_files_list: relPaths.join(', '),
+            config_files_content: filesContentBlock,
+            config_count: String(configFiles.length),
+            project_kind: projectKind,
+            tech_stack: techStackSummary,
           });
         } catch {
           /* fallback to generic prompt */
         }
         if (!prompt) {
           const role = `You are a configuration validation specialist and security expert.`;
-          const task = `Analyze these configuration validation results for project at "${projectRoot}" and provide recommendations:
-- Config files examined: ${configFiles.map((f) => path.relative(projectRoot, f)).join(', ')}
-- Files validated: ${results.filesChecked ?? 0}
-- Syntax errors: ${syntaxErrors.length}
+          const task = `Analyze these configuration files for project at "${projectRoot}":
+- Files: ${relPaths.join(', ')}
+- Syntax errors found: ${syntaxErrors.length}
 - Security findings: ${securityFindings.length}
 - Best practice issues: ${bestPracticeIssues.length}
-- Total issues: ${totalIssues}`;
+- Total issues: ${totalIssues}
+
+${filesContentBlock}`;
           const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
         const cacheKey = `step_04|${results.filesChecked ?? 0}|${totalIssues}`;
+        // Use 'devops_engineer' persona: the configuration_specialist_prompt YAML template
+        // defines a "Senior DevOps Engineer and Configuration Management Expert" role covering
+        // config formats (JSON/YAML/TOML), CI/CD, Docker, IaC, and environment configuration.
+        // 'security_expert' only covers one of the five validation categories (Security Analysis)
+        // and creates a misleading mismatch with the actual broad-scope prompt content.
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'security_expert' })
+          this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer', timeout: 120000 })
         );
         const aiContent = aiResult?.content ?? '';
-        if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(4, 'Configuration Validation', enrichedReport);
+
+        // Validate response quality: AI must mention at least MIN_FILE_MENTION_RATIO of files
+        const quality = validateAiResponseQuality(aiContent, relPaths);
+        if (!quality.adequate) {
+          logger.warn(`Step 4 AI response quality low: ${quality.reason}`);
+        }
+
+        // Supplementary: quality_prompt for file-level quality review
+        let qualityContent = '';
+        try {
+          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml2 = yaml.load(yamlContent2);
+          const qPrompt = buildYamlStepPrompt(parsedYaml2, 'quality_prompt', {
+            files_to_review: (configFiles ?? []).slice(0, 10).join(', '),
+            project_name: projectRoot,
+          });
+          if (qPrompt) {
+            const qKey = `step_04_quality|${results.filesChecked ?? 0}|${totalIssues}`;
+            // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
+            // specialist" role (anti-patterns, best practices, maintainability) — not security.
+            const qResult = await this.aiCache.withCache(qKey, qKey, () =>
+              this.aiHelper.executeRequest(qPrompt, { persona: 'code_quality_analyst' })
+            );
+            qualityContent = qResult?.content ?? '';
+          }
+        } catch {
+          /* optional */
+        }
+
+        if (aiContent || qualityContent) {
+          const sections = aiContent
+            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
+            : [report];
+          if (qualityContent) sections.push(`\n\n## Quality Review\n\n${qualityContent}`);
+          await this.backlog.saveStepSummary(4, 'Configuration Validation', sections.join(''));
         }
       } else {
         logger.warn('AI helper not available - skipping AI analysis');
