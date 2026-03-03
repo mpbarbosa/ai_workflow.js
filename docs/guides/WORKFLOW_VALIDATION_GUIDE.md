@@ -156,35 +156,37 @@ The saved file must contain:
 
 These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any other string used as a persona bypasses role/context configuration.
 
-| Persona ID                | Display Name            | Primary Use                                                                              |
-| ------------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| `documentation_expert`    | Documentation Expert    | Step 1 – incremental doc updates                                                         |
-| `technical_writer`        | Technical Writer        | Steps 0b, 13 – bootstrap docs, markdown linting                                          |
-| `test_engineer`           | Test Engineer           | Steps 6, 8 – test review and execution                                                   |
-| `code_quality_analyst`    | Code Quality Analyst    | Steps 2, 4 (supplementary), 10 – consistency analysis, config quality review, code quality review |
-| `git_specialist`          | Git Specialist          | Step 12 – git commit message generation                                                  |
-| `ux_analyst`              | UX Analyst              | Step 15 – UX/accessibility analysis                                                      |
-| `prompt_engineer`         | Prompt Engineer         | Step 14 – prompt analysis                                                                |
-| `security_expert`         | Security Expert         | Security scanning _(no workflow step — step_04 uses `devops_engineer` for broader config coverage)_ |
-| `performance_engineer`    | Performance Engineer    | Performance analysis _(no workflow step)_                                                |
-| `dependency_analyst`      | Dependency Analyst      | Step 9 – dependency validation                                                           |
-| `architecture_reviewer`   | Architecture Reviewer   | Step 5 – directory structure                                                             |
-| `api_designer`            | API Designer            | API documentation _(no workflow step)_                                                   |
-| `devops_engineer`         | DevOps Engineer         | Steps 3, 4, 16 – script refs, config validation, version update                          |
-| `accessibility_expert`    | Accessibility Expert    | Accessibility audits _(no workflow step)_                                                |
-| `aws_serverless_engineer` | AWS Serverless Engineer | Step 11.6 – AWS serverless AI review (FULL stage, `aws_lbs_backend_setup` projects only) |
+| Persona ID                | Display Name                  | Primary Use                                                                                         |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `documentation_expert`    | Documentation Expert          | Step 1 – incremental doc updates                                                                    |
+| `technical_writer`        | Technical Writer              | Steps 0b, 13 – bootstrap docs, markdown linting                                                     |
+| `test_engineer`           | Test Engineer                 | Steps 6, 8 – test review and execution                                                              |
+| `code_quality_analyst`    | Code Quality Analyst          | Steps 2, 4 (supplementary), 10 – consistency analysis, config quality review, code quality review   |
+| `git_specialist`          | Git Specialist                | Step 12 – git commit message generation                                                             |
+| `ux_analyst`              | UX Analyst                    | Step 15 – UX/accessibility analysis                                                                 |
+| `prompt_engineer`         | Prompt Engineer               | Step 14 – prompt analysis                                                                           |
+| `security_expert`         | Security Expert               | Security scanning _(no workflow step — step_04 uses `devops_engineer` for broader config coverage)_ |
+| `performance_engineer`    | Performance Engineer          | Performance analysis _(no workflow step)_                                                           |
+| `dependency_analyst`      | Dependency Analyst            | Step 9 – dependency validation                                                                      |
+| `architecture_reviewer`   | Architecture Reviewer         | Step 5 – directory structure                                                                        |
+| `api_designer`            | API Designer                  | API documentation _(no workflow step)_                                                              |
+| `devops_engineer`         | DevOps Engineer               | Steps 3, 4, 16 – script refs, config validation, version update                                     |
+| `accessibility_expert`    | Accessibility Expert          | Accessibility audits _(no workflow step)_                                                           |
+| `aws_serverless_engineer` | AWS Serverless Engineer       | Step 11.6 – AWS serverless AI review (FULL stage, `aws_lbs_backend_setup` projects only)            |
+| `typescript_reviewer`     | TypeScript Reviewer (Strider) | Step 19 – TypeScript type safety review                                                             |
 
 ### Common Mismatches Found
 
-| Config / Step uses         | Should be              |
-| -------------------------- | ---------------------- |
-| `documentation_analyst`    | `documentation_expert` |
-| `documentation_specialist` | `documentation_expert` |
-| `requirements_engineer`    | `documentation_expert` |
-| `consistency_checker`      | `code_quality_analyst` |
-| `code_reviewer`            | `code_quality_analyst` |
-| `ux_designer`              | `ux_analyst`           |
-| `version_manager`          | `devops_engineer`      |
+| Config / Step uses            | Should be              |
+| ----------------------------- | ---------------------- |
+| `documentation_analyst`       | `documentation_expert` |
+| `documentation_specialist`    | `documentation_expert` |
+| `requirements_engineer`       | `documentation_expert` |
+| `consistency_checker`         | `code_quality_analyst` |
+| `code_reviewer`               | `code_quality_analyst` |
+| `ux_designer`                 | `ux_analyst`           |
+| `version_manager`             | `devops_engineer`      |
+| `typescript_developer_prompt` | `typescript_reviewer`  |
 
 ---
 
@@ -192,29 +194,32 @@ These are the **valid persona IDs** registered in `src/lib/ai_personas.js`. Any 
 
 Not every step makes an AI call on every run. The following table documents when AI is expected to be invoked and under what conditions it is skipped. Steps are listed in execution order; **step_12 always runs last**.
 
-| Step      | AI Persona                | Prompt Key                                | When AI is triggered                                                                           | Common skip reasons                     |
-| --------- | ------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
-| step_0b   | `technical_writer`        | `technical_writer_prompt`                 | Project has < threshold doc files                                                              | Sufficient docs already exist           |
-| step_01   | `documentation_expert`    | `doc_analysis_prompt`                     | Changed doc files detected                                                                     | No changed doc files in scope           |
-| step_02   | `documentation_expert`    | `step2_consistency_prompt`                | Source / doc files analyzed                                                                    | No issues detected                      |
-| step_03   | `devops_engineer`         | `step3_script_refs_prompt`                | Shell script files found                                                                       | No script files in scope                |
-| step_04   | `devops_engineer` (call 1) + `code_quality_analyst` (call 2) | `configuration_specialist_prompt` + `quality_prompt` | Config files found | No config files found |
-| step_05   | `architecture_reviewer`   | `step4_directory_prompt`                  | Directory structure analyzed                                                                   | N/A (always runs analysis)              |
-| step_06   | `test_engineer`           | `step5_test_review_prompt`                | Test files exist                                                                               | No test files found                     |
-| step_08   | `test_engineer`           | `step7_test_exec_prompt`                  | Test execution ran                                                                             | No test command configured / no tests   |
-| step_09   | `dependency_analyst`      | `step8_dependencies_prompt`               | Dependency files exist                                                                         | No dependency manager found             |
-| step_10   | `code_quality_analyst`    | `step9_code_quality_prompt`               | Source files exist with linter configured                                                      | No source files / no linter             |
-| step_11_6 | `aws_serverless_engineer` | `buildAwsServerlessPrompt` (programmatic) | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
-| step_12   | `git_specialist`          | `step11_git_commit_prompt`                | Changes staged for commit                                                                      | No changes to commit / non-git repo     |
-| step_13   | `technical_writer`        | `markdown_lint_prompt`                    | Markdown files found                                                                           | No markdown files / enumeration failed  |
-| step_14   | `prompt_engineer`         | `step13_prompt_engineer_prompt`           | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind               |
-| step_15   | `ux_analyst`              | `ui_ux_designer_prompt`                   | Project has UI components                                                                      | Project kind has no UI                  |
-| step_16   | `devops_engineer`         | `version_manager_prompt`                  | Source files analyzed                                                                          | N/A (always runs analysis)              |
-| step_18   | `code_quality_analyst`    | `async_flow_debugger_prompt` / `observer_pattern_debugger_prompt` / `data_structure_debugger_prompt` | Source files found | No source files in scope |
+| Step      | AI Persona                                                   | Prompt Key                                                                                           | When AI is triggered                                                                           | Common skip reasons                     |
+| --------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
+| step_0b   | `technical_writer`                                           | `technical_writer_prompt`                                                                            | Project has < threshold doc files                                                              | Sufficient docs already exist           |
+| step_01   | `documentation_expert`                                       | `doc_analysis_prompt`                                                                                | Changed doc files detected                                                                     | No changed doc files in scope           |
+| step_02   | `documentation_expert`                                       | `step2_consistency_prompt`                                                                           | Source / doc files analyzed                                                                    | No issues detected                      |
+| step_03   | `devops_engineer`                                            | `step3_script_refs_prompt`                                                                           | Shell script files found                                                                       | No script files in scope                |
+| step_04   | `devops_engineer` (call 1) + `code_quality_analyst` (call 2) | `configuration_specialist_prompt` + `quality_prompt`                                                 | Config files found                                                                             | No config files found                   |
+| step_05   | `architecture_reviewer`                                      | `step4_directory_prompt`                                                                             | Directory structure analyzed                                                                   | N/A (always runs analysis)              |
+| step_06   | `test_engineer`                                              | `step5_test_review_prompt`                                                                           | Test files exist                                                                               | No test files found                     |
+| step_08   | `test_engineer`                                              | `step7_test_exec_prompt`                                                                             | Test execution ran                                                                             | No test command configured / no tests   |
+| step_09   | `dependency_analyst`                                         | `step8_dependencies_prompt`                                                                          | Dependency files exist                                                                         | No dependency manager found             |
+| step_10   | `code_quality_analyst`                                       | `step9_code_quality_prompt`                                                                          | Source files exist with linter configured                                                      | No source files / no linter             |
+| step_11_6 | `aws_serverless_engineer`                                    | `buildAwsServerlessPrompt` (programmatic)                                                            | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
+| step_12   | `git_specialist`                                             | `step11_git_commit_prompt`                                                                           | Changes staged for commit                                                                      | No changes to commit / non-git repo     |
+| step_13   | `technical_writer`                                           | `markdown_lint_prompt`                                                                               | Markdown files found                                                                           | No markdown files / enumeration failed  |
+| step_14   | `prompt_engineer`                                            | `step13_prompt_engineer_prompt`                                                                      | Project type is `workflow-automation`, `bash-automation-framework`, or `configuration_library` | Non-eligible project kind               |
+| step_15   | `ux_analyst`                                                 | `ui_ux_designer_prompt`                                                                              | Project has UI components                                                                      | Project kind has no UI                  |
+| step_16   | `devops_engineer`                                            | `version_manager_prompt`                                                                             | Source files analyzed                                                                          | N/A (always runs analysis)              |
+| step_18   | `code_quality_analyst`                                       | `async_flow_debugger_prompt` / `observer_pattern_debugger_prompt` / `data_structure_debugger_prompt` | Source files found                                                                             | No source files in scope                |
+| step_19   | `typescript_reviewer`                                        | `typescript_developer_prompt`                                                                        | TypeScript files (`.ts`/`.tsx`) found                                                          | No `.ts`/`.tsx` files in project        |
 
 > **step_02 persona note:** Step 2 performs documentation consistency analysis (version sync, cross-references, link validation), so it uses `documentation_expert` despite the step name including "consistency". This matches the YAML `step2_consistency_prompt` role definition which also describes a documentation specialist.
 
 > **step_18 persona note:** The step selects a YAML prompt key (`async_flow_debugger_prompt`, `observer_pattern_debugger_prompt`, or `data_structure_debugger_prompt`) based on code patterns in the source files. All three prompt keys share `code_quality_analyst` as the registered persona ID for the AI context window.
+
+> **step_19 persona note:** The YAML template lookup key is `typescript_developer_prompt` (used with `buildYamlStepPrompt()`), but the registered persona ID passed to `executeRequest()` is `typescript_reviewer`. These are distinct values — do not confuse them in validation.
 
 **Steps with no AI calls** (by design):
 
@@ -473,7 +478,7 @@ Any class not matching an import is unregistered.
 ### Pattern 11: AI response hallucinates content not in the prompt — missing prompt context variables
 
 **Symptom:**  
-The `## Response` block of a prompt-response log file references scripts, files, or modules that do not appear anywhere in the `## Prompt` block. The model's output is plausible but describes a *different* project (typically one from its training data).
+The `## Response` block of a prompt-response log file references scripts, files, or modules that do not appear anywhere in the `## Prompt` block. The model's output is plausible but describes a _different_ project (typically one from its training data).
 
 **Root cause:**  
 `buildYamlStepPrompt()` substitutes `{placeholder}` variables into the YAML `task_template`. If a variable is not supplied in the context dict, the placeholder is replaced with an empty string. The model then receives a context field with no value (e.g., `- Primary Language: ` or `- Available Scripts: `) and falls back to its priors, inventing content.
@@ -485,10 +490,10 @@ Prompt listed **1 available script: `cdn-delivery.sh`**. Response named five scr
 
 **Fix applied (2026-02-28):**
 
-| File | Change |
-|------|--------|
-| `src/steps/step_03_script_refs.js` | Added `primary_language`, `project_description`, `change_scope` to context; changed `all_scripts` empty fallback to `'none'` |
-| `.workflow_core/config/ai_helpers.yaml` | `step3_script_refs_prompt.approach` — prepended: *"Analyze ONLY the scripts explicitly listed under 'Available Scripts'. Do not reference, invent, or assume the existence of any scripts not in that list."* |
+| File                                    | Change                                                                                                                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/steps/step_03_script_refs.js`      | Added `primary_language`, `project_description`, `change_scope` to context; changed `all_scripts` empty fallback to `'none'`                                                                                  |
+| `.workflow_core/config/ai_helpers.yaml` | `step3_script_refs_prompt.approach` — prepended: _"Analyze ONLY the scripts explicitly listed under 'Available Scripts'. Do not reference, invent, or assume the existence of any scripts not in that list."_ |
 
 **How to detect:**
 
@@ -532,28 +537,28 @@ This section records real workflow executions and their step 12 (Git Finalizatio
 
 **C5 ⚠ (Pattern 11)** — 7 violations across 6 steps:
 
-| File | Rule 1 (empty context) | Rule 3 (approach body missing) |
-|------|------------------------|-------------------------------|
-| `step_02/…_documentation_expert.md` | Primary Language, Scope | ✅ |
-| `step_05/…_0001_architecture_reviewer.md` | Primary Language | — |
-| `step_05/…_0002_architecture_reviewer.md` | Primary Language | — |
-| `step_09/…_0002_dependency_analyst.md` | — | ✅ |
-| `step_12/…_git_specialist.md` | — | ✅ |
-| `step_13/…_technical_writer.md` | — | ✅ |
-| `step_18/…_code_quality_analyst.md` | — | ✅ |
+| File                                      | Rule 1 (empty context)  | Rule 3 (approach body missing) |
+| ----------------------------------------- | ----------------------- | ------------------------------ |
+| `step_02/…_documentation_expert.md`       | Primary Language, Scope | ✅                             |
+| `step_05/…_0001_architecture_reviewer.md` | Primary Language        | —                              |
+| `step_05/…_0002_architecture_reviewer.md` | Primary Language        | —                              |
+| `step_09/…_0002_dependency_analyst.md`    | —                       | ✅                             |
+| `step_12/…_git_specialist.md`             | —                       | ✅                             |
+| `step_13/…_technical_writer.md`           | —                       | ✅                             |
+| `step_18/…_code_quality_analyst.md`       | —                       | ✅                             |
 
 #### Issues found and fixed
 
-| # | Pattern | Step | Description | Fix |
-|---|---------|------|-------------|-----|
-| 1 | Pattern 11 | step_02 | `primary_language` + `change_scope` missing from context; `_options` parameter shadowed `options` | Added `TechStackDetector`, `detectLanguage()`, renamed `_options`→`options`, added all 3 fields to `buildYamlStepPrompt` in `step_02_consistency.js` |
-| 2 | Pattern 11 | step_05 | `primary_language` missing from both prompt partitions; no `detectLanguage()` fallback | Added `TechStackDetector`, `detectLanguage()`, replaced `options.language \|\| ''` with detected language in `step_05_directory.js` |
-| 3 | Pattern 11 | step_09 | `javascript_developer_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence in `.workflow_core/config/ai_helpers.yaml` |
-| 4 | Pattern 11 | step_12 | `step11_git_commit_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
-| 5 | Pattern 11 | step_13 | `markdown_lint_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
-| 6 | Pattern 11 | step_18 | `async_flow_debugger_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
-| 7 | step_02 YAML | step_02 | `step2_consistency_prompt.approach` body missing (YAML Rule 3) | Prepended grounding sentence |
-| 8 | Timeout | step_04 | First `devops_engineer` SDK call hit 60s timeout → retry → 100s total step duration | Changed `executeRequest` call to `{ persona: 'devops_engineer', timeout: 120000 }` in `step_04_config_validation.js` |
+| #   | Pattern      | Step    | Description                                                                                       | Fix                                                                                                                                                  |
+| --- | ------------ | ------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Pattern 11   | step_02 | `primary_language` + `change_scope` missing from context; `_options` parameter shadowed `options` | Added `TechStackDetector`, `detectLanguage()`, renamed `_options`→`options`, added all 3 fields to `buildYamlStepPrompt` in `step_02_consistency.js` |
+| 2   | Pattern 11   | step_05 | `primary_language` missing from both prompt partitions; no `detectLanguage()` fallback            | Added `TechStackDetector`, `detectLanguage()`, replaced `options.language \|\| ''` with detected language in `step_05_directory.js`                  |
+| 3   | Pattern 11   | step_09 | `javascript_developer_prompt.approach` body missing (YAML Rule 3)                                 | Prepended grounding sentence in `.workflow_core/config/ai_helpers.yaml`                                                                              |
+| 4   | Pattern 11   | step_12 | `step11_git_commit_prompt.approach` body missing (YAML Rule 3)                                    | Prepended grounding sentence                                                                                                                         |
+| 5   | Pattern 11   | step_13 | `markdown_lint_prompt.approach` body missing (YAML Rule 3)                                        | Prepended grounding sentence                                                                                                                         |
+| 6   | Pattern 11   | step_18 | `async_flow_debugger_prompt.approach` body missing (YAML Rule 3)                                  | Prepended grounding sentence                                                                                                                         |
+| 7   | step_02 YAML | step_02 | `step2_consistency_prompt.approach` body missing (YAML Rule 3)                                    | Prepended grounding sentence                                                                                                                         |
+| 8   | Timeout      | step_04 | First `devops_engineer` SDK call hit 60s timeout → retry → 100s total step duration               | Changed `executeRequest` call to `{ persona: 'devops_engineer', timeout: 120000 }` in `step_04_config_validation.js`                                 |
 
 #### Outstanding (not fixed this session)
 
@@ -591,11 +596,11 @@ Three bugs in `step_03_script_refs.js` + `ai_helpers.yaml` (see Pattern 11):
 
 #### Issues found and fixed
 
-| # | Pattern    | Step    | Description                                                                     | Fix                                                                               |
-|---|------------|---------|---------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| 1 | Pattern 11 | step_03 | `primary_language`, `project_description`, `change_scope` missing from context | Added all three to `buildYamlStepPrompt()` context in `step_03_script_refs.js`   |
-| 2 | Pattern 11 | step_03 | `all_scripts` passed as `''` when no scripts found                             | Changed fallback to `'none'`                                                      |
-| 3 | Pattern 11 | step_03 | `approach` field in YAML rendered as `**Approach**: **Output:**`               | Added grounding instruction as first line of `step3_script_refs_prompt.approach` |
+| #   | Pattern    | Step    | Description                                                                    | Fix                                                                              |
+| --- | ---------- | ------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| 1   | Pattern 11 | step_03 | `primary_language`, `project_description`, `change_scope` missing from context | Added all three to `buildYamlStepPrompt()` context in `step_03_script_refs.js`   |
+| 2   | Pattern 11 | step_03 | `all_scripts` passed as `''` when no scripts found                             | Changed fallback to `'none'`                                                     |
+| 3   | Pattern 11 | step_03 | `approach` field in YAML rendered as `**Approach**: **Output:**`               | Added grounding instruction as first line of `step3_script_refs_prompt.approach` |
 
 #### Post-fix validation
 

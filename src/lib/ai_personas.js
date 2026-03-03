@@ -526,6 +526,40 @@ const PERSONAS = [
       'Serverless deployment guidance',
     ],
   },
+  {
+    id: 'typescript_reviewer',
+    name: 'Strider',
+    role: 'Senior TypeScript Developer',
+    expertise: [
+      'TypeScript strict mode',
+      'Type safety analysis',
+      'Generic types and utility types',
+      'Interface and type alias design',
+      'TypeScript compiler configuration',
+      'Anti-pattern detection',
+    ],
+    tone: 'precise',
+    focus: [
+      'Type safety violations',
+      'Implicit any usage',
+      '@ts-ignore suppression',
+      'Missing return types',
+      'Unsafe type assertions',
+      'TypeScript best practices',
+    ],
+    description:
+      'Specializes in TypeScript code review with a focus on type safety, strict mode compliance, ' +
+      'and detection of common anti-patterns such as implicit any, @ts-ignore suppression, and ' +
+      'missing return type annotations. Provides actionable recommendations for improving ' +
+      'TypeScript correctness and maintainability.',
+    useCases: [
+      'TypeScript type safety review',
+      'Strict mode compliance analysis',
+      'Anti-pattern detection (any, @ts-ignore, missing types)',
+      'TypeScript refactoring guidance',
+      'TypeScript tooling configuration review',
+    ],
+  },
 ];
 
 // ============================================================================
