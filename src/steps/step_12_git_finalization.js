@@ -776,6 +776,15 @@ export class Step12GitFinalization {
       ]),
     ];
 
+    // Exclude artifact/third-party directories from the AI prompt context.
+    // .ai_workflow/ and .jest-cache/ are intentionally committed but binary/artifact
+    // content adds noise without useful context for commit message generation.
+    // git diff HEAD returns files alphabetically, so without this filter the 100-line
+    // diff budget is consumed by .ai_workflow/ artifact additions before reaching
+    // actual source file diffs.
+    const ARTIFACT_DIRS = /^(\.ai_workflow\/|\.jest-cache\/|node_modules\/|\.git\/)/;
+    const relevantFiles = allFiles.filter((f) => !ARTIFACT_DIRS.test(f));
+
     let diffSummary = '';
     let diffSample = '';
     let gitLog = '';
@@ -787,7 +796,11 @@ export class Step12GitFinalization {
     }
 
     try {
-      const rawDiff = await this._executeGit('git diff HEAD');
+      // Scope the diff to project-relevant files only so the 100-line sample
+      // shows meaningful code changes rather than .ai_workflow/ artifact additions.
+      const diffTarget =
+        relevantFiles.length > 0 ? `-- ${relevantFiles.map((f) => `"${f}"`).join(' ')}` : '';
+      const rawDiff = await this._executeGit(`git diff HEAD ${diffTarget}`);
       // Limit to first 100 lines to keep prompt size reasonable
       diffSample = rawDiff.split('\n').slice(0, 100).join('\n');
     } catch {
@@ -808,7 +821,7 @@ export class Step12GitFinalization {
         : '';
 
     return {
-      changedFiles: allFiles.length > 0 ? allFiles.join('\n') : '(none)',
+      changedFiles: relevantFiles.length > 0 ? relevantFiles.join('\n') : '(none)',
       diffSummary: diffSummary.trim()
         ? `${diffSummary.trim()}${diffNote}`
         : `${gitState.totalChanges} files changed`,
