@@ -1,14 +1,61 @@
 # utils - General Utilities Module
 
-**Module:** `lib/utils`  
-**Version:** 1.0.0  
-**Type:** Pure Functions Only
+> **Moved to `olinda_utils.js`**  
+> As of ai_workflow.js v1.3.0, the utility functions previously in `src/lib/utils.js` have been moved to the [`olinda_utils.js`](https://github.com/mpbarbosa/olinda_utils.js) package (v0.3.0+).
 
-## Overview
+## Import
 
-Pure utility functions for strings, arrays, objects, and dates. All functions are referentially transparent.
+```javascript
+import {
+  camelCase,
+  kebabCase,
+  snakeCase,
+  pascalCase,
+  capitalize,
+  truncate,
+  sanitize,
+  cleanWhitespace,
+  escapeRegex,
+  dedupe,
+  chunk,
+  flatten,
+  groupBy,
+  sortBy,
+  intersection,
+  difference,
+  partition,
+  deepClone,
+  deepMerge,
+  pick,
+  omit,
+  getProperty,
+  setProperty,
+  hasProperty,
+  deepEqual,
+  isEmpty,
+} from 'olinda_utils.js';
+```
+
+## Full API Reference
+
+See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.js/blob/main/docs/utils.md) for the complete API documentation.
 
 ---
+
+## Overview (archived)
+
+26 pure utility functions in 3 groups:
+
+- **String utilities (9):** `camelCase`, `kebabCase`, `snakeCase`, `pascalCase`, `capitalize`, `truncate`, `sanitize`, `cleanWhitespace`, `escapeRegex`
+- **Array utilities (8):** `dedupe`, `chunk`, `flatten`, `groupBy`, `sortBy`, `intersection`, `difference`, `partition`
+- **Object utilities (9):** `deepClone`, `deepMerge`, `pick`, `omit`, `getProperty`, `setProperty`, `hasProperty`, `deepEqual`, `isEmpty`
+
+---
+
+**Last Updated:** 2026-02-01  
+**Part of:** AI Workflow Automation v1.3.0
+
+<!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
 
 ## String Utilities
 

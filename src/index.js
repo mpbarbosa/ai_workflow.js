@@ -199,7 +199,7 @@ export {
   hasProperty,
   deepEqual,
   isEmpty,
-} from './lib/utils.js';
+} from 'olinda_utils.js';
 
 export {
   parseArguments,
