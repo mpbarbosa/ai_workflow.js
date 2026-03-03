@@ -730,20 +730,23 @@ export class Step2ConsistencyAnalyzer {
    * @returns {Promise<Set>} Set of existing file paths
    */
   async buildFileIndex(projectRoot) {
-    const patterns = ['**/*'];
     const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'venv', '.venv', 'env'];
+    const ignoreList = exclude.map((dir) => `**/${dir}/**`);
 
-    const files = await this.fileOps.glob(patterns[0], {
-      cwd: projectRoot,
-      ignore: exclude.map((dir) => `**/${dir}/**`),
-      absolute: true,
-    });
+    // Two passes: regular entries + dotfile directories (e.g. .github/, .husky/)
+    // fs.glob excludes dotfile entries by default, so a separate pass is required.
+    const [files, dotFiles] = await Promise.all([
+      this.fileOps.glob('**/*', { cwd: projectRoot, ignore: ignoreList, absolute: true }),
+      this.fileOps.glob('.*/**/*', { cwd: projectRoot, ignore: ignoreList, absolute: true }),
+    ]);
+
+    const allFiles = [...new Set([...files, ...dotFiles])];
 
     // Build Set of both file paths and all their ancestor directories (down to projectRoot),
     // so that directory link targets (e.g. ".github/scripts/") resolve as existing.
-    const fileSet = new Set(files);
+    const fileSet = new Set(allFiles);
     if (projectRoot) {
-      for (const filePath of files) {
+      for (const filePath of allFiles) {
         let dir = path.dirname(filePath);
         while (dir.length > projectRoot.length) {
           fileSet.add(dir);
