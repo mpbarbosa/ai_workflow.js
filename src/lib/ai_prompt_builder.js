@@ -22,6 +22,12 @@ export const AI_HELPERS_PATH = path.resolve(
   '../../.workflow_core/config/ai_helpers.yaml'
 );
 
+// Resolves to: ai_workflow.js/.workflow_core/config/ai_prompts_project_kinds.yaml
+export const AI_PROJECT_KINDS_PATH = path.resolve(
+  path.dirname(__filename),
+  '../../.workflow_core/config/ai_prompts_project_kinds.yaml'
+);
+
 // ==============================================================================
 // PURE FUNCTIONS - Template Processing
 // ==============================================================================
@@ -61,9 +67,12 @@ export function buildPromptFromTemplate(template, context = {}) {
     result = result.replace(bracePattern, String(value || ''));
   }
 
-  // Remove any remaining placeholders that weren't replaced
-  result = result.replace(/\$\{[^}]+\}/g, '');
-  result = result.replace(/\{[^}]+\}/g, '');
+  // Remove any remaining identifier-style placeholders that weren't replaced.
+  // Use a strict identifier pattern (letter/underscore start) so that code
+  // braces like `{ return x; }` and template literals like `${expr}` embedded
+  // in substituted values are NOT stripped.
+  result = result.replace(/\$\{[a-z_]\w*\}/gi, '');
+  result = result.replace(/\{[a-z_]\w*\}/gi, '');
 
   return result;
 }
@@ -292,12 +301,69 @@ export function buildYamlStepPrompt(parsedYaml, yamlKey, context = {}) {
   const config = parsedYaml[yamlKey];
   if (!config || typeof config !== 'object') return null;
 
-  const role = config.role || '';
+  const role = config.role || config.role_prefix || '';
   const taskTemplate = config.task_template || config.task || '';
   const approach = config.approach || '';
 
-  const task = buildPromptFromTemplate(taskTemplate, context);
-  return buildStructuredPrompt({ role, task, approach });
+  // Auto-resolve any {variable} placeholders that match top-level YAML keys
+  // (e.g., {language_specific_quality}, {language_specific_testing})
+  const enrichedContext = { ...context };
+  const placeholders = (taskTemplate + approach).match(/\{([a-z][a-z0-9_]*)\}/g) || [];
+  // Language fallback aliases: used only when exact language key is absent from lookup table
+  const primaryLang = (context.primary_language || 'javascript').toLowerCase();
+  const langAlias = { typescript: 'javascript' };
+  for (const match of placeholders) {
+    const key = match.slice(1, -1);
+    if (!(key in enrichedContext) && parsedYaml[key] !== undefined) {
+      const val = parsedYaml[key];
+      if (typeof val === 'string') {
+        enrichedContext[key] = val;
+      } else if (typeof val === 'object' && val !== null) {
+        // Language-keyed lookup table: exact match first, then alias fallback, then 'javascript'
+        const langEntry =
+          val[primaryLang] ||
+          val[langAlias[primaryLang]] ||
+          val['javascript'] ||
+          val[Object.keys(val)[0]];
+        if (langEntry && typeof langEntry === 'object' && langEntry.key_points) {
+          enrichedContext[key] = String(langEntry.key_points).trim();
+        } else if (typeof langEntry === 'string') {
+          enrichedContext[key] = langEntry;
+        } else {
+          enrichedContext[key] = JSON.stringify(val);
+        }
+      }
+    }
+  }
+
+  const task = buildPromptFromTemplate(taskTemplate, enrichedContext);
+  const resolvedApproach = buildPromptFromTemplate(approach, enrichedContext);
+  return buildStructuredPrompt({ role, task, approach: resolvedApproach });
+}
+
+/**
+ * Build a project-kind-specific persona overlay from ai_prompts_project_kinds.yaml.
+ *
+ * Returns an object { role, task_context, approach } for the given project kind and
+ * persona key, or null if not found. Falls back to the 'default' project kind if the
+ * specific kind is not present.
+ *
+ * @param {Object} parsedProjectKinds - Parsed ai_prompts_project_kinds.yaml
+ * @param {string} projectKind - Project kind (e.g. 'nodejs_api', 'react_spa')
+ * @param {string} personaKey - Persona key (e.g. 'documentation_specialist', 'code_reviewer')
+ * @returns {{ role: string, task_context: string, approach: string }|null}
+ */
+export function buildProjectKindPrompt(parsedProjectKinds, projectKind, personaKey) {
+  if (!parsedProjectKinds || !projectKind || !personaKey) return null;
+  const kindConfig = parsedProjectKinds[projectKind] || parsedProjectKinds['default'] || null;
+  if (!kindConfig) return null;
+  const persona = kindConfig[personaKey];
+  if (!persona || typeof persona !== 'object') return null;
+  return {
+    role: persona.role || '',
+    task_context: persona.task_context || '',
+    approach: persona.approach || '',
+  };
 }
 
 // ==============================================================================
