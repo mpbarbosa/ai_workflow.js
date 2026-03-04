@@ -33,6 +33,13 @@ export {
   ValidationError,
   FileSystemError,
 } from './utils/errors.js';
+export {
+  ErrorCategory,
+  classifyError as classifyRetryError,
+  shouldRetry as shouldRetryOp,
+  calculateDelay as calculateRetryBackoff,
+  withRetry,
+} from './utils/retry.js';
 
 // Phase 2.1 exports (v2.0.0)
 export { Config } from './lib/config.js';
