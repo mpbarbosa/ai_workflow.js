@@ -1,10 +1,12 @@
 // test/steps/step_0f_commit_artifacts.test.js
 
+import { jest } from '@jest/globals';
 import {
   hasArtifactFiles,
   buildSummaryMessage,
   Step0fCommitArtifacts,
 } from '../../src/steps/step_0f_commit_artifacts.js';
+import { logger } from '../../src/core/logger.js';
 
 describe('hasArtifactFiles', () => {
   it('returns false for non-array input', () => {
@@ -19,36 +21,41 @@ describe('hasArtifactFiles', () => {
   });
 
   it('returns true if any file is a workflow artifact', () => {
-    // Mock validateArtifactPath to return true for one file
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockImplementation((f) => f === '.ai_workflow/artifact.txt');
     expect(hasArtifactFiles(['src/index.js', '.ai_workflow/artifact.txt'])).toBe(true);
-    jest.restoreAllMocks();
   });
 
   it('returns false if no files are workflow artifacts', () => {
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockReturnValue(false);
     expect(hasArtifactFiles(['src/index.js', 'README.md'])).toBe(false);
-    jest.restoreAllMocks();
   });
 });
 
 describe('buildSummaryMessage', () => {
   it('returns correct message for committed result', () => {
-    expect(buildSummaryMessage({ committed: true, files: ['a', 'b'] })).toBe('Committed  artifact file(s)');
-    expect(buildSummaryMessage({ committed: true, files: [] })).toBe('Committed  artifact file(s)');
-    expect(buildSummaryMessage({ committed: true })).toBe('Committed  artifact file(s)');
+    expect(buildSummaryMessage({ committed: true, files: ['a', 'b'] })).toBe(
+      'Committed 2 artifact file(s)'
+    );
+    expect(buildSummaryMessage({ committed: true, files: [] })).toBe(
+      'Committed 0 artifact file(s)'
+    );
+    expect(buildSummaryMessage({ committed: true })).toBe('Committed 0 artifact file(s)');
   });
 
   it('returns correct message for no_files reason', () => {
-    expect(buildSummaryMessage({ committed: false, reason: 'no_files' })).toBe('No artifact files to commit');
+    expect(buildSummaryMessage({ committed: false, reason: 'no_files' })).toBe(
+      'No artifact files to commit'
+    );
   });
 
   it('returns correct message for filtered reason', () => {
-    expect(buildSummaryMessage({ committed: false, reason: 'filtered' })).toBe('No eligible artifact files after filtering');
+    expect(buildSummaryMessage({ committed: false, reason: 'filtered' })).toBe(
+      'No eligible artifact files after filtering'
+    );
   });
 
   it('returns correct message for disabled reason', () => {
-    expect(buildSummaryMessage({ committed: false, reason: 'disabled' })).toBe('Auto-commit is disabled');
+    expect(buildSummaryMessage({ committed: false, reason: 'disabled' })).toBe(
+      'Auto-commit is disabled'
+    );
   });
 
   it('returns correct message for no_git reason', () => {
@@ -56,11 +63,11 @@ describe('buildSummaryMessage', () => {
   });
 
   it('returns default skipped message for unknown reason', () => {
-    expect(buildSummaryMessage({ committed: false, reason: 'other' })).toBe('Skipped: ');
+    expect(buildSummaryMessage({ committed: false, reason: 'other' })).toBe('Skipped: other');
   });
 
   it('returns default skipped message if reason is missing', () => {
-    expect(buildSummaryMessage({ committed: false })).toBe('Skipped: ');
+    expect(buildSummaryMessage({ committed: false })).toBe('Skipped: unknown');
   });
 });
 
@@ -74,8 +81,8 @@ describe('Step0fCommitArtifacts', () => {
     mockAutoCommit = {
       commitArtifacts: jest.fn(),
     };
-    loggerInfoSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'info').mockImplementation(() => {});
-    loggerErrorSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'error').mockImplementation(() => {});
+    loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     step = new Step0fCommitArtifacts({ gitOps: mockGitOps, autoCommit: mockAutoCommit });
   });
 
@@ -89,7 +96,6 @@ describe('Step0fCommitArtifacts', () => {
       unstaged: [{ file: 'README.md' }],
       untracked: [],
     });
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockReturnValue(false);
 
     const result = await step.execute('/project/root');
     expect(result).toEqual({ success: true, skipped: true, reason: 'no_artifact_files' });
@@ -102,16 +108,18 @@ describe('Step0fCommitArtifacts', () => {
       unstaged: [{ file: 'src/index.js' }],
       untracked: ['.ai_workflow/artifact2.txt'],
     });
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockImplementation((f) => f.startsWith('.ai_workflow/'));
-    mockAutoCommit.commitArtifacts.mockResolvedValue({ committed: true, files: ['.ai_workflow/artifact1.txt', '.ai_workflow/artifact2.txt'] });
+    mockAutoCommit.commitArtifacts.mockResolvedValue({
+      committed: true,
+      files: ['.ai_workflow/artifact1.txt', '.ai_workflow/artifact2.txt'],
+    });
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
     expect(result.committed).toBe(true);
     expect(result.files).toEqual(['.ai_workflow/artifact1.txt', '.ai_workflow/artifact2.txt']);
-    expect(result.summary).toBe('Committed  artifact file(s)');
+    expect(result.summary).toBe('Committed 2 artifact file(s)');
     expect(loggerInfoSpy).toHaveBeenCalledWith('Found 2 artifact file(s) to commit');
-    expect(loggerInfoSpy).toHaveBeenCalledWith('Committed  artifact file(s)');
+    expect(loggerInfoSpy).toHaveBeenCalledWith('Committed 2 artifact file(s)');
   });
 
   it('handles autoCommit returning no commit', async () => {
@@ -120,8 +128,11 @@ describe('Step0fCommitArtifacts', () => {
       unstaged: [],
       untracked: [],
     });
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockReturnValue(true);
-    mockAutoCommit.commitArtifacts.mockResolvedValue({ committed: false, reason: 'filtered', files: [] });
+    mockAutoCommit.commitArtifacts.mockResolvedValue({
+      committed: false,
+      reason: 'filtered',
+      files: [],
+    });
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
@@ -142,20 +153,22 @@ describe('Step0fCommitArtifacts', () => {
 
   it('handles empty status object gracefully', async () => {
     mockGitOps.status.mockResolvedValue({});
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockReturnValue(false);
     const result = await step.execute('/project/root');
     expect(result).toEqual({ success: true, skipped: true, reason: 'no_artifact_files' });
   });
 
   it('handles missing staged/unstaged/untracked arrays', async () => {
-    mockGitOps.status.mockResolvedValue({ staged: null, unstaged: undefined, untracked: undefined });
-    jest.spyOn(require('../../src/lib/auto_commit.js'), 'validateArtifactPath').mockReturnValue(false);
+    mockGitOps.status.mockResolvedValue({
+      staged: null,
+      unstaged: undefined,
+      untracked: undefined,
+    });
     const result = await step.execute('/project/root');
     expect(result).toEqual({ success: true, skipped: true, reason: 'no_artifact_files' });
   });
 
   it('uses dryRun option in autoCommit if provided', () => {
-    const stepDry = new Step0fCommitArtifacts({ gitOps: mockGitOps, autoCommit: mockAutoCommit, dryRun: true });
+    const stepDry = new Step0fCommitArtifacts({ gitOps: mockGitOps, dryRun: true });
     expect(stepDry.autoCommit.dryRun).toBe(true);
   });
 });
