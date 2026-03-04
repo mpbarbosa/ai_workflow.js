@@ -1,7 +1,7 @@
 # Third-Party Exclusion API
 
-**Module:** `lib/third_party_exclusion`  
-**Version:** 1.0.0  
+**Module:** `lib/third_party_exclusion`
+**Version:** 1.0.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -698,5 +698,5 @@ console.log('Analysis complete:', analysis);
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Author:** AI Workflow Team

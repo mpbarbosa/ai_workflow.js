@@ -290,7 +290,7 @@ describe('Step 7: Test Generation', () => {
     });
 
     test('finds JavaScript test in __tests__', () => {
-      
+
 ...(truncated)
 ```
 
@@ -325,12 +325,12 @@ Here is a comprehensive code quality review for test/steps/step_06_test_review.t
 
 ### 1. Code Structure & Architecture
 
-- **Strengths**:  
+- **Strengths**:
   - Tests are grouped logically by function, with clear separation between pure functions and integration tests.
   - Descriptive test names and comments improve readability and maintainability.
   - Edge cases and default behaviors are covered (e.g., unknown language fallbacks).
 
-- **Weaknesses**:  
+- **Weaknesses**:
   - Some tests are repetitive and could be refactored using parameterized tests or helper functions.
   - No negative tests for invalid input types (e.g., passing null or unexpected values).
   - Integration tests (if present) should be clearly separated from pure function tests for clarity.
@@ -339,11 +339,11 @@ Here is a comprehensive code quality review for test/steps/step_06_test_review.t
 
 ### 2. Design Pattern Usage
 
-- **Strengths**:  
+- **Strengths**:
   - Follows Jest idioms and project conventions.
   - Uses descriptive test blocks and clear assertion patterns.
 
-- **Weaknesses**:  
+- **Weaknesses**:
   - Repetitive expect statements could be replaced with loops or test.each for maintainability.
   - No use of DRY principles for similar test cases.
 
@@ -351,11 +351,11 @@ Here is a comprehensive code quality review for test/steps/step_06_test_review.t
 
 ### 3. Maintainability Concerns
 
-- **Naming**:  
+- **Naming**:
   - Test names are clear and specific.
-- **Complexity**:  
+- **Complexity**:
   - The file is easy to follow, but repetitive code increases maintenance burden.
-- **Cohesion/Coupling**:  
+- **Cohesion/Coupling**:
   - Tests are tightly coupled to the implementation details; changes in function signatures or export names will require manual updates.
 
 ---
@@ -383,11 +383,11 @@ This reduces repetition and improves maintainability.
 
 ### 5. Adherence to Best Practices
 
-- **SOLID Principles**:  
+- **SOLID Principles**:
   - Tests are single-responsibility but could be more robust with negative and boundary cases.
-- **Language Idioms**:  
+- **Language Idioms**:
   - Uses ES6 imports and Jest idioms correctly.
-- **Project Standards**:  
+- **Project Standards**:
   - Follows project conventions for test organization and grouping.
 
 ---
@@ -401,6 +401,6 @@ This reduces repetition and improves maintainability.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The test suites are structurally sound but can be improved for maintainability and coverage by refactoring repetitive checks, adding negative tests, and expanding behavioral assertions.
 ```

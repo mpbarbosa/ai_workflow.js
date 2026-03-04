@@ -238,6 +238,6 @@ export function extractPersonaNames(yamlContent) {
 
 ---
 
-**Summary**:  
+**Summary**:
 The module is well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, use a YAML parser for extraction logic, clarify parsing with comments, and ensure impure logic is isolated and tested.
 ```

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Version:** 1.2.0  
+**Version:** 1.2.0
 **Last Updated:** February 8, 2026
 
 This document provides a high-level overview of the ai_workflow.js architecture, design patterns, and module organization.
@@ -258,6 +258,28 @@ export class Config {
 
 ### Directory Structure
 
+**Project root:**
+
+```text
+ai_workflow.js/
+├── src/                   # Application source code
+├── test/                  # Jest test suite (mirrors src/ structure)
+├── docs/                  # Project documentation
+├── scripts/               # Automation shell and Node.js scripts
+├── .github/               # GitHub configuration and Copilot instructions
+├── .workflow_core/        # Git submodule — shared config templates and docs
+├── .ai_workflow/          # Runtime artifacts (gitignored): logs, metrics, backlog, cache
+├── .test-cache/           # Jest transform/module cache (auto-generated, gitignored, safe to delete)
+├── .test-e2e/             # End-to-end test run artifacts — temp dirs created per test session
+│   ├── detect-*/          #   Project-detection test working directories
+│   ├── step-02-*/         #   Step-02 consistency test working directories
+│   └── step-02-artefacts-*/ # Step-02 output artefact snapshots used for assertions
+├── .test-step-11-5/       # Step-11-5 (AWS LBS) isolated test fixtures (auto-generated, gitignored)
+└── coverage/              # Jest coverage output (gitignored)
+```
+
+**`src/` tree:**
+
 ```text
 src/
 ├── core/                  # Phase 1: Foundation (v1.0.0)
@@ -268,7 +290,7 @@ src/
 │   └── executor.js        # Command execution
 ├── utils/                 # Phase 1: Helpers (v1.0.0)
 │   └── errors.js          # Custom error classes
-├── lib/                   # Phase 2-4: Core libraries (v2.0.0/v1.0.0)
+├── lib/                   # Phase 2-8: Core libraries (v2.0.0/v1.0.0)
 │   ├── config.js                  # Configuration management
 │   ├── backlog.js                 # Workflow reporting
 │   ├── session_manager.js         # Session lifecycle
@@ -282,17 +304,62 @@ src/
 │   ├── project_kind_config.js     # Project configuration
 │   ├── tech_stack.js              # Tech stack detection
 │   └── third_party_exclusion.js   # Third-party filtering
-├── cli/                   # Phase 11: CLI (future)
-├── orchestrator/          # Phase 7: Workflow (COMPLETE)
+├── steps/                 # Phase 9: Workflow step implementations
+│   ├── step_02_5_lib/     # Helper modules for step_02_5 (doc optimization)
+│   │   ├── ai_analyzer.js         # AI-powered analysis helpers
+│   │   ├── consolidation.js       # Result consolidation logic
+│   │   ├── git_analysis.js        # Git diff analysis for docs
+│   │   ├── heuristics.js          # Heuristic scoring functions
+│   │   ├── reporting.js           # Report generation
+│   │   └── version_analysis.js    # Version consistency analysis
+│   └── step_*.js          # Individual step implementations
+├── cli/                   # Phase 11: CLI commands and utilities
+├── orchestrator/          # Phase 7: Workflow orchestration (COMPLETE)
 │   ├── workflow_engine.js
 │   ├── step_registry.js
 │   ├── dependency_resolver.js
 │   ├── step_executor.js
 │   ├── conditional_executor.js
 │   └── checkpoint_manager.js
-├── managers/              # Phase 6: AI (COMPLETE - in lib/)
 └── index.js               # Public API exports
 ```
+
+**`docs/` tree:**
+
+```text
+docs/
+├── architecture/          # System design and architectural decisions
+├── api/                   # Module API reference (auto-generated + manual)
+│   ├── core/              # Phase 1 core module docs
+│   ├── lib/               # Phase 2-8 library module docs
+│   ├── orchestrator/      # Phase 7 orchestrator docs
+│   ├── steps/             # Phase 9 workflow step docs
+│   └── utils/             # Utility module docs
+├── guides/                # How-to guides and tutorials
+├── reference/             # Reference material (schemas, error codes, CLI)
+├── reports/
+│   ├── analysis/          # Code and architecture analysis reports
+│   ├── bugfixes/          # Bug fix documentation and root cause analyses
+│   └── implementation/    # Migration and implementation planning docs
+├── tutorials/             # Step-by-step tutorials for new users
+├── workflow-automation/   # Workflow automation usage documentation
+└── misc/                  # Miscellaneous documentation artefacts
+```
+
+**`.workflow_core/` submodule tree (relevant subdirs):**
+
+```text
+.workflow_core/
+├── config/                # Shared configuration templates (project_kinds.yaml, ai_helpers.yaml)
+├── templates/
+│   └── debugging/         # Prompt and config templates for debugging scenarios
+├── workflow-templates/    # Reusable workflow definition templates
+└── docs/
+    ├── developers/        # Developer-facing documentation for workflow_core contributors
+    └── workflow-automation/ # Workflow automation integration guides
+```
+
+> **Artefact directories** (`.test-cache`, `.test-e2e`, `.test-step-11-5`, `.ai_workflow/`) are auto-generated at runtime and are safe to delete. All are covered by `.gitignore`.
 
 ### Module Versioning
 

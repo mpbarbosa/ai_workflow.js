@@ -1,7 +1,7 @@
 # Configuration Schema Reference
 
-**AI Workflow Automation v1.0.0**  
-**Last Updated:** 2026-02-01  
+**AI Workflow Automation v1.0.0**
+**Last Updated:** 2026-02-01
 **Audience:** Developers, DevOps Engineers
 
 ---
@@ -807,10 +807,9 @@ security:
 ## Additional Resources
 
 - **[Configuration Guide](../guides/CONFIGURATION_GUIDE.md)** - User guide
-- **[API Documentation](../api/config.md)** - Config module reference
-- **[Project Kinds Schema](../api/PROJECT_KINDS_SCHEMA.md)** - Project validation
+- **[API Documentation](../api/lib/config.md)** - Config module reference
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Version:** 1.0.0

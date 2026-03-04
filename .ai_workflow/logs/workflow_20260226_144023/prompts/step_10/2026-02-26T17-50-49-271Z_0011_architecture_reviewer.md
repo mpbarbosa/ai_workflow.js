@@ -611,10 +611,10 @@ async function validateExports() {
 
 /**
  * AI Workflow CLI Entry Point
- * 
+ *
  * This is the main executable entry point for the ai-workflow CLI.
  * It loads the CLI module and handles any top-level errors.
- * 
+ *
  * @module bin/ai-workflow
  * @version 1.0.0
  * @since 2026-02-10
@@ -781,6 +781,6 @@ export const colors = {
 
 ---
 
-**Summary**:  
+**Summary**:
 Scripts and configs are well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, refactor repeated logic, clarify complex code with comments, and ensure scripts are covered by integration tests.
 ```

@@ -1,6 +1,6 @@
 # Validation Scripts
 
-**Version**: 1.0.0  
+**Version**: 1.0.0
 **Last Updated**: February 7, 2026
 
 ## Overview
@@ -252,7 +252,7 @@ npm run validate:versions
 
 #### Issue: Many files flagged
 
-**Normal**: Historical versions in CHANGELOG are expected  
+**Normal**: Historical versions in CHANGELOG are expected
 **Action**: Focus on priority files (README.md)
 
 ---
@@ -677,8 +677,7 @@ python3 .workflow_core/scripts/validate_context_blocks.py docs/
 ### Related Documentation
 
 - [Developer Guide](./DEVELOPER_GUIDE.md) - Development workflow
-- [Submodule Integration](../architecture/SUBMODULE_INTEGRATION.md) - Workflow core usage
-- [Documentation Standards](../reference/DOCUMENTATION_STANDARDS.md) - Style guide
+- [Architecture Overview](../architecture/OVERVIEW.md) - Workflow core usage
 
 ---
 
@@ -687,6 +686,6 @@ python3 .workflow_core/scripts/validate_context_blocks.py docs/
 - `validate_context_blocks.py`: 1.0.0
 - `validate_structure.py`: 1.0.0
 
-**Maintained By:** AI Workflow Core Team  
-**Repository:** [.workflow_core](../../.workflow_core/)  
+**Maintained By:** AI Workflow Core Team
+**Repository:** [.workflow_core](../../.workflow_core/)
 **Last Validated:** 2026-02-08

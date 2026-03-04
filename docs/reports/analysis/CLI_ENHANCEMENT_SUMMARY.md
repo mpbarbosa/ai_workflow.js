@@ -1,7 +1,7 @@
 # CLI Enhancement - Add --project-root and --workflow-dir Options
 
-**Date:** 2026-02-17  
-**Status:** ✅ Complete  
+**Date:** 2026-02-17
+**Status:** ✅ Complete
 **Impact:** Major usability improvement
 
 ## Summary
@@ -199,6 +199,6 @@ Potential enhancements:
 
 ---
 
-**Version:** 1.0.0  
-**Author:** GitHub Copilot CLI  
+**Version:** 1.0.0
+**Author:** GitHub Copilot CLI
 **Status:** Production Ready

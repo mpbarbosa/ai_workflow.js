@@ -333,7 +333,7 @@ parse_args() {
 #!/bin/bash
 #
 # prepare-release.sh - Prepares the project for release
-# 
+#
 # Usage: ./scripts/prepare-release.sh [version]
 #
 # This script:
@@ -384,12 +384,12 @@ validate_version() {
 # Main script
 main() {
     local version=${1:-}
-    
+
     echo "================================================"
     echo "  ai_workflow.js Release Preparation"
     echo "================================================"
     echo ""
-    
+
     # Check if version provided
     if [ -z "$version" ]; then
         log_error "Version argument required"
@@ -397,10 +397,10 @@ main() {
         echo "Example: $0 1.0.0"
         exit 1
     fi
-    
+
     validate_version "$version"
     log_success "Version format valid: $version"
-    
+
     # Check git status
     log_info "Checking git status..."
     if ! git diff-index --quiet HEAD --; then
@@ -413,7 +413,7 @@ main() {
         fi
     fi
     log_success "Git status clean"
-    
+
     # Run linting
     log_info "Running linter..."
     if npm run lint; then
@@ -422,7 +422,7 @@ main() {
         log_error "Linting failed"
         exit 1
     fi
-    
+
     # Run all tests
     log_info "Running test suite..."
     if npm test; then
@@ -431,7 +431,7 @@ main() {
         log_error "Tests failed"
         exit 1
     fi
-    
+
     # Validate exports
     log_info "Validating exports..."
     if npm run validate:exports; then
@@ -440,7 +440,7 @@ main() {
         log_error "Export validation failed"
         exit 1
     fi
-    
+
     # Validate versions
     log_info "Validating version consistency..."
     if npm run validate:versions; then
@@ -449,7 +449,7 @@ main() {
         log_error "Version validation failed"
         exit 1
     fi
-    
+
     # Security audit
     log_info "Running security audit..."
     if npm audit --audit-level=high; then
@@ -457,7 +457,7 @@ main() {
     else
         log_warning "Security audit found issues (check npm audit)"
     fi
-    
+
     # Custom security scan
     log_info "Running custom security scan..."
     if node scripts/security-audit.js; then
@@ -465,12 +465,12 @@ main() {
     else
         log_warning "Custom security scan found issues"
     fi
-    
+
     # Update package.json version
     log_info "Updating package.json version to $version..."
     npm version "$version" --no-git-tag-version
     log_success "package.json updated"
-    
+
     # Create git tag
     log_info "Creating git tag v$version..."
     git add package.json
@@ -481,7 +481,7 @@ Release preparation for v$version
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
     git tag -a "v$version" -m "Release v$version"
     log_success "Git tag created"
-    
+
     # Show summary
     echo ""
     echo "================================================"
@@ -500,7 +500,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 #!/usr/bin/env bash
 #
 # setup.sh - Development Environment Setup
-# 
+#
 # This script sets up the development environment for ai_workflow.js
 # Installs dependencies, initializes submodules, and creates required directories.
 #
@@ -741,27 +741,27 @@ echo ""
 
 if [ "$COVERAGE" = true ]; then
     section "With code coverage analysis"
-    
+
     if [ "$VERBOSE" = true ]; then
         npm test -- --coverage
     else
         npm test -- --coverage --silent
     fi
-    
+
     TEST_EXIT=$?
-    
+
     if [ $TEST_EXIT -eq 0 ]; then
         info "All tests passed"
     else
         error "Some tests failed"
         exit $TEST_EXIT
     fi
-    
+
     # Generate HTML coverage report
     section "Generating HTML coverage report..."
     if [ -d "coverage" ]; then
         info "Coverage report available at: coverage/lcov-report/index.html"
-        
+
         # Show coverage summary
         echo ""
         section "Coverage Summary:"
@@ -784,9 +784,9 @@ else
     else
         npm test --silent
     fi
-    
+
     TEST_EXIT=$?
-    
+
     if [ $TEST_EXIT -eq 0 ]; then
         info "All tests passed"
     else

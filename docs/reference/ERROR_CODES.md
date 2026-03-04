@@ -1,7 +1,7 @@
 # Error Codes Reference
 
-**AI Workflow Automation v1.0.0**  
-**Last Updated:** 2026-02-01  
+**AI Workflow Automation v1.0.0**
+**Last Updated:** 2026-02-01
 **Audience:** Developers, Support Engineers
 
 ---
@@ -680,10 +680,10 @@ async function retryOnError(fn, maxRetries = 3) {
 ## Additional Resources
 
 - **[Developer Guide](../guides/DEVELOPER_GUIDE.md)** - Error handling patterns
-- **[API Documentation](../api/errors.md)** - Error classes reference
+- **[API Documentation](../api/utils/errors.md)** - Error classes reference
 - **[Troubleshooting](../guides/USER_GUIDE.md#troubleshooting)** - Common issues
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Version:** 1.0.0

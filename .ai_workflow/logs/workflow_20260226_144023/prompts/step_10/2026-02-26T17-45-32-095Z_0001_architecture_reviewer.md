@@ -177,7 +177,7 @@ describe('AI Cache Module - Pure Functions', () => {
       const currentTime = 2500;
       const ttl = 1000;
 
-      const stats = 
+      const stats =
 ...(truncated)
 ```
 
@@ -247,6 +247,6 @@ describe('AI Cache Module - Integration', () => {
 
 ---
 
-**Summary**:  
+**Summary**:
 The test file is well-structured, comprehensive, and adheres to best practices. No critical issues found. For further improvement, add integration tests for wrapper classes and clarify complex cases with comments.
 ```

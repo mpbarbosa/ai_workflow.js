@@ -178,7 +178,7 @@ describe('CLI Output - Pure Functions', () => {
 
     test('should handle custom separator', () => {
       const data = { key: 'value' };
-  
+
 ...(truncated)
 ```
 
@@ -620,7 +620,7 @@ describe('Config Command - Pure Functions', () => {
 
       const formatted = formatValidationErrors(errors);
       expect(formatted).toContain('Validation errors:');
- 
+
 ...(truncated)
 ```
 
@@ -803,6 +803,6 @@ describe('CLI Command Handler - Integration', () => {
 
 ---
 
-**Summary**:  
+**Summary**:
 The test files are well-structured, comprehensive, and adhere to best practices. No critical issues found. For further improvement, add integration tests for wrapper classes and clarify complex cases with comments.
 ```

@@ -1,7 +1,7 @@
 # Migration Plan: AI Workflow from Shell Script to JavaScript/Node.js
 
-**Version:** 1.2.0  
-**Last Updated:** January 29, 2026  
+**Version:** 1.2.0
+**Last Updated:** January 29, 2026
 **Status:** Active Development
 
 ---
@@ -470,7 +470,7 @@ The migration will follow a **redesign-first** approach:
 3. **Implement**: Write clean JavaScript from scratch
 4. **Validate**: Ensure feature parity through comprehensive testing
 
-**NOT**: Copy shell logic and translate to JavaScript syntax ❌  
+**NOT**: Copy shell logic and translate to JavaScript syntax ❌
 **YES**: Extract requirements and build proper JavaScript solution ✅
 
 ### 2.3 Key Principles

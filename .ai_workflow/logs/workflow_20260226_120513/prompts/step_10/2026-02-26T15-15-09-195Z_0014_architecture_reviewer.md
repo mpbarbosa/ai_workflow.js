@@ -611,10 +611,10 @@ async function validateExports() {
 
 /**
  * AI Workflow CLI Entry Point
- * 
+ *
  * This is the main executable entry point for the ai-workflow CLI.
  * It loads the CLI module and handles any top-level errors.
- * 
+ *
  * @module bin/ai-workflow
  * @version 1.0.0
  * @since 2026-02-10
@@ -816,6 +816,6 @@ const ast = parse(content, { sourceType: 'module' });
 
 ---
 
-**Summary:**  
+**Summary:**
 No critical bugs or security issues found. Scripts and configs are well-structured and follow best practices, but can be improved for maintainability, scalability, and CI integration by using async operations, AST parsing, and error aggregation.
 ```

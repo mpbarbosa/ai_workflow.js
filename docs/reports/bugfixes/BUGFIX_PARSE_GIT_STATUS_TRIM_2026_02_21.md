@@ -1,8 +1,8 @@
 # Bug Fix: `parseGitStatus` Corrupts Filenames Starting with R When First Status Line Is Unstaged
 
-**Date**: 2026-02-21  
-**Severity**: High — incorrect file paths reach the incremental doc processor, causing ENOENT warnings and silently skipping documentation analysis  
-**Component**: `src/lib/git_automation.js` — `parseGitStatus` pure function  
+**Date**: 2026-02-21
+**Severity**: High — incorrect file paths reach the incremental doc processor, causing ENOENT warnings and silently skipping documentation analysis
+**Component**: `src/lib/git_automation.js` — `parseGitStatus` pure function
 **Status**: ✅ Fixed
 
 ---

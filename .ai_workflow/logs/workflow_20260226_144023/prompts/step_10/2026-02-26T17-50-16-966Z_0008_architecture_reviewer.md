@@ -384,6 +384,6 @@ export const MetadataUtils = {
 
 ---
 
-**Summary**:  
+**Summary**:
 Both modules are well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, group related functions for discoverability, clarify complex logic with comments, and ensure impure logic is isolated and tested.
 ```

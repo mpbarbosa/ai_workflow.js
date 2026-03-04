@@ -1,7 +1,7 @@
 # ai_prompt_builder
 
-**Module:** `src/lib/ai_prompt_builder.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/ai_prompt_builder.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Impure wrapper
 
 Dynamic AI prompt generation with project-aware context injection and template substitution.
@@ -851,6 +851,6 @@ Project context is automatically appended to prompts. Structure:
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 100%

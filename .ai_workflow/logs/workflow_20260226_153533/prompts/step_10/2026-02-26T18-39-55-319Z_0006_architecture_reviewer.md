@@ -213,7 +213,7 @@ export function extractPromptContent(yamlContent, personaName) {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---

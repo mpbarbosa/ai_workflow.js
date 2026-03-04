@@ -1,6 +1,6 @@
 # API Documentation Index
 
-**AI Workflow Automation v2.0.0**  
+**AI Workflow Automation v2.0.0**
 **Generated:** 2026-02-07
 
 Complete API reference for all modules in the ai_workflow.js project (Phase 1-7).
@@ -11,26 +11,26 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 ### Phase 1: Core Modules
 
-- **[colors](./colors.md)** - ANSI color codes and terminal color support
+- **[colors](./core/colors.md)** - ANSI color codes and terminal color support
 - **[logger](./logger.md)** - Colored logging with multiple log levels
-- **[system](./system.md)** - OS detection and system information
-- **[version](./version.md)** - Semantic version parsing and comparison
-- **[executor](./executor.md)** - Shell command execution utilities
-- **[errors](./errors.md)** - Custom error types
+- **[system](./core/system.md)** - OS detection and system information
+- **[version](./core/version.md)** - Semantic version parsing and comparison
+- **[executor](./core/executor.md)** - Shell command execution utilities
+- **[errors](./utils/errors.md)** - Custom error types
 
 ### Phase 2: Configuration & Workflow
 
-- **[config](./config.md)** - Workflow configuration and path management
-- **[backlog](./backlog.md)** - Workflow summaries and backlog reports
-- **[session_manager](./session_manager.md)** - Session lifecycle management
+- **[config](./lib/config.md)** - Workflow configuration and path management
+- **[backlog](./lib/backlog.md)** - Workflow summaries and backlog reports
+- **[session_manager](./lib/session_manager.md)** - Session lifecycle management
 - **[metrics](./metrics.md)** - Metrics collection and reporting
 
 ### Phase 3: File Operations & Utilities
 
-- **[file_operations](./file_operations.md)** - File system operations
-- **[edit_operations](./edit_operations.md)** - File content editing utilities
+- **[file_operations](./lib/file_operations.md)** - File system operations
+- **[edit_operations](./lib/edit_operations.md)** - File content editing utilities
 - **[utils](./utils.md)** - General utility functions
-- **[argument_parser](./argument_parser.md)** - CLI argument parsing
+- **[argument_parser](./lib/argument_parser.md)** - CLI argument parsing
 - **[cleanup_handlers](./cleanup_handlers.md)** - Cleanup operations
 
 ### Phase 4: Project Detection
@@ -79,12 +79,12 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 | Module                    | Purpose           | Key Features                                   |
 | ------------------------- | ----------------- | ---------------------------------------------- |
-| [colors](./colors.md)     | Terminal colors   | ANSI codes, color support detection            |
+| [colors](./core/colors.md)     | Terminal colors   | ANSI codes, color support detection            |
 | [logger](./logger.md)     | Logging           | Multi-level logging, quiet/verbose modes       |
-| [system](./system.md)     | System info       | OS detection, package manager detection        |
-| [version](./version.md)   | Versioning        | Semver parsing, version comparison             |
-| [executor](./executor.md) | Command execution | Shell commands, streaming output, sudo support |
-| [errors](./errors.md)     | Error handling    | Custom error types with context                |
+| [system](./core/system.md)     | System info       | OS detection, package manager detection        |
+| [version](./core/version.md)   | Versioning        | Semver parsing, version comparison             |
+| [executor](./core/executor.md) | Command execution | Shell commands, streaming output, sudo support |
+| [errors](./utils/errors.md)     | Error handling    | Custom error types with context                |
 
 ### Configuration & Workflow (Phase 2)
 
@@ -92,9 +92,9 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 | Module                                  | Purpose       | Key Features                             |
 | --------------------------------------- | ------------- | ---------------------------------------- |
-| [config](./config.md)                   | Configuration | Path calculation, metadata generation    |
-| [backlog](./backlog.md)                 | Reporting     | Workflow summaries, markdown generation  |
-| [session_manager](./session_manager.md) | Session mgmt  | Session tracking, cleanup queues         |
+| [config](./lib/config.md)                   | Configuration | Path calculation, metadata generation    |
+| [backlog](./lib/backlog.md)                 | Reporting     | Workflow summaries, markdown generation  |
+| [session_manager](./lib/session_manager.md) | Session mgmt  | Session tracking, cleanup queues         |
 | [metrics](./metrics.md)                 | Metrics       | Duration tracking, step timing, counters |
 
 ### File Operations & Utilities (Phase 3)
@@ -103,10 +103,10 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 | Module                                    | Purpose      | Key Features                          |
 | ----------------------------------------- | ------------ | ------------------------------------- |
-| [file_operations](./file_operations.md)   | File system  | Read, write, list, filter, validation |
-| [edit_operations](./edit_operations.md)   | File editing | Find, replace, insert, extract        |
+| [file_operations](./lib/file_operations.md)   | File system  | Read, write, list, filter, validation |
+| [edit_operations](./lib/edit_operations.md)   | File editing | Find, replace, insert, extract        |
 | [utils](./utils.md)                       | Utilities    | String, array, object, date utilities |
-| [argument_parser](./argument_parser.md)   | CLI parsing  | Flag/option parsing, validation       |
+| [argument_parser](./lib/argument_parser.md)   | CLI parsing  | Flag/option parsing, validation       |
 | [cleanup_handlers](./cleanup_handlers.md) | Cleanup      | Age-based, size-based file cleanup    |
 
 ### Project Detection (Phase 4)
@@ -271,5 +271,5 @@ See [CONTRIBUTING.md](../../docs/CONTRIBUTING.md) for full guidelines.
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Part of:** AI Workflow Automation v2.0.0

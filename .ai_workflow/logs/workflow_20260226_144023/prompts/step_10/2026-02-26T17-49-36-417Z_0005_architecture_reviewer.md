@@ -232,6 +232,6 @@ const CODE_BLOCK_SCRIPT_REF_REGEX = /```(?:bash|sh|python|javascript|typescript)
 
 ---
 
-**Summary**:  
+**Summary**:
 The module is well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, clarify regex logic with comments and named constants, and ensure impure logic is isolated and tested.
 ```

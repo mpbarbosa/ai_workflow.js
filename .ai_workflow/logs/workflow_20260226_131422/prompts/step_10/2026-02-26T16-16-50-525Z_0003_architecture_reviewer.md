@@ -159,7 +159,7 @@ describe('runSdkSmokeTest', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('returns success when API responds with non-empty content', async () => {
-  
+
 ...(truncated)
 ```
 

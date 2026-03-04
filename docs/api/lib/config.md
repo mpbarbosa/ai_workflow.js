@@ -1,7 +1,7 @@
 # config.js API Documentation
 
-**Module:** `lib/config`  
-**Version:** 2.0.0  
+**Module:** `lib/config`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

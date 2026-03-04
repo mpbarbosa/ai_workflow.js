@@ -1,7 +1,7 @@
 # Project Kind Configuration API
 
-**Module:** `lib/project_kind_config`  
-**Version:** 2.0.0  
+**Module:** `lib/project_kind_config`
+**Version:** 2.0.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -760,5 +760,5 @@ const config3 = await manager.loadConfig('nodejs_api');
 
 ---
 
-**Last Updated:** 2026-02-20  
+**Last Updated:** 2026-02-20
 **Author:** AI Workflow Team

@@ -38,7 +38,7 @@
 
 ### 1. Script-to-Documentation Mapping
 
-**Scripts Found:**  
+**Scripts Found:**
 - `scripts/cleanup_artifacts.sh`
 - `scripts/prepare-release.sh`
 - `scripts/setup.sh`
@@ -128,7 +128,7 @@
 
 ---
 
-**Priority:**  
+**Priority:**
 - **Critical/High**: Missing dedicated documentation and usage for all scripts except `cleanup_artifacts.sh`.
 - **Medium**: Missing troubleshooting, output/exit code docs, and integration workflow documentation.
 - **Low**: Minor versioning/documentation inconsistencies.
@@ -142,36 +142,36 @@
 
 ## setup.sh — Development Environment Setup
 
-**Purpose:**  
+**Purpose:**
 Sets up the development environment, installs dependencies, initializes submodules, and creates required directories.
 
-**Usage:**  
+**Usage:**
 ```bash
 ./scripts/setup.sh
 ```
 
-**Prerequisites:**  
+**Prerequisites:**
 - Node.js >= 18.0.0
 - npm >= 9.0.0
 
-**Options:**  
+**Options:**
 (none)
 
-**Output:**  
+**Output:**
 - Prints status messages for each step.
 - Exits with code 0 on success, nonzero on error.
 
-**Troubleshooting:**  
+**Troubleshooting:**
 - "Node.js is not installed": Install Node.js >= 18.0.0.
 - "Failed to install dependencies": Check npm logs.
 
-**Integration:**  
+**Integration:**
 Run before any validation or testing scripts.
 ```
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 - Draft dedicated guides for each script.
 - Update main documentation to reference these guides.
 - Add troubleshooting and integration workflow sections.

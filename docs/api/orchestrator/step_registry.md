@@ -1,7 +1,7 @@
 # Step Registry API
 
-**Module:** `orchestrator/step_registry`  
-**Version:** 2.0.0  
+**Module:** `orchestrator/step_registry`
+**Version:** 2.0.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -1709,5 +1709,5 @@ if (!check.met) {
 
 ---
 
-**Last Updated:** January 29, 2026  
+**Last Updated:** January 29, 2026
 **Module Version:** 2.0.0

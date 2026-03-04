@@ -184,7 +184,7 @@ export class Logger {
    * Log success message
    */
   success(message) {
-    if (!this.quiet) 
+    if (!this.quiet)
 ...(truncated)
 ```
 
@@ -732,6 +732,6 @@ export function parseVersionSafe(version) {
 
 ---
 
-**Summary:**  
+**Summary:**
 No critical bugs or security issues found. Modules are well-structured and follow best practices, but can be improved for maintainability and robustness by adding error handling, async operations, and splitting large data/configuration blocks.
 ```

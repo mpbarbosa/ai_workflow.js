@@ -178,7 +178,7 @@ export function determineAlertSeverity(metrics, thresholds) {
  *
  * @example
  * generateAlertMessage('db-query', { duration: 6000, memory: { heapUsed: 25 } }, 'warning')
- * 
+ *
 ...(truncated)
 ```
 
@@ -325,7 +325,7 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
       const regex = new RegExp(`^${pattern}$`);
       const found = existingFiles.some((file) => regex.test(file));
 
-    
+
 ...(truncated)
 ```
 
@@ -425,6 +425,6 @@ Use this helper in determineAlertSeverity.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The modules are structurally sound and follow best practices, but can be improved for maintainability and clarity by refactoring repetitive logic, adding input validation, and splitting large files.
 ```

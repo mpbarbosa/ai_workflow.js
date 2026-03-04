@@ -1,7 +1,7 @@
 # Metrics Module API Documentation
 
-**Module:** `lib/metrics`  
-**Version:** 2.0.0  
+**Module:** `lib/metrics`
+**Version:** 2.0.0
 **Architecture:** Pure Functions + Impure Wrapper (Referential Transparency)
 
 ## Overview

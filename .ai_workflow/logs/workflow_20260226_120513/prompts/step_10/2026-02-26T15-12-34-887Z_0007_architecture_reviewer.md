@@ -178,7 +178,7 @@ describe('CLI Output - Pure Functions', () => {
 
     test('should handle custom separator', () => {
       const data = { key: 'value' };
-  
+
 ...(truncated)
 ```
 
@@ -620,7 +620,7 @@ describe('Config Command - Pure Functions', () => {
 
       const formatted = formatValidationErrors(errors);
       expect(formatted).toContain('Validation errors:');
- 
+
 ...(truncated)
 ```
 
@@ -838,6 +838,6 @@ This reduces repetition and improves maintainability.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The test suites are structurally sound but can be improved for maintainability and coverage by refactoring repetitive checks, adding negative tests, and expanding behavioral assertions.
 ```

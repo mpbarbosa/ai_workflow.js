@@ -1,6 +1,6 @@
 # Integration Examples
 
-**AI Workflow Automation v1.0.0**  
+**AI Workflow Automation v1.0.0**
 **Last Updated:** 2026-02-01
 
 ---
@@ -580,5 +580,5 @@ on_failure:
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Version:** 1.0.0

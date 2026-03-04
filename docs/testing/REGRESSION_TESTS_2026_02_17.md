@@ -4,9 +4,9 @@
 
 This document describes the regression tests added to prevent two critical bugs discovered during workflow execution on February 17, 2026.
 
-**Test File:** `test/orchestrator/main_orchestrator.test.js`  
-**Test Suite:** "Regression Tests - Step Registration and Execution"  
-**Tests Added:** 8 comprehensive regression tests  
+**Test File:** `test/orchestrator/main_orchestrator.test.js`
+**Test Suite:** "Regression Tests - Step Registration and Execution"
+**Tests Added:** 8 comprehensive regression tests
 **Status:** ✅ All tests passing (54/55 total, 1 skipped)
 
 ---
@@ -274,7 +274,7 @@ node bin/ai-workflow.js run --stage quick
 
 ---
 
-**Document Version:** 1.0.0  
-**Last Updated:** 2026-02-17  
-**Author:** GitHub Copilot CLI  
+**Document Version:** 1.0.0
+**Last Updated:** 2026-02-17
+**Author:** GitHub Copilot CLI
 **Status:** Active Regression Tests

@@ -1,7 +1,7 @@
 # ai_validation
 
-**Module:** `src/lib/ai_validation.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/ai_validation.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions only
 
 AI response validation with confidence scoring and fallback strategies.
@@ -528,11 +528,11 @@ async function retryWithBackoff(fn, maxAttempts = 5) {
       return await fn();
     } catch (error) {
       const strategy = generateRetryStrategy(attempt);
-      
+
       if (!strategy.shouldRetry) {
         throw error;
       }
-      
+
       console.log(`Retry ${attempt} after ${strategy.delay}ms`);
       await new Promise(resolve => setTimeout(resolve, strategy.delay));
     }
@@ -624,6 +624,6 @@ Jitter adds ±25% randomness to prevent thundering herd.
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 100%

@@ -1,7 +1,7 @@
 # Dependency Resolver API
 
-**Module:** `orchestrator/dependency_resolver`  
-**Version:** 2.0.0  
+**Module:** `orchestrator/dependency_resolver`
+**Version:** 2.0.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -522,5 +522,5 @@ const groups = groupParallelSteps(order, graph);
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Author:** AI Workflow Team

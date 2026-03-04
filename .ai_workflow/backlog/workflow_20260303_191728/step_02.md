@@ -344,7 +344,7 @@ Below is a systematic root cause analysis for each broken reference in the provi
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 - Address high-priority missing docs and references first (API steps, architecture, error/config).
 - Review and update documentation index and navigation to reflect actual file structure.
 - Ensure version numbers and terminology are consistent across all documentation and manifests.
@@ -644,7 +644,7 @@ Below is a systematic root cause analysis for each broken reference in the provi
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 - Address high-priority missing docs and references first (API docs for core modules, update API index).
 - Review and update documentation index and navigation to reflect actual file structure.
 - Ensure version numbers and terminology are consistent across all documentation and manifests.
@@ -661,58 +661,58 @@ Below is a systematic root cause analysis for each broken reference in the provi
 
 ---
 
-### Reference: docs/api/logger.md:312 → ./colors.md  
-### Reference: docs/api/logger.md:352 → ./colors.md  
-- **Status**: Truly Broken  
-- **Root Cause**: No file `docs/api/colors.md` found; likely missing API doc for colors module.  
-- **Recommended Fix**: Create `docs/api/colors.md` or update reference to correct location if colors documentation exists elsewhere.  
-- **Priority**: High — API doc, impacts developer discoverability.  
+### Reference: docs/api/logger.md:312 → ./colors.md
+### Reference: docs/api/logger.md:352 → ./colors.md
+- **Status**: Truly Broken
+- **Root Cause**: No file `docs/api/colors.md` found; likely missing API doc for colors module.
+- **Recommended Fix**: Create `docs/api/colors.md` or update reference to correct location if colors documentation exists elsewhere.
+- **Priority**: High — API doc, impacts developer discoverability.
 - **Impact**: Developers may not find colors module documentation.
 
 ---
 
-### Reference: docs/api/logger.md:353 → ./errors.md  
-- **Status**: Truly Broken  
-- **Root Cause**: No file `docs/api/errors.md` found; likely missing API doc for errors module.  
-- **Recommended Fix**: Create `docs/api/errors.md` or update reference to correct location if errors documentation exists elsewhere.  
-- **Priority**: High — API doc, impacts developer discoverability.  
+### Reference: docs/api/logger.md:353 → ./errors.md
+- **Status**: Truly Broken
+- **Root Cause**: No file `docs/api/errors.md` found; likely missing API doc for errors module.
+- **Recommended Fix**: Create `docs/api/errors.md` or update reference to correct location if errors documentation exists elsewhere.
+- **Priority**: High — API doc, impacts developer discoverability.
 - **Impact**: Developers may not find errors module documentation.
 
 ---
 
-### Reference: docs/api/lib/step1_parallel.md:463 → ./step1_incremental.md  
-- **Status**: Truly Broken  
-- **Root Cause**: No file `docs/api/lib/step1_incremental.md` found; likely missing step doc.  
-- **Recommended Fix**: Create `docs/api/lib/step1_incremental.md` or update reference to correct location.  
-- **Priority**: High — API step doc, impacts step documentation.  
+### Reference: docs/api/lib/step1_parallel.md:463 → ./step1_incremental.md
+- **Status**: Truly Broken
+- **Root Cause**: No file `docs/api/lib/step1_incremental.md` found; likely missing step doc.
+- **Recommended Fix**: Create `docs/api/lib/step1_incremental.md` or update reference to correct location.
+- **Priority**: High — API step doc, impacts step documentation.
 - **Impact**: Developers may not find incremental step documentation.
 
 ---
 
-### Reference: docs/api/lib/utils.md:178 → ../architecture/DESIGN_PRINCIPLES.md  
-- **Status**: False Positive  
-- **Root Cause**: Target exists as `docs/architecture/DESIGN_PRINCIPLES.md`.  
-- **Recommended Fix**: No action needed.  
-- **Priority**: High — Architecture doc, reference is valid.  
+### Reference: docs/api/lib/utils.md:178 → ../architecture/DESIGN_PRINCIPLES.md
+- **Status**: False Positive
+- **Root Cause**: Target exists as `docs/architecture/DESIGN_PRINCIPLES.md`.
+- **Recommended Fix**: No action needed.
+- **Priority**: High — Architecture doc, reference is valid.
 - **Impact**: No impact.
 
 ---
 
-### Reference: docs/api/core/colors.md:193 → ./backlog.md  
-- **Status**: Truly Broken  
-- **Root Cause**: No file `docs/api/backlog.md` found; should reference `docs/api/lib/backlog.md`.  
-- **Recommended Fix**: Update reference to `docs/api/lib/backlog.md`.  
-- **Priority**: High — API doc, impacts discoverability.  
+### Reference: docs/api/core/colors.md:193 → ./backlog.md
+- **Status**: Truly Broken
+- **Root Cause**: No file `docs/api/backlog.md` found; should reference `docs/api/lib/backlog.md`.
+- **Recommended Fix**: Update reference to `docs/api/lib/backlog.md`.
+- **Priority**: High — API doc, impacts discoverability.
 - **Impact**: Developers may not find backlog module documentation.
 
 ---
 
-### Reference: docs/api/core/executor.md:188 → ./errors.md  
-### Reference: docs/api/core/system.md:150 → ./errors.md  
-- **Status**: Truly Broken  
-- **Root Cause**: No file `docs/api/errors.md` found; likely missing API doc for errors module.  
-- **Recommended Fix**: Create `docs/api/errors.md` or update reference to correct location if errors documentation exists elsewhere.  
-- **Priority**: High — API doc, impacts developer discoverability.  
+### Reference: docs/api/core/executor.md:188 → ./errors.md
+### Reference: docs/api/core/system.md:150 → ./errors.md
+- **Status**: Truly Broken
+- **Root Cause**: No file `docs/api/errors.md` found; likely missing API doc for errors module.
+- **Recommended Fix**: Create `docs/api/errors.md` or update reference to correct location if errors documentation exists elsewhere.
+- **Priority**: High — API doc, impacts developer discoverability.
 - **Impact**: Developers may not find errors module documentation.
 
 ---
@@ -729,7 +729,7 @@ Below is a systematic root cause analysis for each broken reference in the provi
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 - Address high-priority missing docs and references first (API docs for colors, errors, step1_incremental, backlog).
 - Review and update documentation index and navigation to reflect actual file structure.
 - Ensure terminology and cross-references are consistent across all documentation.

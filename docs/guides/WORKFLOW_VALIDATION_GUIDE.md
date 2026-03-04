@@ -1,7 +1,7 @@
 # Workflow Execution Validation Guide
 
-**Version:** 1.4.0  
-**Last Updated:** 2026-02-21  
+**Version:** 1.4.0
+**Last Updated:** 2026-02-21
 **Applies to:** ai_workflow.js v1.2.0+
 
 This guide documents the process for validating a workflow execution run. It was formalized from the analysis of run `workflow_20260220_210720` and is designed to be reusable for future validations.
@@ -32,6 +32,7 @@ Each workflow run produces a timestamped log folder under `.ai_workflow/logs/`. 
 - Left a log file behind
 - Used the AI persona/prompt configured in the YAML files (when applicable)
 - Saved the AI response to the `prompts/` folder (when applicable)
+- For steps gated by project kind (e.g., `step_11_5`, `step_11_6`), verify correct registration and conditional execution
 
 ---
 
@@ -206,6 +207,7 @@ Not every step makes an AI call on every run. The following table documents when
 | step_08   | `test_engineer`                                              | `step7_test_exec_prompt`                                                                             | Test execution ran                                                                             | No test command configured / no tests   |
 | step_09   | `dependency_analyst`                                         | `step8_dependencies_prompt`                                                                          | Dependency files exist                                                                         | No dependency manager found             |
 | step_10   | `code_quality_analyst`                                       | `step9_code_quality_prompt`                                                                          | Source files exist with linter configured                                                      | No source files / no linter             |
+| step_11_5 | `aws_lbs_validator`                                          | Structural file/schema checks only (no AI)                                                           | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
 | step_11_6 | `aws_serverless_engineer`                                    | `buildAwsServerlessPrompt` (programmatic)                                                            | Project kind is `aws_lbs_backend_setup`                                                        | Any other project kind (skips silently) |
 | step_12   | `git_specialist`                                             | `step11_git_commit_prompt`                                                                           | Changes staged for commit                                                                      | No changes to commit / non-git repo     |
 | step_13   | `technical_writer`                                           | `markdown_lint_prompt`                                                                               | Markdown files found                                                                           | No markdown files / enumeration failed  |
@@ -229,7 +231,6 @@ Not every step makes an AI call on every run. The following table documents when
 | step_02_5 | Doc Optimization   | Heuristics-based analysis                  |
 | step_07   | Test Generation    | Runs test commands directly                |
 | step_11   | Context Management | File aggregation                           |
-| step_11_5 | AWS LBS Validation | Structural file/schema checks only (no AI) |
 | step_0f   | Commit Artifacts   | Git operations                             |
 | step_17   | Workflow Summary   | Aggregation of step results                |
 
@@ -258,10 +259,10 @@ All programmatic builders fall back to a hardcoded generic prompt if `ai_helpers
 
 ### Pattern 8: `projectType` always `null` — `getProjectKind()` does not exist
 
-**Symptom:**  
+**Symptom:**
 step_14 (and any other step reading `context.projectType`) receives `null` even though step_00 correctly detected a project kind. step_14 backlog shows `"Skipped - project type unknown not eligible for prompt analysis."` instead of a real project type name.
 
-**Root cause:**  
+**Root cause:**
 `main_orchestrator.js` built `executionContext.projectType` using:
 
 ```js
@@ -292,7 +293,7 @@ projectType: (await this.projectDetection.detectProjectKind(this.projectRoot))?.
 
 ### Pattern 9: step_04 flags `.ai_cache/index.json` as a syntax error
 
-**Symptom:**  
+**Symptom:**
 `step_04.log` shows:
 
 ```
@@ -301,7 +302,7 @@ Syntax validation: 1 error(s)
 
 The flagged file is `.ai_workflow/.ai_cache/index.json` with message `"Only absolute paths are allowed"`. The file is a valid internal cache index, not a project configuration file.
 
-**Root cause:**  
+**Root cause:**
 `Step4ConfigAnalyzer.discoverConfigFiles()` fallback scan included `**/*.json` without excluding the `.ai_cache/` directory. The cache index matched the glob and was passed to JSON syntax validation, which rejected the internal path format.
 
 **Fix applied in `src/steps/step_04_config_validation.js`:**
@@ -318,10 +319,10 @@ const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.ai_cache
 
 ### Pattern 1: Unregistered persona name
 
-**Symptom:**  
+**Symptom:**
 `[DEBUG] Persona: documentation_analyst` in the step log, but `documentation_analyst` is not in the registry.
 
-**Root cause:**  
+**Root cause:**
 The persona string is hardcoded in the step's source file instead of being read from config. The AI call still executes but without the role/context/approach defined in `ai_prompts_project_kinds.yaml`.
 
 **How to detect:**
@@ -336,10 +337,10 @@ grep "[DEBUG] Persona:" steps/step_01.log | grep -v -f <(grep "^    id:" src/lib
 
 ### Pattern 2: `fileOps` method not found at runtime
 
-**Symptom:**  
+**Symptom:**
 `✗ Workflow failed: this.fileOps.<method> is not a function`
 
-**Root cause:**  
+**Root cause:**
 The step calls a method (e.g., `directoryExists`, `listFiles`) that does not exist on the `FileOperations` class.
 
 **Available `FileOperations` methods:**
@@ -363,10 +364,10 @@ The step calls a method (e.g., `directoryExists`, `listFiles`) that does not exi
 
 ### Pattern 3: `projectType` shows as `unknown` in step logs
 
-**Symptom:**  
+**Symptom:**
 Step log shows `Project type: unknown - analysis skipped` despite step_00 detecting a valid project kind.
 
-**Root cause:**  
+**Root cause:**
 The `executionContext.projectType` in `main_orchestrator.js` is set via a broken path (`this.configManager?.config?.project?.kind`) where `configManager.config` is `undefined`.
 
 **Diagnosis:**
@@ -381,17 +382,17 @@ grep "project kind" steps/step_00.log
 
 ### Pattern 4: Markdown enumeration fails silently
 
-**Symptom:**  
+**Symptom:**
 `⚠ Failed to enumerate markdown files` + `No markdown files found` in `step_13.log`.
 
-**Root cause:**  
+**Root cause:**
 `fileOps.listFiles()` is called but doesn't exist. The catch block logs a warning and returns empty array, causing the step to complete with no linting done.
 
 ---
 
 ### Pattern 5: Step skips due to project type mismatch
 
-**Symptom:**  
+**Symptom:**
 Step reports skip with reason tied to project type (e.g., step_14 on a `configuration_library` project).
 
 **Whether this is a bug or correct behavior:**
@@ -405,13 +406,13 @@ Step reports skip with reason tied to project type (e.g., step_14 on a `configur
 
 ### Pattern 6: step_04 false-positive YAML syntax error in block scalars
 
-**Symptom:**  
+**Symptom:**
 `Syntax validation: 1 error(s)` in `step_04.log` for a YAML file that is structurally valid. The flagged line is content inside a `|` or `>` block scalar (e.g., a prose bullet list with 7-space indentation inside a `prompt:` field).
 
-**Root cause:**  
+**Root cause:**
 `validateYamlSyntax()` in `step_04_config_validation.js` checked _every_ line for odd indentation, including literal content lines inside block scalars where indentation is prose formatting, not YAML structure.
 
-**Fix applied in `src/steps/step_04_config_validation.js`:**  
+**Fix applied in `src/steps/step_04_config_validation.js`:**
 Added block-scalar tracking: when a line ending with `|` or `>` is encountered, the function enters block-scalar mode and skips the indentation check until the content returns to the key's indentation level.
 
 **How to diagnose before the fix:**
@@ -426,7 +427,7 @@ grep "Syntax errors" .ai_workflow/logs/workflow_<run_id>/steps/step_04.log
 
 ### Pattern 7: step_12 does not push when ahead with no local changes
 
-**Symptom:**  
+**Symptom:**
 `step_12.log` shows:
 
 ```
@@ -437,23 +438,23 @@ Local is N commit(s) ahead of remote
 
 But `git log --oneline origin/main..HEAD` confirms commits were never pushed.
 
-**Root cause:**  
+**Root cause:**
 `_handleNoChanges()` logged the ahead-of-remote state but contained only a comment (`// Would push existing commits here`) with no actual push call. Step 12 only pushed inside `_generateReport()`, which is only reached when there are new staged changes.
 
-**Fix applied in `src/steps/step_12_git_finalization.js`:**  
+**Fix applied in `src/steps/step_12_git_finalization.js`:**
 `_handleNoChanges()` now calls `_pushToRemote()` when `commitsAhead > 0`, with proper backlog summary and return value reflecting push outcome.
 
 ---
 
 ### Pattern 10: Step class implemented but never registered — step silently absent from all runs
 
-**Symptom:**  
+**Symptom:**
 A step's backlog `.md` file is completely absent from every workflow run, even for projects where it should apply (e.g., no `step_11_5.md` in any `aws_lbs_backend_setup` run).
 
-**Root cause:**  
+**Root cause:**
 The step class was fully implemented in `src/steps/` but never imported or registered in `main_orchestrator.js`. The `getStepsForStage()` FULL array did not include it, so `buildExecutionPlan()` never schedules it. No error is raised — it simply does not exist in the plan.
 
-**Confirmed case — `onde_estou_backend/workflow_20260221_183838`:**  
+**Confirmed case — `onde_estou_backend/workflow_20260221_183838`:**
 Project kind: `aws_lbs_backend_setup`. Backlog folder contained step_00 through step_16 but no `step_11_5.md`. `Step11_5AwsLbsValidator` was a complete implementation but had no import or step definition in `main_orchestrator.js`.
 
 **Fix applied (2026-02-21):**
@@ -463,7 +464,7 @@ Project kind: `aws_lbs_backend_setup`. Backlog folder contained step_00 through 
 - Added `'step_11_5'` to FULL stage in `getStepsForStage()`.
 - Created `step_11_6_aws_serverless_review.js` (new AI step) depending on `step_11_5`, also registered.
 
-**How to detect:**  
+**How to detect:**
 Search for step class names in `src/steps/` vs. imports in `main_orchestrator.js`:
 
 ```bash
@@ -477,15 +478,15 @@ Any class not matching an import is unregistered.
 
 ### Pattern 11: AI response hallucinates content not in the prompt — missing prompt context variables
 
-**Symptom:**  
+**Symptom:**
 The `## Response` block of a prompt-response log file references scripts, files, or modules that do not appear anywhere in the `## Prompt` block. The model's output is plausible but describes a _different_ project (typically one from its training data).
 
-**Root cause:**  
+**Root cause:**
 `buildYamlStepPrompt()` substitutes `{placeholder}` variables into the YAML `task_template`. If a variable is not supplied in the context dict, the placeholder is replaced with an empty string. The model then receives a context field with no value (e.g., `- Primary Language: ` or `- Available Scripts: `) and falls back to its priors, inventing content.
 
 A secondary cause is an approach field that is missing a grounding instruction — the model is not told to restrict its analysis to the data explicitly provided in the prompt.
 
-**Confirmed case — `paraty_geocore.js/workflow_20260227_202534`, `step_03`:**  
+**Confirmed case — `paraty_geocore.js/workflow_20260227_202534`, `step_03`:**
 Prompt listed **1 available script: `cdn-delivery.sh`**. Response named five scripts (`setup.sh`, `test-integration.sh`, `cleanup_artifacts.sh`, `validate.sh`, `prepare-release.sh`) that belong to `ai_workflow.js`, not `paraty_geocore.js`. The model also declared `cdn-delivery.sh` "not found" despite it being explicitly listed. Root causes: (1) `primary_language`, `project_description`, `change_scope` were missing from the context passed to `buildYamlStepPrompt`; (2) `all_scripts` fallback was `''` instead of `'none'`; (3) the `approach` field started with `**Output:**` and had no grounding instruction.
 
 **Fix applied (2026-02-28):**
@@ -519,10 +520,10 @@ This section records real workflow executions and their step 12 (Git Finalizatio
 
 ### Run: `workflow_20260301_160006` — Pattern 11 in step_02/step_05; step_04 timeout (2026-03-01)
 
-**Project:** `paraty_geocore.js`  
-**Project kind:** `location_based_service`  
-**Stage:** FULL | **Mode:** automatic  
-**Duration:** ~5m 47s | **Steps:** 23/24 ✓ (step_12 completion unconfirmed in logs)  
+**Project:** `paraty_geocore.js`
+**Project kind:** `location_based_service`
+**Stage:** FULL | **Mode:** automatic
+**Duration:** ~5m 47s | **Steps:** 23/24 ✓ (step_12 completion unconfirmed in logs)
 **Result:** ⚠️ Non-blocking — 8 issues found, 7 fixed in same session
 
 #### Findings
@@ -567,14 +568,14 @@ This section records real workflow executions and their step 12 (Git Finalizatio
 
 #### Validation report
 
-Full checklist + AI Workflow Execution Report saved at:  
+Full checklist + AI Workflow Execution Report saved at:
 `paraty_geocore.js/.ai_workflow/logs/workflow_20260301_160006/workflow_validation_report.md`
 
 ---
 
 ### Run: `workflow_20260227_202534` — AI hallucination in step_03 (Pattern 11) (2026-02-28)
 
-**Project:** `paraty_geocore.js`  
+**Project:** `paraty_geocore.js`
 **Stage:** FULL | **Triggered by:** Manual prompt-log validation
 
 #### Finding
@@ -610,9 +611,9 @@ Three bugs in `step_03_script_refs.js` + `ai_helpers.yaml` (see Pattern 11):
 
 ### Run: `workflow_20260220_202333` — pre-structured-logging run, two new patterns identified (2026-02-20)
 
-**Project:** `ai_workflow.js` (nodejs_api)  
-**Stage:** full | **Mode:** interactive | **Version:** 2.3.0 (shell-based predecessor)  
-**Duration:** 50m 26s | **Steps:** 20/20 ✅  
+**Project:** `ai_workflow.js` (nodejs_api)
+**Stage:** full | **Mode:** interactive | **Version:** 2.3.0 (shell-based predecessor)
+**Duration:** 50m 26s | **Steps:** 20/20 ✅
 **Result:** ⚠️ Validation non-conformant — structural gaps + 2 code bugs found and fixed
 
 #### Structural observations
@@ -648,9 +649,9 @@ These gaps are artefacts of the older shell-based engine and do not reflect defe
 
 ### Run: `workflow_20260220_213310` — cross-project execution with `--project-root` (2026-02-21)
 
-**Project:** `ai_workflow_core` (configuration_library)  
-**Triggered from:** `ai_workflow.js` via `node bin/ai-workflow.js run --project-root /path/to/ai_workflow_core --auto`  
-**Stage:** full | **Mode:** automatic  
+**Project:** `ai_workflow_core` (configuration_library)
+**Triggered from:** `ai_workflow.js` via `node bin/ai-workflow.js run --project-root /path/to/ai_workflow_core --auto`
+**Stage:** full | **Mode:** automatic
 **Result:** ⚠️ 20/21 steps — **Step 12 failed** (root cause identified and fixed before re-run)
 
 #### Step 12 failure analysis
@@ -663,7 +664,7 @@ These gaps are artefacts of the older shell-based engine and do not reflect defe
 
 Git status showed both modified files (`config/ai_helpers.yaml`, `.github/copilot-instructions.md`) still unstaged after the step reported "Changes staged successfully".
 
-**Root cause — missing `cwd` in `_executeGit()`:**  
+**Root cause — missing `cwd` in `_executeGit()`:**
 `Step12GitFinalization._executeGit()` called the executor without a `cwd` option, so every git command ran in `process.cwd()` — the `ai_workflow.js` directory — not the target project root. `git add -A` staged nothing in the target repo; the subsequent `git commit` had an empty index and failed.
 
 **Diagnosis commands:**
@@ -696,8 +697,8 @@ grep "Changes:" .ai_workflow/logs/workflow_<run_id>/steps/step_12.log
 
 ### Run: `workflow_20260220_213516` — re-run after fix (2026-02-21)
 
-**Project:** `ai_workflow_core` (configuration_library)  
-**Stage:** full | **Mode:** automatic  
+**Project:** `ai_workflow_core` (configuration_library)
+**Stage:** full | **Mode:** automatic
 **Result:** ✅ 21/21 steps — **Step 12 succeeded**
 
 **Step 12 log (key lines):**
@@ -730,8 +731,8 @@ Local branch is up to date with origin/main
 
 ### Run: `workflow_20260220_214108` — post-fix re-run (2026-02-21)
 
-**Project:** `ai_workflow_core` (configuration_library)  
-**Stage:** full | **Mode:** automatic  
+**Project:** `ai_workflow_core` (configuration_library)
+**Stage:** full | **Mode:** automatic
 **Result:** ⚠️ 21/21 steps — 4 non-blocking issues identified and fixed
 
 **Key validation checks:**
@@ -766,7 +767,7 @@ Local is 1 commit(s) ahead of remote
 
 **Change:** `src/steps/step_14_prompt_engineer.js` — `shouldRunPromptAnalysis()` and `PROJECT_TYPES`
 
-**Root cause:**  
+**Root cause:**
 `shouldRunPromptAnalysis()` only permitted `workflow-automation` and `bash-automation-framework` project types. The `ai_workflow_core` repository is classified as `configuration_library` because it is a prompt-file configuration package — its primary artifact is `config/ai_helpers.yaml`. Step 14 was skipping it with "project type not eligible", meaning prompt quality analysis was never executed on the project most likely to need it.
 
 **Fix applied in `src/steps/step_14_prompt_engineer.js`:**
@@ -784,7 +785,7 @@ Local is 1 commit(s) ahead of remote
    ```
 3. Added a test case in `test/steps/step_14_prompt_engineer.test.js`.
 
-**Expected behavior after fix:**  
+**Expected behavior after fix:**
 When `ai_workflow_core` (or any other `configuration_library` project) is processed, step 14 will attempt to load `configPath` (default: `.workflow_core/config/ai_helpers.yaml`). If the file exists, prompts are analyzed; if not, the step gracefully skips with reason `configuration not found`.
 
 **"Which Steps Call AI" table updated** to reflect `configuration_library` as a trigger condition.
@@ -793,7 +794,7 @@ When `ai_workflow_core` (or any other `configuration_library` project) is proces
 
 ### Run: `workflow_20260221_183838` — unregistered step_11_5 found; step_11_5 + step_11_6 added (2026-02-21)
 
-**Project:** `onde_estou_backend` (aws_lbs_backend_setup)  
+**Project:** `onde_estou_backend` (aws_lbs_backend_setup)
 **Stage:** FULL | **Triggered by:** Manual analysis of missing backlog entries
 
 #### Finding

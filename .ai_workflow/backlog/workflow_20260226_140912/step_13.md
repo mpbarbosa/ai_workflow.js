@@ -161,7 +161,7 @@ indent_size = 4
 ### 5. Prevention Strategy
 
 - **AI Generation:** Prompt models to avoid trailing spaces, use 4-space indentation for nested lists, omit punctuation in headers, and always end files with a newline.
-- **Pre-commit Hook:**  
+- **Pre-commit Hook:**
   Use [lint-staged](https://github.com/okonet/lint-staged) with [markdownlint-cli](https://github.com/DavidAnson/markdownlint-cli):
   ```json
   {
@@ -172,14 +172,14 @@ indent_size = 4
     }
   }
   ```
-- **Workflow Automation:**  
+- **Workflow Automation:**
   Add a CI step to run `markdownlint` and fail on enabled rule violations.
-- **Documentation:**  
+- **Documentation:**
   Reference `docs/MARKDOWN_LINTING_GUIDE.md` and `.editorconfig` in contributor guides.
 
 ---
 
-**Summary:**  
+**Summary:**
 Addressing these minor issues with the provided commands and editor settings will ensure consistent, high-quality markdown. Automate checks in pre-commit and CI workflows to prevent regressions.
 
 ## Details

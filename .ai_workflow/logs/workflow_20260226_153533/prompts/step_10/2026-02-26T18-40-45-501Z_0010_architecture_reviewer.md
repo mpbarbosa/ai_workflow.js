@@ -184,7 +184,7 @@ export class Logger {
    * Log success message
    */
   success(message) {
-    if (!this.quiet) 
+    if (!this.quiet)
 ...(truncated)
 ```
 
@@ -647,7 +647,7 @@ export function getCommonUseCases() {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---

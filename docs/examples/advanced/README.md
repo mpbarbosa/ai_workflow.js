@@ -1,6 +1,6 @@
 # Advanced Examples
 
-**AI Workflow Automation v1.0.0**  
+**AI Workflow Automation v1.0.0**
 **Last Updated:** 2026-02-01
 
 ---
@@ -171,8 +171,8 @@ version: '1.0.0'
 variables:
   branch: '${git.branch}'
   environment: |
-    ${branch == 'main' ? 'production' : 
-      branch == 'develop' ? 'staging' : 
+    ${branch == 'main' ? 'production' :
+      branch == 'develop' ? 'staging' :
       'development'}
 
 steps:
@@ -390,5 +390,5 @@ ai-workflow run --dry-run advanced-workflow.yaml
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Version:** 1.0.0

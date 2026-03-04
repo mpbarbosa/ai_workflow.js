@@ -41,8 +41,8 @@
 
 ## AI Recommendations
 
-No test failures detected: 4782/4782 tests passed.  
-Coverage, performance, and flaky test analysis cannot be performed without coverage and timing data.  
+No test failures detected: 4782/4782 tests passed.
+Coverage, performance, and flaky test analysis cannot be performed without coverage and timing data.
 Action: Enable coverage reporting and test timing in CI, then rerun tests for a full diagnostic and optimization report.
 
 ## Details

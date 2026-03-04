@@ -1,6 +1,6 @@
 # Steps API Documentation Index
 
-**Version:** 2.0.0  
+**Version:** 2.0.0
 **Last Updated:** 2026-02-11
 
 This directory contains API documentation for all workflow step implementations (Phase 9).
@@ -14,12 +14,12 @@ The workflow consists of 19 steps that automate software development tasks inclu
 ### Pre-Analysis & Setup
 
 - [Step 00: Pre-Analysis](step_00_analyze.md) - Analyze git state and change context
-- [Step 0B: Bootstrap Documentation](step_0b_bootstrap_docs.md) - Initialize documentation structure
+- Step 0B: Bootstrap Documentation - Initialize documentation structure
 
 ### Documentation Management
 
 - [Step 01: Documentation Validation](step_01_documentation.md) - AI-powered documentation updates ✅
-- [Step 02.5: Documentation Optimization](step_02_5_doc_optimize.md) - Optimize documentation structure
+- Step 02.5: Documentation Optimization - Optimize documentation structure
 
 ### Code Analysis
 
@@ -28,29 +28,29 @@ The workflow consists of 19 steps that automate software development tasks inclu
 
 ### Configuration & Structure
 
-- [Step 04: Configuration Validation](step_04_config_validation.md) - Validate configuration files
-- [Step 05: Directory Structure](step_05_directory.md) - Validate directory structure
+- Step 04: Configuration Validation - Validate configuration files
+- Step 05: Directory Structure - Validate directory structure
 
 ### Testing
 
-- [Step 06: Test Review](step_06_test_review.md) - Review test coverage and quality
-- [Step 07: Test Generation](step_07_test_gen.md) - Generate missing tests
-- [Step 08: Test Execution](step_08_test_exec.md) - Execute test suite
+- Step 06: Test Review - Review test coverage and quality
+- Step 07: Test Generation - Generate missing tests
+- Step 08: Test Execution - Execute test suite
 
 ### Dependencies & Quality
 
-- [Step 09: Dependencies](step_09_dependencies.md) - Analyze and update dependencies
-- [Step 10: Code Quality](step_10_code_quality.md) - Run quality checks and linters
-- [Step 13: Markdown Linting](step_13_markdown_lint.md) - Lint markdown documentation
+- Step 09: Dependencies - Analyze and update dependencies
+- Step 10: Code Quality - Run quality checks and linters
+- Step 13: Markdown Linting - Lint markdown documentation
 
 ### Context & Optimization
 
-- [Step 11: Context Management](step_11_context.md) - Manage AI context and prompts
-- [Step 14: Prompt Engineering](step_14_prompt_engineer.md) - Optimize AI prompts
+- Step 11: Context Management - Manage AI context and prompts
+- Step 14: Prompt Engineering - Optimize AI prompts
 
 ### User Experience
 
-- [Step 15: UX Analysis](step_15_ux_analysis.md) - Analyze user experience and accessibility
+- Step 15: UX Analysis - Analyze user experience and accessibility
 
 ### Finalization
 

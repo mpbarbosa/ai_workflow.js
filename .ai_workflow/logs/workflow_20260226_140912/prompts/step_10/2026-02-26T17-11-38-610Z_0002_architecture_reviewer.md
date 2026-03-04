@@ -208,7 +208,7 @@ export function prependText(text, content, ensureNewline = true) {
 ## Response
 
 ```
-**Comprehensive Code Quality Review: src/lib/edit_operations.js**  
+**Comprehensive Code Quality Review: src/lib/edit_operations.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -294,6 +294,6 @@ Document what happens when `lineNumber` is out of bounds in `insertAtLine`.
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/file_operations.js`), or a summary table of all findings after all files are reviewed?
 ```

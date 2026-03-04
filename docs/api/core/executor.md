@@ -1,7 +1,7 @@
 # executor - Command Execution Module
 
-**Module:** `core/executor`  
-**Version:** 0.4.1 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))  
+**Module:** `core/executor`
+**Version:** 0.4.1 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
 **Type:** Async Functions
 
 > **Note:** This module re-exports from the [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js) package (installed from GitHub). The implementation lives upstream; this file is a thin re-export layer.
@@ -219,6 +219,6 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 
 ---
 
-**Last Updated:** 2026-03-03  
-**Source package:** [`olinda_shell_interface.js` v0.4.1](https://github.com/mpbarbosa/olinda_shell_interface.js)  
+**Last Updated:** 2026-03-03
+**Source package:** [`olinda_shell_interface.js` v0.4.1](https://github.com/mpbarbosa/olinda_shell_interface.js)
 **Part of:** AI Workflow Automation v1.2.0

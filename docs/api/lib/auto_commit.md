@@ -6,8 +6,8 @@
 
 The Auto Commit module provides intelligent automatic committing of workflow artifacts with conventional commit messages, [skip ci] flag management, and priority-based execution. It categorizes artifacts and generates appropriate commit messages following best practices.
 
-**Module:** `lib/auto_commit`  
-**Version:** 2.0.0  
+**Module:** `lib/auto_commit`
+**Version:** 2.0.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -26,7 +26,7 @@ This module follows the v2.0.0 architecture pattern:
   - Deterministic: Same input always produces same output
   - No side effects: No I/O or state mutation
   - Message formatting follows conventional commit spec
-  
+
 - **Impure Wrapper (AutoCommit class)**: Git operations, file system access, commit execution
   - Integrates with GitAutomation
   - Tracks commit history
@@ -171,11 +171,11 @@ formatCommitBody({
   timestamp: '2026-02-07T00:00:00Z'
 });
 // Returns multi-line string:
-// 
+//
 // Files updated:
 // - metrics.json
 // - summary.md
-// 
+//
 // Auto-committed by ai_workflow.js v2.0.0
 // Step: 5 | Files: 2 | Timestamp: 2026-02-07T00:00:00Z
 ```
@@ -589,10 +589,10 @@ test(tests): update test results
 // After workflow completes
 async function cleanupWorkflow() {
   const autoCommit = new AutoCommit({ gitAutomation: git });
-  
+
   // Commit all artifacts generated during workflow
   const result = await autoCommit.commitAll();
-  
+
   if (result.committed) {
     console.log('Workflow artifacts committed');
   }
@@ -606,7 +606,7 @@ async function cleanupWorkflow() {
 steps:
   - name: Run Workflow
     run: npm run workflow
-    
+
   - name: Auto-Commit Artifacts
     run: node auto-commit-artifacts.js
 ```
@@ -675,5 +675,5 @@ if (!result.committed) {
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Maintainer:** ai_workflow.js team

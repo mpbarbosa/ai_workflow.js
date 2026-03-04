@@ -194,7 +194,7 @@ export function calculateCacheStats(entries, currentTime, ttl) {
 ## Response
 
 ```
-**Comprehensive Code Quality Review: src/lib/ai_cache.js**  
+**Comprehensive Code Quality Review: src/lib/ai_cache.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -287,6 +287,6 @@ Ensure comprehensive tests for edge cases (e.g., negative TTL, missing fields, v
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/ai_helpers.js`), or a summary table of all findings after all files are reviewed?
 ```

@@ -1,7 +1,7 @@
 # Project Kind Detection API
 
-**Module:** `lib/project_kind_detection`  
-**Version:** 1.0.0  
+**Module:** `lib/project_kind_detection`
+**Version:** 1.0.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -577,5 +577,5 @@ console.log(`Final detection: ${result.kind}`);
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Author:** AI Workflow Team

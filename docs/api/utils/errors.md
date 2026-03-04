@@ -1,7 +1,7 @@
 # errors - Custom Error Types Module
 
-**Module:** `utils/errors`  
-**Version:** 1.0.0  
+**Module:** `utils/errors`
+**Version:** 1.0.0
 **Type:** Error Classes
 
 ## Overview
@@ -287,5 +287,5 @@ try {
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Part of:** AI Workflow Automation v1.0.0

@@ -1,7 +1,7 @@
 # jq_wrapper
 
-**Module:** `src/lib/jq_wrapper.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/jq_wrapper.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Impure wrapper
 
 Safe JSON operations with jq command-line tool integration.
@@ -422,7 +422,7 @@ for (const item of items) {
     ['-n', '--argjson', 'item', item, '{item: $item}'],
     { throwOnError: false }  // Don't throw, return empty string on error
   );
-  
+
   if (result) {
     console.log('Processed:', result);
   } else {
@@ -501,6 +501,6 @@ Migrated from `src/workflow/lib/jq_wrapper.sh` (v1.0.1) with enhancements:
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 100%

@@ -1,7 +1,7 @@
 # Conditional Executor API
 
-**Module:** `orchestrator/conditional_executor`  
-**Version:** 2.0.0  
+**Module:** `orchestrator/conditional_executor`
+**Version:** 2.0.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -704,5 +704,5 @@ if (matchesPattern('src/api/users.js', 'src/api/**/*.js')) {
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Author:** AI Workflow Team

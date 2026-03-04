@@ -238,6 +238,6 @@ function validateRequiredFields(obj, fields, errorPrefix = 'Missing required fie
 
 ---
 
-**Summary**:  
+**Summary**:
 The module is well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, refactor repeated validation logic, clarify custom validator expectations, and ensure impure logic is isolated and tested.
 ```

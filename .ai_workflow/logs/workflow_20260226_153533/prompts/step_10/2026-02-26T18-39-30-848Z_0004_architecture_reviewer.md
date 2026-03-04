@@ -178,7 +178,7 @@ describe('CLI Output - Pure Functions', () => {
 
     test('should handle custom separator', () => {
       const data = { key: 'value' };
-  
+
 ...(truncated)
 ```
 
@@ -620,7 +620,7 @@ describe('Config Command - Pure Functions', () => {
 
       const formatted = formatValidationErrors(errors);
       expect(formatted).toContain('Validation errors:');
- 
+
 ...(truncated)
 ```
 
@@ -777,7 +777,7 @@ describe('Init Command - Pure Functions', () => {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files or core/step modules.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files or core/step modules.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---
@@ -808,8 +808,8 @@ However, several improvements can be made to further enhance maintainability, re
 #### D. Naming & Consistency
 
 - **Issue**: Some test descriptions could be more explicit (e.g., "should handle complex objects" could clarify expected behavior).
-  - **Recommendation**: Use explicit, behavior-driven names:  
-    _Example_:  
+  - **Recommendation**: Use explicit, behavior-driven names:
+    _Example_:
     ```js
     test('formatConfigPreview serializes nested project config to YAML', ...)
     ```

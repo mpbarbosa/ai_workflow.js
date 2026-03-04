@@ -41,8 +41,8 @@
 
 ## AI Recommendations
 
-No test failures detected (4784/4784 passed).  
-Coverage, performance, and flaky test analysis cannot be performed without coverage and timing data.  
+No test failures detected (4784/4784 passed).
+Coverage, performance, and flaky test analysis cannot be performed without coverage and timing data.
 To enable actionable recommendations, please provide coverage reports and test timing output; all tests currently pass, so no root cause or remediation is needed.
 
 ## Details

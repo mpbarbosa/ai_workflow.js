@@ -1,6 +1,6 @@
 # utils - General Utilities Module
 
-> **Moved to `olinda_utils.js`**  
+> **Moved to `olinda_utils.js`**
 > As of ai_workflow.js v1.3.0, the utility functions previously in `src/lib/utils.js` have been moved to the [`olinda_utils.js`](https://github.com/mpbarbosa/olinda_utils.js) package (v0.3.0+).
 
 ## Import
@@ -52,7 +52,7 @@ See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.j
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Part of:** AI Workflow Automation v1.3.0
 
 <!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
@@ -188,5 +188,5 @@ const merged = deepMerge(defaults, userConfig);
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Part of:** AI Workflow Automation v1.0.0

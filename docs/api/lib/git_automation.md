@@ -6,8 +6,8 @@
 
 The Git Automation module provides a comprehensive interface for Git operations with intelligent output parsing and structured results. It implements Git commands as pure parsing functions combined with an impure wrapper class for command execution.
 
-**Module:** `lib/git_automation`  
-**Version:** 2.0.0  
+**Module:** `lib/git_automation`
+**Version:** 2.0.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -26,7 +26,7 @@ This module follows the v2.0.0 architecture pattern:
   - Deterministic: Same input always produces same output
   - No side effects: No I/O, state mutation, or external dependencies
   - Easily testable: No mocks required
-  
+
 - **Impure Wrapper (GitAutomation class)**: Command execution, I/O operations
   - Handles Git command execution via child_process
   - Manages working directory context
@@ -634,5 +634,5 @@ try {
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Maintainer:** ai_workflow.js team

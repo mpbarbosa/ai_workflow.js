@@ -1,6 +1,6 @@
 # CLI Usage Guide
 
-**Version**: 1.0.0  
+**Version**: 1.0.0
 **Last Updated**: 2026-02-11
 
 ---
@@ -682,6 +682,6 @@ ai-workflow config --help
 
 ---
 
-**Last Updated**: 2026-02-11  
-**Version**: 1.0.0  
+**Last Updated**: 2026-02-11
+**Version**: 1.0.0
 **License**: MIT

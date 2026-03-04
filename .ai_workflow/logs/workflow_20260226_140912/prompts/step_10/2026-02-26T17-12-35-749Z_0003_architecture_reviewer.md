@@ -558,7 +558,7 @@ export function buildPartitions(groups, maxSize = MAX_PARTITION_SIZE) {
 ## Response
 
 ```
-**Comprehensive Code Quality Review: src/lib/sdk_smoke_test.js, src/lib/session_manager.js, src/lib/step0b_state_cache.js, src/lib/step10_partition_cache.js**  
+**Comprehensive Code Quality Review: src/lib/sdk_smoke_test.js, src/lib/session_manager.js, src/lib/step0b_state_cache.js, src/lib/step10_partition_cache.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -654,6 +654,6 @@ finally {
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/step1_incremental.js`), or a summary table after all files are reviewed?
 ```

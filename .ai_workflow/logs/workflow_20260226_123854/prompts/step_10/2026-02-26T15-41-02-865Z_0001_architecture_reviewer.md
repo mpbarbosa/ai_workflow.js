@@ -160,7 +160,7 @@ describe('index.js - Public API Exports', () => {
       expect(index.PromptBuilder).toBeDefined();
     });
 
-    it('should export AiHelper', () 
+    it('should export AiHelper', ()
 ...(truncated)
 ```
 

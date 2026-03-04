@@ -160,7 +160,7 @@ describe('index.js - Public API Exports', () => {
       expect(index.PromptBuilder).toBeDefined();
     });
 
-    it('should export AiHelper', () 
+    it('should export AiHelper', ()
 ...(truncated)
 ```
 
@@ -247,6 +247,6 @@ This pattern can be applied to all export checks, reducing repetition and improv
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The test suite is structurally sound but can be improved for maintainability and coverage by refactoring repetitive checks and adding behavioral/type assertions.
 ```

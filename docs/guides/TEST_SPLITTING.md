@@ -1,6 +1,6 @@
 # Test Splitting Strategy
 
-**Version**: 1.0.0  
+**Version**: 1.0.0
 **Last Updated**: February 7, 2026
 
 ## Overview
@@ -37,9 +37,9 @@ Split tests into two tiers:
 
 ### Fast Tests (Unit) - Step 9a
 
-**Location**: `test/lib/**/*.test.js`  
-**Command**: `npm run test:fast`  
-**Timeout**: 5 minutes  
+**Location**: `test/lib/**/*.test.js`
+**Command**: `npm run test:fast`
+**Timeout**: 5 minutes
 **When**: Always (all branches, all commits)
 
 **Characteristics**:
@@ -66,9 +66,9 @@ Split tests into two tiers:
 
 ### Slow Tests (Integration) - Step 9b
 
-**Location**: `test/orchestrator/**/*.test.js`  
-**Command**: `npm run test:slow`  
-**Timeout**: 30 minutes  
+**Location**: `test/orchestrator/**/*.test.js`
+**Command**: `npm run test:slow`
+**Timeout**: 30 minutes
 **When**: Only on `main` branch OR PRs targeting `main`
 
 **Characteristics**:

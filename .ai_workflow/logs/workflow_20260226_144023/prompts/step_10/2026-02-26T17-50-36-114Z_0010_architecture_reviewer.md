@@ -184,7 +184,7 @@ export class Logger {
    * Log success message
    */
   success(message) {
-    if (!this.quiet) 
+    if (!this.quiet)
 ...(truncated)
 ```
 
@@ -671,6 +671,6 @@ _openLogStream(filePath) {
 
 ---
 
-**Summary**:  
+**Summary**:
 Modules are well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, refactor repeated logic, clarify complex code with comments, and ensure impure logic is isolated and tested.
 ```

@@ -1,7 +1,7 @@
 # Developer Guide
 
-**AI Workflow Automation v1.0.0**  
-**Last Updated:** 2026-02-01  
+**AI Workflow Automation v1.0.0**
+**Last Updated:** 2026-02-01
 **Audience:** Contributors and maintainers
 
 ---
@@ -822,5 +822,5 @@ gh release create v1.1.0 --title "v1.1.0" --notes "Release notes here"
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Version:** 1.0.0

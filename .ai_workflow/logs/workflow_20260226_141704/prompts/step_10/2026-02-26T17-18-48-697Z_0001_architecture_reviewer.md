@@ -320,7 +320,7 @@ export function createProgram() {
     .option('--sdk-smoke-test', 'Run a Copilot API smoke test before starting the workflow', false)
     .action((options) => {
       const globalOpts = program.opts();
-      
+
 ...(truncated)
 ```
 

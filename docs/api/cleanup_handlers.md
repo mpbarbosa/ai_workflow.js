@@ -1,7 +1,7 @@
 # cleanup_handlers - Cleanup Operations Module
 
-**Module:** `lib/cleanup_handlers`  
-**Version:** 2.0.0  
+**Module:** `lib/cleanup_handlers`
+**Version:** 2.0.0
 **Type:** Pure Functions + Wrapper
 
 ## Overview
@@ -75,5 +75,5 @@ console.log(`Found ${old.length} old files`);
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Part of:** AI Workflow Automation v1.0.0

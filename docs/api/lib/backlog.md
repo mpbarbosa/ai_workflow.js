@@ -1,7 +1,7 @@
 # Backlog Module API Documentation
 
-**Module:** `lib/backlog`  
-**Version:** 2.0.0  
+**Module:** `lib/backlog`
+**Version:** 2.0.0
 **Architecture:** Pure Functions + Impure Wrapper (Referential Transparency)
 
 ## Overview
@@ -615,6 +615,6 @@ describe('Backlog Integration', () => {
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Module Path:** `src/lib/backlog.js`  
+**Last Updated:** 2026-02-07
+**Module Path:** `src/lib/backlog.js`
 **Test Path:** `test/lib/backlog.test.js`

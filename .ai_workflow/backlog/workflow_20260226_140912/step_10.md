@@ -54,7 +54,7 @@
 
 ## AI Code Review — Partition 4/5: `src/lib, src/core`
 
-**Comprehensive Code Quality Review: src/lib/ai_cache.js**  
+**Comprehensive Code Quality Review: src/lib/ai_cache.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -147,12 +147,12 @@ Ensure comprehensive tests for edge cases (e.g., negative TTL, missing fields, v
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/ai_helpers.js`), or a summary table of all findings after all files are reviewed?
 
 ---
 
-**Comprehensive Code Quality Review: src/lib/edit_operations.js**  
+**Comprehensive Code Quality Review: src/lib/edit_operations.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -238,12 +238,12 @@ Document what happens when `lineNumber` is out of bounds in `insertAtLine`.
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/file_operations.js`), or a summary table of all findings after all files are reviewed?
 
 ---
 
-**Comprehensive Code Quality Review: src/lib/sdk_smoke_test.js, src/lib/session_manager.js, src/lib/step0b_state_cache.js, src/lib/step10_partition_cache.js**  
+**Comprehensive Code Quality Review: src/lib/sdk_smoke_test.js, src/lib/session_manager.js, src/lib/step0b_state_cache.js, src/lib/step10_partition_cache.js**
 _(Partial review due to context limits; request more files for additional reviews)_
 
 ---
@@ -339,7 +339,7 @@ finally {
 
 ---
 
-**Next Steps:**  
+**Next Steps:**
 Would you like a review of the next file (`src/lib/step1_incremental.js`), or a summary table after all files are reviewed?
 
 ## Details

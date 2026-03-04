@@ -6,8 +6,8 @@
 
 The Change Detection module provides smart file categorization and impact analysis to optimize workflow execution. It determines which workflow steps to run based on what changed, enabling efficient CI/CD pipelines.
 
-**Module:** `lib/change_detection`  
-**Version:** 2.0.0  
+**Module:** `lib/change_detection`
+**Version:** 2.0.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -26,7 +26,7 @@ This module follows the v2.0.0 architecture pattern:
   - Deterministic: Same input always produces same output
   - No side effects: No I/O or state mutation
   - Path-based logic: Uses file paths for categorization
-  
+
 - **Impure Wrapper (ChangeDetector class)**: Git integration, change detection
   - Integrates with GitAutomation
   - Caches analysis results
@@ -562,11 +562,11 @@ if (categories.docs.length > 0) {
 steps:
   - name: Detect Changes
     run: node detect-changes.js
-    
+
   - name: Run Tests
     if: steps.detect.outputs.shouldRunTests == 'true'
     run: npm test
-    
+
   - name: Build
     if: steps.detect.outputs.shouldBuild == 'true'
     run: npm run build
@@ -607,5 +607,5 @@ console.log(`::set-output name=shouldUpdateDocs::${impact.shouldUpdateDocs}`);
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Maintainer:** ai_workflow.js team

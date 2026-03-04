@@ -612,10 +612,10 @@ async function validateExports() {
 
 /**
  * AI Workflow CLI Entry Point
- * 
+ *
  * This is the main executable entry point for the ai-workflow CLI.
  * It loads the CLI module and handles any top-level errors.
- * 
+ *
  * @module bin/ai-workflow
  * @version 1.0.0
  * @since 2026-02-10
@@ -837,7 +837,7 @@ console.log('Result:', result6);
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found.**
 However, several improvements can be made for maintainability, robustness, and best practices.
 
 ---
@@ -847,7 +847,7 @@ However, several improvements can be made for maintainability, robustness, and b
 #### A. Scripts (`scripts/*.js`)
 
 - **Strength**: Scripts use ES modules, colorized output, and clear structure.
-- **Opportunity**:  
+- **Opportunity**:
   - **Error Handling**: Some scripts (e.g., `check-version-consistency.js`, `validate-exports.js`) do not always exit with non-zero codes on error. Ensure all error paths call `process.exit(1)` for CI reliability.
   - **Async Consistency**: Some scripts mix sync and async FS calls. Prefer `fs.promises` and `await` for consistency and non-blocking behavior, especially in larger codebases.
   - **Magic Strings/Numbers**: Extract color codes and exit codes to named constants for clarity.
@@ -862,28 +862,28 @@ However, several improvements can be made for maintainability, robustness, and b
   import { COLORS } from './utils/colors.js';
   ```
 
-- **Security Audit Script**:  
+- **Security Audit Script**:
   - **Strength**: Good coverage of common patterns.
   - **Opportunity**: Add `.env` and config file scanning for secrets, and scan `test/` for accidental test credentials.
 
 #### B. CLI Entrypoint (`bin/ai-workflow.js`)
 
 - **Strength**: Handles top-level errors and passes `process.argv` cleanly.
-- **Opportunity**:  
+- **Opportunity**:
   - **Error Logging**: Consider logging errors to a file for post-mortem analysis.
   - **Graceful Shutdown**: Add `SIGINT`/`SIGTERM` handlers for cleanup if needed.
 
 #### C. Config Files
 
-- **ESLint**:  
+- **ESLint**:
   - **Strength**: Modern config, disables `no-console` for CLI context, uses `argsIgnorePattern`.
   - **Opportunity**: Add `"no-process-exit": "off"` for scripts, and consider `"prefer-const": "error"` for immutability.
 
-- **Jest**:  
+- **Jest**:
   - **Strength**: Good coverage thresholds and ignore patterns.
   - **Opportunity**: Consider using `"testRegex"` for more flexible test file matching.
 
-- **`test_edge_cases_temp.mjs`**:  
+- **`test_edge_cases_temp.mjs`**:
   - **Strength**: Explicitly tests edge cases.
   - **Opportunity**: Move to a formal test suite (`test/lib/ai_validation.edge.test.js`) for CI visibility and maintainability.
 

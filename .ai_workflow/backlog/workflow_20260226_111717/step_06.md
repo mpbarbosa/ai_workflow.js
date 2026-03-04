@@ -95,7 +95,7 @@ No coverage reports found. Consider generating coverage reports.
 
 ---
 
-**Summary:**  
+**Summary:**
 Test coverage is strong, but quality can be improved by systematically testing error paths, edge cases, and ensuring test isolation. Prioritize adding error/edge case tests and increasing use of mocks and setup/teardown hooks for robust, maintainable tests.
 
 ## Details

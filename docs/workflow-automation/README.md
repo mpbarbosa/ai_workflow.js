@@ -1,6 +1,6 @@
 # Workflow Automation Documentation
 
-**Status:** Placeholder  
+**Status:** Placeholder
 **Phase:** Future (Phase 9+)
 
 ## Overview
@@ -32,15 +32,15 @@ This directory is reserved for comprehensive workflow automation documentation t
 
 ## Current Status
 
-✅ **Implementation Complete:** 19 workflow steps implemented (step_00 through step_16, plus step_02_5, step_0b)  
-🚧 **Documentation:** Individual step documentation exists in source files  
+✅ **Implementation Complete:** 19 workflow steps implemented (step_00 through step_16, plus step_02_5, step_0b)
+🚧 **Documentation:** Individual step documentation exists in source files
 📋 **Planned:** Consolidate and expand documentation here in future phases
 
 ## Related Documentation
 
 Until this section is populated, refer to:
 
-- [Workflow Engine Documentation](../architecture/WORKFLOW_ENGINE.md) - Phase 7 orchestration system
+- [Workflow Engine Documentation](../architecture/OVERVIEW.md) - Phase 7 orchestration system
 - [Step Implementations](../../src/steps/) - Source code for all workflow steps
 - [Step Tests](../../test/steps/) - Test specifications for each step
 - [Developer Guide](../guides/DEVELOPER_GUIDE.md) - General development workflow
@@ -54,5 +54,5 @@ Until this section is populated, refer to:
 
 ---
 
-**Last Updated:** 2026-02-08  
+**Last Updated:** 2026-02-08
 **Status:** Placeholder for future content

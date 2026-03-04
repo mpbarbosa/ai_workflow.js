@@ -48,7 +48,7 @@
 
 ## AI Recommendations
 
-No test output, failure details, or coverage metrics were provided.  
+No test output, failure details, or coverage metrics were provided.
 To deliver a comprehensive analysis and actionable recommendations, please supply:
 - The full test output (including the failed test's error message, stack trace, and file:line references)
 - Code coverage summary (statements, branches, functions, lines, and per-module breakdown)

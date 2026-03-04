@@ -162,7 +162,7 @@ export function topologicalSort(graph) {
  */
 export function detectCircularDependencies(graph) {
   const result = {
-    hasCycle: 
+    hasCycle:
 ...(truncated)
 ```
 
@@ -205,7 +205,7 @@ export function detectCircularDependencies(graph) {
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs or security vulnerabilities are apparent in the provided code.**  
+**No critical bugs or security vulnerabilities are apparent in the provided code.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---

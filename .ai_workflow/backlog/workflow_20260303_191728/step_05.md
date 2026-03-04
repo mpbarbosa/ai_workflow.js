@@ -35,12 +35,12 @@
 - Several new or specialized directories (e.g., .test-e2e/*, .test-step-11-5, src/steps/step_02_5_lib) lack documentation explaining their role.
 
 **Issues:**
-- Undocumented directories:  
+- Undocumented directories:
   - `.test-cache`, `.test-e2e`, `.test-e2e/*`, `.test-step-11-5`, `.workflow_core/docs/developers`, `.workflow_core/docs/workflow-automation`, `.workflow_core/templates/debugging`, `.workflow_core/workflow-templates`, `docs/reports/bugfixes`, `docs/tutorials`, `docs/workflow-automation`, `src/steps/step_02_5_lib`, `test/steps/step_02_5_lib`
 - No documentation mismatches (no documented-but-missing directories).
 
-**Priority:** High  
-**Remediation:**  
+**Priority:** High
+**Remediation:**
 - Add documentation entries for all undocumented directories in docs/architecture/OVERVIEW.md and docs/api/README.md.
 - For test artefact directories, explain their purpose and lifecycle (e.g., auto-generated, safe to delete, not source).
 - For new workflow_core subdirs, clarify their role in template/config management.
@@ -59,8 +59,8 @@
 - Lack of documentation for deep test artefact directories.
 - .workflow_core/workflow-templates and templates/debugging are not described in main docs.
 
-**Priority:** Medium  
-**Remediation:**  
+**Priority:** Medium
+**Remediation:**
 - Document deep directory nesting and its rationale.
 - Add architectural notes on artefact/test output directory structure.
 
@@ -77,8 +77,8 @@
 - Minor inconsistency: underscores vs hyphens in step/test artefact directories.
 - .test-e2e/step-02-artefacts-* and .test-e2e/step-02-* could be more descriptive.
 
-**Priority:** Low  
-**Remediation:**  
+**Priority:** Low
+**Remediation:**
 - Standardize naming (prefer underscores for code, hyphens for artefacts, or document the rationale).
 - Consider renaming artefact directories for clarity if migration impact is low.
 
@@ -96,8 +96,8 @@
 - No critical violations.
 - Ensure .gitignore covers all artefact/output directories.
 
-**Priority:** Medium  
-**Remediation:**  
+**Priority:** Medium
+**Remediation:**
 - Verify and update .gitignore to include all test/build artefact directories.
 - Add documentation on artefact directory lifecycle and cleanup.
 
@@ -115,8 +115,8 @@
 - Undocumented directories may hinder onboarding.
 - Deep artefact nesting could be flattened if not required.
 
-**Priority:** Medium  
-**Remediation:**  
+**Priority:** Medium
+**Remediation:**
 - Document all directories, especially those with deep nesting.
 - Consider flattening artefact directory structure if possible (assess migration impact).
 
@@ -146,15 +146,15 @@
 
 ## Suggested Restructuring
 
-- **If migration impact is low:**  
+- **If migration impact is low:**
   - Flatten .test-e2e/* artefact directories to reduce depth.
   - Rename ambiguous artefact directories for clarity.
-- **If migration impact is high:**  
+- **If migration impact is high:**
   - Document current structure thoroughly and provide migration guidance for future changes.
 
 ---
 
-**Overall Assessment:**  
+**Overall Assessment:**
 The directory structure is well-organized and follows best practices for separation of concerns, source vs artefact output, and documentation. The main issues are lack of documentation for new and artefact directories, minor naming inconsistencies, and potential for improved artefact directory clarity. Addressing these will improve maintainability, onboarding, and architectural transparency.
 
 ## Details

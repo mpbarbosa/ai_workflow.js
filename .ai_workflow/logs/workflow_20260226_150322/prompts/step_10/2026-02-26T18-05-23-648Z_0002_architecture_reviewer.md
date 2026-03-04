@@ -290,7 +290,7 @@ describe('Step 7: Test Generation', () => {
     });
 
     test('finds JavaScript test in __tests__', () => {
-      
+
 ...(truncated)
 ```
 

@@ -6,8 +6,8 @@
 
 The Git Cache module provides intelligent caching for Git operations to reduce repeated command execution. It uses TTL-based expiration, automatic invalidation on state changes, and memory-efficient storage with LRU eviction.
 
-**Module:** `lib/git_cache`  
-**Version:** 2.0.0  
+**Module:** `lib/git_cache`
+**Version:** 2.0.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -26,7 +26,7 @@ This module follows the v2.0.0 architecture pattern:
   - Deterministic: Same input always produces same output
   - No side effects: No I/O or state mutation
   - Time-injectable: Current time passed as parameter
-  
+
 - **Impure Wrapper (GitCache class)**: Cache storage, retrieval, invalidation
   - In-memory Map storage
   - TTL-based expiration
@@ -276,7 +276,7 @@ Store result in cache.
 
 **Parameters:**
 - `operation` (string): Git operation name
-- `args` (Array<string>): Operation arguments  
+- `args` (Array<string>): Operation arguments
 - `result` (*): Result to cache
 
 **Returns:** Promise<void>
@@ -551,5 +551,5 @@ Based on typical repository with 1000 files:
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Maintainer:** ai_workflow.js team

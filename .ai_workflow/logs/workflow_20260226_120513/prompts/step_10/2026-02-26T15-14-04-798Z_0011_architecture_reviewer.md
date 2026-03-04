@@ -419,6 +419,6 @@ Use this helper in calculatePaths to reduce repetition.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The modules are structurally sound and follow best practices, but can be improved for maintainability and clarity by refactoring repetitive logic, adding input validation, and splitting large files.
 ```

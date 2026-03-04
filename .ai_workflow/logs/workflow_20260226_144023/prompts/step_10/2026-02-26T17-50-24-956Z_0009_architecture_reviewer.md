@@ -178,7 +178,7 @@ export function determineAlertSeverity(metrics, thresholds) {
  *
  * @example
  * generateAlertMessage('db-query', { duration: 6000, memory: { heapUsed: 25 } }, 'warning')
- * 
+ *
 ...(truncated)
 ```
 
@@ -325,7 +325,7 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
       const regex = new RegExp(`^${pattern}$`);
       const found = existingFiles.some((file) => regex.test(file));
 
-    
+
 ...(truncated)
 ```
 
@@ -391,6 +391,6 @@ function checkThreshold(value, warning, critical) {
 
 ---
 
-**Summary**:  
+**Summary**:
 Both modules are well-structured, idiomatic, and maintainable. No critical issues found. For further improvement, refactor repeated logic, clarify complex code with comments, and ensure impure logic is isolated and tested.
 ```

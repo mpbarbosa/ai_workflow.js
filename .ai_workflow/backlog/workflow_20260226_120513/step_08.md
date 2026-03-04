@@ -41,8 +41,8 @@
 
 ## AI Recommendations
 
-No test failures were reported (4777/4777 passed), and no output or coverage metrics were provided.  
-To deliver actionable recommendations, please supply test output logs, coverage reports, and timing data.  
+No test failures were reported (4777/4777 passed), and no output or coverage metrics were provided.
+To deliver actionable recommendations, please supply test output logs, coverage reports, and timing data.
 If you want CI/CD optimization and coverage gap analysis, rerun tests with coverage enabled and share the results.
 
 ## Details

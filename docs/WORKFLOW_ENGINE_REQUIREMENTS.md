@@ -1,9 +1,9 @@
 # Workflow Engine Requirements (Phase 7)
 
-**Status:** ✅ Complete — Phases 7–11 implemented  
-**Target Phase:** Phase 7 - Workflow Orchestration (complete); Phase 12 next  
-**Dependencies:** Phases 1-11 Complete  
-**Document Version:** 1.1.0  
+**Status:** ✅ Complete — Phases 7–11 implemented
+**Target Phase:** Phase 7 - Workflow Orchestration (complete); Phase 12 next
+**Dependencies:** Phases 1-11 Complete
+**Document Version:** 1.1.0
 **Last Updated:** February 28, 2026
 
 ---
@@ -20,8 +20,8 @@ This document outlines requirements for the **Workflow Engine** (Phase 7), which
 
 ### 1. **Test Regression Detection**
 
-**Priority:** 🔴 Critical  
-**Phase:** 7  
+**Priority:** 🔴 Critical
+**Phase:** 7
 **Status:** ✅ Implemented (`step_08` test execution; `step_executor.js` exit-code validation)
 
 #### Requirement
@@ -72,8 +72,8 @@ Git pre-commit hook via Husky + lint-staged:
 
 ### 2. **Workflow Step Orchestration**
 
-**Priority:** 🔴 Critical  
-**Phase:** 7  
+**Priority:** 🔴 Critical
+**Phase:** 7
 **Status:** ✅ Implemented (`workflow_engine.js`, `step_registry.js`, `main_orchestrator.js`)
 
 #### Requirements
@@ -117,8 +117,8 @@ class WorkflowEngine {
 
 ### 3. **Step Validation Framework**
 
-**Priority:** 🟠 High  
-**Phase:** 7  
+**Priority:** 🟠 High
+**Phase:** 7
 **Status:** ✅ Implemented (`step_executor.js` pre/post-condition checking, timeout management)
 
 #### Requirements
@@ -147,8 +147,8 @@ post_conditions:
 
 ### 4. **AI Integration Points**
 
-**Priority:** 🟠 High  
-**Phase:** 7 (depends on Phase 6)  
+**Priority:** 🟠 High
+**Phase:** 7 (depends on Phase 6)
 **Status:** ✅ Implemented (Phase 6 complete; all AI steps wired to `AiHelper` + `AiCache`)
 
 #### Requirements
@@ -178,8 +178,8 @@ steps:
 
 ### 5. **Error Handling & Recovery**
 
-**Priority:** 🟠 High  
-**Phase:** 7  
+**Priority:** 🟠 High
+**Phase:** 7
 **Status:** ✅ Implemented (`step_executor.js` retry/backoff; `checkpoint_manager.js` recovery)
 
 #### Requirements
@@ -216,8 +216,8 @@ const errorHandling = {
 
 ### 6. **Metrics & Telemetry**
 
-**Priority:** 🟡 Medium  
-**Phase:** 7  
+**Priority:** 🟡 Medium
+**Phase:** 7
 **Status:** ✅ Implemented (`metrics.js` integrated; per-step timing/success rates collected)
 
 #### Requirements
@@ -244,8 +244,8 @@ const metrics = {
 
 ### 7. **Dry-Run Mode**
 
-**Priority:** 🟡 Medium  
-**Phase:** 7  
+**Priority:** 🟡 Medium
+**Phase:** 7
 **Status:** ✅ Implemented (all Phase 2–5 modules + `WorkflowEngine` `dryRun` option)
 
 #### Current Implementation
@@ -274,8 +274,8 @@ await engine.execute(workflow);
 
 ### 8. **Parallel Step Execution**
 
-**Priority:** 🟢 Low  
-**Phase:** 8 (future optimization)  
+**Priority:** 🟢 Low
+**Phase:** 8 (future optimization)
 **Status:** ✅ Implemented (`multi_stage_pipeline.js`, `step1_parallel.js` — Phase 8)
 
 #### Requirements
@@ -298,8 +298,8 @@ parallel_steps:
 
 ### 9. **AI Prompt Context Completeness**
 
-**Priority:** 🟠 High  
-**Phase:** 7  
+**Priority:** 🟠 High
+**Phase:** 7
 **Status:** ✅ Requirement codified (2026-02-28); partial fix applied to `step_03`
 
 #### Requirement
@@ -405,8 +405,8 @@ When reviewing a prompt-response log file (`.ai_workflow/logs/.../prompts/<step>
 
 ### Source Reference
 
-**Repository:** mpbarbosa/ai_workflow v4.0.0  
-**Language:** Bash  
+**Repository:** mpbarbosa/ai_workflow v4.0.0
+**Language:** Bash
 **Structure:**
 
 - `steps/` - 15 step implementations (4,777 lines)
@@ -490,5 +490,5 @@ When reviewing a prompt-response log file (`.ai_workflow/logs/.../prompts/<step>
 
 **Document Status:** Living document — updated as implementation progresses.
 
-**Last Updated:** February 28, 2026  
+**Last Updated:** February 28, 2026
 **Next Review:** Phase 12 (Testing & Documentation) milestone

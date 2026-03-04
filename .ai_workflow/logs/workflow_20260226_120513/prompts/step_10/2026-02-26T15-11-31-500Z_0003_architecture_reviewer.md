@@ -132,6 +132,6 @@ This reduces repetition and improves maintainability.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The test suites are structurally sound but can be improved for maintainability and coverage by refactoring repetitive checks, adding negative tests, and expanding behavioral assertions.
 ```

@@ -132,7 +132,7 @@
    - Implement regular test portfolio reviews and maintenance.
    - Automate coverage reporting and test hygiene checks.
 
-**Summary:**  
+**Summary:**
 Focus immediate efforts on critical integration/e2e coverage for orchestrator and AI modules, error handling, and untested files. Rebalance the test portfolio to align with the test pyramid, prioritize business-critical flows, and establish long-term coverage and maintenance strategies.
 
 ## Details

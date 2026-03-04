@@ -1,7 +1,7 @@
 # metrics - Metrics Collection Module
 
-**Module:** `lib/metrics`  
-**Version:** 2.0.0  
+**Module:** `lib/metrics`
+**Version:** 2.0.0
 **Type:** Pure Functions + Wrapper
 
 ## Overview
@@ -121,5 +121,5 @@ Saved metrics include:
 
 ---
 
-**Last Updated:** 2026-02-01  
+**Last Updated:** 2026-02-01
 **Part of:** AI Workflow Automation v1.0.0

@@ -177,7 +177,7 @@ describe('AI Cache Module - Pure Functions', () => {
       const currentTime = 2500;
       const ttl = 1000;
 
-      const stats = 
+      const stats =
 ...(truncated)
 ```
 
@@ -220,7 +220,7 @@ describe('AI Cache Module - Pure Functions', () => {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**
 However, several improvements can be made to enhance maintainability, readability, and robustness.
 
 ---
@@ -251,8 +251,8 @@ However, several improvements can be made to enhance maintainability, readabilit
 #### D. Naming & Consistency
 
 - **Issue**: Some test descriptions are slightly ambiguous (e.g., "handles empty context" could clarify expected behavior).
-  - **Recommendation**: Use explicit, behavior-driven names:  
-    _Example_:  
+  - **Recommendation**: Use explicit, behavior-driven names:
+    _Example_:
     ```js
     test('generateCacheKey returns valid SHA256 hex for empty context', ...)
     ```

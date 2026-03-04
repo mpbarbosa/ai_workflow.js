@@ -431,7 +431,7 @@ describe('CLI Output - Pure Functions', () => {
 
     test('should handle custom separator', () => {
       const data = { key: 'value' };
-  
+
 ...(truncated)
 ```
 
@@ -873,7 +873,7 @@ describe('Config Command - Pure Functions', () => {
 
       const formatted = formatValidationErrors(errors);
       expect(formatted).toContain('Validation errors:');
- 
+
 ...(truncated)
 ```
 
@@ -917,7 +917,7 @@ describe('Config Command - Pure Functions', () => {
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs, security vulnerabilities, or major design flaws were found in the provided files.**  
+**No critical bugs, security vulnerabilities, or major design flaws were found in the provided files.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---

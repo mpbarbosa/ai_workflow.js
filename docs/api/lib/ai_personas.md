@@ -1,7 +1,7 @@
 # ai_personas
 
-**Module:** `src/lib/ai_personas.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/ai_personas.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions only
 
 AI persona definitions and management for workflow automation.
@@ -513,9 +513,9 @@ const persona2 = getPersonaSafely('nonexistent_persona');
 import { getAllPersonas } from './lib/ai_personas.js';
 
 // Find personas that focus on code quality OR security
-const qualityAndSecurityPersonas = getAllPersonas().filter(persona => 
-  persona.focus.some(f => 
-    f.toLowerCase().includes('code quality') || 
+const qualityAndSecurityPersonas = getAllPersonas().filter(persona =>
+  persona.focus.some(f =>
+    f.toLowerCase().includes('code quality') ||
     f.toLowerCase().includes('security')
   )
 );
@@ -574,6 +574,6 @@ Migrated from `src/workflow/lib/ai_personas.sh` + `.workflow_core/config/ai_help
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 100%

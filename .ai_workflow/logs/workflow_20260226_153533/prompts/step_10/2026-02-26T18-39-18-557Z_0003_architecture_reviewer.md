@@ -161,7 +161,7 @@ describe('runSdkSmokeTest', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('returns success when API responds with non-empty content', async () => {
-  
+
 ...(truncated)
 ```
 
@@ -328,7 +328,7 @@ describe('SessionManager - Pure Functions', () => {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---
@@ -359,8 +359,8 @@ However, several improvements can be made to further enhance maintainability, re
 #### D. Naming & Consistency
 
 - **Issue**: Some test descriptions could be more explicit (e.g., "should handle different timestamp formats" could clarify expected behavior).
-  - **Recommendation**: Use explicit, behavior-driven names:  
-    _Example_:  
+  - **Recommendation**: Use explicit, behavior-driven names:
+    _Example_:
     ```js
     test('generateSessionId produces unique IDs for different timestamps', ...)
     ```

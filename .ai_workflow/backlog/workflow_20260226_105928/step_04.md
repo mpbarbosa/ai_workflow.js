@@ -36,13 +36,13 @@ All configuration files validated successfully.
 - YAML configs are well-structured and documented
 
 **Issues to Address:**
-1. **.workflow_core/package.json** — HIGH: Missing required "name" field.  
+1. **.workflow_core/package.json** — HIGH: Missing required "name" field.
    - *Recommendation*: Add `"name": "ai_workflow_core"` and standard metadata.
-2. **.husky/_/.gitignore** — HIGH: Overly permissive (`*`).  
+2. **.husky/_/.gitignore** — HIGH: Overly permissive (`*`).
    - *Recommendation*: Make empty or restrict to specific files.
-3. **.github/workflows/code-quality.yml** — HIGH: Insecure wget without checksum.  
+3. **.github/workflows/code-quality.yml** — HIGH: Insecure wget without checksum.
    - *Recommendation*: Use package manager or verify checksum.
-4. **.github/workflows/ci.yml** — MEDIUM: `npm ci --no-audit` disables security checks.  
+4. **.github/workflows/ci.yml** — MEDIUM: `npm ci --no-audit` disables security checks.
    - *Recommendation*: Remove `--no-audit` flag.
 5. **.workflow_core/.pre-commit-config.yaml** — MEDIUM: Custom script, ensure it's trusted.
 

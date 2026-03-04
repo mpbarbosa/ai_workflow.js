@@ -1,7 +1,7 @@
 # step_02_consistency.js API Documentation
 
-**Module:** `steps/step_02_consistency`  
-**Version:** 2.0.0  
+**Module:** `steps/step_02_consistency`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview
@@ -503,7 +503,7 @@ describe('Step2ConsistencyAnalyzer', () => {
 
 ---
 
-**Last Updated:** 2026-02-11  
-**Status:** Complete  
-**Test Coverage:** 100%  
+**Last Updated:** 2026-02-11
+**Status:** Complete
+**Test Coverage:** 100%
 **Source:** `src/steps/step_02_consistency.js`

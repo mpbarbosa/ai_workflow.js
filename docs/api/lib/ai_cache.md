@@ -1,7 +1,7 @@
 # ai_cache
 
-**Module:** `src/lib/ai_cache.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/ai_cache.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Impure wrapper
 
 AI response caching for token reduction and performance optimization.
@@ -656,12 +656,12 @@ await cache.init();
 async function aiRequest(prompt, estimatedTokens) {
   const key = generateCacheKey(prompt);
   const cached = await cache.get(key);
-  
+
   if (cached) {
     cache.metrics.tokensSaved += estimatedTokens;
     return cached;
   }
-  
+
   const response = await callAi(prompt);
   await cache.set(key, response);
   return response;
@@ -774,6 +774,6 @@ await cache.set(key, 'Response text', {
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 100%

@@ -1,7 +1,7 @@
 # ai_helpers
 
-**Module:** `src/lib/ai_helpers.js`  
-**Version:** 2.0.0  
+**Module:** `src/lib/ai_helpers.js`
+**Version:** 2.0.0
 **Architecture:** Pure functions + Impure wrapper
 
 Core AI integration for GitHub Copilot SDK interaction, request orchestration, and response processing.
@@ -474,7 +474,7 @@ const validation = helper.validateResponse(response);
 
 if (!validation.valid) {
   console.error(`Invalid response: ${validation.reason}`);
-  
+
   if (validation.shouldRetry) {
     console.log('Retrying...');
     // Retry logic
@@ -569,11 +569,11 @@ async function requestWithRetry(prompt, maxAttempts = 5) {
       return await helper.request(prompt);
     } catch (error) {
       const errorInfo = parseErrorResponse(error);
-      
+
       if (!shouldRetry(errorInfo, attempt, maxAttempts)) {
         throw new Error(`Failed after ${attempt} attempts: ${errorInfo.message}`);
       }
-      
+
       const delay = calculateRetryDelay(attempt);
       console.log(`Retry ${attempt} after ${delay}ms: ${errorInfo.message}`);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -717,6 +717,6 @@ Confidence is calculated based on:
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Stability:** Stable  
+**Last Updated:** 2026-02-07
+**Stability:** Stable
 **Test Coverage:** 97% (3 known test failures in jq_wrapper integration)

@@ -1,7 +1,7 @@
 # API Usage Examples
 
-**Version:** 1.0.0  
-**Last Updated:** February 2, 2026  
+**Version:** 1.0.0
+**Last Updated:** February 2, 2026
 **Status:** Complete
 
 ---
@@ -219,7 +219,7 @@ console.log(`Node Version: ${sysInfo.nodeVersion}`);
 import { parseVersion, compareVersions } from 'ai-workflow';
 
 const v1 = parseVersion('1.2.3');
-const v2 = parseVersion('1.3.12');
+const v2 = parseVersion('1.3.13');
 
 console.log(compareVersions(v1, v2)); // -1 (v1 < v2)
 console.log(compareVersions(v2, v1)); // 1 (v2 > v1)
@@ -1289,9 +1289,9 @@ runWorkflow('/path/to/project')
 ## Next Steps
 
 - Explore individual module documentation in [docs/api/](./README.md)
-- Read architecture patterns in [docs/architecture/PATTERNS.md](../architecture/PATTERNS.md)
+- Read architecture patterns in [docs/architecture/OVERVIEW.md](../architecture/OVERVIEW.md)
 - Check troubleshooting guide at [docs/guides/TROUBLESHOOTING.md](../guides/TROUBLESHOOTING.md)
-- Review best practices at [docs/guides/BEST_PRACTICES.md](../guides/BEST_PRACTICES.md)
+- Review best practices at [docs/guides/DEVELOPER_GUIDE.md](../guides/DEVELOPER_GUIDE.md)
 
 ---
 

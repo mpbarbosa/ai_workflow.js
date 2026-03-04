@@ -282,6 +282,6 @@ This improves robustness and maintainability.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The module is structurally sound and follows best practices, but can be improved for maintainability and clarity by refactoring YAML parsing, adding input validation, and splitting large files.
 ```

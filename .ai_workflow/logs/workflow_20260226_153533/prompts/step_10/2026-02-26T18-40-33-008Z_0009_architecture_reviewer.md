@@ -178,7 +178,7 @@ export function determineAlertSeverity(metrics, thresholds) {
  *
  * @example
  * generateAlertMessage('db-query', { duration: 6000, memory: { heapUsed: 25 } }, 'warning')
- * 
+ *
 ...(truncated)
 ```
 
@@ -325,7 +325,7 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
       const regex = new RegExp(`^${pattern}$`);
       const found = existingFiles.some((file) => regex.test(file));
 
-    
+
 ...(truncated)
 ```
 
@@ -368,7 +368,7 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided modules.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---

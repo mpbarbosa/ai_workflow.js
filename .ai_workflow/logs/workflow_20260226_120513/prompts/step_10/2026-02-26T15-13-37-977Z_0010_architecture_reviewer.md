@@ -270,6 +270,6 @@ Use this helper in both validateStepInput and validateStepOutput.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The module is structurally sound and follows best practices, but can be improved for maintainability and clarity by refactoring validation logic, expanding schema support, and splitting large files.
 ```

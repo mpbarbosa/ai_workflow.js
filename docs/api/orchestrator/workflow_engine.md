@@ -1,7 +1,7 @@
 # Workflow Engine API
 
-**Module:** `orchestrator/workflow_engine`  
-**Version:** 2.0.0  
+**Module:** `orchestrator/workflow_engine`
+**Version:** 2.0.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -705,5 +705,5 @@ engine.on('workflow:error', (error) => {
 
 ---
 
-**Last Updated:** February 6, 2026  
+**Last Updated:** February 6, 2026
 **Module Version:** 2.0.0

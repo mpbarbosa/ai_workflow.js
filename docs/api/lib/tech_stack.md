@@ -1,7 +1,7 @@
 # Tech Stack Detection API
 
-**Module:** `lib/tech_stack`  
-**Version:** 1.0.0  
+**Module:** `lib/tech_stack`
+**Version:** 1.0.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -676,5 +676,5 @@ console.log('Customized Workflow:', workflow);
 
 ---
 
-**Last Updated:** 2026-02-07  
+**Last Updated:** 2026-02-07
 **Author:** AI Workflow Team

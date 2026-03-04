@@ -1,7 +1,7 @@
 # Session Manager Module API Documentation
 
-**Module:** `lib/session_manager`  
-**Version:** 2.0.0  
+**Module:** `lib/session_manager`
+**Version:** 2.0.0
 **Architecture:** Pure Functions + Impure Wrapper (Referential Transparency)
 
 ## Overview
@@ -1215,6 +1215,6 @@ setInterval(() => {
 
 ---
 
-**Last Updated:** 2026-02-07  
-**Module Path:** `src/lib/session_manager.js`  
+**Last Updated:** 2026-02-07
+**Module Path:** `src/lib/session_manager.js`
 **Test Path:** `test/lib/session_manager.test.js`

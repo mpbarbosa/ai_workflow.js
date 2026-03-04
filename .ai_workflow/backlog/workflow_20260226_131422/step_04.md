@@ -27,9 +27,9 @@
 
 ---
 
-**Summary:**  
-All configuration files validated successfully.  
-- Files checked: package.json, .workflow-config.yaml, .workflow_core/config/ai_helpers.yaml, .github/workflows/*.yml (CI, release, codeql, coverage-comment, dependency-review)  
+**Summary:**
+All configuration files validated successfully.
+- Files checked: package.json, .workflow-config.yaml, .workflow_core/config/ai_helpers.yaml, .github/workflows/*.yml (CI, release, codeql, coverage-comment, dependency-review)
 - Validations performed: syntax, security, consistency, best practices, AI workflow config structure
 
 ---
@@ -43,7 +43,7 @@ All configuration files validated successfully.
 
 ---
 
-**Details:**  
+**Details:**
 - **Security:** No CRITICAL issues. All secrets (CODECOV_TOKEN, NPM_TOKEN) are referenced via `${{ secrets.* }}`. No hardcoded credentials or insecure defaults.
 - **Syntax:** All JSON/YAML files parsed without errors. No malformed structures or invalid escaping.
 - **Consistency:** Dependency versions match across package.json and lockfiles. CI/CD commands align with documented build/test/lint scripts.
@@ -51,7 +51,7 @@ All configuration files validated successfully.
 
 ---
 
-**Impact:**  
+**Impact:**
 - Build, deployment, and workflow automation are robust and secure.
 - No immediate action required; configuration is production-ready and follows industry standards.
 

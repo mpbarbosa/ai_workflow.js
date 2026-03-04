@@ -216,7 +216,7 @@ describe('Pure Functions - insertAtLine', () => {
 
 ### 2. Critical Issues
 
-**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**  
+**No critical bugs, security vulnerabilities, or major anti-patterns were found in the provided test files.**
 However, several improvements can be made to further enhance maintainability, readability, and robustness.
 
 ---
@@ -247,8 +247,8 @@ However, several improvements can be made to further enhance maintainability, re
 #### D. Naming & Consistency
 
 - **Issue**: Some test descriptions could be more explicit (e.g., "handles invalid line numbers" could clarify expected behavior).
-  - **Recommendation**: Use explicit, behavior-driven names:  
-    _Example_:  
+  - **Recommendation**: Use explicit, behavior-driven names:
+    _Example_:
     ```js
     test('insertAtLine returns original text for out-of-bounds line number', ...)
     ```

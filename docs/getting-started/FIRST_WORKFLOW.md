@@ -1,6 +1,6 @@
 # First Workflow Tutorial
 
-**Version:** 1.0.0  
+**Version:** 1.0.0
 **Last Updated:** February 1, 2026
 
 Build your first workflow from scratch using ai_workflow.js! This tutorial walks you through creating a complete project analysis workflow that detects project type, analyzes tech stack, and generates a report.
@@ -31,11 +31,11 @@ Build your first workflow from scratch using ai_workflow.js! This tutorial walks
 
 A **Project Analyzer** workflow that:
 
-✅ Detects project type (Node.js, Python, React, etc.)  
-✅ Analyzes tech stack (languages, frameworks, build systems)  
-✅ Excludes third-party files (node_modules, .git, etc.)  
-✅ Generates a comprehensive project report  
-✅ Handles errors gracefully  
+✅ Detects project type (Node.js, Python, React, etc.)
+✅ Analyzes tech stack (languages, frameworks, build systems)
+✅ Excludes third-party files (node_modules, .git, etc.)
+✅ Generates a comprehensive project report
+✅ Handles errors gracefully
 ✅ Provides colored, user-friendly output
 
 **Estimated time:** 20-30 minutes
@@ -531,7 +531,7 @@ async function generateReport(projectPath, data) {
 
   const report = `# Project Analysis Report
 
-**Generated:** ${new Date().toISOString()}  
+**Generated:** ${new Date().toISOString()}
 **Project Path:** ${projectPath}
 
 ---

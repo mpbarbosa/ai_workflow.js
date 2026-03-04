@@ -270,6 +270,6 @@ Use these helpers in getScriptPatterns, getScriptDirectories, and validateScript
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The module is structurally sound and follows best practices, but can be improved for maintainability and clarity by refactoring normalization logic, simplifying regex patterns, and splitting large files.
 ```

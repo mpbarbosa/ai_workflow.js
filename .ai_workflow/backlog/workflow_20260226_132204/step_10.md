@@ -69,7 +69,7 @@
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs, security vulnerabilities, or major design flaws were found in the provided files.**  
+**No critical bugs, security vulnerabilities, or major design flaws were found in the provided files.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---
@@ -220,7 +220,7 @@ class WorkflowError extends Error {
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs or security vulnerabilities are apparent in the provided code.**  
+**No critical bugs or security vulnerabilities are apparent in the provided code.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---
@@ -371,7 +371,7 @@ export function validateConfig(config) {
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs or security vulnerabilities are apparent in the provided code.**  
+**No critical bugs or security vulnerabilities are apparent in the provided code.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---
@@ -500,7 +500,7 @@ export function parseGitStatus(statusOutput) {
 
 ## 2. **Critical Issues (Bugs, Security, Design Flaws)**
 
-**No critical bugs or security vulnerabilities are apparent in the provided code.**  
+**No critical bugs or security vulnerabilities are apparent in the provided code.**
 However, several areas can be improved for maintainability, clarity, and robustness.
 
 ---

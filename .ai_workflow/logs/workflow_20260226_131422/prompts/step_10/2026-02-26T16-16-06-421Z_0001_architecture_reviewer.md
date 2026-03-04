@@ -177,7 +177,7 @@ describe('AI Cache Module - Pure Functions', () => {
       const currentTime = 2500;
       const ttl = 1000;
 
-      const stats = 
+      const stats =
 ...(truncated)
 ```
 

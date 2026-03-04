@@ -177,7 +177,7 @@ describe('AI Cache Module - Pure Functions', () => {
       const currentTime = 2500;
       const ttl = 1000;
 
-      const stats = 
+      const stats =
 ...(truncated)
 ```
 
@@ -282,6 +282,6 @@ This reduces repetition and improves maintainability.
 
 ---
 
-**Summary**:  
+**Summary**:
 No critical bugs or security issues found. The test suite is structurally sound but can be improved for maintainability and coverage by refactoring repetitive checks, adding negative tests, and expanding behavioral assertions.
 ```
