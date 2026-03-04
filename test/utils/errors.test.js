@@ -153,4 +153,21 @@ describe('Edge cases and error scenarios', () => {
     expect(err.destination).toBeNull();
     expect(err.originalError).toBeNull();
   });
+
+  it('should support error wrapping via originalError', () => {
+    const cause = new Error('disk full');
+    const err = new FileSystemError('Write failed', { path: '/tmp/out.txt', originalError: cause });
+    expect(err.path).toBe('/tmp/out.txt');
+    expect(err.originalError).toBe(cause);
+    expect(err.originalError.message).toBe('disk full');
+  });
+
+  it('should expose code and name as enumerable properties', () => {
+    const err = new ConfigurationError('bad config');
+    expect(err.code).toBe('CONFIG_ERROR');
+    expect(err.name).toBe('ConfigurationError');
+    // Ensure both survive round-trip through Object.assign
+    const copy = Object.assign({}, err);
+    expect(copy.code).toBe('CONFIG_ERROR');
+  });
 });

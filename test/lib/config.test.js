@@ -197,6 +197,14 @@ describe('Config - Pure Functions', () => {
       expect(elapsed1).toBe(elapsed2);
       expect(elapsed1).toBe(100);
     });
+
+    test('should return zero when start and end are equal', () => {
+      expect(calculateElapsedTime(1000, 1000)).toBe(0);
+    });
+
+    test('should return negative value when start is after end', () => {
+      expect(calculateElapsedTime(2500, 1000)).toBe(-1500);
+    });
   });
 
   describe('resolveProjectRoot', () => {

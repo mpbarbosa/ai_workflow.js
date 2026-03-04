@@ -29,7 +29,7 @@ import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
  * Maximum number of files sent to the AI in a single request.
  * Keeps prompts well below model context limits and avoids timeout errors.
  */
-export const AI_FILES_PER_SLICE = 15;
+export const AI_FILES_PER_SLICE = 5;
 
 /**
  * Linter commands by language
@@ -185,6 +185,7 @@ export function parseEslintOutput(output) {
     errors: 0,
     warnings: 0,
     files: 0,
+    fileIssues: {},
   };
 
   // Look for summary line: "✖ 10 problems (5 errors, 5 warnings)"
@@ -197,11 +198,20 @@ export function parseEslintOutput(output) {
     results.warnings = parseInt(problemMatch[3], 10);
   }
 
-  // Count affected files
-  const fileMatches = output.match(/\n\s*\//g);
-  if (fileMatches) {
-    results.files = fileMatches.length;
+  // Extract per-file issue counts from ESLint stylish output.
+  // Non-indented lines starting with '/' are file paths; indented lines are issues.
+  const lines = output.split('\n');
+  let currentFile = null;
+  for (const line of lines) {
+    if (/^\//.test(line)) {
+      currentFile = line.trim();
+      results.fileIssues[currentFile] = 0;
+    } else if (currentFile && /^\s+\d+:\d+\s+(error|warning)/.test(line)) {
+      results.fileIssues[currentFile]++;
+    }
   }
+
+  results.files = Object.keys(results.fileIssues).length;
 
   return results;
 }
@@ -220,18 +230,20 @@ export function parseFlake8Output(output) {
     errors: 0,
     warnings: lines.length,
     files: 0,
+    fileIssues: {},
   };
 
-  // Count unique files
-  const files = new Set();
+  // Count unique files and per-file issue counts.
+  // Flake8 format: "file.py:line:col: E123 message"
   lines.forEach((line) => {
     const fileMatch = line.match(/^([^:]+):/);
     if (fileMatch) {
-      files.add(fileMatch[1]);
+      const filePath = fileMatch[1];
+      results.fileIssues[filePath] = (results.fileIssues[filePath] || 0) + 1;
     }
   });
 
-  results.files = files.size;
+  results.files = Object.keys(results.fileIssues).length;
 
   return results;
 }
@@ -289,6 +301,28 @@ export function parseLinterOutput(output, language) {
 export function calculateIssueRate(totalIssues, fileCount) {
   if (fileCount === 0) return 0;
   return Math.round((totalIssues / fileCount) * 10) / 10; // Round to 1 decimal
+}
+
+/**
+ * Aggregate per-file issue counts from all language linter results.
+ * Normalises absolute paths to project-relative paths.
+ *
+ * @pure
+ * @param {Array<{ linterResults: Object }>} perLanguageResults
+ * @param {string} projectRoot - Absolute project root path
+ * @returns {Object} Map of relativeFilePath → total issue count
+ */
+export function collectPerFileIssues(perLanguageResults, projectRoot) {
+  const issues = {};
+  const prefix = projectRoot ? `${projectRoot}/` : '';
+  for (const { linterResults } of perLanguageResults) {
+    const fileIssues = linterResults?.fileIssues || {};
+    for (const [absPath, count] of Object.entries(fileIssues)) {
+      const rel = prefix && absPath.startsWith(prefix) ? absPath.slice(prefix.length) : absPath;
+      issues[rel] = (issues[rel] || 0) + count;
+    }
+  }
+  return issues;
 }
 
 /**
@@ -715,24 +749,17 @@ export class Step10CodeQualityAnalyzer {
           // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
           const uniqueSourceFiles = [...new Set(allSourceFiles)];
 
-          // If a large batch of files changed (e.g. a TypeScript migration), skip partition
-          // rotation and review ALL files in one pass so no changes fall off the radar.
-          // Slicing (below) ensures even very large sets don't produce a single huge prompt.
-          const largeChangeSet =
-            Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 50;
-
           // Select the partition to review this run and rotate for the next run.
+          // Uses quality-aware ordering: recently modified first, exempt high-quality
+          // files excluded until they are modified again.
           const partitionCache = new Step10PartitionCache({
             cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
           });
-          const partition = largeChangeSet
-            ? {
-                index: 0,
-                total: 1,
-                files: uniqueSourceFiles,
-                label: 'all (large change set)',
-              }
-            : await partitionCache.getCurrentPartition(uniqueSourceFiles);
+          const activeCandidates = await partitionCache.getActiveCandidates(
+            uniqueSourceFiles,
+            options.modifiedFiles ?? []
+          );
+          const partition = await partitionCache.getCurrentPartition(activeCandidates);
 
           logger.info(
             `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
@@ -792,9 +819,12 @@ export class Step10CodeQualityAnalyzer {
                     prioritizedContents[f] = sliceContents[f];
                   }
                 }
-                const contentMap = buildFileContentMap(prioritizedContents);
+                const contentMap = buildFileContentMap(prioritizedContents, {
+                  maxFiles: sliceFiles.length,
+                  maxCharsPerFile: 5000,
+                });
                 const fileContentMap = formatFileContentMap(contentMap);
-                const sampleCode = Object.values(prioritizedContents).slice(0, 2).join('\n---\n').slice(0, 2000);
+                const sampleCode = '';
                 const largeFList = sliceFiles.join(', ');
                 const projectName = basename(projectRoot);
                 const projectDescription = options?.projectDescription ?? '';
@@ -879,10 +909,10 @@ export class Step10CodeQualityAnalyzer {
             const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
             const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
             await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
-            // Advance to the next partition for subsequent runs (skip when full scan)
-            if (!largeChangeSet) {
-              await partitionCache.advance(uniqueSourceFiles);
-            }
+            // Update per-file quality scores and advance partition for the next run.
+            const perFileIssues = collectPerFileIssues(perLanguageResults, projectRoot);
+            await partitionCache.updateQualityScores(perFileIssues, partition.files);
+            await partitionCache.advance(activeCandidates);
           }
         } else {
           logger.warn('AI helper not available - skipping AI code quality review');

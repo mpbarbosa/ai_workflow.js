@@ -103,9 +103,9 @@ await engine.run();
 
 ## Related Documentation
 
-- [Workflow Engine API](../docs/api/orchestrator/workflow_engine.md)
-- [Configuration Guide](../docs/guides/CONFIGURATION_GUIDE.md)
-- [Developer Guide](../docs/guides/DEVELOPER_GUIDE.md)
+- [Workflow Engine API](../../docs/api/orchestrator/workflow_engine.md)
+- [Configuration Guide](../../docs/guides/CONFIGURATION_GUIDE.md)
+- [Developer Guide](../../docs/guides/DEVELOPER_GUIDE.md)
 
 ---
 

@@ -167,6 +167,25 @@ describe('AI Helpers Module - Pure Functions', () => {
       });
     });
 
+    test('detects CLI not found (ENOENT) errors', () => {
+      const errors = [
+        new Error('ENOENT: no such file or directory, open /usr/local/bin/gh'),
+        new Error('spawn copilot ENOENT'),
+      ];
+
+      errors.forEach((error) => {
+        const result = parseErrorResponse(error);
+        expect(result.type).toBe('cli_not_found');
+        expect(result.retryable).toBe(false);
+      });
+    });
+
+    test('ENOENT is not classified as network error', () => {
+      const error = new Error('ENOENT: file not found');
+      const result = parseErrorResponse(error);
+      expect(result.type).not.toBe('network');
+    });
+
     test('handles string errors', () => {
       const result = parseErrorResponse('String error message');
 

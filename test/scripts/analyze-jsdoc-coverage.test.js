@@ -1,6 +1,11 @@
 // scripts/analyze-jsdoc-coverage.test.js
 
-import * as jsdocModule from './analyze-jsdoc-coverage.js';
+import * as jsdocModule from '../../scripts/analyze-jsdoc-coverage.js';
+import { writeFileSync, unlinkSync, mkdirSync, rmdirSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+
+const tmp = tmpdir();
 
 describe('analyze-jsdoc-coverage.js core functions', () => {
   const {
@@ -34,10 +39,9 @@ describe('analyze-jsdoc-coverage.js core functions', () => {
         '',
         '',
         '',
-        '',
         'export function bar() {}',
       ];
-      expect(hasJSDoc(lines, 11)).toBe(true);
+      expect(hasJSDoc(lines, 10)).toBe(true);
     });
 
     it('should return false if no JSDoc present', () => {
@@ -50,10 +54,10 @@ describe('analyze-jsdoc-coverage.js core functions', () => {
 
     it('should stop searching if another export/function/class is encountered', () => {
       const lines = [
+        'export function bar() {}',
         '/**',
         ' * Not for foo',
         ' */',
-        'export function bar() {}',
         '',
         'export function foo() {}',
       ];
@@ -83,10 +87,6 @@ describe('analyze-jsdoc-coverage.js core functions', () => {
   });
 
   describe('analyzeFile', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const tmp = require('os').tmpdir();
-
     afterEach(() => {
       stats.totalFiles = 0;
       stats.totalExports = 0;
@@ -96,28 +96,30 @@ describe('analyze-jsdoc-coverage.js core functions', () => {
     });
 
     it('should count documented and undocumented exports', async () => {
-      const fileContent = `
-/**
- * Foo docs
- */
-export function foo() {}
-
-/**
- * Bar docs
- */
-export class Bar {}
-
-/**
- * Baz docs
- */
-export const baz = 1;
-
-export function noDoc() {}
-export class NoDocClass {}
-export const noDocConst = 2;
-      `;
-      const filePath = path.join(tmp, 'jsdoc-test-file.js');
-      fs.writeFileSync(filePath, fileContent);
+      // hasJSDoc scans forward from (index-10), stopping on first export//** found.
+      // To avoid cross-contamination, documented exports come first (closely grouped),
+      // then 11+ blank lines so undocumented exports' windows don't include any '/**'.
+      const fileContent = [
+        '/**',
+        ' * Foo docs',
+        ' */',
+        'export function foo() {}',
+        '/**',
+        ' * Bar docs',
+        ' */',
+        'export class Bar {}',
+        ...Array(11).fill(''),
+        '/**',
+        ' * Baz docs',
+        ' */',
+        'export const baz = 1;',
+        ...Array(12).fill(''),
+        'export function noDoc() {}',
+        'export class NoDocClass {}',
+        'export const noDocConst = 2;',
+      ].join('\n');
+      const filePath = join(tmp, 'jsdoc-test-file.js');
+      writeFileSync(filePath, fileContent);
 
       const result = await analyzeFile(filePath);
       expect(result.exports).toBe(6);
@@ -125,7 +127,7 @@ export const noDocConst = 2;
       expect(result.undocumented).toEqual(
         expect.arrayContaining(['noDoc', 'NoDocClass', 'noDocConst'])
       );
-      fs.unlinkSync(filePath);
+      unlinkSync(filePath);
     });
 
     it('should handle files with no exports', async () => {
@@ -133,64 +135,60 @@ export const noDocConst = 2;
 function foo() {}
 const bar = 1;
       `;
-      const filePath = path.join(tmp, 'jsdoc-test-file2.js');
-      fs.writeFileSync(filePath, fileContent);
+      const filePath = join(tmp, 'jsdoc-test-file2.js');
+      writeFileSync(filePath, fileContent);
 
       const result = await analyzeFile(filePath);
       expect(result.exports).toBe(0);
       expect(result.documented).toBe(0);
       expect(result.undocumented).toEqual([]);
-      fs.unlinkSync(filePath);
+      unlinkSync(filePath);
     });
   });
 
   describe('findJSFiles', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const tmp = require('os').tmpdir();
-
     it('should find .js files recursively', async () => {
-      const dir = path.join(tmp, 'jsdoc-find-test');
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'a.js'), '');
-      fs.writeFileSync(path.join(dir, 'b.txt'), '');
-      const subdir = path.join(dir, 'sub');
-      fs.mkdirSync(subdir, { recursive: true });
-      fs.writeFileSync(path.join(subdir, 'c.js'), '');
+      const dir = join(tmp, 'jsdoc-find-test');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'a.js'), '');
+      writeFileSync(join(dir, 'b.txt'), '');
+      const subdir = join(dir, 'sub');
+      mkdirSync(subdir, { recursive: true });
+      writeFileSync(join(subdir, 'c.js'), '');
 
       const files = await findJSFiles(dir);
       expect(files).toEqual(
         expect.arrayContaining([
-          path.join(dir, 'a.js'),
-          path.join(subdir, 'c.js'),
+          join(dir, 'a.js'),
+          join(subdir, 'c.js'),
         ])
       );
-      fs.unlinkSync(path.join(dir, 'a.js'));
-      fs.unlinkSync(path.join(dir, 'b.txt'));
-      fs.unlinkSync(path.join(subdir, 'c.js'));
-      fs.rmdirSync(subdir);
-      fs.rmdirSync(dir);
+      unlinkSync(join(dir, 'a.js'));
+      unlinkSync(join(dir, 'b.txt'));
+      unlinkSync(join(subdir, 'c.js'));
+      rmdirSync(subdir);
+      rmdirSync(dir);
     });
 
     it('should skip node_modules and coverage directories', async () => {
-      const dir = path.join(tmp, 'jsdoc-skip-test');
-      fs.mkdirSync(dir, { recursive: true });
-      const nm = path.join(dir, 'node_modules');
-      const cov = path.join(dir, 'coverage');
-      fs.mkdirSync(nm, { recursive: true });
-      fs.mkdirSync(cov, { recursive: true });
-      fs.writeFileSync(path.join(nm, 'skip.js'), '');
-      fs.writeFileSync(path.join(cov, 'skip.js'), '');
-      fs.writeFileSync(path.join(dir, 'keep.js'), '');
+      const dir = join(tmp, 'jsdoc-skip-test');
+      mkdirSync(dir, { recursive: true });
+      const nm = join(dir, 'node_modules');
+      const cov = join(dir, 'coverage');
+      mkdirSync(nm, { recursive: true });
+      mkdirSync(cov, { recursive: true });
+      writeFileSync(join(nm, 'skip.js'), '');
+      writeFileSync(join(cov, 'skip.js'), '');
+      writeFileSync(join(dir, 'keep.js'), '');
 
       const files = await findJSFiles(dir);
-      expect(files).toEqual([path.join(dir, 'keep.js')]);
-      fs.unlinkSync(path.join(nm, 'skip.js'));
-      fs.unlinkSync(path.join(cov, 'skip.js'));
-      fs.unlinkSync(path.join(dir, 'keep.js'));
-      fs.rmdirSync(nm);
-      fs.rmdirSync(cov);
-      fs.rmdirSync(dir);
+      expect(files).toEqual([join(dir, 'keep.js')]);
+      unlinkSync(join(nm, 'skip.js'));
+      unlinkSync(join(cov, 'skip.js'));
+      unlinkSync(join(dir, 'keep.js'));
+      rmdirSync(nm);
+      rmdirSync(cov);
+      rmdirSync(dir);
     });
   });
 

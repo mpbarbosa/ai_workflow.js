@@ -98,6 +98,13 @@ export function classifyChangedFiles(changedFiles) {
   };
 
   for (const file of changedFiles) {
+    // Skip workflow artifact directories — they must never appear in prompts.
+    if (
+      file.startsWith('.ai_workflow/') ||
+      file.startsWith('.workflow_core/')
+    ) {
+      continue;
+    }
     if (file.endsWith('.md') || file.includes('docs/')) {
       classification.documentation.push(file);
     } else if (file.endsWith('.test.js') || file.includes('test/')) {

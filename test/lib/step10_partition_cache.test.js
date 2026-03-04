@@ -19,10 +19,18 @@ import {
   nextPartitionIndex,
   createCacheEntry,
   isCacheValid,
+  scoreFromIssueCount,
+  isFileExempt,
+  sortByPriority,
+  filterAndPrioritize,
+  mergeFileScores,
+  createQualityState,
   Step10PartitionCache,
   CACHE_VERSION,
   MAX_PARTITION_SIZE,
   CACHE_FILENAME,
+  QUALITY_EXEMPT_THRESHOLD,
+  QUALITY_STATE_FILENAME,
 } from '../../src/lib/step10_partition_cache.js';
 
 // ============================================================================
@@ -351,5 +359,237 @@ describe('Step10PartitionCache', () => {
     await fs.writeFile(path.join(tmpDir, CACHE_FILENAME), 'NOT_JSON', 'utf8');
     const result = await cache.getCurrentPartition(sampleFiles);
     expect(result.index).toBe(0);
+  });
+});
+
+// ============================================================================
+// Quality-Tracking Pure Function Tests
+// ============================================================================
+
+describe('scoreFromIssueCount', () => {
+  test('0 issues → 100 (perfect score)', () => {
+    expect(scoreFromIssueCount(0)).toBe(100);
+  });
+
+  test('1 issue → 97', () => {
+    expect(scoreFromIssueCount(1)).toBe(97);
+  });
+
+  test('2 issues → 94', () => {
+    expect(scoreFromIssueCount(2)).toBe(94);
+  });
+
+  test('33+ issues → 0 (floor at 0)', () => {
+    expect(scoreFromIssueCount(34)).toBe(0);
+    expect(scoreFromIssueCount(100)).toBe(0);
+  });
+
+  test('negative input → 0', () => {
+    expect(scoreFromIssueCount(-1)).toBe(0);
+  });
+
+  test('non-number → 0', () => {
+    expect(scoreFromIssueCount('abc')).toBe(0);
+    expect(scoreFromIssueCount(null)).toBe(0);
+  });
+});
+
+describe('isFileExempt', () => {
+  test('score > threshold and not recently modified → exempt', () => {
+    expect(isFileExempt(96, 'src/foo.js', [])).toBe(true);
+    expect(isFileExempt(100, 'src/foo.js', [])).toBe(true);
+  });
+
+  test('score exactly at threshold (95) → not exempt', () => {
+    expect(isFileExempt(95, 'src/foo.js', [])).toBe(false);
+  });
+
+  test('score below threshold → not exempt', () => {
+    expect(isFileExempt(80, 'src/foo.js', [])).toBe(false);
+    expect(isFileExempt(0, 'src/foo.js', [])).toBe(false);
+  });
+
+  test('score > threshold but recently modified → NOT exempt (back in rotation)', () => {
+    expect(isFileExempt(100, 'src/foo.js', ['src/foo.js'])).toBe(false);
+  });
+
+  test('undefined score → not exempt (never reviewed)', () => {
+    expect(isFileExempt(undefined, 'src/foo.js', [])).toBe(false);
+  });
+});
+
+describe('sortByPriority', () => {
+  const scores = {
+    'src/bad.js': { score: 50 },
+    'src/good.js': { score: 97 },
+    'src/ok.js': { score: 80 },
+  };
+
+  test('recently modified files come first', () => {
+    const files = ['src/bad.js', 'src/good.js', 'src/ok.js'];
+    const sorted = sortByPriority(files, scores, ['src/good.js']);
+    expect(sorted[0]).toBe('src/good.js');
+  });
+
+  test('within non-modified: lowest quality score first', () => {
+    const files = ['src/ok.js', 'src/bad.js', 'src/good.js'];
+    const sorted = sortByPriority(files, scores, []);
+    expect(sorted[0]).toBe('src/bad.js'); // score 50 (worst)
+    expect(sorted[1]).toBe('src/ok.js');  // score 80
+    expect(sorted[2]).toBe('src/good.js'); // score 97
+  });
+
+  test('unreviewed files (no score) come before reviewed', () => {
+    const files = ['src/reviewed.js', 'src/new.js'];
+    const s = { 'src/reviewed.js': { score: 60 } };
+    const sorted = sortByPriority(files, s, []);
+    expect(sorted[0]).toBe('src/new.js');
+  });
+});
+
+describe('filterAndPrioritize', () => {
+  const scores = {
+    'src/clean.js': { score: 100 },
+    'src/dirty.js': { score: 50 },
+    'src/mid.js': { score: 90 },
+  };
+
+  test('exempt files are excluded when not modified', () => {
+    const files = ['src/clean.js', 'src/dirty.js', 'src/mid.js'];
+    const candidates = filterAndPrioritize(files, scores, []);
+    expect(candidates).not.toContain('src/clean.js'); // score 100 > 95 → exempt
+    expect(candidates).toContain('src/dirty.js');
+    expect(candidates).toContain('src/mid.js');
+  });
+
+  test('modified exempt files re-enter rotation at top', () => {
+    const files = ['src/clean.js', 'src/dirty.js'];
+    const candidates = filterAndPrioritize(files, scores, ['src/clean.js']);
+    expect(candidates[0]).toBe('src/clean.js'); // modified → first
+    expect(candidates).toContain('src/dirty.js');
+  });
+
+  test('empty file list returns empty array', () => {
+    expect(filterAndPrioritize([], scores, [])).toEqual([]);
+  });
+});
+
+describe('mergeFileScores', () => {
+  test('adds new scores for reviewed files', () => {
+    const result = mergeFileScores({}, { 'src/a.js': 0 }, ['src/a.js'], 1000);
+    expect(result['src/a.js'].score).toBe(100);
+    expect(result['src/a.js'].issueCount).toBe(0);
+    expect(result['src/a.js'].lastAnalyzed).toBeDefined();
+  });
+
+  test('updates existing scores', () => {
+    const current = { 'src/a.js': { score: 50, issueCount: 10, lastAnalyzed: '2025-01-01T00:00:00.000Z' } };
+    const result = mergeFileScores(current, { 'src/a.js': 2 }, ['src/a.js'], 2000);
+    expect(result['src/a.js'].score).toBe(94); // 100 - 2*3
+    expect(result['src/a.js'].issueCount).toBe(2);
+  });
+
+  test('files not in reviewedFiles but in newIssues are not updated', () => {
+    const result = mergeFileScores({}, { 'src/a.js': 5 }, ['src/b.js'], 1000);
+    expect(result['src/a.js']).toBeUndefined();
+    expect(result['src/b.js'].score).toBe(100); // 0 issues (not in newIssues)
+  });
+
+  test('preserves scores for files not in this review run', () => {
+    const current = { 'src/old.js': { score: 70 } };
+    const result = mergeFileScores(current, {}, ['src/new.js'], 1000);
+    expect(result['src/old.js'].score).toBe(70); // unchanged
+    expect(result['src/new.js']).toBeDefined();
+  });
+});
+
+describe('createQualityState', () => {
+  test('creates state with version 1', () => {
+    const state = createQualityState({ 'src/a.js': { score: 80 } });
+    expect(state.version).toBe(1);
+    expect(state.fileScores['src/a.js'].score).toBe(80);
+  });
+
+  test('defaults to empty fileScores', () => {
+    const state = createQualityState();
+    expect(state.fileScores).toEqual({});
+  });
+});
+
+// ============================================================================
+// Step10PartitionCache quality method integration tests
+// ============================================================================
+
+describe('Step10PartitionCache quality methods', () => {
+  let tmpDir;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step10-quality-test-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  test('loadQualityState returns empty state when file missing', async () => {
+    const cache = new Step10PartitionCache({ cacheDir: tmpDir });
+    const state = await cache.loadQualityState();
+    expect(state.version).toBe(1);
+    expect(state.fileScores).toEqual({});
+  });
+
+  test('saveQualityState persists state and loadQualityState reads it back', async () => {
+    const cache = new Step10PartitionCache({ cacheDir: tmpDir });
+    const state = createQualityState({ 'src/a.js': { score: 80, issueCount: 7, lastAnalyzed: '2026-01-01T00:00:00.000Z' } });
+    await cache.saveQualityState(state);
+
+    const loaded = await cache.loadQualityState();
+    expect(loaded.fileScores['src/a.js'].score).toBe(80);
+  });
+
+  test('getActiveCandidates excludes high-quality files not recently modified', async () => {
+    const cache = new Step10PartitionCache({ cacheDir: tmpDir });
+    // Pre-seed quality state
+    await cache.saveQualityState(createQualityState({
+      'src/clean.js': { score: 100, issueCount: 0, lastAnalyzed: '2026-01-01T00:00:00.000Z' },
+      'src/dirty.js': { score: 50,  issueCount: 10, lastAnalyzed: '2026-01-01T00:00:00.000Z' },
+    }));
+
+    const candidates = await cache.getActiveCandidates(
+      ['src/clean.js', 'src/dirty.js'],
+      []
+    );
+    expect(candidates).not.toContain('src/clean.js'); // exempt
+    expect(candidates).toContain('src/dirty.js');
+  });
+
+  test('getActiveCandidates re-includes modified exempt files', async () => {
+    const cache = new Step10PartitionCache({ cacheDir: tmpDir });
+    await cache.saveQualityState(createQualityState({
+      'src/clean.js': { score: 100, issueCount: 0, lastAnalyzed: '2026-01-01T00:00:00.000Z' },
+    }));
+
+    const candidates = await cache.getActiveCandidates(
+      ['src/clean.js', 'src/other.js'],
+      ['src/clean.js'] // recently modified → back in rotation
+    );
+    expect(candidates).toContain('src/clean.js');
+  });
+
+  test('updateQualityScores persists per-file scores', async () => {
+    const cache = new Step10PartitionCache({ cacheDir: tmpDir });
+    await cache.updateQualityScores({ 'src/a.js': 3, 'src/b.js': 0 }, ['src/a.js', 'src/b.js']);
+
+    const state = await cache.loadQualityState();
+    expect(state.fileScores['src/a.js'].score).toBe(91); // 100 - 3*3
+    expect(state.fileScores['src/b.js'].score).toBe(100);
+  });
+
+  test('QUALITY_EXEMPT_THRESHOLD is ' + QUALITY_EXEMPT_THRESHOLD, () => {
+    expect(QUALITY_EXEMPT_THRESHOLD).toBe(95);
+  });
+
+  test('QUALITY_STATE_FILENAME is ' + QUALITY_STATE_FILENAME, () => {
+    expect(QUALITY_STATE_FILENAME).toBe('step_10_quality.json');
   });
 });

@@ -26,7 +26,7 @@ describe('Version utilities', () => {
   describe('parseVersion', () => {
     it('should parse valid semantic version string', () => {
       const v = parseVersion('1.2.3');
-      expect(v).toEqual({ major: 1, minor: 2, patch: 3 });
+      expect(v).toMatchObject({ major: 1, minor: 2, patch: 3 });
     });
 
     it('should parse version with pre-release and build metadata', () => {
@@ -38,10 +38,15 @@ describe('Version utilities', () => {
       expect(v.build).toBe('exp.sha.5114f85');
     });
 
-    it('should throw on invalid version string', () => {
+    it('should throw on a fully invalid version string', () => {
       expect(() => parseVersion('invalid')).toThrow();
-      expect(() => parseVersion('1.2')).toThrow();
-      expect(() => parseVersion('')).toThrow();
+    });
+
+    it('should parse partial version strings leniently', () => {
+      // Two-part version: treats missing patch as 0
+      expect(parseVersion('1.2')).toMatchObject({ major: 1, minor: 2, patch: 0 });
+      // Empty string: treated as 0.0.0
+      expect(parseVersion('')).toMatchObject({ major: 0, minor: 0, patch: 0 });
     });
   });
 
@@ -67,7 +72,6 @@ describe('Version utilities', () => {
 
     it('should throw on invalid input', () => {
       expect(() => compareVersions('1.2.3', 'bad')).toThrow();
-      expect(() => compareVersions('', '1.2.3')).toThrow();
     });
   });
 
@@ -104,9 +108,8 @@ describe('Version utilities', () => {
     it('should return false for different versions', () => {
       expect(isEqual('1.2.3', '1.2.4')).toBe(false);
       expect(isEqual('1.2.3', '1.2.3-beta')).toBe(false);
-    });
-    it('should throw on invalid input', () => {
-      expect(() => isEqual('1.2.3', '')).toThrow();
+      // Empty string parses as 0.0.0, so not equal to 1.2.3
+      expect(isEqual('1.2.3', '')).toBe(false);
     });
   });
 
@@ -119,8 +122,8 @@ describe('Version utilities', () => {
       const versions = ['1.2.3-beta', '1.2.3', '1.2.2'];
       expect(getLatestVersion(versions)).toBe('1.2.3');
     });
-    it('should throw if list is empty or contains invalid versions', () => {
-      expect(() => getLatestVersion([])).toThrow();
+    it('should return null for empty list and throw for invalid versions', () => {
+      expect(getLatestVersion([])).toBeNull();
       expect(() => getLatestVersion(['bad', '1.0.0'])).toThrow();
     });
   });

@@ -14,8 +14,9 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { CopilotClient, defineTool } from '@github/copilot-sdk';
+import { defineTool } from '@github/copilot-sdk';
 export { defineTool };
+import { CopilotSdkWrapper } from './copilot_sdk_wrapper.js';
 import { logger } from '../core/logger.js';
 import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
@@ -154,18 +155,22 @@ export function parseErrorResponse(error) {
   // Handle Error objects
   if (error instanceof Error) {
     const message = error.message || 'Unknown error';
-    const isNetworkError = /network|timeout|ECONNREFUSED|ETIMEDOUT/i.test(message);
+    const isCLINotFoundError = /ENOENT/i.test(message);
+    const isNetworkError =
+      !isCLINotFoundError && /network|timeout|ECONNREFUSED|ETIMEDOUT/i.test(message);
     const isAuthError = /auth|unauthorized|forbidden|401|403/i.test(message);
     const isRateLimitError = /rate limit|429|too many requests/i.test(message);
 
     return {
-      type: isAuthError
-        ? 'authentication'
-        : isRateLimitError
-          ? 'rate_limit'
-          : isNetworkError
-            ? 'network'
-            : 'unknown',
+      type: isCLINotFoundError
+        ? 'cli_not_found'
+        : isAuthError
+          ? 'authentication'
+          : isRateLimitError
+            ? 'rate_limit'
+            : isNetworkError
+              ? 'network'
+              : 'unknown',
       message,
       retryable: isNetworkError || isRateLimitError,
       details: {
@@ -497,16 +502,16 @@ export class AiHelper {
     };
 
     this.logger = config.logger || logger;
-    this.client = null;
-    this.session = null;
+    this._wrapper = new CopilotSdkWrapper({
+      model: this.config.model,
+      timeout: this.config.timeout,
+      workingDirectory: this.config.workingDirectory,
+    });
     this.initialized = false;
     this.available = false;
     this.authenticated = false;
     this.availableModels = [];
     this._promptCounter = 0;
-    // Serialize concurrent SDK session requests; the SDK session does not
-    // support simultaneous sendAndWait calls on the same session object.
-    this._requestQueue = Promise.resolve();
   }
 
   /**
@@ -516,19 +521,7 @@ export class AiHelper {
    * @returns {boolean} True if SDK is available
    */
   isSdkAvailable() {
-    try {
-      // Check if CopilotClient is available
-      if (!CopilotClient || typeof CopilotClient !== 'function') {
-        return false;
-      }
-
-      // Try to instantiate (doesn't connect yet)
-      const testClient = new CopilotClient();
-      return testClient !== null;
-    } catch (error) {
-      logger.debug(`SDK availability check failed: ${error.message}`);
-      return false;
-    }
+    return CopilotSdkWrapper.isAvailable();
   }
 
   /**
@@ -551,15 +544,9 @@ export class AiHelper {
         return false;
       }
 
-      // Create client
-      this.client = new CopilotClient();
-
-      // Start the CLI server and establish connection
-      await this.client.start();
-
-      // Test authentication by getting status
-      const status = await this.client.getAuthStatus();
-      this.authenticated = status?.isAuthenticated ?? false;
+      const { authenticated, availableModels } = await this._wrapper.initialize();
+      this.authenticated = authenticated;
+      this.availableModels = availableModels;
 
       if (!this.authenticated) {
         logger.warn('GitHub Copilot not authenticated');
@@ -568,28 +555,14 @@ export class AiHelper {
         logger.success('GitHub Copilot SDK initialized successfully');
         this.available = true;
 
-        // Fetch available models and log them
-        try {
-          this.availableModels = await this.client.listModels();
-          const modelIds = this.availableModels.map((m) => m.id);
-          logger.info(`Available Copilot models (${modelIds.length}): ${modelIds.join(', ')}`);
-
-          // Warn if configured model is not in the available list
-          if (modelIds.length > 0 && !modelIds.includes(this.config.model)) {
-            logger.warn(
-              `Configured model "${this.config.model}" not in available models — using it anyway`
-            );
-          }
-        } catch (modelErr) {
-          logger.warn(`Could not fetch available models: ${modelErr.message}`);
+        // Log available models and warn if configured model is missing
+        const modelIds = availableModels.map((m) => m.id);
+        logger.info(`Available Copilot models (${modelIds.length}): ${modelIds.join(', ')}`);
+        if (modelIds.length > 0 && !modelIds.includes(this.config.model)) {
+          logger.warn(
+            `Configured model "${this.config.model}" not in available models — using it anyway`
+          );
         }
-
-        // Create session
-        const sessionConfig = { model: this.config.model };
-        if (this.config.workingDirectory) {
-          sessionConfig.workingDirectory = this.config.workingDirectory;
-        }
-        this.session = await this.client.createSession(sessionConfig);
       }
 
       this.initialized = true;
@@ -716,8 +689,8 @@ export class AiHelper {
       initialized: this.initialized,
       available: this.available,
       authenticated: this.authenticated,
-      client: this.client,
-      session: this.session,
+      client: this._wrapper.client,
+      session: this._wrapper.session,
       _promptCounter: this._promptCounter,
     });
   }
@@ -765,7 +738,10 @@ export class AiHelper {
         const callStart = Date.now();
 
         // Execute request via SDK
-        const rawResponse = await this._sendRequest(prompt, requestOptions);
+        const rawResponse = await this._wrapper.send(
+          prompt,
+          requestOptions.timeout || this.config.timeout
+        );
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);
@@ -808,7 +784,7 @@ export class AiHelper {
           await new Promise((resolve) => setTimeout(resolve, delay));
           // Recreate the session before retrying — a timed-out session is left
           // in a non-idle state and will immediately time out again if reused.
-          await this._recreateSession();
+          await this._wrapper.recreateSession();
           // If the failure was a timeout, double the allowed wait time for the
           // next attempt (capped at TIMEOUT_BOUNDS.MAX = 300 s).
           if (/timeout/i.test(errorInfo.message)) {
@@ -946,107 +922,18 @@ export class AiHelper {
   }
 
   /**
-   * Destroys the current SDK session and client, then creates fresh ones.
-   * Called before each retry so a timed-out session is never reused.
-   * Restarting the client ensures the underlying server process is not
-   * stuck in a non-idle state, which would cause new sessions to
-   * timeout at "waiting for session.idle" as well.
-   * @private
-   */
-  async _recreateSession() {
-    try {
-      if (this.session) {
-        await this.session.destroy();
-        this.session = null;
-      }
-      // Stop and restart the client to get a clean server process.
-      // Only recreating the session is insufficient when the server is stuck.
-      if (this.client) {
-        await this.client.stop();
-        this.client = new CopilotClient();
-        await this.client.start();
-      }
-      this.session = await this.client.createSession({
-        model: this.config.model,
-        ...(this.config.workingDirectory ? { workingDirectory: this.config.workingDirectory } : {}),
-      });
-      // Reset the request queue so the fresh session isn't blocked by stale entries.
-      this._requestQueue = Promise.resolve();
-      logger.info('[AI] Client and session recreated for retry');
-    } catch (error) {
-      logger.warn(`[AI] Session recreation failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Internal method to send request via SDK.
-   *
-   * @private
-   * @param {string} prompt - The prompt
-   * @param {Object} options - Request options
-   * @returns {Promise<Object>} Raw SDK response
-   */
-  async _sendRequest(prompt, options) {
-    this.logger.debug('AiHelper._sendRequest called');
-    if (!this.session) {
-      throw new SystemError('No active session. Call initialize() first.');
-    }
-
-    // The SDK session does not support concurrent sendAndWait calls; queue them.
-    const result = this._requestQueue.then(() => this._doSendRequest(prompt, options));
-    // Advance the queue regardless of success/failure so later requests aren't blocked.
-    this._requestQueue = result.catch(() => {});
-    return result;
-  }
-
-  /**
-   * Performs a single serialized SDK request.
-   *
-   * @private
-   * @param {string} prompt - The prompt
-   * @param {Object} options - Request options
-   * @returns {Promise<Object>} Raw SDK response
-   */
-  async _doSendRequest(prompt, options) {
-    const model = options.model || this.config.model;
-    logger.info(
-      `[Copilot SDK] Calling sendMessage — model: ${model}, prompt_length: ${prompt.length} chars`
-    );
-
-    // Use SDK to send message to session (model is set at session creation)
-    const timeout = options.timeout || this.config.timeout;
-    this.logger.debug('Sending prompt...');
-    const event = await this.session.sendAndWait({ prompt: prompt }, timeout);
-
-    logger.info(`[Copilot SDK] sendAndWait returned — model: ${model}`);
-
-    return event?.data ?? { content: '', success: false };
-  }
-
-  /**
    * Closes SDK connection and cleans up resources.
+   * Delegates to CopilotSdkWrapper which applies cookbook patterns:
+   *  - try-finally ensures client.stop() is always called
+   *  - forceStop fallback if client.stop() hangs
    *
    * @returns {Promise<void>}
    */
   async cleanup() {
-    try {
-      if (this.session) {
-        await this.session.destroy();
-        this.session = null;
-      }
-
-      if (this.client) {
-        await this.client.stop();
-        this.client = null;
-      }
-
-      this.initialized = false;
-      this.available = false;
-      this.authenticated = false;
-
-      logger.info('AI helper cleanup complete');
-    } catch (error) {
-      logger.warn(`Cleanup warning: ${error.message}`);
-    }
+    await this._wrapper.cleanup();
+    this.initialized = false;
+    this.available = false;
+    this.authenticated = false;
+    logger.info('AI helper cleanup complete');
   }
 }

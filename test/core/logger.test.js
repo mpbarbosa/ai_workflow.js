@@ -1,5 +1,6 @@
 // test/core/logger.test.js
 
+import { jest } from '@jest/globals';
 import * as loggerModule from '../../src/core/logger.js';
 
 describe('core/logger module exports', () => {
@@ -28,32 +29,37 @@ describe('Logger class basic usage', () => {
 
   it('should instantiate Logger and log messages at different levels', () => {
     const logs = [];
-    const customLogger = new Logger({
-      log: msg => logs.push(msg),
-      level: LogLevel.INFO,
-    });
+    const spyLog = jest.spyOn(console, 'log').mockImplementation((...args) => logs.push(args.join(' ')));
+    const spyWarn = jest.spyOn(console, 'warn').mockImplementation((...args) => logs.push(args.join(' ')));
+    const spyError = jest.spyOn(console, 'error').mockImplementation((...args) => logs.push(args.join(' ')));
 
+    const customLogger = new Logger({ verbose: false });
     customLogger.info('Info message');
     customLogger.warn('Warning message');
     customLogger.error('Error message');
     customLogger.debug('Debug message');
 
+    spyLog.mockRestore();
+    spyWarn.mockRestore();
+    spyError.mockRestore();
+
     expect(logs.some(msg => msg.includes('Info message'))).toBe(true);
     expect(logs.some(msg => msg.includes('Warning message'))).toBe(true);
     expect(logs.some(msg => msg.includes('Error message'))).toBe(true);
-    // Debug should not log at INFO level
+    // Debug should not log when verbose is false
     expect(logs.some(msg => msg.includes('Debug message'))).toBe(false);
   });
 
-  it('should log debug messages when level is DEBUG', () => {
+  it('should log debug messages when verbose is true', () => {
     const logs = [];
-    const customLogger = new Logger({
-      log: msg => logs.push(msg),
-      level: LogLevel.DEBUG,
-    });
+    const spyLog = jest.spyOn(console, 'log').mockImplementation((...args) => logs.push(args.join(' ')));
 
-    customLogger.debug('Debug message');
-    expect(logs.some(msg => msg.includes('Debug message'))).toBe(true);
+    const customLogger = new Logger({ verbose: true });
+    customLogger.debug('Debug verbose message');
+
+    spyLog.mockRestore();
+
+    expect(logs.some(msg => msg.includes('Debug verbose message'))).toBe(true);
   });
 
   it('should strip ANSI codes from log output', () => {
@@ -64,27 +70,35 @@ describe('Logger class basic usage', () => {
 
   it('should handle logging empty and null messages gracefully', () => {
     const logs = [];
-    const customLogger = new Logger({
-      log: msg => logs.push(msg),
-      level: LogLevel.INFO,
-    });
+    const spyLog = jest.spyOn(console, 'log').mockImplementation((...args) => logs.push(args.join(' ')));
 
+    const customLogger = new Logger();
     customLogger.info('');
     customLogger.info(null);
+
+    spyLog.mockRestore();
+
     expect(logs.length).toBe(2);
-    expect(logs[0]).toContain('');
+    expect(typeof logs[0]).toBe('string');
     expect(logs[1]).toContain('null');
   });
 
-  it('should throw error for invalid log level', () => {
-    expect(() => new Logger({ level: 'INVALID' })).toThrow();
+  it('should instantiate Logger without throwing for any valid options', () => {
+    expect(() => new Logger()).not.toThrow();
+    expect(() => new Logger({ quiet: true })).not.toThrow();
+    expect(() => new Logger({ verbose: true })).not.toThrow();
+    expect(() => new Logger({ prefix: 'TEST' })).not.toThrow();
   });
 
-  it('should not log if log function throws', () => {
-    const customLogger = new Logger({
-      log: () => { throw new Error('Log failed'); },
-      level: LogLevel.INFO,
-    });
-    expect(() => customLogger.info('Test')).toThrow('Log failed');
+  it('should suppress output when quiet is true', () => {
+    const logs = [];
+    const spyLog = jest.spyOn(console, 'log').mockImplementation((...args) => logs.push(args.join(' ')));
+
+    const quietLogger = new Logger({ quiet: true });
+    quietLogger.info('Quiet info message');
+
+    spyLog.mockRestore();
+
+    expect(logs.some(msg => msg.includes('Quiet info message'))).toBe(false);
   });
 });

@@ -57,9 +57,9 @@ mkdir -p src/config/schemas/
 
 ## Related Documentation
 
-- [Configuration Guide](../docs/guides/CONFIGURATION_GUIDE.md) - How to configure ai_workflow.js
-- [Configuration Manager API](../docs/api/lib/config.md) - API reference for ConfigManager
-- [Project Kinds](../.workflow_core/config/project_kinds.yaml) - Project type configurations
+- [Configuration Guide](../../docs/guides/CONFIGURATION_GUIDE.md) - How to configure ai_workflow.js
+- [Configuration Manager API](../../docs/api/lib/config.md) - API reference for ConfigManager
+- [Project Kinds](../../.workflow_core/config/project_kinds.yaml) - Project type configurations
 
 ---
 

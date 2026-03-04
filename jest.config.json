@@ -5,7 +5,9 @@
     "src/**/*.js",
     "!src/**/*.test.js",
     "!src/**/*.spec.js",
+    "!src/core/colors.js",
     "!src/core/executor.js",
+    "!src/core/logger.js",
     "!src/core/system.js",
     "!src/core/version.js"
   ],

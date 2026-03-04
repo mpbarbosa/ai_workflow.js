@@ -16,6 +16,7 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { buildTestReviewPrompt, AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
+import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
 // ============================================================================
 // CONSTANTS
@@ -412,95 +413,142 @@ export class Step6TestReviewer {
       const report = formatTestReport(results);
       await this.backlog.saveStepSummary(6, 'Test Review', report);
 
-      // Phase 7: AI-powered test quality review (optional enrichment)
+      // Phase 7: AI-powered test quality review (partition + rotate strategy)
+      // Mirrors step 10: reviews one partition of test files per run, rotates
+      // to the next partition on success, keeping prompts within model limits.
       try {
         const aiAvailable = await this.aiHelper.initialize();
         if (aiAvailable) {
           await this.aiCache.init();
 
-          // Try YAML-based prompt first; fall back to hardcoded builder
-          let prompt;
+          const uniqueTestFiles = [...new Set(
+            testFiles.map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f))
+          )];
+
+          const partitionCache = new Step10PartitionCache({
+            cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
+            cacheFilename: 'step_06_partition.json',
+            qualityStateFilename: 'step_06_quality.json',
+          });
+
+          const activeCandidates = await partitionCache.getActiveCandidates(
+            uniqueTestFiles,
+            options.modifiedFiles ?? []
+          );
+          const partition = await partitionCache.getCurrentPartition(activeCandidates);
+
+          logger.info(
+            `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
+          );
+
+          // Read file contents only for the current partition
+          const fileContents = {};
+          await Promise.all(
+            partition.files.map(async (relPath) => {
+              try {
+                const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
+                let content = await this.fileOps.readFile(abs);
+                if (content.length > 5000) content = content.slice(0, 5000) + '\n... (truncated)';
+                fileContents[relPath] = content;
+              } catch { /* skip unreadable */ }
+            })
+          );
+
+          // Slice partition into small batches (mirrors step 10 AI_FILES_PER_SLICE = 5)
+          const FILES_PER_SLICE = 5;
+          const slices = [];
+          for (let i = 0; i < partition.files.length; i += FILES_PER_SLICE) {
+            slices.push(partition.files.slice(i, i + FILES_PER_SLICE));
+          }
+          if (slices.length === 0) slices.push([]);
+
+          // Load YAML config once, shared across all slices
+          let sharedParsedYaml = null;
+          let sharedRoleOverride = '';
+          const testCmdMap = {
+            javascript: 'npm test', typescript: 'npm test',
+            python: 'pytest', go: 'go test ./...', ruby: 'rspec', rust: 'cargo test',
+          };
+          const covCmdMap = {
+            javascript: 'npm run coverage', typescript: 'npm run coverage',
+            python: 'pytest --cov', go: 'go test -cover ./...', ruby: 'rspec --format progress', rust: 'cargo tarpaulin',
+          };
+          const testFrameworkMap = {
+            javascript: 'jest', typescript: 'jest',
+            python: 'pytest', go: 'go test', ruby: 'rspec', rust: 'cargo test', bash: 'bats',
+          };
+          const testFramework = ctx.config?.tech_stack?.test_runner
+            ?? ctx.techStack?.testRunner
+            ?? testFrameworkMap[language]
+            ?? language;
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml = yaml.load(yamlContent);
-            let roleOverride = '';
+            sharedParsedYaml = yaml.load(yamlContent);
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
               const parsedPk = yaml.load(pkYaml);
               const pk = buildProjectKindPrompt(parsedPk, options?.projectKind ?? 'default', 'test_engineer');
-              if (pk?.role) roleOverride = pk.role;
+              if (pk?.role) sharedRoleOverride = pk.role;
             } catch { /* optional */ }
-            const relativeFiles = testFiles
-              .map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f));
-            const testList = relativeFiles.join(', ');
-            const testsInTestsDir = testFiles.filter((f) =>
+          } catch { /* fallback to hardcoded builder */ }
+
+          // Run all slices in parallel — each is a self-contained review of 5 files
+          const aiSectionResults = await Promise.all(slices.map(async (sliceFiles, si) => {
+            const sliceContents = {};
+            for (const f of sliceFiles) {
+              if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
+                sliceContents[f] = fileContents[f];
+              }
+            }
+            const fileContentSections = sliceFiles.map((rel) => {
+              const content = sliceContents[rel] ?? '(unavailable)';
+              return `### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``;
+            });
+            const testFileContents = fileContentSections.join('\n\n');
+            const testsInTestsDir = sliceFiles.filter((f) =>
               /\/__tests__\/|\/test\//.test(f)
             ).length;
-            const testsColocated = testFiles.length - testsInTestsDir;
-            const testCmdMap = {
-              javascript: 'npm test', typescript: 'npm test',
-              python: 'pytest', go: 'go test ./...', ruby: 'rspec', rust: 'cargo test',
-            };
-            const covCmdMap = {
-              javascript: 'npm run coverage', typescript: 'npm run coverage',
-              python: 'pytest --cov', go: 'go test -cover ./...', ruby: 'rspec --format progress', rust: 'cargo tarpaulin',
-            };
-            const testFrameworkMap = {
-              javascript: 'jest', typescript: 'jest',
-              python: 'pytest', go: 'go test', ruby: 'rspec', rust: 'cargo test', bash: 'bats',
-            };
-            const testFramework = ctx.config?.tech_stack?.test_runner
-              ?? ctx.techStack?.testRunner
-              ?? testFrameworkMap[language]
-              ?? language;
 
-            // Read file contents for meaningful code review (max 3000 chars per file)
-            const fileContentSections = [];
-            for (const rel of relativeFiles) {
+            let prompt;
+            if (sharedParsedYaml) {
               try {
-                const fullPath = path.isAbsolute(rel) ? rel : path.join(projectRoot, rel);
-                let content = await this.fileOps.readFile(fullPath);
-                if (content.length > 3000) {
-                  content = content.slice(0, 2800) + '\n... (truncated)';
+                prompt = buildYamlStepPrompt(sharedParsedYaml, 'step5_test_review_prompt', {
+                  project_name: path.basename(projectRoot),
+                  project_description: ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
+                  primary_language: language,
+                  test_framework: testFramework,
+                  test_env: testCmdMap[language] ?? 'npm test',
+                  test_command: testCmdMap[language] ?? 'npm test',
+                  coverage_command: covCmdMap[language] ?? 'npm run coverage',
+                  test_count: String(testFiles.length),
+                  tests_in_tests_dir: String(testsInTestsDir),
+                  tests_colocated: String(sliceFiles.length - testsInTestsDir),
+                  test_files: sliceFiles.join(', '),
+                  test_file_contents: testFileContents,
+                });
+                if (prompt && sharedRoleOverride) {
+                  prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
                 }
-                fileContentSections.push(`### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``);
-              } catch { /* skip unreadable file */ }
+              } catch { /* fallback */ }
             }
-            const testFileContents = fileContentSections.length > 0
-              ? fileContentSections.join('\n\n')
-              : '(file contents unavailable)';
-
-            prompt = buildYamlStepPrompt(parsedYaml, 'step5_test_review_prompt', {
-              project_name: path.basename(projectRoot),
-              project_description: ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
-              primary_language: language,
-              test_framework: testFramework,
-              test_env: testCmdMap[language] ?? 'npm test',
-              test_command: testCmdMap[language] ?? 'npm test',
-              coverage_command: covCmdMap[language] ?? 'npm run coverage',
-              test_count: String(testFiles.length),
-              tests_in_tests_dir: String(testsInTestsDir),
-              tests_colocated: String(testsColocated),
-              test_files: testList || 'none',
-              test_file_contents: testFileContents,
-            });
-            if (prompt && roleOverride) {
-              prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
+            if (!prompt) {
+              prompt = buildTestReviewPrompt({ testFiles: sliceFiles, framework: language });
             }
-          } catch { /* fallback */ }
 
-          if (!prompt) {
-            prompt = buildTestReviewPrompt({ testFiles, framework: language });
-          }
+            const cacheKey = `step_06|v2|p${partition.index}|s${si}|${language}|${sliceFiles.join(',')}`;
+            const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+              this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+            );
+            return aiResult?.content ?? '';
+          }));
 
-          const cacheKey = `step_06|${language}|${testFiles.length}|${issues.length}`;
-          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-            this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
-          );
-          const aiContent = aiResult?.content ?? '';
+          const aiSections = aiSectionResults.filter((c) => c);
+          const aiContent = aiSections.join('\n\n---\n\n');
           if (aiContent) {
-            const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+            const partitionHeader = `## AI Test Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
+            const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
             await this.backlog.saveStepSummary(6, 'Test Review', enrichedReport);
+            await partitionCache.advance(activeCandidates);
           }
         } else {
           logger.warn('AI helper not available - skipping AI test review');

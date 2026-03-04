@@ -431,7 +431,7 @@ Confidence: high`;
     test('formats complete report', () => {
       const data = {
         oldVersion: '1.2.3',
-        newVersion: '1.3.13',
+        newVersion: '1.4.0',
         bumpType: 'minor',
         stats: { updated: 2, skipped: 1, failed: 0 },
         updates: [
@@ -445,7 +445,7 @@ Confidence: high`;
       const report = formatVersionUpdateReport(data);
       expect(report).toContain('Step 16: Semantic Version Update Report');
       expect(report).toContain('Previous Version**: 1.2.3');
-      expect(report).toContain('New Version**: 1.3.13');
+      expect(report).toContain('New Version**: 1.4.0');
       expect(report).toContain('Bump Type**: minor');
       expect(report).toContain('Files Updated**: 2');
       expect(report).toContain('package.json');

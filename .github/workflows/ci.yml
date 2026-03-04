@@ -36,6 +36,7 @@ jobs:
       - name: Analyze change impact
         id: analyze
         run: |
+          set -e
           # Run change impact analysis
           ANALYSIS=$(node scripts/analyze-change-impact.js --json)
 
@@ -199,6 +200,7 @@ jobs:
 
       - name: Coverage summary
         run: |
+          set -e
           echo "### Coverage Report :bar_chart:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Coverage reports uploaded to Codecov" >> $GITHUB_STEP_SUMMARY
@@ -248,6 +250,7 @@ jobs:
 
       - name: Run lint-staged on changed files
         run: |
+          set -e
           # Get changed files
           git diff --name-only origin/${{ github.base_ref }}..HEAD -- '*.js' '*.mjs' '*.cjs' '*.json' '*.md' '*.yaml' '*.yml' > changed_files.txt
 
@@ -323,6 +326,7 @@ jobs:
     steps:
       - name: Check all jobs
         run: |
+          set -e
           # Integration tests and linting may be conditionally skipped
           INTEGRATION_RESULT="${{ needs.integration-tests.result }}"
           if [[ "$INTEGRATION_RESULT" == "skipped" ]]; then

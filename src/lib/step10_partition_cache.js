@@ -22,9 +22,11 @@ import logger from '../core/logger.js';
 // ============================================================================
 
 export const CACHE_VERSION = 1;
-export const MAX_PARTITION_SIZE = 50;
+export const MAX_PARTITION_SIZE = 5;
 export const CACHE_FILENAME = 'step_10_partition.json';
 export const DEFAULT_CACHE_DIR = '.ai_workflow/.step_cache';
+export const QUALITY_EXEMPT_THRESHOLD = 95;
+export const QUALITY_STATE_FILENAME = 'step_10_quality.json';
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -169,8 +171,117 @@ export function isCacheValid(entry, currentHash) {
 }
 
 // ============================================================================
-// IMPURE WRAPPER CLASS
+// QUALITY-TRACKING PURE FUNCTIONS
 // ============================================================================
+
+/**
+ * Convert a linter issue count to a 0–100 quality score.
+ * 0 issues → 100 (perfect). Each issue subtracts 3 points.
+ *
+ * @param {number} issueCount - Number of linter issues for the file
+ * @returns {number} Score in [0, 100]
+ */
+export function scoreFromIssueCount(issueCount) {
+  if (typeof issueCount !== 'number' || issueCount < 0) return 0;
+  return Math.max(0, 100 - issueCount * 3);
+}
+
+/**
+ * Determine whether a file is exempt from the review rotation.
+ * A file is exempt when its score is above QUALITY_EXEMPT_THRESHOLD **and**
+ * it has not been recently modified.  Modified files always re-enter rotation.
+ *
+ * @param {number|undefined} score - Current quality score (undefined = never reviewed)
+ * @param {string} filePath - Relative file path
+ * @param {string[]} recentlyModified - Files modified in the current workflow run
+ * @returns {boolean}
+ */
+export function isFileExempt(score, filePath, recentlyModified) {
+  const modified = Array.isArray(recentlyModified) ? recentlyModified : [];
+  if (modified.includes(filePath)) return false; // modified → always back in rotation
+  return typeof score === 'number' && score > QUALITY_EXEMPT_THRESHOLD;
+}
+
+/**
+ * Sort files by review priority (ascending = highest priority first):
+ *   1. Recently modified files
+ *   2. Unreviewed files (no score yet)
+ *   3. Files with lowest quality score
+ *
+ * @param {string[]} files - File list to sort
+ * @param {Object} fileScores - Map of filePath → { score: number, ... }
+ * @param {string[]} recentlyModified - Recently modified file paths
+ * @returns {string[]} Sorted copy of files
+ */
+export function sortByPriority(files, fileScores, recentlyModified) {
+  const recent = new Set(Array.isArray(recentlyModified) ? recentlyModified : []);
+  const scores = fileScores || {};
+  return [...files].sort((a, b) => {
+    const aRecent = recent.has(a);
+    const bRecent = recent.has(b);
+    if (aRecent !== bRecent) return aRecent ? -1 : 1;
+
+    const aScore = scores[a]?.score;
+    const bScore = scores[b]?.score;
+    const aReviewed = typeof aScore === 'number';
+    const bReviewed = typeof bScore === 'number';
+    if (!aReviewed && !bReviewed) return 0;
+    if (!aReviewed) return -1; // unreviewed before reviewed
+    if (!bReviewed) return 1;
+    return aScore - bScore; // lowest quality first
+  });
+}
+
+/**
+ * Filter out exempt files then sort by priority.
+ * Exempt files (score > QUALITY_EXEMPT_THRESHOLD AND not recently modified)
+ * are excluded from the rotation this run.
+ *
+ * @param {string[]} allFiles - Full source file list
+ * @param {Object} fileScores - Map of filePath → { score: number, ... }
+ * @param {string[]} recentlyModified - Recently modified file paths
+ * @returns {string[]} Priority-sorted active candidates
+ */
+export function filterAndPrioritize(allFiles, fileScores, recentlyModified) {
+  const scores = fileScores || {};
+  const active = allFiles.filter(
+    (f) => !isFileExempt(scores[f]?.score, f, recentlyModified)
+  );
+  return sortByPriority(active, scores, recentlyModified);
+}
+
+/**
+ * Merge new per-file issue counts into the existing quality-score map.
+ *
+ * @param {Object} currentScores - Existing fileScores map
+ * @param {Object} newIssues - Map of filePath → issueCount from the linter
+ * @param {string[]} reviewedFiles - Files that were part of this review run
+ * @param {number} now - Current timestamp (ms since epoch)
+ * @returns {Object} Updated fileScores map (immutable — new object)
+ */
+export function mergeFileScores(currentScores, newIssues, reviewedFiles, now) {
+  const updated = { ...(currentScores || {}) };
+  const isoNow = new Date(now).toISOString();
+  for (const filePath of reviewedFiles) {
+    const issueCount = newIssues[filePath] ?? 0;
+    updated[filePath] = {
+      score: scoreFromIssueCount(issueCount),
+      issueCount,
+      lastAnalyzed: isoNow,
+    };
+  }
+  return updated;
+}
+
+/**
+ * Create a fresh quality-state object.
+ *
+ * @param {Object} [fileScores={}] - Initial per-file scores
+ * @returns {{ version: number, fileScores: Object }}
+ */
+export function createQualityState(fileScores) {
+  return { version: 1, fileScores: fileScores || {} };
+}
 
 /**
  * Manages the partition rotation state for Step 10.
@@ -186,11 +297,14 @@ export class Step10PartitionCache {
    * @param {Object} [options]
    * @param {string} [options.cacheDir] - Directory for the state file
    * @param {number} [options.maxPartitionSize] - Max files per partition
+   * @param {string} [options.cacheFilename] - Override the partition state filename
+   * @param {string} [options.qualityStateFilename] - Override the quality state filename
    */
   constructor(options = {}) {
     this.cacheDir = options.cacheDir || DEFAULT_CACHE_DIR;
     this.maxPartitionSize = options.maxPartitionSize || MAX_PARTITION_SIZE;
-    this._cacheFile = path.join(this.cacheDir, CACHE_FILENAME);
+    this._cacheFile = path.join(this.cacheDir, options.cacheFilename || CACHE_FILENAME);
+    this._qualityStateFile = path.join(this.cacheDir, options.qualityStateFilename || QUALITY_STATE_FILENAME);
     this._entry = null;
   }
 
@@ -276,5 +390,78 @@ export class Step10PartitionCache {
       `[Step10Partition] Advanced index ${currentIdx} → ${newIdx}/${partitions.length - 1}`
     );
     return newIdx;
+  }
+
+  // --------------------------------------------------------------------------
+  // Quality-state methods
+  // --------------------------------------------------------------------------
+
+  /**
+   * Load the quality state from disk.
+   * Returns a fresh empty state on missing / corrupt file.
+   *
+   * @returns {Promise<{ version: number, fileScores: Object }>}
+   */
+  async loadQualityState() {
+    try {
+      const raw = await fs.readFile(this._qualityStateFile, 'utf8');
+      this._qualityState = JSON.parse(raw);
+    } catch {
+      this._qualityState = createQualityState({});
+    }
+    return this._qualityState;
+  }
+
+  /**
+   * Persist quality state to disk.
+   *
+   * @param {{ version: number, fileScores: Object }} state
+   * @returns {Promise<void>}
+   */
+  async saveQualityState(state) {
+    await fs.mkdir(this.cacheDir, { recursive: true });
+    await fs.writeFile(this._qualityStateFile, JSON.stringify(state, null, 2), 'utf8');
+    this._qualityState = state;
+  }
+
+  /**
+   * Return the priority-sorted, exempt-filtered list of files to review this run.
+   *
+   * Ordering: recently modified → unreviewed → lowest quality score.
+   * Files with score > QUALITY_EXEMPT_THRESHOLD that are NOT in recentlyModified
+   * are excluded — they re-enter rotation automatically once they are modified.
+   *
+   * @param {string[]} allFiles - Full deduplicated source file list
+   * @param {string[]} [recentlyModified=[]] - Files modified in the current run
+   * @returns {Promise<string[]>} Priority-ordered active candidates
+   */
+  async getActiveCandidates(allFiles, recentlyModified = []) {
+    await this.loadQualityState();
+    const fileScores = this._qualityState?.fileScores || {};
+    const candidates = filterAndPrioritize(allFiles, fileScores, recentlyModified);
+    const exemptCount = allFiles.length - candidates.length;
+    if (exemptCount > 0) {
+      logger.debug(
+        `[Step10Partition] ${exemptCount} file(s) exempt (score > ${QUALITY_EXEMPT_THRESHOLD})`
+      );
+    }
+    return candidates;
+  }
+
+  /**
+   * Update per-file quality scores after a review run and persist.
+   *
+   * @param {Object} perFileIssues - Map of relativeFilePath → linter issue count
+   * @param {string[]} reviewedFiles - Files included in the partition that was reviewed
+   * @returns {Promise<void>}
+   */
+  async updateQualityScores(perFileIssues, reviewedFiles) {
+    await this.loadQualityState();
+    const current = this._qualityState?.fileScores || {};
+    const updated = mergeFileScores(current, perFileIssues, reviewedFiles, Date.now());
+    await this.saveQualityState(createQualityState(updated));
+    logger.debug(
+      `[Step10Partition] Quality scores updated for ${reviewedFiles.length} file(s)`
+    );
   }
 }

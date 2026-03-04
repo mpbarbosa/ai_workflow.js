@@ -249,7 +249,11 @@ async function analyzeJSDocCoverage() {
 }
 
 // Run analysis
-analyzeJSDocCoverage().catch((error) => {
-  console.error(`${colors.red}Error:${colors.reset}`, error.message);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('analyze-jsdoc-coverage.js')) {
+  analyzeJSDocCoverage().catch((error) => {
+    console.error(`${colors.red}Error:${colors.reset}`, error.message);
+    process.exit(1);
+  });
+}
+
+export { hasJSDoc, extractExportName, analyzeFile, findJSFiles, stats };

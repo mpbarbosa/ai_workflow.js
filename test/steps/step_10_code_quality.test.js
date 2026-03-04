@@ -4,6 +4,9 @@
  */
 
 import { jest } from '@jest/globals';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import {
   Step10CodeQualityAnalyzer,
   getLinterCommand,
@@ -771,9 +774,12 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       }
     });
 
-    // AI phase slicing: large file sets must be split into batches of AI_FILES_PER_SLICE
-    test('AI phase slices large file sets into multiple requests', async () => {
-      const fileCount = AI_FILES_PER_SLICE * 2 + 1; // 31 files with default slice of 15
+    // AI phase partition system: each run reviews one small batch of files.
+    // Multi-file coverage accumulates across successive runs via partition rotation.
+    test('AI phase uses partition system: one batch per run', async () => {
+      // With MAX_PARTITION_SIZE=5, AI_FILES_PER_SLICE=5: each run reviews exactly
+      // 1 partition (≤5 files) = 1 AI call. Rotation happens across successive runs.
+      const fileCount = AI_FILES_PER_SLICE * 2 + 1; // 11 total files
       const files = Array.from({ length: fileCount }, (_, i) => `src/file${i}.js`);
       mockTechStack.detectAll = async () => ({
         languages: ['javascript'],
@@ -795,15 +801,17 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         init: jest.fn().mockResolvedValue(undefined),
         withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
       };
-      // Use >50 modifiedFiles to trigger largeChangeSet path (skips partition cache I/O)
-      const manyChanged = Array.from({ length: 51 }, (_, i) => `changed${i}.js`);
 
-      const result = await analyzer.execute('/project', { modifiedFiles: manyChanged });
-
-      expect(result.success).toBe(true);
-      // Should produce ceil(fileCount / AI_FILES_PER_SLICE) separate executeRequest calls
-      const expectedSlices = Math.ceil(fileCount / AI_FILES_PER_SLICE);
-      expect(prompts.length).toBe(expectedSlices);
+      // Use a real writable temp directory so the partition cache can persist state.
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-test-'));
+      try {
+        const result = await analyzer.execute(testDir, { modifiedFiles: [] });
+        expect(result.success).toBe(true);
+        // One partition of ≤ AI_FILES_PER_SLICE files → exactly 1 AI call per run.
+        expect(prompts.length).toBe(1);
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
     });
 
     // AI phase: errors must not propagate — step must still succeed

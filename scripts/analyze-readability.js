@@ -273,4 +273,24 @@ function main() {
   console.log('  FK-GL (Flesch-Kincaid Grade)    Target ~8 general public | ~10–12 technical docs\n');
 }
 
-main();
+if (process.argv[1] && process.argv[1].endsWith('analyze-readability.js')) {
+  main();
+}
+
+export {
+  stripMarkdown,
+  countSentences,
+  countWords,
+  countSyllablesInWord,
+  countSyllables,
+  fleschReadingEase,
+  fleschKincaidGradeLevel,
+  freLabel,
+  findMarkdownFiles,
+  collectFiles,
+  analyzeFile,
+  fmt,
+  pad,
+  padL,
+  ROOT,
+};
