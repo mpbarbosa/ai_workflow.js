@@ -1,0 +1,328 @@
+/**
+ * Tests for CopilotSdkWrapper
+ *
+ * Source: src/lib/copilot_sdk_wrapper.ts (TypeScript)
+ * Compiled: src/lib/copilot_sdk_wrapper.js (runtime import target)
+ *
+ * @jest-environment node
+ */
+
+import { jest } from '@jest/globals';
+import { SystemError } from '../../src/utils/errors.js';
+
+// ---------------------------------------------------------------------------
+// Mock @github/copilot-sdk BEFORE importing the module under test so Jest's
+// module registry resolves the mock for the wrapper's static import.
+// ---------------------------------------------------------------------------
+
+const mockSession = {
+  sendAndWait: jest.fn(),
+  destroy: jest.fn(),
+  abort: jest.fn(),
+};
+
+const mockClient = {
+  start: jest.fn(),
+  stop: jest.fn(),
+  forceStop: jest.fn(),
+  getAuthStatus: jest.fn(),
+  listModels: jest.fn(),
+  createSession: jest.fn(),
+};
+
+jest.unstable_mockModule('@github/copilot-sdk', () => ({
+  CopilotClient: jest.fn(() => mockClient),
+  defineTool: jest.fn(),
+}));
+
+// Import the wrapper AFTER mocking the SDK
+const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeWrapper(overrides = {}) {
+  return new CopilotSdkWrapper({
+    model: 'gpt-4',
+    timeout: 30_000,
+    workingDirectory: null,
+    ...overrides,
+  });
+}
+
+function resetMocks() {
+  jest.clearAllMocks();
+  mockClient.start.mockResolvedValue(undefined);
+  mockClient.stop.mockResolvedValue(undefined);
+  mockClient.forceStop.mockResolvedValue(undefined);
+  mockClient.getAuthStatus.mockResolvedValue({ isAuthenticated: true });
+  mockClient.listModels.mockResolvedValue([{ id: 'gpt-4' }, { id: 'gpt-4o' }]);
+  mockClient.createSession.mockResolvedValue(mockSession);
+  mockSession.sendAndWait.mockResolvedValue({ data: { content: 'hello', success: true } });
+  mockSession.destroy.mockResolvedValue(undefined);
+  mockSession.abort.mockResolvedValue(undefined);
+}
+
+// ==============================================================================
+// CopilotSdkWrapper.isAvailable — static
+// ==============================================================================
+
+describe('CopilotSdkWrapper.isAvailable (static)', () => {
+  test('returns true when CopilotClient can be instantiated', () => {
+    // The mock always returns mockClient
+    expect(CopilotSdkWrapper.isAvailable()).toBe(true);
+  });
+});
+
+// ==============================================================================
+// Getters
+// ==============================================================================
+
+describe('CopilotSdkWrapper — getters', () => {
+  test('initial state: client, session null; authenticated false', () => {
+    const wrapper = makeWrapper();
+    expect(wrapper.client).toBeNull();
+    expect(wrapper.session).toBeNull();
+    expect(wrapper.authenticated).toBe(false);
+    expect(wrapper.availableModels).toEqual([]);
+  });
+});
+
+// ==============================================================================
+// initialize()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — initialize()', () => {
+  beforeEach(resetMocks);
+
+  test('happy path: returns authenticated=true and models', async () => {
+    const wrapper = makeWrapper();
+    const result = await wrapper.initialize();
+
+    expect(mockClient.start).toHaveBeenCalledTimes(1);
+    expect(mockClient.getAuthStatus).toHaveBeenCalledTimes(1);
+    expect(mockClient.listModels).toHaveBeenCalledTimes(1);
+    expect(mockClient.createSession).toHaveBeenCalledWith({ model: 'gpt-4' });
+    expect(result.authenticated).toBe(true);
+    expect(result.availableModels).toEqual([{ id: 'gpt-4' }, { id: 'gpt-4o' }]);
+    expect(wrapper.session).toBe(mockSession);
+  });
+
+  test('unauthenticated: no session created, returns authenticated=false', async () => {
+    mockClient.getAuthStatus.mockResolvedValue({ isAuthenticated: false });
+    const wrapper = makeWrapper();
+    const result = await wrapper.initialize();
+
+    expect(result.authenticated).toBe(false);
+    expect(mockClient.createSession).not.toHaveBeenCalled();
+    expect(wrapper.session).toBeNull();
+  });
+
+  test('workingDirectory is forwarded to createSession', async () => {
+    const wrapper = makeWrapper({ workingDirectory: '/tmp/project' });
+    await wrapper.initialize();
+
+    expect(mockClient.createSession).toHaveBeenCalledWith({
+      model: 'gpt-4',
+      workingDirectory: '/tmp/project',
+    });
+  });
+
+  test('cookbook: client.stop() called and client nulled when auth step throws', async () => {
+    mockClient.getAuthStatus.mockRejectedValue(new Error('auth failed'));
+    const wrapper = makeWrapper();
+
+    await expect(wrapper.initialize()).rejects.toThrow('auth failed');
+
+    // Cookbook: no orphaned client process
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+    expect(wrapper.client).toBeNull();
+  });
+
+  test('cookbook: client.stop() called when createSession throws', async () => {
+    mockClient.createSession.mockRejectedValue(new Error('session failed'));
+    const wrapper = makeWrapper();
+
+    await expect(wrapper.initialize()).rejects.toThrow('session failed');
+
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+    expect(wrapper.client).toBeNull();
+  });
+
+  test('listModels failure is non-fatal; session is still created', async () => {
+    mockClient.listModels.mockRejectedValue(new Error('models unavailable'));
+    const wrapper = makeWrapper();
+    const result = await wrapper.initialize();
+
+    expect(result.authenticated).toBe(true);
+    expect(wrapper.session).toBe(mockSession);
+  });
+});
+
+// ==============================================================================
+// send()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — send()', () => {
+  beforeEach(resetMocks);
+
+  test('throws SystemError when no session exists', async () => {
+    const wrapper = makeWrapper();
+    await expect(wrapper.send('hello')).rejects.toBeInstanceOf(SystemError);
+  });
+
+  test('returns response data from sendAndWait', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const result = await wrapper.send('test prompt', 5_000);
+
+    expect(mockSession.sendAndWait).toHaveBeenCalledWith({ prompt: 'test prompt' }, 5_000);
+    expect(result).toEqual({ content: 'hello', success: true });
+  });
+
+  test('uses default timeout when not specified', async () => {
+    const wrapper = makeWrapper({ timeout: 12_000 });
+    await wrapper.initialize();
+    await wrapper.send('hi');
+
+    expect(mockSession.sendAndWait).toHaveBeenCalledWith({ prompt: 'hi' }, 12_000);
+  });
+
+  test('falls back to empty response when sendAndWait returns null', async () => {
+    mockSession.sendAndWait.mockResolvedValue(null);
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const result = await wrapper.send('hi');
+    expect(result).toEqual({ content: '', success: false });
+  });
+
+  test('serialises concurrent send() calls', async () => {
+    const order = [];
+    mockSession.sendAndWait
+      .mockImplementationOnce(async () => {
+        order.push(1);
+        return { data: { content: 'first' } };
+      })
+      .mockImplementationOnce(async () => {
+        order.push(2);
+        return { data: { content: 'second' } };
+      });
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const [r1, r2] = await Promise.all([wrapper.send('a'), wrapper.send('b')]);
+
+    expect(order).toEqual([1, 2]);
+    expect(r1.content).toBe('first');
+    expect(r2.content).toBe('second');
+  });
+});
+
+// ==============================================================================
+// abort()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — abort()', () => {
+  beforeEach(resetMocks);
+
+  test('calls session.abort() when session exists', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    await wrapper.abort();
+    expect(mockSession.abort).toHaveBeenCalledTimes(1);
+  });
+
+  test('does nothing when no session exists', async () => {
+    const wrapper = makeWrapper();
+    await expect(wrapper.abort()).resolves.toBeUndefined();
+    expect(mockSession.abort).not.toHaveBeenCalled();
+  });
+});
+
+// ==============================================================================
+// recreateSession()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — recreateSession()', () => {
+  beforeEach(resetMocks);
+
+  test('destroys session, restarts client, creates new session', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const newSession = { sendAndWait: jest.fn(), destroy: jest.fn() };
+    mockClient.createSession.mockResolvedValue(newSession);
+
+    await wrapper.recreateSession();
+
+    expect(mockSession.destroy).toHaveBeenCalledTimes(1);
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+    expect(mockClient.start).toHaveBeenCalledTimes(2); // once in initialize, once in recreate
+    expect(wrapper.session).toBe(newSession);
+  });
+
+  test('session.destroy() error is swallowed; restart continues', async () => {
+    mockSession.destroy.mockRejectedValue(new Error('destroy failed'));
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    await expect(wrapper.recreateSession()).resolves.toBeUndefined();
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ==============================================================================
+// cleanup()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — cleanup()', () => {
+  beforeEach(resetMocks);
+
+  test('destroys session and stops client in happy path', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    await wrapper.cleanup();
+
+    expect(mockSession.destroy).toHaveBeenCalledTimes(1);
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+    expect(wrapper.session).toBeNull();
+    expect(wrapper.client).toBeNull();
+  });
+
+  test('cookbook try-finally: client.stop() called even when session.destroy() throws', async () => {
+    mockSession.destroy.mockRejectedValue(new Error('session exploded'));
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    // cleanup() must not throw — session.destroy errors are caught internally
+    await expect(wrapper.cleanup()).resolves.toBeUndefined();
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+  });
+
+  test('cookbook forceStop: called when client.stop() times out', async () => {
+    jest.useFakeTimers();
+    // Make client.stop() never resolve
+    mockClient.stop.mockImplementation(() => new Promise(() => {}));
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const cleanupPromise = wrapper.cleanup();
+    // Advance past FORCE_STOP_TIMEOUT_MS (5000 ms) and flush pending promises
+    await jest.advanceTimersByTimeAsync(6_000);
+    await cleanupPromise;
+
+    expect(mockClient.forceStop).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  test('no-op when wrapper was never initialized', async () => {
+    const wrapper = makeWrapper();
+    await expect(wrapper.cleanup()).resolves.toBeUndefined();
+    expect(mockClient.stop).not.toHaveBeenCalled();
+  });
+});
