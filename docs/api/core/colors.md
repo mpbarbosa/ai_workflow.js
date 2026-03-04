@@ -190,7 +190,7 @@ console.log(formatMessage('Operation complete', 'success'));
 ## Related Modules
 
 - **[logger](./logger.md)** - Uses this module for colored log output
-- **[backlog](./backlog.md)** - Uses emojis (unicode) for status indicators
+- **[backlog](../lib/backlog.md)** - Uses emojis (unicode) for status indicators
 
 ---
 

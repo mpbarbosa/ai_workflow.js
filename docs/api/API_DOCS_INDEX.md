@@ -267,7 +267,7 @@ When adding new modules or updating existing ones:
 4. Add usage examples and best practices
 5. Update this index file
 
-See [CONTRIBUTING.md](../../docs/CONTRIBUTING.md) for full guidelines.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for full guidelines.
 
 ---
 

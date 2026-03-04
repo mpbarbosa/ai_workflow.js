@@ -251,9 +251,9 @@ try {
 
 ## Related Modules
 
-- **[executor](./executor.md)** - Throws `ExecutionError`
-- **[system](./system.md)** - Throws `SystemError`
-- **[file_operations](./file_operations.md)** - Throws `FileSystemError`
+- **[executor](../core/executor.md)** - Throws `ExecutionError`
+- **[system](../core/system.md)** - Throws `SystemError`
+- **[file_operations](../lib/file_operations.md)** - Throws `FileSystemError`
 
 ---
 

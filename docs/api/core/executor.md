@@ -185,7 +185,7 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 ## Related Modules
 
 - **[system](./system.md)** - Platform detection for cross-platform commands
-- **[errors](./errors.md)** - `ExecutionError` class
+- **[errors](../utils/errors.md)** - `ExecutionError` class
 
 ---
 

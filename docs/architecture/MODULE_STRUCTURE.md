@@ -51,30 +51,50 @@ src/
 │   ├── logger.js           # Logging utilities
 │   ├── system.js           # OS detection
 │   ├── version.js          # Version comparison
-│   ├── executor.js         # Command execution
+│   └── executor.js         # Command execution
+│
+├── utils/                   # Phase 1: Helper utilities
 │   └── errors.js           # Custom error types
 │
-├── lib/                     # Phase 2 & 3: Business logic
+├── lib/                     # Phase 2-8: Business logic
 │   ├── config.js           # Configuration management
 │   ├── backlog.js          # Workflow summaries
 │   ├── session_manager.js  # Session lifecycle
 │   ├── metrics.js          # Metrics collection
 │   ├── file_operations.js  # File system operations
 │   ├── edit_operations.js  # File editing
-│   └── argument_parser.js  # CLI argument parsing
-│
-├── utils/                   # Phase 3: Utilities
-│   ├── utils.js            # General utilities
+│   ├── utils.js            # General utilities (pure)
+│   ├── argument_parser.js  # CLI argument parsing
 │   └── cleanup_handlers.js # Cleanup operations
 │
-├── modules/                 # Phase 4: Advanced features
-│   ├── step_processor.js   # Step execution
-│   ├── context_manager.js  # Context handling
-│   ├── prompt_builder.js   # AI prompt construction
-│   └── validator.js        # Validation logic
+├── steps/                   # Phase 9: Workflow step implementations
+│   ├── step_02_5_lib/      # Helper modules for step_02_5 (doc optimization)
+│   │   ├── ai_analyzer.js       # AI-powered analysis helpers
+│   │   ├── consolidation.js     # Result consolidation logic
+│   │   ├── git_analysis.js      # Git diff analysis for docs
+│   │   ├── heuristics.js        # Heuristic scoring functions
+│   │   ├── reporting.js         # Report generation
+│   │   └── version_analysis.js  # Version consistency analysis
+│   └── step_*.js           # Individual step implementations (step_00–step_17)
 │
-└── cli/                     # Command-line interface
-    └── index.js            # Main CLI entry point
+├── orchestrator/            # Phase 7: Workflow orchestration
+│   ├── workflow_engine.js  # Workflow execution engine
+│   ├── step_registry.js    # Step definition and registration
+│   ├── dependency_resolver.js # Dependency graph and topological sort
+│   ├── step_executor.js    # Step execution with retry logic
+│   ├── conditional_executor.js # Conditional step execution
+│   ├── checkpoint_manager.js   # Checkpoint save/resume
+│   └── main_orchestrator.js    # Main workflow coordinator
+│
+├── cli/                     # Phase 11: Command-line interface
+│   ├── index.js            # CLI entry point and command registry
+│   ├── help.js             # Help text generation
+│   ├── output.js           # Output formatting
+│   ├── progress.js         # Progress display
+│   ├── prompts.js          # Interactive prompts
+│   └── commands/           # CLI command implementations
+│
+└── index.js                 # Public API exports
 ```
 
 ---

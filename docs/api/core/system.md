@@ -147,7 +147,7 @@ if (missing.length > 0) {
 ## Related Modules
 
 - **[executor](./executor.md)** - Uses for platform-specific commands
-- **[errors](./errors.md)** - `SystemError` class
+- **[errors](../utils/errors.md)** - `SystemError` class
 
 ---
 

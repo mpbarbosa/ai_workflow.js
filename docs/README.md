@@ -69,6 +69,9 @@ Practical usage examples:
 
 - **[Functional Requirements](./FUNCTIONAL_REQUIREMENTS.md)** - Module requirements
 - **[Migration Plan](./reports/implementation/MIGRATION_PLAN.md)** - Migration strategy
+- **[Bug Fix Reports](./reports/bugfixes/)** - Root cause analyses and bug fix documentation
+- **[Tutorials](./tutorials/YOUR_FIRST_WORKFLOW.md)** - Step-by-step workflow tutorials
+- **[Workflow Automation](./workflow-automation/README.md)** - Workflow automation usage documentation
 - **[Workflow Templates](../.workflow_core/workflow-templates/README.md)** - GitHub Actions workflow templates
 
 ## 🚀 Current Status
