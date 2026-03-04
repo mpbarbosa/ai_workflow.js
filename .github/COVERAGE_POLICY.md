@@ -196,9 +196,9 @@ npm run test:coverage
 
 ### Interpreting Coverage Reports
 
-**Statements:** Each code statement executed  
-**Branches:** Each conditional path tested (if/else, switch, ternary)  
-**Functions:** Each function called at least once  
+**Statements:** Each code statement executed
+**Branches:** Each conditional path tested (if/else, switch, ternary)
+**Functions:** Each function called at least once
 **Lines:** Each line of code executed
 
 ### When Adding New Code
@@ -376,6 +376,6 @@ Jest: "global" coverage threshold for statements (83%) not met: 80.5%
 
 ---
 
-**Last Updated:** February 7, 2026  
-**Version:** 1.0.0  
+**Last Updated:** February 7, 2026
+**Version:** 1.0.0
 **Maintained by:** ai_workflow.js contributors

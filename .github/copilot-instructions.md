@@ -32,8 +32,8 @@
 - **Referentially Transparent**: v2.0.0 modules follow functional programming principles
 - **Comprehensive Testing**: 4,361 of 4,441 tests passing (19 skipped) ✅
 
-**Version**: 1.2.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5, 7 modules)  
-**License**: MIT  
+**Version**: 1.2.0 (Project) / 1.0.0 (Phase 1, 4 modules) / 2.0.0 (Phase 2, 3, 5, 7 modules)
+**License**: MIT
 **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow) (Shell/Bash v3.0.0)
 
 **Migration Note**: This is NOT a line-by-line shell-to-JavaScript translation. It's a complete architectural redesign extracting behaviors and features from the original shell scripts while building idiomatic JavaScript code with modern best practices.
@@ -1166,6 +1166,6 @@ python3 scripts/validate_context_blocks.py docs/
 
 ---
 
-**Last Updated**: 2026-01-29  
-**Document Version**: 1.0.0  
+**Last Updated**: 2026-01-29
+**Document Version**: 1.0.0
 **For**: GitHub Copilot assistance within ai_workflow_core repository

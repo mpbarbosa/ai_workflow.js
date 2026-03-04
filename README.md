@@ -8,8 +8,8 @@ AI-Powered Workflow Automation for Software Development
 [![Tests](https://img.shields.io/badge/tests-4412%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.79%25-green)](coverage/)
 
-**Version:** 1.2.0 🎉 **STABLE RELEASE**  
-**Status:** Production Ready ✅  
+**Version:** 1.2.0 🎉 **STABLE RELEASE**
+**Status:** Production Ready ✅
 **Last Updated:** February 17, 2026
 
 ---
@@ -74,10 +74,10 @@ npm install --save-dev ai-workflow
 
 ## Current Implementation Status
 
-**Version:** 1.2.0 (Stable Release)  
-**Tests:** 4,412 passing (99.4% pass rate, 6 failures, 19 skipped)  
-**Coverage:** 86.79% overall, 95.43% orchestrator  
-**Security:** 0 vulnerabilities  
+**Version:** 1.2.0 (Stable Release)
+**Tests:** 4,412 passing (99.4% pass rate, 6 failures, 19 skipped)
+**Coverage:** 86.79% overall, 95.43% orchestrator
+**Security:** 0 vulnerabilities
 **Phases Complete:** 13 of 13 ✅
 
 ### Phase Completion
@@ -323,6 +323,16 @@ ai-workflow run
 - `npm run lint:fix` - Auto-fix linting issues
 - `npm run format` - Format code with Prettier
 - `npm run format:check` - Check formatting without changes
+
+## Automation Scripts
+
+| Script | Description | Guide |
+| ------ | ----------- | ----- |
+| `scripts/setup.sh` | Set up development environment (deps, submodules, directories) | [SETUP.md](./docs/guides/SETUP.md) |
+| `scripts/test-integration.sh` | Run integration tests with optional coverage report | [TEST_INTEGRATION.md](./docs/guides/TEST_INTEGRATION.md) |
+| `scripts/validate.sh` | Full validation pipeline (lint, format, tests, versions) | [VALIDATE.md](./docs/guides/VALIDATE.md) |
+| `scripts/prepare-release.sh` | Prepare a versioned release (tests, version bump, changelog) | [PREPARE_RELEASE.md](./docs/guides/PREPARE_RELEASE.md) |
+| `scripts/cleanup_artifacts.sh` | Clean up workflow artifacts by age/type | [CLEANUP_ARTIFACTS.md](./docs/guides/CLEANUP_ARTIFACTS.md) |
 
 ### Project Structure
 

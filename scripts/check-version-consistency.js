@@ -33,11 +33,17 @@ const colors = {
 
 /**
  * Extract version from package.json
+ * @returns {string} Semantic version string from package.json
+ * @throws {Error} If package.json cannot be read or parsed
  */
 function getPackageVersion() {
   const packagePath = join(projectRoot, 'package.json');
-  const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
-  return pkg.version;
+  try {
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    return pkg.version;
+  } catch (err) {
+    throw new Error(`Failed to read package.json at ${packagePath}: ${err.message}`);
+  }
 }
 
 /**

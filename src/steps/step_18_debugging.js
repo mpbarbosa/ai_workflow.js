@@ -44,7 +44,7 @@ import yaml from 'js-yaml';
  * @returns {'observer_pattern_debugger_prompt'|'async_flow_debugger_prompt'|'data_structure_debugger_prompt'}
  */
 export function detectDebugPersona(fileContents) {
-  const combined = fileContents.join('\n').toLowerCase();
+  const combined = (Array.isArray(fileContents) ? fileContents : []).join('\n').toLowerCase();
 
   const observerScore = (
     combined.match(/eventemitter|addeventlistener|\.subscribe\(|\.on\(/g) || []
@@ -80,8 +80,8 @@ export function formatDebuggingReport({ personaKey, filesAnalyzed, aiContent }) 
     data_structure_debugger_prompt: 'Data Structure Debugger',
   };
   const label = personaLabels[personaKey] || 'Debugging Analysis';
-  const fileList =
-    filesAnalyzed.length > 0 ? filesAnalyzed.map((f) => `- ${f}`).join('\n') : '- (none)';
+  const files = Array.isArray(filesAnalyzed) ? filesAnalyzed : [];
+  const fileList = files.length > 0 ? files.map((f) => `- ${f}`).join('\n') : '- (none)';
 
   return `# Step 18: Debugging Analysis — ${label}
 

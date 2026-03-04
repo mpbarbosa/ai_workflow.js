@@ -3,6 +3,7 @@
  * @group steps
  */
 
+import { jest } from '@jest/globals';
 import {
   Step8TestExecutor,
   getTestCommand,
@@ -14,8 +15,10 @@ import {
   parseTestOutput,
   parseJestCoverage,
   determineTestStatus,
+  hasNoTestsFoundMessage,
   formatTestReport,
 } from '../../src/steps/step_08_test_exec.js';
+import { logger } from '../../src/core/logger.js';
 
 describe('Step 8: Test Execution', () => {
   // ========================================================================
@@ -158,6 +161,20 @@ describe('Step 8: Test Execution', () => {
       expect(result.suitesFailed).toBe(1);
       expect(result.total).toBe(0);
     });
+
+    test('parses correctly when ANSI color codes are present (FORCE_COLOR env)', () => {
+      // Simulates Jest output when FORCE_COLOR=1: bold/color codes wrap keywords
+      const output = [
+        '\x1b[1mTest Suites:\x1b[22m \x1b[1m\x1b[31m5 failed\x1b[39m\x1b[22m, \x1b[1m106 passed\x1b[22m, 111 total',
+        '\x1b[1mTests:\x1b[22m       \x1b[1m\x1b[31m37 failed\x1b[39m\x1b[22m, \x1b[1m\x1b[33m19 skipped\x1b[39m\x1b[22m, \x1b[1m4981 passed\x1b[22m, 5037 total',
+      ].join('\n');
+      const result = parseJestOutput(output);
+      expect(result.passed).toBe(4981);
+      expect(result.failed).toBe(37);
+      expect(result.skipped).toBe(19);
+      expect(result.total).toBe(5037);
+      expect(result.suitesFailed).toBe(5);
+    });
   });
 
   describe('parsePytestOutput', () => {
@@ -264,6 +281,36 @@ describe('Step 8: Test Execution', () => {
 
     test('returns unknown when no tests', () => {
       expect(determineTestStatus({ passed: 0, failed: 0, skipped: 0 })).toBe('unknown');
+    });
+  });
+
+  describe('hasNoTestsFoundMessage', () => {
+    test('detects Jest "No tests found" message', () => {
+      expect(hasNoTestsFoundMessage('No tests found, exiting with code 1')).toBe(true);
+    });
+
+    test('detects Vitest "No test files found" message', () => {
+      expect(hasNoTestsFoundMessage('No test files found, exiting with code 1')).toBe(true);
+    });
+
+    test('detects Jest empty-test-file message', () => {
+      expect(
+        hasNoTestsFoundMessage('Your test suite must contain at least one test.')
+      ).toBe(true);
+    });
+
+    test('returns false for normal test output', () => {
+      expect(hasNoTestsFoundMessage('Tests: 5 passed, 5 total')).toBe(false);
+    });
+
+    test('returns false for empty/null output', () => {
+      expect(hasNoTestsFoundMessage('')).toBe(false);
+      expect(hasNoTestsFoundMessage(null)).toBe(false);
+      expect(hasNoTestsFoundMessage(undefined)).toBe(false);
+    });
+
+    test('strips ANSI codes before matching', () => {
+      expect(hasNoTestsFoundMessage('\x1b[31mNo tests found\x1b[0m')).toBe(true);
     });
   });
 
@@ -441,6 +488,40 @@ describe('Step 8: Test Execution', () => {
       expect(result.testResults.total).toBe(0);
     });
 
+    test('[BUG FIX] Vitest "No test files found" is treated as success=true (not critical failure)', async () => {
+      // Vitest exits with code 1 with a different message than Jest
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'No test files found, exiting with code 1',
+          stderr: '',
+        };
+      };
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.noTestsFound).toBe(true);
+      expect(result.testResults.failed).toBe(0);
+    });
+
+    test('[BUG FIX] Jest empty test file message is treated as success=true (not critical failure)', async () => {
+      // Jest exits with code 1 when a test file exists but has no test cases
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'Your test suite must contain at least one test.',
+          stderr: '',
+        };
+      };
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.noTestsFound).toBe(true);
+      expect(result.testResults.failed).toBe(0);
+    });
+
     test('collects coverage metrics', async () => {
       let readCount = 0;
       mockFileOps.readFile = async (_path) => {
@@ -497,6 +578,289 @@ describe('Step 8: Test Execution', () => {
       });
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+  });
+
+  // ========================================================================
+  // FIX: runTests safe output capture
+  // ========================================================================
+
+  describe('[FIX] runTests — safe output capture', () => {
+    // Shared minimal deps used by every test in this group
+    const makeExecutor = (mockRun) =>
+      new Step8TestExecutor({
+        executor: { execute: mockRun },
+        fileOps: {
+          readFile: async () => JSON.stringify({ scripts: { test: 'jest' } }),
+          exists: async () => false,
+        },
+        backlog: { saveStepSummary: async () => {} },
+        techStack: { detectAll: async () => ({ languages: ['javascript'] }) },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+
+    test('concatenates stdout + stderr when executor resolves', async () => {
+      const exec = makeExecutor(async () => ({
+        exitCode: 0,
+        stdout: 'Tests: 5 passed, 5 total',
+        stderr: 'some warning on stderr',
+      }));
+      const result = await exec.execute('/project');
+      // Output contains both streams — Jest line was parsed
+      expect(result.testResults.passed).toBe(5);
+      expect(result.success).toBe(true);
+    });
+
+    test('does not crash when executor resolves with undefined stdout/stderr', async () => {
+      // Guards the (result.stdout || '') + (result.stderr || '') fix on success path
+      const exec = makeExecutor(async () => ({
+        exitCode: 0,
+        stdout: undefined,
+        stderr: undefined,
+      }));
+      // Should not throw — result is "0 tests found" which is success=true
+      await expect(exec.execute('/project')).resolves.toBeDefined();
+    });
+
+    test('concatenates error.stdout + error.stderr when executor throws', async () => {
+      const exec = makeExecutor(async () => {
+        throw { exitCode: 1, stdout: 'Tests: 2 passed, 1 failed, 3 total', stderr: '' };
+      });
+      const result = await exec.execute('/project');
+      expect(result.testResults.failed).toBe(1);
+      expect(result.testResults.passed).toBe(2);
+    });
+
+    test('does not crash when error object has undefined stdout/stderr', async () => {
+      const exec = makeExecutor(async () => {
+        throw { exitCode: 1, stdout: undefined, stderr: undefined };
+      });
+      await expect(exec.execute('/project')).resolves.toBeDefined();
+    });
+  });
+
+  // ========================================================================
+  // FIX: runner crash → accurate warning (not "0 test(s) failed")
+  // ========================================================================
+
+  describe('[FIX] runner crash → informative warning message', () => {
+    let warnSpy;
+    let debugSpy;
+    let mockExecutor;
+    let mockFileOps;
+
+    const makeExecutor = () =>
+      new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: { saveStepSummary: async () => {} },
+        techStack: { detectAll: async () => ({ languages: ['typescript'] }) },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+
+      mockExecutor = { execute: null };
+      mockFileOps = {
+        readFile: async () => JSON.stringify({ scripts: { test: 'jest' } }),
+        exists: async () => false,
+      };
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('warns with exit code when runner crashes and 0 tests were parsed', async () => {
+      // Simulates: TypeScript compile error before tests run — non-zero exit,
+      // no Jest summary in output, not a "no tests found" message.
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: "error TS2345: Argument of type 'string' is not assignable",
+          stderr: '',
+        };
+      };
+
+      const result = await makeExecutor().execute('/project');
+
+      expect(result.success).toBe(false);
+      expect(result.testResults.failed).toBe(0); // no individual tests failed
+      expect(result.exitCode).toBe(1);
+
+      // Warning must mention the exit code, NOT "0 test(s) failed"
+      const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
+      const relevantWarn = warnCalls.find((m) => m.includes('Step 8'));
+      expect(relevantWarn).toBeDefined();
+      expect(relevantWarn).toContain('code 1');
+      expect(relevantWarn).not.toBe('Step 8 completed - 0 test(s) failed');
+    });
+
+    test('warns with test count when individual tests failed', async () => {
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'Tests: 8 passed, 3 failed, 11 total',
+          stderr: '',
+        };
+      };
+
+      await makeExecutor().execute('/project');
+
+      const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
+      const relevantWarn = warnCalls.find((m) => m.includes('Step 8'));
+      expect(relevantWarn).toContain('3 test(s) failed');
+      expect(relevantWarn).not.toContain('code');
+    });
+
+    test('warns with suite count when suites failed to run', async () => {
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'Test Suites: 2 failed, 5 passed, 7 total\nTests: 0 total',
+          stderr: '',
+        };
+      };
+
+      await makeExecutor().execute('/project');
+
+      const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
+      const relevantWarn = warnCalls.find((m) => m.includes('Step 8'));
+      expect(relevantWarn).toContain('suite(s) failed');
+    });
+
+    test('does NOT warn "0 test(s) failed" in any crash scenario', async () => {
+      // Exhaustive check: the old buggy message must never appear
+      mockExecutor.execute = async () => {
+        throw { exitCode: 2, stdout: 'spawn ENOENT', stderr: '' };
+      };
+
+      await makeExecutor().execute('/project');
+
+      const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
+      const buggyMessage = warnCalls.find((m) => m === 'Step 8 completed - 0 test(s) failed');
+      expect(buggyMessage).toBeUndefined();
+    });
+  });
+
+  // ========================================================================
+  // FIX: debug logging emitted during execute
+  // ========================================================================
+
+  describe('[FIX] debug logging during execute', () => {
+    let debugSpy;
+    let mockExecutor;
+    let mockFileOps;
+
+    const makeExecutor = () =>
+      new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: { saveStepSummary: async () => {} },
+        techStack: { detectAll: async () => ({ languages: ['typescript'] }) },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+
+    beforeEach(() => {
+      debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+      jest.spyOn(logger, 'warn').mockImplementation(() => {});
+
+      mockExecutor = { execute: null };
+      mockFileOps = {
+        readFile: async () => JSON.stringify({ scripts: { test: 'jest' } }),
+        exists: async () => false,
+      };
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('logs exit code and output snippet after successful run', async () => {
+      mockExecutor.execute = async () => ({
+        exitCode: 0,
+        stdout: 'Tests: 5 passed, 5 total',
+        stderr: '',
+      });
+
+      await makeExecutor().execute('/project');
+
+      const debugMessages = debugSpy.mock.calls.map((c) => c[0]);
+      const exitLog = debugMessages.find((m) => m.includes('[step_08]') && m.includes('exited 0'));
+      expect(exitLog).toBeDefined();
+      const snippetLog = debugMessages.find(
+        (m) => m.includes('[step_08]') && m.includes('Output snippet')
+      );
+      expect(snippetLog).toBeDefined();
+    });
+
+    test('logs exit code and output snippet after failed run', async () => {
+      mockExecutor.execute = async () => {
+        throw { exitCode: 1, stdout: 'SyntaxError: Unexpected token', stderr: '' };
+      };
+
+      await makeExecutor().execute('/project');
+
+      const debugMessages = debugSpy.mock.calls.map((c) => c[0]);
+      const exitLog = debugMessages.find((m) => m.includes('[step_08]') && m.includes('exited 1'));
+      expect(exitLog).toBeDefined();
+    });
+
+    test('logs parsed result counts (passed/failed/skipped/suitesFailed)', async () => {
+      mockExecutor.execute = async () => ({
+        exitCode: 0,
+        stdout: 'Tests: 7 passed, 7 total',
+        stderr: '',
+      });
+
+      await makeExecutor().execute('/project');
+
+      const debugMessages = debugSpy.mock.calls.map((c) => c[0]);
+      const parsedLog = debugMessages.find(
+        (m) => m.includes('[step_08]') && m.includes('Parsed results')
+      );
+      expect(parsedLog).toBeDefined();
+      expect(parsedLog).toContain('passed: 7');
+      expect(parsedLog).toContain('failed: 0');
+    });
+
+    test('logs decision variables (noTestsFound, anyFailure, success, exitCode)', async () => {
+      mockExecutor.execute = async () => ({
+        exitCode: 0,
+        stdout: 'Tests: 3 passed, 3 total',
+        stderr: '',
+      });
+
+      await makeExecutor().execute('/project');
+
+      const debugMessages = debugSpy.mock.calls.map((c) => c[0]);
+      const decisionsLog = debugMessages.find(
+        (m) => m.includes('[step_08]') && m.includes('noTestsFound')
+      );
+      expect(decisionsLog).toBeDefined();
+      expect(decisionsLog).toContain('anyFailure');
+      expect(decisionsLog).toContain('success');
+      expect(decisionsLog).toContain('exitCode');
+    });
+
+    test('output snippet log replaces newlines with ↵ for readability', async () => {
+      mockExecutor.execute = async () => ({
+        exitCode: 0,
+        stdout: 'line1\nline2\nTests: 1 passed, 1 total',
+        stderr: '',
+      });
+
+      await makeExecutor().execute('/project');
+
+      const debugMessages = debugSpy.mock.calls.map((c) => c[0]);
+      const snippetLog = debugMessages.find(
+        (m) => m.includes('[step_08]') && m.includes('Output snippet')
+      );
+      expect(snippetLog).toBeDefined();
+      expect(snippetLog).toContain('↵');
+      expect(snippetLog).not.toContain('\n');
     });
   });
 });

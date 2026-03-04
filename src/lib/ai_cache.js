@@ -99,11 +99,12 @@ export function shouldInvalidateCache(reason, options = {}) {
  * // => { total: 10, valid: 8, expired: 2, totalSize: 52480 }
  */
 export function calculateCacheStats(entries, currentTime, ttl) {
+  const safeEntries = Array.isArray(entries) ? entries : [];
   let valid = 0;
   let expired = 0;
   let totalSize = 0;
 
-  for (const entry of entries) {
+  for (const entry of safeEntries) {
     if (isCacheValid(entry, ttl, currentTime)) {
       valid++;
     } else {
@@ -116,7 +117,7 @@ export function calculateCacheStats(entries, currentTime, ttl) {
   }
 
   return {
-    total: entries.length,
+    total: safeEntries.length,
     valid,
     expired,
     totalSize,
@@ -137,7 +138,7 @@ export function calculateCacheStats(entries, currentTime, ttl) {
  * // => [entry1, entry2] (entries older than 24 hours)
  */
 export function filterEntriesByAge(entries, maxAge, currentTime) {
-  return entries.filter((entry) => {
+  return (Array.isArray(entries) ? entries : []).filter((entry) => {
     if (typeof entry.timestampEpoch !== 'number') {
       return false;
     }
@@ -169,7 +170,8 @@ export function createCacheEntry(
   timestamp,
   additional = {}
 ) {
-  const promptPreview = prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
+  const promptStr = prompt != null ? String(prompt) : '';
+  const promptPreview = promptStr.length > 100 ? promptStr.substring(0, 100) + '...' : promptStr;
 
   return {
     cacheKey,
@@ -197,8 +199,10 @@ export function createCacheEntry(
  * // => { hits: 8, misses: 3, total: 11, hitRate: 72.7 }
  */
 export function mergeCacheMetrics(metrics1, metrics2) {
-  const hits = (metrics1.hits || 0) + (metrics2.hits || 0);
-  const misses = (metrics1.misses || 0) + (metrics2.misses || 0);
+  const m1 = metrics1 || {};
+  const m2 = metrics2 || {};
+  const hits = (m1.hits || 0) + (m2.hits || 0);
+  const misses = (m1.misses || 0) + (m2.misses || 0);
   const total = hits + misses;
   const hitRate = total > 0 ? (hits / total) * 100 : 0;
 
@@ -207,7 +211,7 @@ export function mergeCacheMetrics(metrics1, metrics2) {
     misses,
     total,
     hitRate: Math.round(hitRate * 10) / 10, // Round to 1 decimal
-    tokensSaved: (metrics1.tokensSaved || 0) + (metrics2.tokensSaved || 0),
+    tokensSaved: (m1.tokensSaved || 0) + (m2.tokensSaved || 0),
   };
 }
 
@@ -226,16 +230,17 @@ export function mergeCacheMetrics(metrics1, metrics2) {
  */
 export function validateCacheConfig(config) {
   const errors = [];
+  const cfg = config || {};
 
-  if (!config.cacheDir || typeof config.cacheDir !== 'string') {
+  if (!cfg.cacheDir || typeof cfg.cacheDir !== 'string') {
     errors.push('cacheDir must be a non-empty string');
   }
 
-  if (typeof config.ttl !== 'number' || config.ttl <= 0) {
+  if (typeof cfg.ttl !== 'number' || cfg.ttl <= 0) {
     errors.push('ttl must be a positive number');
   }
 
-  if (typeof config.maxSizeMB !== 'number' || config.maxSizeMB <= 0) {
+  if (typeof cfg.maxSizeMB !== 'number' || cfg.maxSizeMB <= 0) {
     errors.push('maxSizeMB must be a positive number');
   }
 

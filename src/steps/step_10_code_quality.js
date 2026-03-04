@@ -487,6 +487,81 @@ export function formatMultiLanguageQualityReport(perLanguageResults, aggregateTo
 }
 
 // ============================================================================
+// PURE FUNCTIONS - AI Prompt Context
+// ============================================================================
+
+/**
+ * Sort file paths so source files (src/) appear before test files (test/).
+ * Within each group, alphabetical order is preserved.
+ * This ensures AI code samples show implementation code first.
+ * @pure
+ * @param {string[]} files - Relative file paths
+ * @returns {string[]} Sorted file paths (source files first)
+ */
+export function prioritizeSourceFiles(files) {
+  if (!Array.isArray(files)) return [];
+  const isTestFile = (f) => /[\\/](test|tests|spec|__tests__)[\\/]|\.test\.|\.spec\./.test(f);
+  const src = files.filter((f) => !isTestFile(f)).sort();
+  const test = files.filter((f) => isTestFile(f)).sort();
+  return [...src, ...test];
+}
+
+/**
+ * Build a structured map of file content excerpts for AI prompt injection.
+ * Prioritises source files and caps each file's content to avoid token overflow.
+ * @pure
+ * @param {Object} fileContents - Map of { relPath: fileContent }
+ * @param {Object} [options={}]
+ * @param {number} [options.maxCharsPerFile=600] - Max characters per file excerpt
+ * @param {number} [options.maxFiles=8] - Max number of files to include
+ * @returns {Array<{path: string, excerpt: string, truncated: boolean}>}
+ */
+export function buildFileContentMap(fileContents, options = {}) {
+  const { maxCharsPerFile = 600, maxFiles = 8 } = options;
+  if (!fileContents || typeof fileContents !== 'object') return [];
+  const prioritized = prioritizeSourceFiles(Object.keys(fileContents));
+  return prioritized.slice(0, maxFiles).map((path) => {
+    const content = fileContents[path] ?? '';
+    const truncated = content.length > maxCharsPerFile;
+    return { path, excerpt: content.slice(0, maxCharsPerFile), truncated };
+  });
+}
+
+/**
+ * Format a file content map as a human-readable string for the AI prompt.
+ * @pure
+ * @param {Array<{path: string, excerpt: string, truncated: boolean}>} contentMap
+ * @returns {string}
+ */
+export function formatFileContentMap(contentMap) {
+  if (!Array.isArray(contentMap) || contentMap.length === 0) return '(no source files provided)';
+  return contentMap.map(({ path, excerpt, truncated }) => {
+    const note = truncated ? ' [truncated]' : '';
+    return `### ${path}${note}\n\`\`\`\n${excerpt}\n\`\`\``;
+  }).join('\n\n');
+}
+
+/**
+ * Build an 8-character content hash from file contents for cache-key freshness.
+ * Combines the first 80 chars of each file (sorted by path) into a simple checksum.
+ * @pure
+ * @param {Object} fileContents - Map of { relPath: fileContent }
+ * @returns {string} 8-character hex-like hash string
+ */
+export function buildCodeContentHash(fileContents) {
+  if (!fileContents || typeof fileContents !== 'object') return '00000000';
+  const sorted = Object.keys(fileContents).sort();
+  let hash = 0;
+  for (const key of sorted) {
+    const snippet = (fileContents[key] ?? '').slice(0, 80);
+    for (let i = 0; i < snippet.length; i++) {
+      hash = (hash * 31 + snippet.charCodeAt(i)) >>> 0;
+    }
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+// ============================================================================
 // STEP 10 ANALYZER - Integration
 // ============================================================================
 
@@ -711,7 +786,15 @@ export class Step10CodeQualityAnalyzer {
             let prompt;
             try {
               if (sharedParsedYaml) {
-                const sampleCode = Object.values(sliceContents).slice(0, 2).join('\n---\n').slice(0, 2000);
+                const prioritizedContents = {};
+                for (const f of prioritizeSourceFiles(sliceFiles)) {
+                  if (Object.prototype.hasOwnProperty.call(sliceContents, f)) {
+                    prioritizedContents[f] = sliceContents[f];
+                  }
+                }
+                const contentMap = buildFileContentMap(prioritizedContents);
+                const fileContentMap = formatFileContentMap(contentMap);
+                const sampleCode = Object.values(prioritizedContents).slice(0, 2).join('\n---\n').slice(0, 2000);
                 const largeFList = sliceFiles.join(', ');
                 const projectName = basename(projectRoot);
                 const projectDescription = options?.projectDescription ?? '';
@@ -733,6 +816,7 @@ export class Step10CodeQualityAnalyzer {
                   quality_report_content: report.slice(0, 3000),
                   large_files_list: largeFList,
                   sample_code: sampleCode,
+                  file_content_map: fileContentMap,
                 });
                 if (prompt && sharedRoleOverride) {
                   prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
@@ -773,7 +857,7 @@ export class Step10CodeQualityAnalyzer {
               });
             }
 
-            const cacheKey = `step_10|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}`;
+            const cacheKey = `step_10|v2|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}|${buildCodeContentHash(sliceContents)}`;
             // Use 'code_quality_analyst' persona: Step 10 performs code quality review
             // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
             // YAML template, which defines a "comprehensive software quality engineer" role.

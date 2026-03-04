@@ -99,6 +99,9 @@ export function resolveDeployConfig(workflowConfig) {
  * @returns {Object} { command: string, cwd: string }
  */
 export function buildDeployCommand(deployConfig, projectRoot) {
+  if (!deployConfig || typeof deployConfig !== 'object') {
+    throw new Error('deployConfig must be a valid object');
+  }
   // script: takes priority over command:
   if (deployConfig.script) {
     const scriptPath = path.isAbsolute(deployConfig.script)

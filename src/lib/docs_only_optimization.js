@@ -132,7 +132,7 @@ export function categorizeFiles(files) {
   const code = [];
   const other = [];
 
-  for (const file of files) {
+  for (const file of (Array.isArray(files) ? files : [])) {
     if (isDocsFile(file)) {
       docs.push(file);
     } else if (file.match(/\.(js|jsx|ts|tsx|py|java|go|rs|c|cpp|h|hpp)$/i)) {
@@ -293,7 +293,7 @@ export function buildOptimizationReport(analysis) {
     stepsToSkip = [],
     timeSavings = 0,
     speedup = 0,
-  } = analysis;
+  } = analysis || {};
 
   return {
     optimizationType: isDocsOnly ? 'docs-only' : 'standard',

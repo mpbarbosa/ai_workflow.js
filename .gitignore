@@ -214,3 +214,8 @@ playwright-report/
 .ai_workflow/.incremental_cache/
 .ai_workflow/.ai_cache/
 .ai_workflow/commit_history.json
+
+# Test artifact directories (auto-generated, safe to delete)
+.test-cache/
+.test-e2e/
+.test-step-11-5/

@@ -299,5 +299,5 @@ Dependency review workflow will automatically check for issues.
 
 ---
 
-**Last Updated:** February 7, 2026  
+**Last Updated:** February 7, 2026
 **Maintained by:** ai_workflow.js contributors

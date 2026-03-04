@@ -137,6 +137,14 @@ describe('Deploy Command - Pure Functions', () => {
       expect(result.command).toContain('bash');
       expect(result.command).toContain('deploy.sh');
     });
+
+    test('should throw when deployConfig is null', () => {
+      expect(() => buildDeployCommand(null, '/project')).toThrow('deployConfig must be a valid object');
+    });
+
+    test('should throw when deployConfig is not an object', () => {
+      expect(() => buildDeployCommand('invalid', '/project')).toThrow('deployConfig must be a valid object');
+    });
   });
 
   // ============================================================================

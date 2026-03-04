@@ -114,6 +114,11 @@ describe('Pure Functions - Documentation Detection', () => {
       expect(result.code).toEqual([]);
       expect(result.other).toEqual([]);
     });
+
+    test('handles null/undefined gracefully', () => {
+      expect(categorizeFiles(null)).toEqual({ docs: [], code: [], other: [] });
+      expect(categorizeFiles(undefined)).toEqual({ docs: [], code: [], other: [] });
+    });
   });
 
   describe('calculateDocsPercentage', () => {
@@ -339,6 +344,12 @@ describe('Pure Functions - Optimization Report', () => {
       expect(report.optimizationType).toBe('standard');
       expect(report.summary.changedFiles).toBe(0);
       expect(report.steps.total).toBe(0);
+    });
+
+    test('handles null/undefined analysis gracefully', () => {
+      const report = buildOptimizationReport(null);
+      expect(report.optimizationType).toBe('standard');
+      expect(report.summary.changedFiles).toBe(0);
     });
   });
 });

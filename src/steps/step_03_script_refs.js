@@ -189,21 +189,71 @@ export function validateShebang(content, extension) {
 }
 
 /**
- * Check if a script is documented in README
+ * Check if a script is documented in any of the provided doc file contents
  * @pure
  * @param {string} scriptPath - Script file path
- * @param {string} readmeContent - README content
- * @returns {boolean} True if documented
+ * @param {string} readmeContent - README content (primary doc, always checked)
+ * @param {Array<{path: string, content: string}>} [extraDocs=[]] - Additional doc files
+ * @returns {boolean} True if documented in any provided content
  */
-export function isScriptDocumented(scriptPath, readmeContent) {
+export function isScriptDocumented(scriptPath, readmeContent, extraDocs = []) {
   const scriptName = scriptPath.split('/').pop();
+  const normalized = scriptPath.replace(/^\.\//, '');
 
-  // Check for script name or path in README
-  return (
-    readmeContent.includes(scriptName) ||
-    readmeContent.includes(scriptPath) ||
-    readmeContent.includes(scriptPath.replace(/^\.\//, ''))
-  );
+  const mentionedIn = (content) =>
+    content.includes(scriptName) ||
+    content.includes(scriptPath) ||
+    content.includes(normalized);
+
+  if (mentionedIn(readmeContent)) return true;
+  return extraDocs.some(({ content }) => mentionedIn(content));
+}
+
+/**
+ * Build a per-script documentation coverage map across all provided doc files.
+ * @pure
+ * @param {string[]} scripts - Script file paths found on disk
+ * @param {Array<{path: string, content: string}>} docFiles - Doc files to check
+ * @returns {Array<{script: string, foundIn: string[], missingFrom: string[]}>}
+ */
+export function buildDocCoverageMap(scripts, docFiles) {
+  return scripts.map((script) => {
+    const scriptName = script.split('/').pop();
+    const normalized = script.replace(/^\.\//, '');
+
+    const foundIn = [];
+    const missingFrom = [];
+
+    for (const { path: docPath, content } of docFiles) {
+      const found =
+        content.includes(scriptName) ||
+        content.includes(script) ||
+        content.includes(normalized);
+      if (found) {
+        foundIn.push(docPath);
+      } else {
+        missingFrom.push(docPath);
+      }
+    }
+
+    return { script, foundIn, missingFrom };
+  });
+}
+
+/**
+ * Format the doc coverage map as a human-readable string for the AI prompt.
+ * @pure
+ * @param {Array<{script: string, foundIn: string[], missingFrom: string[]}>} coverageMap
+ * @returns {string}
+ */
+export function formatDocCoverageMap(coverageMap) {
+  return coverageMap
+    .map(({ script, foundIn, missingFrom }) => {
+      const found = foundIn.length ? `documented in [${foundIn.join(', ')}]` : 'NOT found in any doc file';
+      const missing = missingFrom.length ? ` — MISSING from [${missingFrom.join(', ')}]` : '';
+      return `${script}: ${found}${missing}`;
+    })
+    .join('\n');
 }
 
 // ============================================================================
@@ -335,8 +385,13 @@ export class Step3ScriptAnalyzer {
 
       logger.info(`Found ${scripts.length} script(s)`);
 
-      // Phase 3: Load README for reference checking
+      // Phase 3: Load README and additional doc files for reference checking
       const readmeContent = await this.loadReadme(projectRoot);
+      const extraDocs = await this.loadExtraDocs(projectRoot);
+      const allDocFiles = [
+        { path: 'README.md', content: readmeContent },
+        ...extraDocs,
+      ].filter(({ content }) => content.length > 0);
 
       // Phase 4: Extract and validate script references
       const allReferences = extractScriptReferences(readmeContent);
@@ -353,8 +408,10 @@ export class Step3ScriptAnalyzer {
       const nonExecutable = await this.checkExecutablePermissions(scripts);
       logger.info(`Non-executable: ${nonExecutable.length}`);
 
-      // Phase 6: Check documentation
-      const undocumented = scripts.filter((script) => !isScriptDocumented(script, readmeContent));
+      // Phase 6: Check documentation across all loaded doc files
+      const undocumented = scripts.filter(
+        (script) => !isScriptDocumented(script, readmeContent, extraDocs)
+      );
       logger.info(`Undocumented: ${undocumented.length}`);
 
       // Phase 7: Generate report
@@ -379,6 +436,19 @@ export class Step3ScriptAnalyzer {
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
+          const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
+          const docCoverageMap = formatDocCoverageMap(coverageMap);
+          // Include first ~80 lines of each doc file so the AI can verify claims
+          const DOC_CONTEXT_MAX = 2000;
+          let docContext = allDocFiles
+            .map(({ path: p, content }) => {
+              const excerpt = content.split('\n').slice(0, 80).join('\n');
+              return `### ${p}\n${excerpt}`;
+            })
+            .join('\n\n---\n\n');
+          if (docContext.length > DOC_CONTEXT_MAX) {
+            docContext = docContext.slice(0, DOC_CONTEXT_MAX) + '\n... [truncated]';
+          }
           prompt = buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
             project_name: projectRoot,
             project_description: options.projectDescription || '',
@@ -388,8 +458,10 @@ export class Step3ScriptAnalyzer {
             change_scope: options.scope || '',
             modified_count: String(missingReferences.length),
             issues: String(totalIssues),
-            script_issues_content: `Missing references: ${missingReferences.length}, Non-executable: ${nonExecutable.length}, Undocumented: ${undocumented.length}`,
+            script_issues_content: `Broken doc references (referenced in docs but file missing on disk): ${missingReferences.length}\nUndocumented scripts (exist on disk but not found in any doc file): ${undocumented.length}\nNon-executable scripts: ${nonExecutable.length}`,
             all_scripts: scripts.length > 0 ? scripts.join('\n') : 'none',
+            doc_coverage_map: docCoverageMap || 'No doc files found.',
+            doc_context: docContext || 'No documentation files available.',
           });
         } catch {
           /* fallback to generic prompt */
@@ -406,9 +478,16 @@ export class Step3ScriptAnalyzer {
           const approach = `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        // v2: cache key version bumped after 2026-02-28 context-completeness fix
-        // (added primary_language, project_description, change_scope; all_scripts '' → 'none')
-        const cacheKey = `step_03|v2|${results.scriptsFound ?? 0}|${totalIssues}`;
+        // v3: cache key version bumped — now includes doc content hash to bust
+        // stale responses when documentation changes but issue counts stay the same.
+        const docHash = allDocFiles
+          .map(({ content }) => content.slice(0, 100))
+          .join('')
+          .split('')
+          .reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
+          .toString(16)
+          .slice(-8);
+        const cacheKey = `step_03|v3|${results.scriptsFound ?? 0}|${totalIssues}|${docHash}`;
         const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
         );
@@ -503,6 +582,34 @@ export class Step3ScriptAnalyzer {
     }
 
     return ''; // No README found
+  }
+
+  /**
+   * Load additional doc files (API.md, ARCHITECTURE.md, and up to 3 more docs/*.md).
+   * Excludes README (already loaded separately) and CHANGELOG/LICENSE which rarely
+   * contain script references.
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<Array<{path: string, content: string}>>} Doc files with content
+   */
+  async loadExtraDocs(projectRoot) {
+    const candidates = [
+      'docs/API.md',
+      'docs/ARCHITECTURE.md',
+      'docs/GETTING_STARTED.md',
+      'docs/CONTRIBUTING.md',
+      'CONTRIBUTING.md',
+    ];
+    const results = [];
+    for (const relPath of candidates) {
+      if (results.length >= 4) break; // cap to avoid bloating prompt
+      try {
+        const content = await this.fileOps.readFile(`${projectRoot}/${relPath}`);
+        if (content.length > 0) results.push({ path: relPath, content });
+      } catch {
+        // File does not exist — skip silently
+      }
+    }
+    return results;
   }
 
   /**

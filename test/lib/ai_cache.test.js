@@ -162,6 +162,11 @@ describe('AI Cache Module - Pure Functions', () => {
 
       expect(stats.totalSize).toBe(0);
     });
+
+    test('handles null/undefined entries gracefully', () => {
+      expect(calculateCacheStats(null, 2000, 1000)).toEqual({ total: 0, valid: 0, expired: 0, totalSize: 0, hitRate: 0 });
+      expect(calculateCacheStats(undefined, 2000, 1000)).toEqual({ total: 0, valid: 0, expired: 0, totalSize: 0, hitRate: 0 });
+    });
   });
 
   describe('filterEntriesByAge', () => {
@@ -198,6 +203,11 @@ describe('AI Cache Module - Pure Functions', () => {
 
       expect(old).toHaveLength(2); // Skips entry without timestamp
     });
+
+    test('handles null/undefined entries gracefully', () => {
+      expect(filterEntriesByAge(null, 1000, 4000)).toEqual([]);
+      expect(filterEntriesByAge(undefined, 1000, 4000)).toEqual([]);
+    });
   });
 
   describe('createCacheEntry', () => {
@@ -228,6 +238,11 @@ describe('AI Cache Module - Pure Functions', () => {
 
       expect(entry.workflowId).toBe('wf123');
       expect(entry.version).toBe('1.0');
+    });
+
+    test('handles null prompt gracefully', () => {
+      const entry = createCacheEntry('key', null, 'context', 100, 1000);
+      expect(entry.promptPreview).toBe('');
     });
   });
 
@@ -264,6 +279,13 @@ describe('AI Cache Module - Pure Functions', () => {
     test('handles zero total', () => {
       const merged = mergeCacheMetrics({}, {});
 
+      expect(merged.hitRate).toBe(0);
+    });
+
+    test('handles null metrics gracefully', () => {
+      const merged = mergeCacheMetrics(null, null);
+      expect(merged.hits).toBe(0);
+      expect(merged.misses).toBe(0);
       expect(merged.hitRate).toBe(0);
     });
   });
@@ -330,6 +352,12 @@ describe('AI Cache Module - Pure Functions', () => {
 
       const result = validateCacheConfig(config);
 
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThanOrEqual(3);
+    });
+
+    test('handles null/undefined config gracefully', () => {
+      const result = validateCacheConfig(null);
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThanOrEqual(3);
     });

@@ -53,26 +53,28 @@ export function buildPromptFromTemplate(template, context = {}) {
     return '';
   }
 
-  let result = template;
+  const knownKeys = new Set(Object.keys(context));
 
-  // Replace ${variable} patterns first, then {variable} patterns
-  // Order matters: ${var} must be processed before {var}
+  // Step 1: Remove unfilled placeholders from the RAW template, before any content
+  // injection. This preserves ${VAR} expressions in injected file content (e.g.,
+  // bash scripts with ${SCRIPT_DIR}) which would otherwise be stripped as "unfilled".
+  let result = template
+    .replace(/\$\{([a-z_]\w*)\}/gi, (_, key) => (knownKeys.has(key) ? `\${${key}}` : ''))
+    .replace(/\{([a-z_]\w*)\}/gi, (_, key) => (knownKeys.has(key) ? `{${key}}` : ''));
+
+  // Step 2: Substitute known variables. File content is injected here, AFTER
+  // the cleanup pass, so bash/shell ${VAR} in injected content is never stripped.
+  // Replace ${variable} patterns first, then {variable} patterns.
+  // Order matters: ${var} must be processed before {var}.
   for (const [key, value] of Object.entries(context)) {
     const dollarPattern = new RegExp(`\\$\\{${key}\\}`, 'g');
-    result = result.replace(dollarPattern, String(value || ''));
+    result = result.replace(dollarPattern, String(value ?? ''));
   }
 
   for (const [key, value] of Object.entries(context)) {
     const bracePattern = new RegExp(`\\{${key}\\}`, 'g');
-    result = result.replace(bracePattern, String(value || ''));
+    result = result.replace(bracePattern, String(value ?? ''));
   }
-
-  // Remove any remaining identifier-style placeholders that weren't replaced.
-  // Use a strict identifier pattern (letter/underscore start) so that code
-  // braces like `{ return x; }` and template literals like `${expr}` embedded
-  // in substituted values are NOT stripped.
-  result = result.replace(/\$\{[a-z_]\w*\}/gi, '');
-  result = result.replace(/\{[a-z_]\w*\}/gi, '');
 
   return result;
 }

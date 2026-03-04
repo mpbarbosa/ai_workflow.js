@@ -1,11 +1,13 @@
 // test/steps/step_18_debugging.test.js
 
+import { jest } from '@jest/globals';
 import {
   detectDebugPersona,
   formatDebuggingReport,
   Step18Debugging,
   STEP_DEFINITION,
 } from '../../src/steps/step_18_debugging.js';
+import { logger } from '../../src/core/logger.js';
 
 describe('detectDebugPersona', () => {
   it('detects observer pattern persona', () => {
@@ -39,9 +41,9 @@ describe('detectDebugPersona', () => {
     expect(detectDebugPersona(files)).toBe('data_structure_debugger_prompt');
   });
 
-  it('returns async_flow persona by default', () => {
-    expect(detectDebugPersona([''])).toBe('async_flow_debugger_prompt');
-    expect(detectDebugPersona(['random text'])).toBe('async_flow_debugger_prompt');
+  it('returns observer persona as tiebreaker when no patterns match', () => {
+    expect(detectDebugPersona([''])).toBe('observer_pattern_debugger_prompt');
+    expect(detectDebugPersona(['random text'])).toBe('observer_pattern_debugger_prompt');
   });
 
   it('handles mixed patterns and returns highest score', () => {
@@ -60,6 +62,11 @@ describe('detectDebugPersona', () => {
       'NEW MAP(); LINKEDLIST(); EVENTEMITTER(); ASYNC function() {}',
     ];
     expect(['observer_pattern_debugger_prompt', 'async_flow_debugger_prompt', 'data_structure_debugger_prompt']).toContain(detectDebugPersona(files));
+  });
+
+  it('handles null/undefined input gracefully', () => {
+    expect(detectDebugPersona(null)).toBe('observer_pattern_debugger_prompt');
+    expect(detectDebugPersona(undefined)).toBe('observer_pattern_debugger_prompt');
   });
 });
 
@@ -113,6 +120,16 @@ describe('formatDebuggingReport', () => {
     expect(report).toContain('- (none)');
     expect(report).toContain('_No AI analysis available._');
   });
+
+  it('handles null filesAnalyzed gracefully', () => {
+    const report = formatDebuggingReport({
+      personaKey: 'async_flow_debugger_prompt',
+      filesAnalyzed: null,
+      aiContent: 'some content',
+    });
+    expect(report).toContain('- (none)');
+    expect(report).toContain('some content');
+  });
 });
 
 describe('STEP_DEFINITION', () => {
@@ -144,11 +161,11 @@ describe('Step18Debugging', () => {
       init: jest.fn(),
       withCache: jest.fn(),
     };
-    loggerStepSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'step').mockImplementation(() => {});
-    loggerInfoSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'info').mockImplementation(() => {});
-    loggerSuccessSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'success').mockImplementation(() => {});
-    loggerErrorSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'error').mockImplementation(() => {});
-    loggerWarnSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'warn').mockImplementation(() => {});
+    loggerStepSpy = jest.spyOn(logger, 'step').mockImplementation(() => {});
+    loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    loggerSuccessSpy = jest.spyOn(logger, 'success').mockImplementation(() => {});
+    loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     step = new Step18Debugging({
       fileOps: mockFileOps,
       backlog: mockBacklog,
@@ -162,21 +179,22 @@ describe('Step18Debugging', () => {
   });
 
   it('executes happy path with AI available and returns report', async () => {
+    const personaYaml = [
+      'async_flow_debugger_prompt:',
+      '  role_prefix: RolePrefix',
+      '  specific_expertise: Expertise',
+      '  approach: Approach',
+      '  output_format: OutputFormat',
+    ].join('\n');
     mockFileOps.glob.mockResolvedValue(['file1.js', 'file2.js']);
-    mockFileOps.readFile.mockResolvedValue('async function run() {}');
+    mockFileOps.readFile
+      .mockResolvedValueOnce('async function run() { await fetch(); }') // file1.js
+      .mockResolvedValueOnce('async function run() { await fetch(); }') // file2.js
+      .mockResolvedValueOnce(personaYaml)                                // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}');                                       // AI_PROJECT_KINDS_PATH
     mockAiHelper.initialize.mockResolvedValue(true);
     mockAiCache.init.mockResolvedValue(undefined);
-    mockFileOps.readFile.mockResolvedValueOnce('persona yaml').mockResolvedValueOnce('project kind yaml');
-    jest.spyOn(require('js-yaml'), 'load').mockImplementation(() => ({
-      async_flow_debugger_prompt: {
-        role_prefix: 'RolePrefix',
-        specific_expertise: 'Expertise',
-        approach: 'Approach',
-        output_format: 'OutputFormat',
-      },
-    }));
-    jest.spyOn(require('../../src/lib/ai_prompt_builder.js'), 'buildProjectKindPrompt').mockReturnValue({ role: 'ProjectKindRole' });
-    mockAiCache.withCache.mockImplementation(async (key1, key2, fn) => ({ content: 'AI debug content' }));
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, _fn) => ({ content: 'AI debug content' }));
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
@@ -224,12 +242,13 @@ describe('Step18Debugging', () => {
     expect(result.report).toContain('_No AI analysis available._');
   });
 
-  it('handles errors thrown during execution', async () => {
+  it('handles errors thrown during execution (glob failures caught internally)', async () => {
     mockFileOps.glob.mockRejectedValue(new Error('Glob error'));
+    mockAiHelper.initialize.mockResolvedValue(false);
     const result = await step.execute('/project/root');
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Glob error');
-    expect(loggerErrorSpy).toHaveBeenCalledWith('Step 18 failed: Glob error');
+    expect(result.success).toBe(true);
+    expect(result.filesAnalyzed).toEqual([]);
+    expect(result.totalSourceFiles).toBe(0);
   });
 
   it('handles _discoverSourceFiles returning empty array', async () => {

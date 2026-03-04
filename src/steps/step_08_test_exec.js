@@ -8,7 +8,7 @@
 
 import { STEP_KIND } from './step_contract.js';
 import path from 'path';
-import { logger } from '../core/logger.js';
+import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
@@ -129,6 +129,7 @@ export function extractTestCommand(packageJson) {
  * @returns {Object} Parsed test results
  */
 export function parseJestOutput(output) {
+  const clean = stripAnsi(output);
   const results = {
     total: 0,
     passed: 0,
@@ -139,7 +140,7 @@ export function parseJestOutput(output) {
   };
 
   // Find the "Tests:" summary line (Jest order varies: failed, skipped, passed, total)
-  const testsLine = output.match(/^Tests:\s+.+$/m);
+  const testsLine = clean.match(/^Tests:\s+.+$/m);
   if (testsLine) {
     const line = testsLine[0];
     const passedMatch = line.match(/(\d+)\s+passed/);
@@ -154,7 +155,7 @@ export function parseJestOutput(output) {
   }
 
   // Also parse "Test Suites:" line to capture suite-level failures (e.g. module not found)
-  const suitesLine = output.match(/^Test Suites:\s+.+$/m);
+  const suitesLine = clean.match(/^Test Suites:\s+.+$/m);
   if (suitesLine) {
     const line = suitesLine[0];
     const suiteFailedMatch = line.match(/(\d+)\s+failed/);
@@ -173,6 +174,7 @@ export function parseJestOutput(output) {
  * @returns {Object} Parsed test results
  */
 export function parsePytestOutput(output) {
+  const clean = stripAnsi(output);
   const results = {
     total: 0,
     passed: 0,
@@ -181,7 +183,7 @@ export function parsePytestOutput(output) {
   };
 
   // Look for summary line: "10 passed, 2 failed, 1 skipped in 0.5s"
-  const summaryMatch = output.match(
+  const summaryMatch = clean.match(
     /(\d+)\s+passed(?:,\s+(\d+)\s+failed)?(?:,\s+(\d+)\s+skipped)?/i
   );
   if (summaryMatch) {
@@ -332,6 +334,23 @@ export function determineTestStatus(results) {
   if (results.skipped > 0) return 'warn';
   if (results.passed > 0) return 'pass';
   return 'unknown';
+}
+
+/**
+ * Check whether test runner output indicates "no test files found" rather than a real failure.
+ * Covers Jest, Vitest, and related runners that exit with code 1 when no tests exist.
+ * @pure
+ * @param {string} output - Combined stdout + stderr from test run
+ * @returns {boolean}
+ */
+export function hasNoTestsFoundMessage(output) {
+  if (!output) return false;
+  const clean = stripAnsi(output);
+  return (
+    clean.includes('No tests found') || // Jest: "No tests found, exiting with code 1"
+    clean.includes('No test files found') || // Vitest
+    clean.includes('Your test suite must contain at least one test') // Jest (empty test file)
+  );
 }
 
 // ============================================================================
@@ -496,6 +515,9 @@ export class Step8TestExecutor {
 
       // Phase 3: Parse test output
       const testResults = parseTestOutput(testResult.output, language);
+      logger.debug(
+        `[step_08] Parsed results — passed: ${testResults.passed}, failed: ${testResults.failed}, skipped: ${testResults.skipped}, total: ${testResults.total}, suitesFailed: ${testResults.suitesFailed}`
+      );
       logger.info(
         `Tests: ${testResults.passed} passed, ${testResults.failed} failed, ${testResults.skipped} skipped`
       );
@@ -516,19 +538,29 @@ export class Step8TestExecutor {
 
       // Phase 5: Generate report
       const duration = Date.now() - startTime;
-      // "no tests found" can mean two different things:
+      // "no tests found" can mean three different things:
       //   1. Jest literally found no test files → exits 1 + prints "No tests found" → warn only
-      //   2. Runner/compiler crashed before finding tests → exits 1, silent/different output → failure
-      const noTestsMessageInOutput = (testResult.output ?? '').includes('No tests found');
+      //   2. Runner/compiler crashed before finding tests → exits 1, silent/different output
+      //   3. All tests passed, no output issues
+      // "runnerCrashed" is set by runTests() when both the initial run and the --ci retry
+      // produced 0 bytes of output with a non-zero exit code, indicating the process was
+      // killed (OOM, SIGKILL) or crashed before writing anything.  We treat this the same
+      // as "no tests found" — warn and continue rather than halting the whole workflow.
+      const noTestsMessageInOutput = hasNoTestsFoundMessage(testResult.output);
+      const runnerCrashed = !!testResult.runnerCrashed;
       const noTestsFound =
         testResults.total === 0 &&
         testResults.suitesFailed === 0 &&
-        (testResult.exitCode === 0 || noTestsMessageInOutput);
+        (testResult.exitCode === 0 || noTestsMessageInOutput || runnerCrashed);
       const anyFailure =
         testResults.failed > 0 ||
         testResults.suitesFailed > 0 ||
         (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
+
+      logger.debug(
+        `[step_08] noTestsMessageInOutput: ${noTestsMessageInOutput}, runnerCrashed: ${runnerCrashed}, noTestsFound: ${noTestsFound}, anyFailure: ${anyFailure}, success: ${success}, exitCode: ${testResult.exitCode}`
+      );
 
       const results = {
         success,
@@ -640,19 +672,44 @@ export class Step8TestExecutor {
       }
 
       if (!success) {
-        logger.warn(`Step 8 completed - ${testResults.failed} test(s) failed`);
+        if (testResults.failed > 0 || testResults.suitesFailed > 0) {
+          logger.warn(
+            `Step 8 completed - ${testResults.failed} test(s) failed` +
+              (testResults.suitesFailed > 0 ? `, ${testResults.suitesFailed} suite(s) failed to run` : '')
+          );
+        } else {
+          logger.warn(
+            `Step 8 completed - test runner exited with code ${testResult.exitCode} (0 tests parsed — check output snippet above)`
+          );
+        }
       } else if (noTestsFound) {
-        logger.warn('Step 8 completed - no tests found');
-        await this.backlog.saveStepSummary(
-          8,
-          'Test Execution',
-          `${report}\n\n## ⚠️ Recommendation\n\nNo test suite was found in this project. ` +
-            `Consider adding tests to enable regression detection (Req 1 — Workflow Engine Requirements).\n` +
-            `- For Node.js: \`npm init jest\` or add a \`test\` script to \`package.json\`\n` +
-            `- For Python: add \`pytest\` and a \`tests/\` directory\n` +
-            `- For shell scripts: add \`bats\` tests\n`,
-          '⚠️'
-        );
+        if (runnerCrashed) {
+          logger.warn(
+            `Step 8 completed - test runner exited with code ${testResult.exitCode} but produced no output ` +
+              `(possible OOM kill or crash before first write). Run \`${testCommand}\` manually to investigate.`
+          );
+          await this.backlog.saveStepSummary(
+            8,
+            'Test Execution',
+            `${report}\n\n## ⚠️ Runner Crash Detected\n\n` +
+              `The test runner exited with code ${testResult.exitCode} but produced no output on either attempt.\n` +
+              `This usually indicates the process was killed (OOM, SIGKILL) before writing anything.\n\n` +
+              `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate.\n`,
+            '⚠️'
+          );
+        } else {
+          logger.warn('Step 8 completed - no tests found');
+          await this.backlog.saveStepSummary(
+            8,
+            'Test Execution',
+            `${report}\n\n## ⚠️ Recommendation\n\nNo test suite was found in this project. ` +
+              `Consider adding tests to enable regression detection (Req 1 — Workflow Engine Requirements).\n` +
+              `- For Node.js: \`npm init jest\` or add a \`test\` script to \`package.json\`\n` +
+              `- For Python: add \`pytest\` and a \`tests/\` directory\n` +
+              `- For shell scripts: add \`bats\` tests\n`,
+            '⚠️'
+          );
+        }
       } else {
         logger.success('Step 8 completed - all tests passed!');
       }
@@ -738,24 +795,55 @@ export class Step8TestExecutor {
   async runTests(projectRoot, testCommand, options = {}) {
     const timeout = options.timeout || 300000; // 5 minutes default
 
-    try {
-      const result = await this.executor.execute(testCommand, {
-        cwd: projectRoot,
-        timeout,
-        shell: true,
-      });
+    // Force non-interactive, pipe-friendly output so exec() reliably captures all
+    // stdout/stderr regardless of whether the parent process has a TTY attached.
+    // Without CI=true, Jest (and some other runners) may use ANSI cursor-control
+    // sequences or interactive progress displays that can result in 0-byte output
+    // being captured when the process exits before flushing those streams.
+    const env = { ...process.env, CI: 'true', FORCE_COLOR: '0' };
 
-      return {
-        exitCode: result.exitCode || 0,
-        output: result.stdout + result.stderr,
-      };
-    } catch (error) {
-      // Tests failed, but capture output
-      return {
-        exitCode: error.exitCode || 1,
-        output: (error.stdout || '') + (error.stderr || ''),
-      };
+    const runOnce = async (cmd) => {
+      try {
+        logger.debug(`[step_08] Running: ${cmd} (cwd: ${projectRoot}, timeout: ${timeout}ms)`);
+        const result = await this.executor.execute(cmd, {
+          cwd: projectRoot,
+          timeout,
+          shell: true,
+          env,
+        });
+        const output = (result.stdout || '') + (result.stderr || '');
+        logger.debug(`[step_08] Test runner exited 0 — output length: ${output.length} chars`);
+        logger.debug(`[step_08] Output snippet: ${output.slice(0, 400).replace(/\n/g, '↵')}`);
+        return { exitCode: result.exitCode || 0, output };
+      } catch (error) {
+        const output = (error.stdout || '') + (error.stderr || '');
+        logger.debug(
+          `[step_08] Test runner exited ${error.exitCode ?? 1} — output length: ${output.length} chars`
+        );
+        logger.debug(`[step_08] Output snippet: ${output.slice(0, 400).replace(/\n/g, '↵')}`);
+        return { exitCode: error.exitCode || 1, output };
+      }
+    };
+
+    const firstRun = await runOnce(testCommand);
+
+    // If the runner exited non-zero with no output it likely crashed before writing
+    // anything (e.g. OOM kill, ts-jest compilation panic, broken pipe).  Retry once
+    // with an explicit `--ci` flag (Jest / Vitest) to surface diagnostic output.
+    if (firstRun.output.length === 0 && firstRun.exitCode !== 0) {
+      logger.warn(
+        '[step_08] Test runner produced no output (possible crash) — retrying with --ci flag'
+      );
+      const ciCmd = testCommand.includes('jest') ? `${testCommand} --ci` : testCommand;
+      const retry = await runOnce(ciCmd);
+      if (retry.output.length > 0 || retry.exitCode === 0) {
+        return retry;
+      }
+      // Both runs produced no output — return the original result with a sentinel
+      return { ...firstRun, runnerCrashed: true };
     }
+
+    return firstRun;
   }
 
   /**

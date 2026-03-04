@@ -11,6 +11,8 @@ import {
   validateScriptReferences,
   validateShebang,
   isScriptDocumented,
+  buildDocCoverageMap,
+  formatDocCoverageMap,
   formatScriptReport,
   SCRIPT_ISSUE_TYPE,
 } from '../../src/steps/step_03_script_refs.js';
@@ -202,11 +204,99 @@ describe('Step 3: Script Reference Validation', () => {
       const readme = 'No mention of any scripts';
       expect(isScriptDocumented('build.sh', readme)).toBe(false);
     });
+
+    test('finds script in extraDocs when not in README', () => {
+      const readme = 'No scripts here';
+      const extraDocs = [{ path: 'docs/API.md', content: 'See deploy.sh for deployment' }];
+      expect(isScriptDocumented('scripts/deploy.sh', readme, extraDocs)).toBe(true);
+    });
+
+    test('returns false when not in README or extraDocs', () => {
+      const readme = 'No scripts here';
+      const extraDocs = [{ path: 'docs/API.md', content: 'Only mentions build.sh' }];
+      expect(isScriptDocumented('deploy.sh', readme, extraDocs)).toBe(false);
+    });
+
+    test('handles empty extraDocs gracefully', () => {
+      const readme = 'Use deploy.sh';
+      expect(isScriptDocumented('deploy.sh', readme, [])).toBe(true);
+    });
   });
 
   // ========================================================================
-  // PURE FUNCTIONS - Reporting
+  // PURE FUNCTIONS - Doc Coverage Map
   // ========================================================================
+
+  describe('buildDocCoverageMap', () => {
+    const docFiles = [
+      { path: 'README.md', content: 'Use deploy.sh and cdn-delivery.sh here' },
+      { path: 'docs/API.md', content: 'See scripts/deploy.sh for details' },
+    ];
+
+    test('marks script as found when mentioned in a doc file', () => {
+      const map = buildDocCoverageMap(['scripts/deploy.sh'], docFiles);
+      expect(map[0].script).toBe('scripts/deploy.sh');
+      expect(map[0].foundIn).toContain('README.md');
+      expect(map[0].foundIn).toContain('docs/API.md');
+      expect(map[0].missingFrom).toHaveLength(0);
+    });
+
+    test('marks script as missing from docs where it is absent', () => {
+      const map = buildDocCoverageMap(['cdn-delivery.sh'], docFiles);
+      expect(map[0].foundIn).toContain('README.md');
+      expect(map[0].missingFrom).toContain('docs/API.md');
+    });
+
+    test('marks script as missing from all docs when not mentioned anywhere', () => {
+      const map = buildDocCoverageMap(['colors.sh'], docFiles);
+      expect(map[0].foundIn).toHaveLength(0);
+      expect(map[0].missingFrom).toEqual(['README.md', 'docs/API.md']);
+    });
+
+    test('returns empty array for empty script list', () => {
+      expect(buildDocCoverageMap([], docFiles)).toEqual([]);
+    });
+
+    test('returns empty foundIn and missingFrom for empty docFiles', () => {
+      const map = buildDocCoverageMap(['deploy.sh'], []);
+      expect(map[0].foundIn).toHaveLength(0);
+      expect(map[0].missingFrom).toHaveLength(0);
+    });
+  });
+
+  describe('formatDocCoverageMap', () => {
+    test('formats a fully documented script correctly', () => {
+      const map = [{ script: 'deploy.sh', foundIn: ['README.md', 'docs/API.md'], missingFrom: [] }];
+      const output = formatDocCoverageMap(map);
+      expect(output).toContain('deploy.sh');
+      expect(output).toContain('documented in [README.md, docs/API.md]');
+      expect(output).not.toContain('MISSING');
+    });
+
+    test('formats a partially documented script correctly', () => {
+      const map = [{ script: 'cdn-delivery.sh', foundIn: ['README.md'], missingFrom: ['docs/API.md'] }];
+      const output = formatDocCoverageMap(map);
+      expect(output).toContain('documented in [README.md]');
+      expect(output).toContain('MISSING from [docs/API.md]');
+    });
+
+    test('formats a fully undocumented script correctly', () => {
+      const map = [{ script: 'colors.sh', foundIn: [], missingFrom: ['README.md'] }];
+      const output = formatDocCoverageMap(map);
+      expect(output).toContain('NOT found in any doc file');
+    });
+
+    test('handles multiple scripts', () => {
+      const map = [
+        { script: 'a.sh', foundIn: ['README.md'], missingFrom: [] },
+        { script: 'b.sh', foundIn: [], missingFrom: ['README.md'] },
+      ];
+      const output = formatDocCoverageMap(map);
+      expect(output).toContain('a.sh');
+      expect(output).toContain('b.sh');
+    });
+  });
+
 
   describe('formatScriptReport', () => {
     test('formats report with no issues', () => {

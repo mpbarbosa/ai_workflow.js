@@ -203,7 +203,20 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Coverage reports uploaded to Codecov" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Current coverage: 87.29%" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-summary.json ]; then
+            LINES=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.lines.pct + '%')")
+            STMTS=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.statements.pct + '%')")
+            FUNCS=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.functions.pct + '%')")
+            BRANCHES=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.branches.pct + '%')")
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | $LINES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | $STMTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Functions | $FUNCS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | $BRANCHES |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report not available" >> $GITHUB_STEP_SUMMARY
+          fi
 
   lint-staged:
     name: Lint Staged Files

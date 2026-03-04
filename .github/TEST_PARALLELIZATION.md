@@ -198,8 +198,8 @@ Use when: Generating coverage locally (faster than default)
 
 ### GitHub Actions (Current)
 
-**Runner Specs:** 2 vCPUs, 7GB RAM  
-**Optimal Config:** `--maxWorkers=2`  
+**Runner Specs:** 2 vCPUs, 7GB RAM
+**Optimal Config:** `--maxWorkers=2`
 **Expected Time:** ~5.1s
 
 ### Local Development
@@ -404,6 +404,6 @@ Reuse results for unchanged test files:
 
 ---
 
-**Last Updated:** February 7, 2026  
-**Version:** 1.0.0  
+**Last Updated:** February 7, 2026
+**Version:** 1.0.0
 **Benchmark Environment:** 14-core Intel/AMD CPU, 32GB RAM, NVMe SSD

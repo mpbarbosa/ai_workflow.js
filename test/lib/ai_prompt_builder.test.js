@@ -79,6 +79,22 @@ describe('AI Prompt Builder Module - Template Processing', () => {
 
       expect(result).toBe('Number: 42, Boolean: true');
     });
+
+    test('preserves bash ${VAR} expressions inside injected file content', () => {
+      // Regression: bash ${SCRIPT_DIR} in sample_code was being stripped by the
+      // cleanup pass that runs after substitution, corrupting shell script samples.
+      const bashContent = 'PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"\nTAG="v${PACKAGE_VERSION}"';
+      const template = 'Review this:\n{sample_code}';
+      const result = buildPromptFromTemplate(template, { sample_code: bashContent });
+      expect(result).toContain('${SCRIPT_DIR}');
+      expect(result).toContain('${PACKAGE_VERSION}');
+    });
+
+    test('removes unfilled template placeholders but not injected content', () => {
+      const template = '{filled} and {unfilled}';
+      const result = buildPromptFromTemplate(template, { filled: 'hello' });
+      expect(result).toBe('hello and ');
+    });
   });
 
   describe('injectProjectContext', () => {

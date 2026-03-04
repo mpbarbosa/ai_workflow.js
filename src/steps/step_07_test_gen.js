@@ -91,7 +91,7 @@ export const EXCLUDE_DIRS = [
  * @returns {string[]} Array of glob patterns
  */
 export function getSourcePatterns(language) {
-  const normalized = language.toLowerCase();
+  const normalized = (language || '').toLowerCase();
   return SOURCE_PATTERNS[normalized] || SOURCE_PATTERNS.javascript;
 }
 
@@ -102,7 +102,7 @@ export function getSourcePatterns(language) {
  * @returns {string[]} Array of pattern strings
  */
 export function getTestPatterns(language) {
-  const normalized = language.toLowerCase();
+  const normalized = (language || '').toLowerCase();
   return TEST_FILE_PATTERNS[normalized] || TEST_FILE_PATTERNS.javascript;
 }
 
@@ -113,6 +113,7 @@ export function getTestPatterns(language) {
  * @returns {boolean} True if file should be excluded
  */
 export function shouldExcludeFile(filePath) {
+  if (!filePath || typeof filePath !== 'string') return false;
   const fileName = path.basename(filePath);
   return EXCLUDE_FILES.includes(fileName);
 }

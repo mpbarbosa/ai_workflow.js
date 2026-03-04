@@ -65,6 +65,11 @@ describe('Step 7: Test Generation', () => {
       const patterns = getSourcePatterns('unknown');
       expect(patterns).toContain('src/**/*.js');
     });
+
+    test('defaults to JavaScript for null/undefined language', () => {
+      expect(getSourcePatterns(null)).toContain('src/**/*.js');
+      expect(getSourcePatterns(undefined)).toContain('src/**/*.js');
+    });
   });
 
   describe('getTestPatterns', () => {
@@ -90,6 +95,11 @@ describe('Step 7: Test Generation', () => {
       const patterns = getTestPatterns('unknown');
       expect(patterns).toContain('.test.js');
     });
+
+    test('defaults to JavaScript for null/undefined language', () => {
+      expect(getTestPatterns(null)).toContain('.test.js');
+      expect(getTestPatterns(undefined)).toContain('.test.js');
+    });
   });
 
   describe('shouldExcludeFile', () => {
@@ -108,6 +118,11 @@ describe('Step 7: Test Generation', () => {
     test('includes regular files', () => {
       expect(shouldExcludeFile('src/utils.js')).toBe(false);
       expect(shouldExcludeFile('src/module.py')).toBe(false);
+    });
+
+    test('returns false for null/undefined filePath', () => {
+      expect(shouldExcludeFile(null)).toBe(false);
+      expect(shouldExcludeFile(undefined)).toBe(false);
     });
   });
 

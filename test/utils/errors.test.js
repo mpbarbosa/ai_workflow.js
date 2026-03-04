@@ -139,12 +139,12 @@ describe('Error inheritance and instanceof checks', () => {
 describe('Edge cases and error scenarios', () => {
   it('should handle empty message', () => {
     const err = new WorkflowError();
-    expect(err.message).toBeUndefined();
+    expect(err.message).toBe('');
   });
 
   it('should handle non-string message', () => {
     const err = new WorkflowError(12345);
-    expect(err.message).toBe(12345);
+    expect(err.message).toBe('12345');
   });
 
   it('should handle undefined details in FileSystemError', () => {

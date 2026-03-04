@@ -1,6 +1,6 @@
 # Configuration Directory
 
-**Status:** Reserved/Deprecated  
+**Status:** Reserved/Deprecated
 **Last Updated:** 2026-02-08
 
 ## Notice
@@ -63,6 +63,6 @@ mkdir -p src/config/schemas/
 
 ---
 
-**Status:** Placeholder - Not currently used  
-**Config Module:** `src/lib/config.js` (use this instead)  
+**Status:** Placeholder - Not currently used
+**Config Module:** `src/lib/config.js` (use this instead)
 **Decision:** Keep for potential future schema/migration use

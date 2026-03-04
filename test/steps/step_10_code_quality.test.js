@@ -20,6 +20,10 @@ import {
   getAllDetectedLanguages,
   getLanguageLinterCommands,
   AI_FILES_PER_SLICE,
+  prioritizeSourceFiles,
+  buildFileContentMap,
+  formatFileContentMap,
+  buildCodeContentHash,
 } from '../../src/steps/step_10_code_quality.js';
 
 describe('Step 10: Code Quality Analysis', () => {
@@ -421,6 +425,139 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         aggregateTotals: { totalIssues: 3 },
       });
       expect(report).toContain('Languages analyzed');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - AI Prompt Context
+  // ========================================================================
+
+  describe('prioritizeSourceFiles', () => {
+    test('returns empty array for non-array input', () => {
+      expect(prioritizeSourceFiles(null)).toEqual([]);
+      expect(prioritizeSourceFiles(undefined)).toEqual([]);
+    });
+
+    test('puts src/ files before test/ files', () => {
+      const files = ['test/core/colors.test.ts', 'src/core/utils.ts', 'src/index.ts', 'test/index.test.ts'];
+      const result = prioritizeSourceFiles(files);
+      expect(result.indexOf('src/core/utils.ts')).toBeLessThan(result.indexOf('test/core/colors.test.ts'));
+      expect(result.indexOf('src/index.ts')).toBeLessThan(result.indexOf('test/index.test.ts'));
+    });
+
+    test('recognizes spec and __tests__ folders as test files', () => {
+      const files = ['spec/foo.spec.js', '__tests__/bar.test.js', 'src/foo.js'];
+      const result = prioritizeSourceFiles(files);
+      expect(result[0]).toBe('src/foo.js');
+    });
+
+    test('recognizes .test. and .spec. extensions as test files', () => {
+      const files = ['src/utils.spec.ts', 'src/core/logger.ts'];
+      const result = prioritizeSourceFiles(files);
+      expect(result[0]).toBe('src/core/logger.ts');
+    });
+
+    test('sorts alphabetically within each group', () => {
+      const files = ['src/b.ts', 'test/b.test.ts', 'src/a.ts', 'test/a.test.ts'];
+      const result = prioritizeSourceFiles(files);
+      expect(result).toEqual(['src/a.ts', 'src/b.ts', 'test/a.test.ts', 'test/b.test.ts']);
+    });
+
+    test('returns all files unchanged when no test files present', () => {
+      const files = ['src/a.ts', 'src/b.ts'];
+      expect(prioritizeSourceFiles(files)).toEqual(['src/a.ts', 'src/b.ts']);
+    });
+  });
+
+  describe('buildFileContentMap', () => {
+    const contents = {
+      'test/foo.test.ts': 'test content',
+      'src/index.ts': 'src content A',
+      'src/utils.ts': 'src content B',
+    };
+
+    test('returns empty array for empty/null input', () => {
+      expect(buildFileContentMap(null)).toEqual([]);
+      expect(buildFileContentMap({})).toEqual([]);
+    });
+
+    test('returns source files before test files', () => {
+      const result = buildFileContentMap(contents);
+      const paths = result.map((r) => r.path);
+      expect(paths.indexOf('src/index.ts')).toBeLessThan(paths.indexOf('test/foo.test.ts'));
+    });
+
+    test('respects maxFiles option', () => {
+      const result = buildFileContentMap(contents, { maxFiles: 2 });
+      expect(result.length).toBe(2);
+    });
+
+    test('truncates long content and sets truncated flag', () => {
+      const big = { 'src/big.ts': 'x'.repeat(2000) };
+      const result = buildFileContentMap(big, { maxCharsPerFile: 100 });
+      expect(result[0].excerpt.length).toBe(100);
+      expect(result[0].truncated).toBe(true);
+    });
+
+    test('sets truncated:false for short content', () => {
+      const small = { 'src/small.ts': 'short' };
+      const result = buildFileContentMap(small);
+      expect(result[0].truncated).toBe(false);
+    });
+
+    test('includes path and excerpt in each entry', () => {
+      const result = buildFileContentMap({ 'src/a.ts': 'hello' });
+      expect(result[0]).toMatchObject({ path: 'src/a.ts', excerpt: 'hello', truncated: false });
+    });
+  });
+
+  describe('formatFileContentMap', () => {
+    test('returns placeholder for empty/null input', () => {
+      expect(formatFileContentMap([])).toBe('(no source files provided)');
+      expect(formatFileContentMap(null)).toBe('(no source files provided)');
+    });
+
+    test('formats each entry with path and code block', () => {
+      const map = [{ path: 'src/a.ts', excerpt: 'const x = 1;', truncated: false }];
+      const result = formatFileContentMap(map);
+      expect(result).toContain('### src/a.ts');
+      expect(result).toContain('const x = 1;');
+    });
+
+    test('adds [truncated] note when truncated is true', () => {
+      const map = [{ path: 'src/big.ts', excerpt: 'long...', truncated: true }];
+      expect(formatFileContentMap(map)).toContain('[truncated]');
+    });
+
+    test('separates multiple files with blank line', () => {
+      const map = [
+        { path: 'src/a.ts', excerpt: 'a', truncated: false },
+        { path: 'src/b.ts', excerpt: 'b', truncated: false },
+      ];
+      expect(formatFileContentMap(map)).toContain('\n\n');
+    });
+  });
+
+  describe('buildCodeContentHash', () => {
+    test('returns 8-char string for valid input', () => {
+      const hash = buildCodeContentHash({ 'src/a.ts': 'hello' });
+      expect(hash).toMatch(/^[0-9a-f]{8}$/);
+    });
+
+    test('returns 00000000 for empty/null input', () => {
+      expect(buildCodeContentHash(null)).toBe('00000000');
+      expect(buildCodeContentHash({})).toBe('00000000');
+    });
+
+    test('same content produces same hash', () => {
+      const c = { 'src/a.ts': 'hello', 'src/b.ts': 'world' };
+      expect(buildCodeContentHash(c)).toBe(buildCodeContentHash(c));
+    });
+
+    test('different content produces different hash', () => {
+      expect(buildCodeContentHash({ 'src/a.ts': 'foo' })).not.toBe(
+        buildCodeContentHash({ 'src/a.ts': 'bar' })
+      );
     });
   });
 

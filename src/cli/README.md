@@ -1,7 +1,7 @@
 # CLI Layer
 
-**Phase:** 11 (Future Implementation)  
-**Status:** Placeholder  
+**Phase:** 11 (Future Implementation)
+**Status:** Placeholder
 **Priority:** Future Development
 
 ## Overview
@@ -109,5 +109,5 @@ await engine.run();
 
 ---
 
-**Last Updated:** 2026-02-08  
+**Last Updated:** 2026-02-08
 **Status:** Placeholder - Implementation planned for Phase 11

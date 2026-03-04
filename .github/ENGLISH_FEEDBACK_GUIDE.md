@@ -1,8 +1,8 @@
 # English Feedback Guide for GitHub Copilot CLI
 
-**Purpose**: Improve English language skills while using GitHub Copilot  
-**Target Audience**: Non-native English speakers (especially Portuguese speakers)  
-**Activation**: On-demand with `[[ENGLISH-FEEDBACK]]` keyword  
+**Purpose**: Improve English language skills while using GitHub Copilot
+**Target Audience**: Non-native English speakers (especially Portuguese speakers)
+**Activation**: On-demand with `[[ENGLISH-FEEDBACK]]` keyword
 **Last Updated**: 2026-02-13
 
 ---
@@ -509,7 +509,7 @@ Portuguese allows dropping subject pronouns. English requires explicit subjects.
 
 **Adjective placement:**
 
-Portuguese: noun + adjective  
+Portuguese: noun + adjective
 English: adjective + noun
 
 ```
@@ -702,18 +702,18 @@ If you answered "yes" to 3+ questions, use `[[ENGLISH-FEEDBACK]]`!
 
 ## 📝 Summary
 
-**Activation**: `[[ENGLISH-FEEDBACK]]` at start of prompt  
-**Coverage**: Grammar, vocabulary, clarity, style  
-**Language**: English only (immersive learning)  
-**Format**: Structured, easy-to-scan feedback  
-**Target**: Non-native speakers (especially Portuguese)  
+**Activation**: `[[ENGLISH-FEEDBACK]]` at start of prompt
+**Coverage**: Grammar, vocabulary, clarity, style
+**Language**: English only (immersive learning)
+**Format**: Structured, easy-to-scan feedback
+**Target**: Non-native speakers (especially Portuguese)
 **Goal**: Improve English while working with Copilot
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: 2026-02-13  
-**Maintainer**: GitHub Copilot CLI Team  
+**Version**: 1.0
+**Last Updated**: 2026-02-13
+**Maintainer**: GitHub Copilot CLI Team
 **License**: Internal Use Only
 
 ---

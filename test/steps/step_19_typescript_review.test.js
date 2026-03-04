@@ -1,0 +1,388 @@
+// test/steps/step_19_typescript_review.test.js
+
+import {
+  isTypeScriptProject,
+  scoreTypeScriptIssues,
+  formatTypeScriptReport,
+  Step19TypescriptReview,
+  STEP_DEFINITION,
+} from '../../src/steps/step_19_typescript_review.js';
+
+// ============================================================================
+// Pure function: isTypeScriptProject
+// ============================================================================
+
+describe('isTypeScriptProject', () => {
+  it('returns true for .ts files', () => {
+    expect(isTypeScriptProject(['src/index.ts', 'src/utils.js'])).toBe(true);
+  });
+
+  it('returns true for .tsx files', () => {
+    expect(isTypeScriptProject(['src/App.tsx'])).toBe(true);
+  });
+
+  it('returns true for .mts and .cts files', () => {
+    expect(isTypeScriptProject(['src/module.mts'])).toBe(true);
+    expect(isTypeScriptProject(['src/module.cts'])).toBe(true);
+  });
+
+  it('returns false for JavaScript-only projects', () => {
+    expect(isTypeScriptProject(['src/index.js', 'src/utils.mjs'])).toBe(false);
+  });
+
+  it('returns false for empty file list', () => {
+    expect(isTypeScriptProject([])).toBe(false);
+  });
+
+  it('is case-insensitive for extensions', () => {
+    expect(isTypeScriptProject(['src/Component.TSX'])).toBe(true);
+    expect(isTypeScriptProject(['src/module.TS'])).toBe(true);
+  });
+});
+
+// ============================================================================
+// Pure function: scoreTypeScriptIssues
+// ============================================================================
+
+describe('scoreTypeScriptIssues', () => {
+  it('counts explicit any annotations', () => {
+    const files = ['const x: any = 1;', 'function foo(bar: any) {}'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.anyCount).toBe(2);
+  });
+
+  it('counts "as any" assertions', () => {
+    const files = ['const x = getValue() as any;', 'return result as any;'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.anyCount).toBe(2);
+  });
+
+  it('counts @ts-ignore directives', () => {
+    const files = ['// @ts-ignore\nconst x = badCall();'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.tsIgnoreCount).toBe(1);
+  });
+
+  it('counts @ts-nocheck directives', () => {
+    const files = ['// @ts-nocheck\nimport something from "lib";'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.tsIgnoreCount).toBe(1);
+  });
+
+  it('counts functions missing return types', () => {
+    const files = [
+      'export function doWork(x: number) {\n  return x;\n}',
+      'export async function fetchData(url: string) {\n  return fetch(url);\n}',
+    ];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.missingReturnTypeCount).toBe(2);
+  });
+
+  it('returns zero counts for clean TypeScript', () => {
+    const files = ['const x: string = "hello";\nexport function greet(name: string): string { return name; }'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.anyCount).toBe(0);
+    expect(score.tsIgnoreCount).toBe(0);
+    // missingReturnTypeCount may be 0 because the function has ): string
+    expect(score.totalIssues).toBe(score.anyCount + score.tsIgnoreCount + score.missingReturnTypeCount);
+  });
+
+  it('calculates totalIssues as sum of all counts', () => {
+    const files = [': any', 'as any', '@ts-ignore', 'export function f(x: any) {'];
+    const score = scoreTypeScriptIssues(files);
+    expect(score.totalIssues).toBe(score.anyCount + score.tsIgnoreCount + score.missingReturnTypeCount);
+  });
+
+  it('handles empty file array', () => {
+    const score = scoreTypeScriptIssues([]);
+    expect(score.anyCount).toBe(0);
+    expect(score.tsIgnoreCount).toBe(0);
+    expect(score.missingReturnTypeCount).toBe(0);
+    expect(score.totalIssues).toBe(0);
+  });
+});
+
+// ============================================================================
+// Pure function: formatTypeScriptReport
+// ============================================================================
+
+describe('formatTypeScriptReport', () => {
+  it('returns skipped message when skipped=true', () => {
+    const report = formatTypeScriptReport({ skipped: true });
+    expect(report).toContain('Step 19: TypeScript Review');
+    expect(report).toContain('step skipped');
+    expect(report).not.toContain('Strider');
+  });
+
+  it('includes Strider heading in normal report', () => {
+    const report = formatTypeScriptReport({
+      filesAnalyzed: ['src/index.ts'],
+      aiContent: 'Looks good.',
+    });
+    expect(report).toContain('Strider');
+    expect(report).toContain('Looks good.');
+  });
+
+  it('lists analyzed files', () => {
+    const report = formatTypeScriptReport({
+      filesAnalyzed: ['src/a.ts', 'src/b.tsx'],
+      aiContent: '',
+    });
+    expect(report).toContain('- src/a.ts');
+    expect(report).toContain('- src/b.tsx');
+  });
+
+  it('shows (none) when no files analyzed', () => {
+    const report = formatTypeScriptReport({ filesAnalyzed: [], aiContent: '' });
+    expect(report).toContain('- (none)');
+  });
+
+  it('shows placeholder when no AI content', () => {
+    const report = formatTypeScriptReport({ filesAnalyzed: ['src/x.ts'], aiContent: '' });
+    expect(report).toContain('_No AI analysis available._');
+  });
+
+  it('includes issue score table when provided', () => {
+    const issueScore = { anyCount: 3, tsIgnoreCount: 1, missingReturnTypeCount: 5, totalIssues: 9 };
+    const report = formatTypeScriptReport({
+      filesAnalyzed: ['src/x.ts'],
+      aiContent: 'Analysis done.',
+      issueScore,
+    });
+    expect(report).toContain('Issue Score');
+    expect(report).toContain('| 3 |');
+    expect(report).toContain('| 1 |');
+    expect(report).toContain('| 5 |');
+    expect(report).toContain('**9**');
+  });
+
+  it('omits issue score table when issueScore is null', () => {
+    const report = formatTypeScriptReport({
+      filesAnalyzed: ['src/x.ts'],
+      aiContent: 'AI output',
+      issueScore: null,
+    });
+    expect(report).not.toContain('Issue Score');
+  });
+});
+
+// ============================================================================
+// STEP_DEFINITION
+// ============================================================================
+
+describe('STEP_DEFINITION', () => {
+  it('has correct id', () => {
+    expect(STEP_DEFINITION.id).toBe('step_19');
+  });
+
+  it('has correct name', () => {
+    expect(STEP_DEFINITION.name).toBe('TypeScript Review');
+  });
+
+  it('has a kind property', () => {
+    expect(STEP_DEFINITION).toHaveProperty('kind');
+  });
+
+  it('has a description', () => {
+    expect(typeof STEP_DEFINITION.description).toBe('string');
+    expect(STEP_DEFINITION.description.length).toBeGreaterThan(0);
+  });
+
+  it('depends on step_18', () => {
+    expect(STEP_DEFINITION.dependencies).toContain('step_18');
+  });
+});
+
+// ============================================================================
+// Step19TypescriptReview (integration / wrapper)
+// ============================================================================
+
+describe('Step19TypescriptReview', () => {
+  let mockFileOps, mockBacklog, mockAiHelper, mockAiCache, step;
+  let loggerStepSpy, loggerInfoSpy, loggerSuccessSpy, loggerErrorSpy, loggerWarnSpy;
+
+  beforeEach(() => {
+    mockFileOps = {
+      readFile: jest.fn(),
+      glob: jest.fn(),
+    };
+    mockBacklog = {
+      saveStepSummary: jest.fn().mockResolvedValue(undefined),
+    };
+    mockAiHelper = {
+      initialize: jest.fn(),
+      executeRequest: jest.fn(),
+    };
+    mockAiCache = {
+      init: jest.fn().mockResolvedValue(undefined),
+      withCache: jest.fn(),
+    };
+    loggerStepSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'step').mockImplementation(() => {});
+    loggerInfoSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'info').mockImplementation(() => {});
+    loggerSuccessSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'success').mockImplementation(() => {});
+    loggerErrorSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'error').mockImplementation(() => {});
+    loggerWarnSpy = jest.spyOn(require('../../src/core/logger.js').logger, 'warn').mockImplementation(() => {});
+
+    step = new Step19TypescriptReview({
+      fileOps: mockFileOps,
+      backlog: mockBacklog,
+      aiHelper: mockAiHelper,
+      aiCache: mockAiCache,
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('skips when no TypeScript files are found', async () => {
+    mockFileOps.glob.mockResolvedValue([]);
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.filesAnalyzed).toEqual([]);
+    expect(result.totalTsFiles).toBe(0);
+    expect(result.report).toContain('step skipped');
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining('skipping'));
+    expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
+  });
+
+  it('executes happy path with AI available and returns report', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts', 'src/utils.tsx']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('const x: any = 1; // @ts-ignore\nexport async function go() {}')  // file content for index.ts
+      .mockResolvedValueOnce('export function greet(): string { return "hi"; }')                 // file content for utils.tsx
+      .mockResolvedValueOnce(                                                                    // ai_helpers.yaml
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
+      );
+
+    jest.spyOn(require('js-yaml'), 'load').mockReturnValue({
+      typescript_developer_prompt: {
+        role_prefix: 'You are Strider, a Senior TypeScript Developer.',
+        task_template: 'Review {project_name} ({project_kind}) with {modified_count} files.',
+        approach: 'Type-first methodology.',
+      },
+    });
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => ({ content: 'Great TypeScript!' }));
+
+    const result = await step.execute('/project/root', { projectName: 'MyApp', projectKind: 'nodejs_api' });
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBeUndefined();
+    expect(result.filesAnalyzed).toEqual(['src/index.ts', 'src/utils.tsx']);
+    expect(result.totalTsFiles).toBe(2);
+    expect(result.aiContent).toBe('Great TypeScript!');
+    expect(result.report).toContain('Great TypeScript!');
+    expect(result.issueScore).toBeDefined();
+    expect(loggerSuccessSpy).toHaveBeenCalledWith('Step 19 completed - TypeScript review report generated');
+    expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(19, 'TypeScript_Review', expect.any(String));
+  });
+
+  it('executes with AI unavailable and returns report without AI content', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/app.ts']);
+    mockFileOps.readFile.mockResolvedValue('const x: string = "hi";');
+    mockAiHelper.initialize.mockResolvedValue(false);
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.aiContent).toBe('');
+    expect(result.report).toContain('_No AI analysis available._');
+    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining('AI helper not available'));
+    expect(loggerInfoSpy).toHaveBeenCalledWith('Step 19 completed - no AI content (AI unavailable or prompt missing)');
+  });
+
+  it('uses options.sourceFiles if provided', async () => {
+    mockAiHelper.initialize.mockResolvedValue(false);
+    mockFileOps.readFile.mockResolvedValue('');
+
+    const result = await step.execute('/project/root', { sourceFiles: ['lib/foo.ts', 'lib/bar.tsx'] });
+
+    expect(result.success).toBe(true);
+    expect(result.filesAnalyzed).toEqual(['lib/foo.ts', 'lib/bar.tsx']);
+    expect(mockFileOps.glob).not.toHaveBeenCalled();
+  });
+
+  it('handles file read errors gracefully during content sampling', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/a.ts', 'src/b.ts']);
+    mockFileOps.readFile.mockRejectedValue(new Error('Read error'));
+    mockAiHelper.initialize.mockResolvedValue(false);
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.filesAnalyzed).toEqual(['src/a.ts', 'src/b.ts']);
+    expect(result.aiContent).toBe('');
+  });
+
+  it('handles AI prompt build errors gracefully', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('const x: any = 1;')
+      .mockRejectedValue(new Error('YAML read error'));
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.aiContent).toBe('');
+    expect(loggerWarnSpy).toHaveBeenCalledWith(expect.stringContaining('TypeScript AI review skipped'));
+  });
+
+  it('handles errors thrown during execution', async () => {
+    mockFileOps.glob.mockRejectedValue(new Error('Glob failure'));
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Glob failure');
+    expect(loggerErrorSpy).toHaveBeenCalledWith('Step 19 failed: Glob failure');
+  });
+
+  it('limits discovered files to 100 unique', async () => {
+    const files = Array.from({ length: 120 }, (_, i) => `src/file${i}.ts`);
+    mockFileOps.glob.mockResolvedValue(files);
+    mockAiHelper.initialize.mockResolvedValue(false);
+    mockFileOps.readFile.mockResolvedValue('');
+
+    const result = await step.execute('/project/root');
+
+    expect(result.totalTsFiles).toBe(100);
+  });
+
+  it('samples only up to 20 files for AI analysis', async () => {
+    const files = Array.from({ length: 50 }, (_, i) => `src/file${i}.ts`);
+    mockFileOps.glob.mockResolvedValue(files);
+    mockAiHelper.initialize.mockResolvedValue(false);
+    mockFileOps.readFile.mockResolvedValue('');
+
+    const result = await step.execute('/project/root');
+
+    expect(result.filesAnalyzed.length).toBe(20);
+    expect(result.totalTsFiles).toBe(50);
+  });
+
+  it('falls back to buildYamlStepPrompt when persona config is not an object', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('') // file content
+      .mockResolvedValueOnce('typescript_developer_prompt: null'); // ai_helpers.yaml
+
+    jest.spyOn(require('js-yaml'), 'load').mockReturnValue({
+      typescript_developer_prompt: null,
+    });
+    jest.spyOn(require('../../src/lib/ai_prompt_builder.js'), 'buildYamlStepPrompt').mockReturnValue('fallback prompt');
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => ({ content: 'Fallback AI output' }));
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.aiContent).toBe('Fallback AI output');
+  });
+});
