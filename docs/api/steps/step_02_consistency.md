@@ -202,7 +202,7 @@ Extract all links from markdown content.
 const markdown = `
 # Documentation
 
-See [API Reference](api/README.md) for details.
+See [API Reference](../README.md) for details.
 Visit <https://example.com> for more info.
 Check [guide][user-guide] for usage.
 

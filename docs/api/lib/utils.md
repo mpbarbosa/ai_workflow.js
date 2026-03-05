@@ -175,4 +175,4 @@ const path = normalizePath('docs/api/lib'); // Cross-platform normalized
 
 - Source: `src/lib/utils.js` (551 LOC)
 - Tests: `test/lib/utils.test.js` (354 tests)
-- Architecture: [Pure Functions](../architecture/DESIGN_PRINCIPLES.md)
+- Architecture: [Pure Functions](../../architecture/DESIGN_PRINCIPLES.md)

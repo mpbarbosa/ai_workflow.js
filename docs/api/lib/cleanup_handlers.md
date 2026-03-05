@@ -207,4 +207,4 @@ Example cleanup report:
 
 - Source: `src/lib/cleanup_handlers.js` (589 LOC)
 - Tests: `test/lib/cleanup_handlers.test.js` (43 tests)
-- Architecture: [Referential Transparency](../architecture/DESIGN_PRINCIPLES.md)
+- Architecture: [Referential Transparency](../../architecture/DESIGN_PRINCIPLES.md)

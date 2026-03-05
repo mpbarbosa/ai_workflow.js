@@ -158,4 +158,4 @@ Example metrics JSON:
 
 - Source: `src/lib/metrics.js` (475 LOC)
 - Tests: `test/lib/metrics.test.js` (174 tests)
-- Architecture: [Referential Transparency](../architecture/DESIGN_PRINCIPLES.md)
+- Architecture: [Referential Transparency](../../architecture/DESIGN_PRINCIPLES.md)
