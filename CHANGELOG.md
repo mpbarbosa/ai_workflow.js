@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-02-25
+### Added
+
+- **Streaming Copilot responses** (`src/lib/copilot_sdk_wrapper.js`, `src/lib/ai_helpers.js`): Copilot prompt responses can now be streamed token-by-token. Pass `streaming: true` to `CopilotSdkWrapper` (creates the session with `streaming: true` per SDK requirements) and call `executeRequest(prompt, { stream: true }, onChunk)` on `AiHelper` where `onChunk(delta)` receives each content fragment as it arrives. The final resolved value is identical to non-streaming mode, so all downstream validation, caching, and logging are unchanged. Non-streaming callers are unaffected.
+
+### Fixed
+
+- **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9`. That package's devDependency `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry (latest available is `0.3.31`), causing `npm install` to fail with `ETARGET`. The override pins the package to an existing version until `olinda_shell_interface.js` fixes its `typedoc` dependency.
+
+## [1.5.1] - 2026-02-25
 
 ### Fixed
 
@@ -194,7 +202,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 
 ---
 
-## [1.5.0] - 2026-02-10 (Pre-Release)
+## [1.5.1] - 2026-02-10 (Pre-Release)
 
 ### Added
 
@@ -220,7 +228,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - All 20 workflow steps now complete (~11,025 total lines of step code)
 - Migration plan updated to Phase 9 COMPLETE status
 - README updated with Phase 9 completion milestone
-- Project version bumped to 1.5.0
+- Project version bumped to 1.5.1
 
 ### Status
 
@@ -228,7 +236,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Phase 10**: Main Orchestrator - NEXT
 - **Test Coverage**: 99.5% pass rate (18 skipped tests)
 
-## [1.5.0] - 2026-02-09
+## [1.5.1] - 2026-02-09
 
 ### Completed
 
@@ -459,7 +467,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Test Count**: Updated from 695 to 942 total tests (28 error module tests + 219 Phase 5 git integration tests)
 - **Phase Status**: Phase 5 (Git Integration) now complete with 4 new modules
 
-## [1.5.0] - 2026-02-01
+## [1.5.1] - 2026-02-01
 
 ### Added - Phase 4 (COMPLETE)
 

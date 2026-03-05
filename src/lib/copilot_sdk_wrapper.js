@@ -36,16 +36,18 @@ export class CopilotSdkWrapper {
   _model;
   _timeout;
   _workingDirectory;
+  _streaming;
   _client;
   _session;
   _authenticated;
   _availableModels;
   /** Serialises concurrent send() calls — the SDK does not support simultaneous sendAndWait. */
   _sendQueue;
-  constructor({ model, timeout, workingDirectory } = {}) {
+  constructor({ model, timeout, workingDirectory, streaming = false } = {}) {
     this._model = model;
     this._timeout = timeout;
     this._workingDirectory = workingDirectory;
+    this._streaming = streaming;
     this._client = null;
     this._session = null;
     this._authenticated = false;
@@ -111,6 +113,9 @@ export class CopilotSdkWrapper {
         if (this._workingDirectory) {
           sessionConfig.workingDirectory = this._workingDirectory;
         }
+        if (this._streaming) {
+          sessionConfig.streaming = true;
+        }
         this._session = await this._client.createSession(sessionConfig);
       }
     } catch (error) {
@@ -168,6 +173,7 @@ export class CopilotSdkWrapper {
     this._session = await this._client.createSession({
       model: this._model,
       ...(this._workingDirectory ? { workingDirectory: this._workingDirectory } : {}),
+      ...(this._streaming ? { streaming: true } : {}),
     });
     // Reset the send queue so the fresh session isn't blocked by stale entries.
     this._sendQueue = Promise.resolve();
@@ -204,6 +210,30 @@ export class CopilotSdkWrapper {
       }
     }
   }
+  /**
+   * Sends a prompt and streams the response via an `onChunk` callback.
+   * Requests are serialised — concurrent callers wait their turn.
+   *
+   * The session must have been created with `streaming: true` (pass `streaming: true`
+   * to the constructor). Each delta content chunk is delivered to `onChunk` as it
+   * arrives; the method resolves with the same `event.data` shape as `send()` once
+   * the session goes idle, so callers can switch between streaming and non-streaming
+   * without changing their response-handling code.
+   *
+   * @param prompt    - The prompt text.
+   * @param onChunk   - Called with each `deltaContent` string as it arrives.
+   * @param timeoutMs - Override the default timeout (ms).
+   * @returns Raw event data from the SDK (full assembled response).
+   * @throws {@link SystemError} If no active session exists.
+   */
+  async sendStream(prompt, onChunk, timeoutMs) {
+    if (!this._session) {
+      throw new SystemError('No active session. Call initialize() first.');
+    }
+    const result = this._sendQueue.then(() => this._doSendStream(prompt, onChunk, timeoutMs));
+    this._sendQueue = result.catch(() => {});
+    return result;
+  }
   // --------------------------------------------------------------------------
   // Private helpers
   // --------------------------------------------------------------------------
@@ -212,5 +242,21 @@ export class CopilotSdkWrapper {
     const timeout = timeoutMs ?? this._timeout;
     const event = await this._session.sendAndWait({ prompt }, timeout);
     return event?.data ?? { content: '', success: false };
+  }
+  /** Performs a single streaming sendAndWait call, forwarding deltas to onChunk. */
+  async _doSendStream(prompt, onChunk, timeoutMs) {
+    const timeout = timeoutMs ?? this._timeout;
+    const chunks = [];
+    const unsubscribeDelta = this._session.on('assistant.message_delta', (event) => {
+      const delta = event?.data?.deltaContent ?? '';
+      if (delta) chunks.push(delta);
+      if (typeof onChunk === 'function') onChunk(delta);
+    });
+    try {
+      const event = await this._session.sendAndWait({ prompt }, timeout);
+      return event?.data ?? { content: chunks.join(''), success: true };
+    } finally {
+      if (typeof unsubscribeDelta === 'function') unsubscribeDelta();
+    }
   }
 }

@@ -1,0 +1,34 @@
+[2026-03-05T17:58:12.283Z] 
+→ Starting: Version Update
+[2026-03-05T17:58:12.283Z] ════════════════════════════════════════════════════════════
+[2026-03-05T17:58:12.283Z] 🔷  Step 16: Version Update
+[2026-03-05T17:58:12.283Z] ════════════════════════════════════════════════════════════
+[2026-03-05T17:58:12.283Z] Phase 1: Detecting current version...
+[2026-03-05T17:58:12.284Z] ✓ Current version: 1.5.0
+[2026-03-05T17:58:12.284Z] Phase 2: Determining bump type...
+[2026-03-05T17:58:12.284Z] Heuristic bump type: patch
+[2026-03-05T17:58:14.768Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-05T17:58:14.768Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-05T17:58:14.778Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-05T17:58:14.926Z] [DEBUG] Cache miss: ffda75be...
+[2026-03-05T17:58:14.926Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"devops_engineer","cache":true}
+[2026-03-05T17:58:14.926Z] [DEBUG] Persona: devops_engineer
+[2026-03-05T17:58:14.926Z] [DEBUG] Model: gpt-4.1
+[2026-03-05T17:58:14.926Z] [AI] SDK call starting — persona: devops_engineer, model: gpt-4.1, prompt_chars: 2326
+[2026-03-05T17:58:14.926Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-05T17:58:19.313Z] [AI] SDK call completed — persona: devops_engineer, model: gpt-4.1, response_chars: 414, latency: 4387ms
+[2026-03-05T17:58:19.314Z] ✓ AI request completed successfully
+[2026-03-05T17:58:19.314Z] [DEBUG] Prompt logged to: 2026-03-05T17-58-19-314Z_0001_devops_engineer.md
+[2026-03-05T17:58:19.317Z] [DEBUG] Response cached: ffda75be...
+[2026-03-05T17:58:19.317Z] AI refined bump type: patch (was: patch, confidence: high)
+[2026-03-05T17:58:19.318Z] [VERSION BUMP] previous: 1.5.0 → next: 1.5.1 (patch)
+[2026-03-05T17:58:19.318Z] ✓ New version: 1.5.0 → 1.5.1
+[2026-03-05T17:58:19.318Z] Phase 3: Updating versions in files...
+[2026-03-05T17:58:19.334Z] Version scan found 18 file(s) referencing 1.5.0
+[2026-03-05T17:58:19.340Z] ✓ Updated 18 files, skipped 14, failed 0
+[2026-03-05T17:58:19.341Z] ✓ Step 16: Version update completed
+[2026-03-05T17:58:19.341Z] ✓ Step step_16 completed in 7058ms
+[2026-03-05T17:58:19.341Z] [DEBUG] [Performance] step_16: 7.1s
+[2026-03-05T17:58:19.341Z] ⚠ [WARNING] Operation 'step_16' took 7.1s (memory: 34.1MB)
+[2026-03-05T17:58:19.341Z] [DEBUG] Recorded outcome for step_16: success
+[2026-03-05T17:58:19.341Z] ✓ Completed: Version Update (7s)

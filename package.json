@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -90,6 +90,9 @@
     "registry": "https://registry.npmjs.org/"
   },
   "private": true,
+  "overrides": {
+    "@jridgewell/trace-mapping": "0.3.31"
+  },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.18",
     "chalk": "^5.6.2",

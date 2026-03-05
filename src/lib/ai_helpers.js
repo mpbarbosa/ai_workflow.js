@@ -702,13 +702,15 @@ export class AiHelper {
    * @param {string} [options.model] - Model to use
    * @param {number} [options.temperature] - Temperature (0-1)
    * @param {number} [options.maxTokens] - Max tokens
+   * @param {boolean} [options.stream=false] - Enable streaming mode
    * @param {boolean} [options.validate=true] - Validate response
+   * @param {Function} [onChunk] - Called with each delta string when streaming
    * @returns {Promise<Object>} Response object
    *
    * @throws {ValidationError} If validation fails
    * @throws {SystemError} If SDK errors occur
    */
-  async executeRequest(prompt, options = {}) {
+  async executeRequest(prompt, options = {}, onChunk = null) {
     if (!this.isAvailable()) {
       throw new SystemError('AI helper not available. Initialize first.');
     }
@@ -737,11 +739,18 @@ export class AiHelper {
         logger.debug(`Executing AI request (attempt ${attempt + 1}/${this.config.maxRetries})`);
         const callStart = Date.now();
 
-        // Execute request via SDK
-        const rawResponse = await this._wrapper.send(
-          prompt,
-          requestOptions.timeout || this.config.timeout
-        );
+        // Execute request via SDK — stream if onChunk provided and stream option is set
+        const useStreaming = requestOptions.stream === true && typeof onChunk === 'function';
+        const rawResponse = useStreaming
+          ? await this._wrapper.sendStream(
+              prompt,
+              onChunk,
+              requestOptions.timeout || this.config.timeout
+            )
+          : await this._wrapper.send(
+              prompt,
+              requestOptions.timeout || this.config.timeout
+            );
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);

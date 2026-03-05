@@ -932,6 +932,63 @@ describe('AiHelper class methods', () => {
         helper.executeRequest('test prompt that will fail with error')
       ).rejects.toBeDefined();
     });
+
+    // ── streaming path ──────────────────────────────────────────────────────
+
+    test('uses sendStream when stream:true and onChunk provided', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      const sendStream = jest.fn().mockResolvedValue('Streamed response content here.');
+      helper._wrapper = {
+        send: jest.fn(),
+        sendStream,
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      const onChunk = jest.fn();
+      const result = await helper.executeRequest('stream me', { stream: true }, onChunk);
+      expect(sendStream).toHaveBeenCalledWith(
+        'stream me',
+        onChunk,
+        expect.any(Number)
+      );
+      expect(helper._wrapper.send).not.toHaveBeenCalled();
+      expect(result).toHaveProperty('success', true);
+    });
+
+    test('uses send (non-streaming) when stream:true but no onChunk', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      const send = jest.fn().mockResolvedValue('Non-streamed response content here.');
+      helper._wrapper = {
+        send,
+        sendStream: jest.fn(),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      const result = await helper.executeRequest('no chunk', { stream: true });
+      expect(send).toHaveBeenCalled();
+      expect(helper._wrapper.sendStream).not.toHaveBeenCalled();
+      expect(result).toHaveProperty('success', true);
+    });
+
+    test('uses send when stream:false even if onChunk provided', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      const send = jest.fn().mockResolvedValue('Response content for non-streaming test.');
+      helper._wrapper = {
+        send,
+        sendStream: jest.fn(),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      await helper.executeRequest('non-stream', { stream: false }, jest.fn());
+      expect(send).toHaveBeenCalled();
+      expect(helper._wrapper.sendStream).not.toHaveBeenCalled();
+    });
   });
 
   // ── executeBatch() ─────────────────────────────────────────────────────────

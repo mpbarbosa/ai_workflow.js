@@ -19,6 +19,7 @@ const mockSession = {
   sendAndWait: jest.fn(),
   destroy: jest.fn(),
   abort: jest.fn(),
+  on: jest.fn(),
 };
 
 const mockClient = {
@@ -64,6 +65,7 @@ function resetMocks() {
   mockSession.sendAndWait.mockResolvedValue({ data: { content: 'hello', success: true } });
   mockSession.destroy.mockResolvedValue(undefined);
   mockSession.abort.mockResolvedValue(undefined);
+  mockSession.on.mockReturnValue(() => {}); // returns unsubscribe fn
 }
 
 // ==============================================================================
@@ -416,5 +418,143 @@ describe('CopilotSdkWrapper — cleanup()', () => {
     const wrapper = makeWrapper();
     await expect(wrapper.cleanup()).resolves.toBeUndefined();
     expect(mockClient.stop).not.toHaveBeenCalled();
+  });
+});
+
+// ==============================================================================
+// CopilotSdkWrapper — streaming (constructor flag + sendStream)
+// ==============================================================================
+
+describe('CopilotSdkWrapper — streaming: createSession flag', () => {
+  beforeEach(resetMocks);
+
+  test('createSession called without streaming when streaming=false (default)', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ streaming: true })
+    );
+  });
+
+  test('createSession called with streaming:true when streaming=true', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ streaming: true })
+    );
+  });
+
+  test('recreateSession preserves streaming:true', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ streaming: true })
+    );
+  });
+
+  test('recreateSession does not set streaming when streaming=false', async () => {
+    const wrapper = makeWrapper({ streaming: false });
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ streaming: true })
+    );
+  });
+});
+
+describe('CopilotSdkWrapper — sendStream', () => {
+  beforeEach(resetMocks);
+
+  test('throws SystemError when session is not initialised', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await expect(wrapper.sendStream('hello', () => {})).rejects.toThrow('No active session');
+  });
+
+  test('delivers delta chunks to onChunk callback', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+
+    // Simulate session.on registering a handler that we invoke manually
+    let deltaHandler = null;
+    mockSession.on.mockImplementation((eventType, handler) => {
+      if (eventType === 'assistant.message_delta') deltaHandler = handler;
+      return () => {};
+    });
+    mockSession.sendAndWait.mockImplementation(async () => {
+      // Fire two delta events before resolving
+      deltaHandler?.({ data: { deltaContent: 'Hello' } });
+      deltaHandler?.({ data: { deltaContent: ' world' } });
+      return { data: { content: 'Hello world', success: true } };
+    });
+
+    const chunks = [];
+    const result = await wrapper.sendStream('prompt', (chunk) => chunks.push(chunk));
+
+    expect(chunks).toEqual(['Hello', ' world']);
+    expect(result).toEqual({ content: 'Hello world', success: true });
+  });
+
+  test('unsubscribes delta listener after successful call', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+
+    const unsubscribe = jest.fn();
+    mockSession.on.mockReturnValue(unsubscribe);
+    mockSession.sendAndWait.mockResolvedValue({ data: { content: 'ok', success: true } });
+
+    await wrapper.sendStream('prompt', () => {});
+    expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  test('unsubscribes delta listener even when sendAndWait throws', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+
+    const unsubscribe = jest.fn();
+    mockSession.on.mockReturnValue(unsubscribe);
+    mockSession.sendAndWait.mockRejectedValue(new Error('timeout'));
+
+    await expect(wrapper.sendStream('prompt', () => {})).rejects.toThrow('timeout');
+    expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  test('returns assembled content fallback when event.data is null', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+
+    let deltaHandler = null;
+    mockSession.on.mockImplementation((eventType, handler) => {
+      if (eventType === 'assistant.message_delta') deltaHandler = handler;
+      return () => {};
+    });
+    mockSession.sendAndWait.mockImplementation(async () => {
+      deltaHandler?.({ data: { deltaContent: 'chunk1' } });
+      deltaHandler?.({ data: { deltaContent: 'chunk2' } });
+      return null; // SDK returns null
+    });
+
+    const result = await wrapper.sendStream('prompt', () => {});
+    expect(result).toEqual({ content: 'chunk1chunk2', success: true });
+  });
+
+  test('serialises concurrent sendStream calls', async () => {
+    const wrapper = makeWrapper({ streaming: true });
+    await wrapper.initialize();
+
+    mockSession.on.mockReturnValue(() => {});
+    const order = [];
+    mockSession.sendAndWait
+      .mockImplementationOnce(async () => { order.push(1); return { data: { content: 'a', success: true } }; })
+      .mockImplementationOnce(async () => { order.push(2); return { data: { content: 'b', success: true } }; });
+
+    await Promise.all([
+      wrapper.sendStream('p1', () => {}),
+      wrapper.sendStream('p2', () => {}),
+    ]);
+
+    expect(order).toEqual([1, 2]);
   });
 });
