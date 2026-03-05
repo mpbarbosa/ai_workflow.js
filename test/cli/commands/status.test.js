@@ -91,3 +91,54 @@ describe('Status Command - Pure Functions', () => {
     });
   });
 });
+
+describe('Status Command - additional branch coverage', () => {
+  describe('formatWorkflowStatus — missing metadata fields', () => {
+    test('renders defaults when checkpoint has no metadata', () => {
+      const status = {
+        checkpoints: [
+          {
+            workflowId: 'wf-bare',
+            timestamp: Date.now(),
+            state: {},
+            // no metadata
+          },
+        ],
+      };
+      const result = formatWorkflowStatus(status);
+      expect(result).toContain('wf-bare');
+      expect(result).toContain('0%');
+      expect(result).toContain('0/0');
+    });
+
+    test('omits Recent Metrics section when metrics is absent', () => {
+      const status = {
+        checkpoints: [
+          {
+            workflowId: 'wf-no-metrics',
+            timestamp: Date.now(),
+            state: { completedSteps: [] },
+            metadata: { progress: 20, totalSteps: 5 },
+          },
+        ],
+        // no metrics key
+      };
+      const result = formatWorkflowStatus(status);
+      expect(result).not.toContain('Recent Metrics');
+    });
+  });
+
+  describe('calculateSummaryStats — single metric', () => {
+    test('calculates correctly with a single successful metric', () => {
+      const stats = calculateSummaryStats([], [{ duration: 60, success: true }]);
+      expect(stats.totalExecutions).toBe(1);
+      expect(stats.avgDuration).toBe(60);
+      expect(stats.successRate).toBe(100);
+    });
+
+    test('calculates correctly with a single failed metric', () => {
+      const stats = calculateSummaryStats([], [{ duration: 30, success: false }]);
+      expect(stats.successRate).toBe(0);
+    });
+  });
+});

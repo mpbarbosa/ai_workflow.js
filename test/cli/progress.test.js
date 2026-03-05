@@ -13,6 +13,7 @@ import {
   updateSpinner,
   succeedSpinner,
   failSpinner,
+  displayProgressBar,
   displayStepProgress,
   createProgressTracker,
 } from '../../src/cli/progress.js';
@@ -215,5 +216,48 @@ describe('createProgressTracker', () => {
   test('complete is no-op when no spinner started', () => {
     const tracker = createProgressTracker(3);
     expect(() => tracker.complete()).not.toThrow();
+  });
+});
+
+describe('displayProgressBar', () => {
+  let origClearLine, origCursorTo, origWrite;
+
+  beforeEach(() => {
+    origClearLine = process.stdout.clearLine;
+    origCursorTo = process.stdout.cursorTo;
+    origWrite = process.stdout.write;
+    process.stdout.clearLine = jest.fn(() => true);
+    process.stdout.cursorTo = jest.fn(() => true);
+    process.stdout.write = jest.fn(() => true);
+  });
+
+  afterEach(() => {
+    process.stdout.clearLine = origClearLine;
+    process.stdout.cursorTo = origCursorTo;
+    process.stdout.write = origWrite;
+  });
+
+  test('clears line and writes progress text', () => {
+    displayProgressBar(3, 10, 'Loading');
+    expect(process.stdout.clearLine).toHaveBeenCalledWith(0);
+    expect(process.stdout.cursorTo).toHaveBeenCalledWith(0);
+    expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining('Loading'));
+  });
+
+  test('writes newline when complete (current >= total)', () => {
+    displayProgressBar(10, 10, 'Done');
+    const writes = process.stdout.write.mock.calls.map((c) => c[0]);
+    expect(writes).toContain('\n');
+  });
+
+  test('does not write newline when not complete', () => {
+    displayProgressBar(5, 10, 'Loading');
+    const writes = process.stdout.write.mock.calls.map((c) => c[0]);
+    expect(writes).not.toContain('\n');
+  });
+
+  test('uses default label when none provided', () => {
+    displayProgressBar(2, 10);
+    expect(process.stdout.write).toHaveBeenCalledWith(expect.stringContaining('Progress'));
   });
 });
