@@ -17,6 +17,8 @@ import {
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
+  buildFileContentBlock,
+  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { AiHelper } from '../lib/ai_helpers.js';
@@ -99,10 +101,7 @@ export function classifyChangedFiles(changedFiles) {
 
   for (const file of changedFiles) {
     // Skip workflow artifact directories — they must never appear in prompts.
-    if (
-      file.startsWith('.ai_workflow/') ||
-      file.startsWith('.workflow_core/')
-    ) {
+    if (file.startsWith('.ai_workflow/') || file.startsWith('.workflow_core/')) {
       continue;
     }
     if (file.endsWith('.md') || file.includes('docs/')) {
@@ -380,6 +379,29 @@ export class Step1DocumentationAnalyzer {
               ...classification.config,
             ];
             // Try YAML-based doc_analysis_prompt first; fall back to hardcoded builder
+            // Read actual file contents for both doc files and changed files so the
+            // model can reason about real content rather than hallucinating.
+            let fileContentsSection = '';
+            try {
+              let totalChars = 0;
+              const blocks = [];
+              const allFiles = [...new Set([...files, ...relevantChangedFiles])];
+              for (const fp of allFiles) {
+                if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) break;
+                try {
+                  const raw = await this.fileOps.readFile(`${projectRoot}/${fp}`);
+                  totalChars += raw.length;
+                  blocks.push(buildFileContentBlock(fp, raw));
+                } catch {
+                  // File unreadable — skip gracefully
+                }
+              }
+              if (blocks.length > 0) {
+                fileContentsSection = blocks.join('\n\n');
+              }
+            } catch {
+              // Content injection is best-effort; proceed without it if anything fails
+            }
             try {
               const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
               const parsedYaml = yaml.load(yamlContent);
@@ -388,6 +410,7 @@ export class Step1DocumentationAnalyzer {
                 primary_language: projectInfo.language ?? 'unknown',
                 changed_files: relevantChangedFiles.join(', '),
                 doc_files: files.join(', '),
+                file_contents: fileContentsSection || '(no file contents available)',
               });
             } catch {
               /* fallback */
@@ -398,6 +421,9 @@ export class Step1DocumentationAnalyzer {
                 docFiles: files,
                 projectInfo,
               });
+              if (fileContentsSection) {
+                prompt += `\n\n# File Contents\n\n${fileContentsSection}`;
+              }
             }
             // Overlay project-kind documentation specialist role if available
             try {

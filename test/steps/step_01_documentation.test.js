@@ -418,5 +418,117 @@ describe('Step 1: Documentation Validation', () => {
       expect(savedContent).toBeTruthy();
       expect(savedContent).toContain('Step 1');
     });
+
+    // ========================================================================
+    // REGRESSION TESTS — File content injection (prevent @workspace hallucination)
+    // ========================================================================
+
+    describe('file content injection regression', () => {
+      let capturedPrompt;
+      let mockAiHelper;
+      let mockAiCache;
+
+      beforeEach(() => {
+        capturedPrompt = null;
+
+        mockAiHelper = {
+          initialize: () => Promise.resolve(true),
+          executeRequest: (prompt) => {
+            capturedPrompt = prompt;
+            return Promise.resolve({
+              success: true,
+              content: 'No updates needed',
+              text: 'No updates needed',
+            });
+          },
+        };
+
+        mockAiCache = {
+          init: () => Promise.resolve(),
+          withCache: (_prompt, _ctx, fn) => fn(),
+        };
+
+        mockFileOps.readFile = (path) => {
+          if (path.includes('ai_helpers')) {
+            // Return minimal YAML so buildYamlStepPrompt produces a prompt
+            return Promise.resolve(`
+doc_analysis_prompt:
+  role_prefix: "You are a documentation specialist."
+  task_template: |
+    **Changed files**: {changed_files}
+    **Documentation to review**: {doc_files}
+    **File Contents**: {file_contents}
+  approach: "Analyze ONLY the documentation files listed. Read the file contents provided above."
+`);
+          }
+          if (path.includes('README.md')) return Promise.resolve('# My Project\n\nVersion 0.4.8');
+          if (path.includes('CONTRIBUTING.md'))
+            return Promise.resolve('# Contributing\n\nPlease read this.');
+          if (path.includes('package.json'))
+            return Promise.resolve(JSON.stringify({ version: '0.4.8' }));
+          return Promise.resolve('');
+        };
+
+        mockParallelProcessor.validate = async (files, categoryFn) => {
+          // Actually invoke the category function to trigger prompt building
+          for (const file of files) {
+            await categoryFn('readme', [file]);
+          }
+          return {
+            validatedFiles: files.length,
+            totalFiles: files.length,
+            categories: {},
+            errors: [],
+            success: true,
+          };
+        };
+
+        analyzer = new Step1DocumentationAnalyzer({
+          gitOps: mockGitOps,
+          fileOps: mockFileOps,
+          backlog: mockBacklog,
+          incrementalProcessor: mockIncrementalProcessor,
+          parallelProcessor: mockParallelProcessor,
+          aiHelper: mockAiHelper,
+          aiCache: mockAiCache,
+        });
+      });
+
+      test('prompt contains actual file content, not just filenames', async () => {
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'CONTRIBUTING.md']);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(capturedPrompt).not.toBeNull();
+        // Actual file content must appear in the prompt
+        expect(capturedPrompt).toMatch(/My Project|Contributing|0\.4\.8/);
+      });
+
+      test('prompt does NOT contain @workspace instruction', async () => {
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md']);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(capturedPrompt).not.toBeNull();
+        expect(capturedPrompt).not.toContain('@workspace');
+      });
+
+      test('gracefully continues when a file cannot be read', async () => {
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'MISSING.md']);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+
+        const originalReadFile = mockFileOps.readFile;
+        mockFileOps.readFile = (path) => {
+          if (path.includes('MISSING.md')) return Promise.reject(new Error('ENOENT'));
+          return originalReadFile(path);
+        };
+
+        // Should not throw even when one file is unreadable
+        const result = await analyzer.execute('/project', { enableParallel: true });
+        expect(result.success).toBe(true);
+      });
+    });
   });
 });
