@@ -20,6 +20,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-05T01:55:48.241Z"
+    },
+    "src/lib/ai_helpers.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-05T17:57:52.393Z"
+    },
+    "src/lib/copilot_sdk_wrapper.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-05T17:57:52.393Z"
+    },
+    "src/lib/ai_cache.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-05T17:57:52.393Z"
+    },
+    "src/lib/ai_personas.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-05T17:57:52.393Z"
+    },
+    "src/lib/ai_prompt_builder.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-05T17:57:52.393Z"
     }
   }
 }

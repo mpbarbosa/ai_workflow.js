@@ -1,8 +1,8 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 30,
-  "filesHash": "fb3509cd",
+  "totalPartitions": 29,
+  "filesHash": "5f0c6479",
   "partitionLabels": [
     "test, test/utils, test/types",
     "test/steps",
@@ -32,8 +32,7 @@
     "test/core",
     "test/cli",
     "test/cli (2)",
-    "test/cli (3)",
-    "scripts"
+    "test/cli (3)"
   ],
-  "updatedAt": "2026-03-05T01:54:45.283Z"
+  "updatedAt": "2026-03-05T17:57:18.083Z"
 }

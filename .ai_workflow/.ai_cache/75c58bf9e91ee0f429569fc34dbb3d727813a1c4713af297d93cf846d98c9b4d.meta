@@ -1,9 +1,0 @@
-{
-  "cacheKey": "75c58bf9e91ee0f429569fc34dbb3d727813a1c4713af297d93cf846d98c9b4d",
-  "timestamp": "2026-03-04T16:15:55.000Z",
-  "timestampEpoch": 1772640955,
-  "promptPreview": "**Role**: You are a senior test engineer specializing in writing complete, runnable test suites that...",
-  "context": "step_07|src/core/logger.js|274",
-  "responseSize": 2970,
-  "prompt": "**Role**: You are a senior test engineer specializing in writing complete, runnable test suites that cover happy paths, edge cases, and error scenarios.\n\n**Task**: Generate a complete, runnable test file for the source file below.\n\n**Source file**: `src/core/logger.js`\n**Language / framework**: Jest\n\n**Requirements**:\n- Output ONLY the test file content inside a single fenced code block (```js ... ```)\n- Cover: happy paths, edge cases, and error scenarios\n- Use Jest idioms and conventions\n- Use descriptive test names\n- Do NOT include explanations outside the code block\n\n```js\n/**\n * Logger Module\n * @description Re-exports from olinda_utils.js — source of truth is there.\n * @module core/logger\n */\n\nexport { Logger, logger, LogLevel, stripAnsi } from 'olinda_utils.js';\n\nimport { logger as _logger } from 'olinda_utils.js';\nexport default _logger;\n\n```\n\nNow generate the test file:\n\n\n**Approach**: Analyse only the **src/core/logger.js** source code shown above. Do not reference any files or modules not visible in the context.\n\nGenerate a self-contained test file that:\n- Imports from the source file using the correct relative path\n- Uses Jest idioms and conventions\n- Covers happy paths, edge cases, and error handling\n- Uses descriptive `describe`/`it` (or equivalent) blocks with clear test names\n- Does NOT include any explanations outside the code block\n"
-}
