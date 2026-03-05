@@ -3,13 +3,18 @@
  * @module test/cli/progress.test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   calculateProgress,
   formatProgressText,
   createProgressBar,
   formatDuration,
   estimateTimeRemaining,
+  updateSpinner,
+  succeedSpinner,
+  failSpinner,
+  displayStepProgress,
+  createProgressTracker,
 } from '../../src/cli/progress.js';
 
 describe('CLI Progress - Pure Functions', () => {
@@ -102,5 +107,113 @@ describe('CLI Progress - Pure Functions', () => {
       const estimate = estimateTimeRemaining(10, 10, 20000);
       expect(estimate).toContain('0');
     });
+  });
+});
+
+describe('spinner helper functions', () => {
+  test('updateSpinner updates text when spinner is spinning', () => {
+    const spinner = { isSpinning: true, text: '' };
+    updateSpinner(spinner, 'new text');
+    expect(spinner.text).toBe('new text');
+  });
+
+  test('updateSpinner is no-op when spinner is not spinning', () => {
+    const spinner = { isSpinning: false, text: 'old' };
+    updateSpinner(spinner, 'new text');
+    expect(spinner.text).toBe('old');
+  });
+
+  test('updateSpinner is no-op for null spinner', () => {
+    expect(() => updateSpinner(null, 'text')).not.toThrow();
+  });
+
+  test('succeedSpinner calls succeed when spinner is spinning', () => {
+    const spinner = { isSpinning: true, succeed: jest.fn() };
+    succeedSpinner(spinner, 'done');
+    expect(spinner.succeed).toHaveBeenCalledWith(expect.stringContaining('done'));
+  });
+
+  test('succeedSpinner is no-op when spinner is not spinning', () => {
+    const spinner = { isSpinning: false, succeed: jest.fn() };
+    succeedSpinner(spinner, 'done');
+    expect(spinner.succeed).not.toHaveBeenCalled();
+  });
+
+  test('succeedSpinner is no-op for null spinner', () => {
+    expect(() => succeedSpinner(null, 'msg')).not.toThrow();
+  });
+
+  test('failSpinner calls fail when spinner is spinning', () => {
+    const spinner = { isSpinning: true, fail: jest.fn() };
+    failSpinner(spinner, 'error');
+    expect(spinner.fail).toHaveBeenCalledWith(expect.stringContaining('error'));
+  });
+
+  test('failSpinner is no-op when spinner is not spinning', () => {
+    const spinner = { isSpinning: false, fail: jest.fn() };
+    failSpinner(spinner, 'error');
+    expect(spinner.fail).not.toHaveBeenCalled();
+  });
+
+  test('failSpinner is no-op for null spinner', () => {
+    expect(() => failSpinner(null, 'msg')).not.toThrow();
+  });
+});
+
+describe('displayStepProgress', () => {
+  let consoleSpy;
+
+  beforeEach(() => {
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  test('outputs step number, total, and step name', () => {
+    displayStepProgress(3, 10, 'Code Analysis');
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(' ');
+    expect(output).toMatch(/3\/10/);
+    expect(output).toMatch(/Code Analysis/);
+  });
+
+  test('outputs progress for first step', () => {
+    displayStepProgress(1, 5, 'Init');
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(' ');
+    expect(output).toMatch(/1\/5/);
+    expect(output).toMatch(/Init/);
+  });
+});
+
+describe('createProgressTracker', () => {
+  test('getCurrent returns 0 initially', () => {
+    const tracker = createProgressTracker(10);
+    expect(tracker.getCurrent()).toBe(0);
+  });
+
+  test('getElapsed returns a non-negative number', () => {
+    const tracker = createProgressTracker(5);
+    expect(tracker.getElapsed()).toBeGreaterThanOrEqual(0);
+  });
+
+  test('succeed is no-op when no spinner started', () => {
+    const tracker = createProgressTracker(3);
+    expect(() => tracker.succeed('done')).not.toThrow();
+  });
+
+  test('fail is no-op when no spinner started', () => {
+    const tracker = createProgressTracker(3);
+    expect(() => tracker.fail('error')).not.toThrow();
+  });
+
+  test('update is no-op when no spinner started', () => {
+    const tracker = createProgressTracker(3);
+    expect(() => tracker.update('updating...')).not.toThrow();
+  });
+
+  test('complete is no-op when no spinner started', () => {
+    const tracker = createProgressTracker(3);
+    expect(() => tracker.complete()).not.toThrow();
   });
 });

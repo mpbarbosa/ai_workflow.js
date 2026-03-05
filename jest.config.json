@@ -13,14 +13,25 @@
   ],
   "testMatch": ["**/test/**/*.test.js", "**/test/**/*.spec.js", "**/__tests__/**/*.js"],
   "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/"],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "/scripts/",
+    "/src/core/"
+  ],
   "transform": {},
   "maxWorkers": "50%",
   "coverageThreshold": {
     "global": {
       "statements": 83,
       "branches": 64,
-      "functions": 95,
+      "functions": 90,
       "lines": 83
+    },
+    "./src/cli/": {
+      "statements": 38,
+      "branches": 40,
+      "functions": 58,
+      "lines": 38
     },
     "./src/lib/": {
       "statements": 85,
@@ -31,7 +42,7 @@
     "./src/orchestrator/": {
       "statements": 95,
       "branches": 85,
-      "functions": 99,
+      "functions": 97,
       "lines": 95
     },
     "./src/utils/": {

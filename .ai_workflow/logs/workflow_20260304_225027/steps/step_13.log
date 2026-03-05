@@ -1,0 +1,36 @@
+[2026-03-05T01:55:48.296Z] 
+→ Starting: Markdown Linting
+[2026-03-05T01:55:48.297Z] ════════════════════════════════════════════════════════════
+[2026-03-05T01:55:48.297Z] 🔷  Step 13: Markdown Linting
+[2026-03-05T01:55:48.297Z] ════════════════════════════════════════════════════════════
+[2026-03-05T01:55:48.297Z] Enumerating markdown files...
+[2026-03-05T01:55:48.303Z] Found 210 markdown files
+[2026-03-05T01:55:48.303Z] Checking for mdl (markdownlint)...
+[2026-03-05T01:55:48.407Z] mdl is installed: 0.13.0
+[2026-03-05T01:55:48.408Z] Running mdl on all markdown files...
+[2026-03-05T01:55:51.637Z] ⚠ Found 8778 markdown linting violations
+[2026-03-05T01:55:51.637Z] Auto-fixing markdown violations via markdownlint-cli...
+[2026-03-05T01:55:51.777Z] ✅ Auto-fix applied via npm run lint:md:fix
+[2026-03-05T01:55:51.777Z] Running mdl on all markdown files...
+[2026-03-05T01:55:54.872Z] ⚠ Found 8778 markdown linting violations
+[2026-03-05T01:55:54.872Z] Auto-fix applied. Remaining violations: 8778
+[2026-03-05T01:55:54.872Z] Checking for common markdown anti-patterns...
+[2026-03-05T01:55:54.899Z] ⚠ Detected 655 anti-pattern occurrences
+[2026-03-05T01:55:57.293Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-05T01:55:57.293Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-05T01:55:57.302Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-05T01:55:57.311Z] [DEBUG] Cache miss: 51a04e5d...
+[2026-03-05T01:55:57.311Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"technical_writer","cache":true}
+[2026-03-05T01:55:57.311Z] [DEBUG] Persona: technical_writer
+[2026-03-05T01:55:57.311Z] [DEBUG] Model: gpt-4.1
+[2026-03-05T01:55:57.311Z] [AI] SDK call starting — persona: technical_writer, model: gpt-4.1, prompt_chars: 5298
+[2026-03-05T01:55:57.311Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-05T01:56:09.765Z] [AI] SDK call completed — persona: technical_writer, model: gpt-4.1, response_chars: 3791, latency: 12453ms
+[2026-03-05T01:56:09.765Z] ✓ AI request completed successfully
+[2026-03-05T01:56:09.766Z] [DEBUG] Prompt logged to: 2026-03-05T01-56-09-765Z_0001_technical_writer.md
+[2026-03-05T01:56:09.773Z] [DEBUG] Response cached: 51a04e5d...
+[2026-03-05T01:56:09.773Z] ✓ Step step_13 completed in 21477ms
+[2026-03-05T01:56:09.774Z] [DEBUG] [Performance] step_13: 21.5s
+[2026-03-05T01:56:09.774Z] ⚠ [WARNING] Operation 'step_13' took 21.5s (memory: 21.57MB)
+[2026-03-05T01:56:09.774Z] [DEBUG] Recorded outcome for step_13: success
+[2026-03-05T01:56:09.774Z] ✓ Completed: Markdown Linting (21s)

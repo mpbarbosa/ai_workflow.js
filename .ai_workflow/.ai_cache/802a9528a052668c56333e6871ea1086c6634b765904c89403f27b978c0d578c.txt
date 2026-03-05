@@ -1,0 +1,1 @@
+{"content":"No updates required.\n\n- The documentation in `docs/api/lib/change_detection.md` is accurate, matches the current API, and all examples and references are correct.","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

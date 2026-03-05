@@ -3,7 +3,7 @@
  * @module test/cli/help.test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   getCommandExamples,
   getCommonUseCases,
@@ -11,6 +11,11 @@ import {
   getConfigOptions,
   formatExample,
   formatUseCase,
+  displayCommandExamples,
+  displayCommonUseCases,
+  displayWorkflowStages,
+  displayConfigOptions,
+  displayQuickStart,
 } from '../../src/cli/help.js';
 
 describe('CLI Help - Pure Functions', () => {
@@ -115,5 +120,47 @@ describe('CLI Help - Pure Functions', () => {
       expect(formatted).toContain('Step 1');
       expect(formatted).toContain('Step 2');
     });
+  });
+});
+
+describe('display functions (impure wrappers)', () => {
+  let consoleSpy;
+
+  beforeEach(() => {
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  test('displayCommandExamples outputs to console for known command', () => {
+    displayCommandExamples('run');
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  test('displayCommandExamples outputs warning for unknown command', () => {
+    displayCommandExamples('unknown');
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  test('displayCommonUseCases outputs use cases to console', () => {
+    displayCommonUseCases();
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  test('displayWorkflowStages outputs all stages to console', () => {
+    displayWorkflowStages();
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  test('displayConfigOptions outputs options to console', () => {
+    displayConfigOptions();
+    expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  test('displayQuickStart outputs quick start guide to console', () => {
+    displayQuickStart();
+    expect(consoleSpy).toHaveBeenCalled();
   });
 });

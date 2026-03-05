@@ -1,12 +1,23 @@
-// test/security-audit.test.js
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
-import fs from 'fs/promises';
-import path from 'path';
-import { exec } from 'child_process';
+const mockReadFile = jest.fn();
+const mockReaddir = jest.fn();
+const mockExecAsync = jest.fn();
 
-jest.mock('fs/promises');
-jest.mock('path');
-jest.mock('child_process');
+jest.unstable_mockModule('fs/promises', () => ({
+  default: {
+    readFile: mockReadFile,
+    readdir: mockReaddir,
+  },
+}));
+
+jest.unstable_mockModule('util', () => ({
+  promisify: jest.fn(() => mockExecAsync),
+}));
+
+jest.unstable_mockModule('child_process', () => ({
+  exec: jest.fn(),
+}));
 
 const {
   checkHardcodedSecrets,
@@ -17,223 +28,261 @@ const {
   generateReport,
   runSecurityAudit,
   findings,
-  colors,
-} = await import('../scripts/security-audit.js');
+} = await import('../../scripts/security-audit.js');
 
 describe('security-audit.js', () => {
+  let consoleSpy;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    findings.critical = [];
-    findings.high = [];
-    findings.medium = [];
-    findings.low = [];
-    findings.info = [];
+    findings.critical.splice(0);
+    findings.high.splice(0);
+    findings.medium.splice(0);
+    findings.low.splice(0);
+    findings.info.splice(0);
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  describe('getAllJSFiles', () => {
+    it('returns JS files in a flat directory', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+        { name: 'readme.md', isDirectory: () => false, isFile: () => true },
+      ]);
+      const files = await getAllJSFiles('/src');
+      expect(files.length).toBe(1);
+      expect(files[0]).toContain('app.js');
+    });
+
+    it('recursively scans subdirectories', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'lib', isDirectory: () => true, isFile: () => false },
+      ]);
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'helper.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      const files = await getAllJSFiles('/src');
+      expect(files.length).toBe(1);
+      expect(files[0]).toContain('helper.js');
+    });
+
+    it('skips hidden directories (starting with .)', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: '.git', isDirectory: () => true, isFile: () => false },
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      const files = await getAllJSFiles('/src');
+      expect(files.length).toBe(1);
+    });
+
+    it('returns empty array when directory is empty', async () => {
+      mockReaddir.mockResolvedValueOnce([]);
+      const files = await getAllJSFiles('/empty');
+      expect(files).toEqual([]);
+    });
   });
 
   describe('checkHardcodedSecrets', () => {
-    it('should detect hardcoded secrets in JS files (happy path)', async () => {
-      fs.readFile.mockResolvedValueOnce("api_key = '12345'\npassword = 'secret'");
-      path.relative.mockReturnValue('src/file.js');
-      getAllJSFiles.mockResolvedValue(['src/file.js']);
+    it('detects hardcoded API key', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("const api_key = '12345';");
       await checkHardcodedSecrets();
-      expect(findings.high.length).toBeGreaterThan(0);
-      expect(findings.high[0].type).toBe('Hardcoded Secret');
+      expect(findings.high.some(f => f.type === 'Hardcoded Secret')).toBe(true);
     });
 
-    it('should skip commented lines and test data', async () => {
-      fs.readFile.mockResolvedValueOnce("// api_key = '12345'\npassword = 'secret'");
-      path.relative.mockReturnValue('src/file.js');
-      getAllJSFiles.mockResolvedValue(['src/file.js']);
+    it('detects hardcoded password', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'db.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("const password = 'hunter2';");
       await checkHardcodedSecrets();
-      expect(findings.high.length).toBe(1);
-      expect(findings.high[0].description).toMatch(/Password/);
+      expect(findings.high.some(f => f.description.includes('Password'))).toBe(true);
     });
 
-    it('should handle no secrets found', async () => {
-      fs.readFile.mockResolvedValueOnce("const x = 1;");
-      path.relative.mockReturnValue('src/file.js');
-      getAllJSFiles.mockResolvedValue(['src/file.js']);
+    it('skips lines starting with //', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("// api_key = 'test'\n// password = 'secret'");
+      await checkHardcodedSecrets();
+      expect(findings.high.length).toBe(0);
+    });
+
+    it('finds no secrets in clean file', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("const x = 1; const y = 2;");
+      await checkHardcodedSecrets();
+      expect(findings.high.length).toBe(0);
+    });
+
+    it('finds no secrets when no JS files exist', async () => {
+      mockReaddir.mockResolvedValueOnce([]);
       await checkHardcodedSecrets();
       expect(findings.high.length).toBe(0);
     });
   });
 
   describe('checkCommandInjection', () => {
-    it('should detect command injection risks', async () => {
-      fs.readFile.mockResolvedValueOnce("exec('ls ' + userInput)\nspawn('cmd ' + arg)");
-      path.relative.mockReturnValue('src/inject.js');
-      getAllJSFiles.mockResolvedValue(['src/inject.js']);
+    it('detects exec with string concatenation', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'run.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("exec('ls ' + userInput)");
       await checkCommandInjection();
-      expect(findings.high.length).toBeGreaterThan(0);
-      expect(findings.high[0].type).toBe('Command Injection Risk');
+      expect(findings.high.some(f => f.type === 'Command Injection Risk')).toBe(true);
     });
 
-    it('should detect use of eval()', async () => {
-      fs.readFile.mockResolvedValueOnce("eval(userCode)");
-      path.relative.mockReturnValue('src/eval.js');
-      getAllJSFiles.mockResolvedValue(['src/eval.js']);
+    it('detects use of eval()', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'run.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("eval(code)");
       await checkCommandInjection();
       expect(findings.high.some(f => f.description === 'Use of eval()')).toBe(true);
     });
 
-    it('should handle no command injection found', async () => {
-      fs.readFile.mockResolvedValueOnce("console.log('safe')");
-      path.relative.mockReturnValue('src/safe.js');
-      getAllJSFiles.mockResolvedValue(['src/safe.js']);
+    it('finds no injection risks in clean code', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'safe.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("console.log('hello');");
       await checkCommandInjection();
       expect(findings.high.length).toBe(0);
     });
   });
 
   describe('checkPathTraversal', () => {
-    it('should detect path traversal risks', async () => {
-      fs.readFile.mockResolvedValueOnce("path.join('/base', userInput + '/file')");
-      path.relative.mockReturnValue('src/path.js');
-      getAllJSFiles.mockResolvedValue(['src/path.js']);
+    it('detects string concatenation in path.join', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'file.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("path.join('/base', userInput + '/data')");
       await checkPathTraversal();
-      expect(findings.medium.length).toBeGreaterThan(0);
-      expect(findings.medium[0].type).toBe('Path Traversal Risk');
+      expect(findings.medium.some(f => f.type === 'Path Traversal Risk')).toBe(true);
     });
 
-    it('should skip safe usage with projectRoot', async () => {
-      fs.readFile.mockResolvedValueOnce("path.join(projectRoot, file)");
-      path.relative.mockReturnValue('src/safe.js');
-      getAllJSFiles.mockResolvedValue(['src/safe.js']);
+    it('skips lines that reference projectRoot (safe usage)', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'file.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("path.join(projectRoot + dir, 'file')");
       await checkPathTraversal();
       expect(findings.medium.length).toBe(0);
     });
 
-    it('should handle no path traversal found', async () => {
-      fs.readFile.mockResolvedValueOnce("const x = 1;");
-      path.relative.mockReturnValue('src/none.js');
-      getAllJSFiles.mockResolvedValue(['src/none.js']);
+    it('finds no path traversal in clean code', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'safe.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      mockReadFile.mockResolvedValueOnce("const resolved = path.resolve('/safe/dir');");
       await checkPathTraversal();
       expect(findings.medium.length).toBe(0);
     });
   });
 
   describe('checkDependencies', () => {
-    it('should detect critical and high vulnerabilities', async () => {
-      exec.mockImplementation((cmd, opts, cb) => {
-        cb(null, JSON.stringify({
-          metadata: {
-            vulnerabilities: {
-              critical: 2,
-              high: 3,
-              moderate: 1,
-              low: 0,
-            },
-          },
-        }));
+    it('adds critical and high findings from npm audit output', async () => {
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 2, high: 3, moderate: 1, low: 0 } },
+        }),
       });
       await checkDependencies();
       expect(findings.critical.length).toBe(1);
       expect(findings.high.length).toBe(1);
+      expect(findings.critical[0].type).toBe('Dependency Vulnerability');
     });
 
-    it('should handle no vulnerabilities', async () => {
-      exec.mockImplementation((cmd, opts, cb) => {
-        cb(null, JSON.stringify({
-          metadata: {
-            vulnerabilities: {
-              critical: 0,
-              high: 0,
-              moderate: 0,
-              low: 0,
-            },
-          },
-        }));
+    it('adds no findings when vulnerabilities are zero', async () => {
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 0, high: 0, moderate: 0, low: 0 } },
+        }),
       });
       await checkDependencies();
       expect(findings.critical.length).toBe(0);
       expect(findings.high.length).toBe(0);
     });
 
-    it('should handle npm audit failure', async () => {
-      exec.mockImplementation((cmd, opts, cb) => {
-        cb(new Error('fail'), '');
-      });
-      await checkDependencies();
-      // Should not throw, findings unchanged
+    it('handles npm audit failure gracefully (no throw)', async () => {
+      mockExecAsync.mockRejectedValueOnce(new Error('npm audit failed'));
+      await expect(checkDependencies()).resolves.toBeUndefined();
       expect(findings.critical.length).toBe(0);
-      expect(findings.high.length).toBe(0);
-    });
-  });
-
-  describe('getAllJSFiles', () => {
-    it('should recursively find JS files', async () => {
-      const dirents = [
-        { name: 'a.js', isDirectory: () => false, isFile: () => true },
-        { name: 'sub', isDirectory: () => true, isFile: () => false },
-      ];
-      fs.readdir.mockResolvedValueOnce(dirents);
-      fs.readdir.mockResolvedValueOnce([
-        { name: 'b.js', isDirectory: () => false, isFile: () => true },
-      ]);
-      path.join.mockImplementation((...args) => args.join('/'));
-      const files = await getAllJSFiles('/root');
-      expect(files).toContain('/root/a.js');
-      expect(files).toContain('/root/sub/b.js');
     });
 
-    it('should skip hidden directories', async () => {
-      const dirents = [
-        { name: '.hidden', isDirectory: () => true, isFile: () => false },
-        { name: 'file.js', isDirectory: () => false, isFile: () => true },
-      ];
-      fs.readdir.mockResolvedValueOnce(dirents);
-      path.join.mockImplementation((...args) => args.join('/'));
-      const files = await getAllJSFiles('/root');
-      expect(files).toContain('/root/file.js');
-      expect(files).not.toContain('/root/.hidden/file.js');
+    it('handles missing metadata in audit output gracefully', async () => {
+      mockExecAsync.mockResolvedValueOnce({ stdout: JSON.stringify({}) });
+      await expect(checkDependencies()).resolves.toBeUndefined();
     });
   });
 
   describe('generateReport', () => {
-    it('should report no issues found', () => {
-      findings.critical = [];
-      findings.high = [];
-      findings.medium = [];
-      findings.low = [];
+    it('returns 0 and prints success message when no issues', () => {
       expect(generateReport()).toBe(0);
     });
 
-    it('should report critical issues and return exit code 2', () => {
-      findings.critical = [{ type: 'Dependency Vulnerability', description: 'Critical issue' }];
+    it('returns 2 when critical issues exist', () => {
+      findings.critical.push({ type: 'Dependency Vulnerability', description: 'Critical vuln', action: 'Run npm audit fix' });
       expect(generateReport()).toBe(2);
     });
 
-    it('should report high issues and return exit code 1', () => {
-      findings.critical = [];
-      findings.high = [{ type: 'Hardcoded Secret', description: 'High issue' }];
+    it('returns 1 when only high issues exist', () => {
+      findings.high.push({ type: 'Hardcoded Secret', file: 'src/a.js', line: 1, description: 'Issue', code: 'bad code' });
       expect(generateReport()).toBe(1);
     });
 
-    it('should report medium issues and return exit code 0', () => {
-      findings.critical = [];
-      findings.high = [];
-      findings.medium = [{ type: 'Path Traversal Risk', description: 'Medium issue' }];
+    it('returns 0 when only medium issues exist', () => {
+      findings.medium.push({ type: 'Path Traversal Risk', file: 'src/b.js', line: 2, description: 'Risk' });
+      expect(generateReport()).toBe(0);
+    });
+
+    it('truncates high issues display beyond 10 entries', () => {
+      for (let i = 0; i < 12; i++) {
+        findings.high.push({ type: 'Hardcoded Secret', file: `src/f${i}.js`, line: i, description: `Issue ${i}`, code: 'code' });
+      }
+      expect(generateReport()).toBe(1);
+    });
+
+    it('truncates medium issues display beyond 5 entries', () => {
+      for (let i = 0; i < 7; i++) {
+        findings.medium.push({ type: 'Path Traversal Risk', file: `src/f${i}.js`, line: i, description: `Risk ${i}` });
+      }
       expect(generateReport()).toBe(0);
     });
   });
 
   describe('runSecurityAudit', () => {
-    it('should run all checks and exit with correct code (happy path)', async () => {
-      checkHardcodedSecrets.mockResolvedValue();
-      checkCommandInjection.mockResolvedValue();
-      checkPathTraversal.mockResolvedValue();
-      checkDependencies.mockResolvedValue();
-      generateReport.mockReturnValue(0);
+    it('runs all checks and exits 0 when no issues found', async () => {
+      mockReaddir.mockResolvedValue([]);
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 0, high: 0, moderate: 0, low: 0 } },
+        }),
+      });
       const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
       await runSecurityAudit();
       expect(exitSpy).toHaveBeenCalledWith(0);
       exitSpy.mockRestore();
     });
 
-    it('should handle errors and exit with code 1', async () => {
-      checkHardcodedSecrets.mockRejectedValue(new Error('fail'));
+    it('exits with code 2 when critical vulnerabilities found', async () => {
+      mockReaddir.mockResolvedValue([]);
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 1, high: 0, moderate: 0, low: 0 } },
+        }),
+      });
       const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
-      await expect(runSecurityAudit()).rejects.toThrow();
+      await runSecurityAudit();
+      expect(exitSpy).toHaveBeenCalledWith(2);
       exitSpy.mockRestore();
     });
   });

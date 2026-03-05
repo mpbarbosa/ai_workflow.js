@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -41,6 +41,9 @@
     "analyze:changes:json": "node scripts/analyze-change-impact.js --json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:md": "node scripts/fix-markdown.js --check",
+    "lint:md:fix": "node scripts/fix-markdown.js",
+    "fix:md": "node scripts/fix-markdown.js",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "prepare": "husky",

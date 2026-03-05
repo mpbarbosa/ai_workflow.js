@@ -1,4 +1,13 @@
-// test/utils/errors.test.js
+/**
+ * Tests for src/utils/errors.js
+ *
+ * Covers the custom error class hierarchy:
+ * - WorkflowError (base), SystemError, ExecutionError,
+ *   ConfigurationError, ValidationError, FileSystemError
+ * - Prototype chain, field defaults, edge cases, and error wrapping
+ *
+ * @jest-environment node
+ */
 
 import {
   WorkflowError,
@@ -9,14 +18,20 @@ import {
   FileSystemError,
 } from '../../src/utils/errors.js';
 
+// Shared helper: assert common WorkflowError subclass base properties
+function expectBaseError(err, { instanceOf, name, code }) {
+  expect(err).toBeInstanceOf(Error);
+  expect(err).toBeInstanceOf(WorkflowError);
+  expect(err).toBeInstanceOf(instanceOf);
+  expect(err.name).toBe(name);
+  expect(err.code).toBe(code);
+}
+
 describe('WorkflowError', () => {
   it('should set name, message, and default code', () => {
     const err = new WorkflowError('Test error');
-    expect(err).toBeInstanceOf(Error);
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err.name).toBe('WorkflowError');
+    expectBaseError(err, { instanceOf: WorkflowError, name: 'WorkflowError', code: 'WORKFLOW_ERROR' });
     expect(err.message).toBe('Test error');
-    expect(err.code).toBe('WORKFLOW_ERROR');
     expect(err.stack).toContain('WorkflowError');
   });
 
@@ -26,25 +41,22 @@ describe('WorkflowError', () => {
   });
 });
 
-describe('SystemError', () => {
+describe.each([
+  ['SystemError', SystemError, 'SYSTEM_ERROR', 'System failure'],
+  ['ConfigurationError', ConfigurationError, 'CONFIG_ERROR', 'Config missing'],
+])('%s', (name, ErrorClass, code, msg) => {
   it('should set name, message, and code', () => {
-    const err = new SystemError('System failure');
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err).toBeInstanceOf(SystemError);
-    expect(err.name).toBe('SystemError');
-    expect(err.message).toBe('System failure');
-    expect(err.code).toBe('SYSTEM_ERROR');
+    const err = new ErrorClass(msg);
+    expectBaseError(err, { instanceOf: ErrorClass, name, code });
+    expect(err.message).toBe(msg);
   });
 });
 
 describe('ExecutionError', () => {
   it('should set name, message, code, exitCode, stdout, stderr', () => {
     const err = new ExecutionError('Exec failed', 127, 'output', 'error');
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err).toBeInstanceOf(ExecutionError);
-    expect(err.name).toBe('ExecutionError');
+    expectBaseError(err, { instanceOf: ExecutionError, name: 'ExecutionError', code: 'EXECUTION_ERROR' });
     expect(err.message).toBe('Exec failed');
-    expect(err.code).toBe('EXECUTION_ERROR');
     expect(err.exitCode).toBe(127);
     expect(err.stdout).toBe('output');
     expect(err.stderr).toBe('error');
@@ -58,25 +70,11 @@ describe('ExecutionError', () => {
   });
 });
 
-describe('ConfigurationError', () => {
-  it('should set name, message, and code', () => {
-    const err = new ConfigurationError('Config missing');
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err).toBeInstanceOf(ConfigurationError);
-    expect(err.name).toBe('ConfigurationError');
-    expect(err.message).toBe('Config missing');
-    expect(err.code).toBe('CONFIG_ERROR');
-  });
-});
-
 describe('ValidationError', () => {
   it('should set name, message, code, and field', () => {
     const err = new ValidationError('Invalid value', 'username');
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err).toBeInstanceOf(ValidationError);
-    expect(err.name).toBe('ValidationError');
+    expectBaseError(err, { instanceOf: ValidationError, name: 'ValidationError', code: 'VALIDATION_ERROR' });
     expect(err.message).toBe('Invalid value');
-    expect(err.code).toBe('VALIDATION_ERROR');
     expect(err.field).toBe('username');
   });
 
@@ -94,11 +92,8 @@ describe('FileSystemError', () => {
       originalError: new Error('FS fail'),
     };
     const err = new FileSystemError('FS error', details);
-    expect(err).toBeInstanceOf(WorkflowError);
-    expect(err).toBeInstanceOf(FileSystemError);
-    expect(err.name).toBe('FileSystemError');
+    expectBaseError(err, { instanceOf: FileSystemError, name: 'FileSystemError', code: 'FILE_SYSTEM_ERROR' });
     expect(err.message).toBe('FS error');
-    expect(err.code).toBe('FILE_SYSTEM_ERROR');
     expect(err.path).toBe('/tmp/file.txt');
     expect(err.destination).toBe('/tmp/dest.txt');
     expect(err.originalError).toBe(details.originalError);

@@ -567,11 +567,7 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result.error).toContain('Checkpoint not found');
     });
 
-    test.skip('should skip execution if all steps completed', async () => {
-      // TODO: Fix checkpoint validation in test environment
-      // The checkpoint validation is failing in the test even with proper mock structure
-      // This works in real code but needs better test isolation
-
+    test('should skip execution if all steps completed', async () => {
       const completeOrchestrator = new MainOrchestrator({
         workflowDir: testDir,
         stage: WORKFLOW_STAGES.QUICK,
@@ -596,7 +592,7 @@ describe('Main Orchestrator - Integration Tests', () => {
         timestamp: Date.now(),
         state: {
           currentStep: null,
-          completedSteps: ['step_00', 'step_01', 'step_02', 'step_04', 'step_0b'],
+          completedSteps: ['step_00', 'step_01', 'step_02', 'step_04', 'step_05'],
           failedSteps: [],
           skippedSteps: [],
           results: completeOrchestrator.results.steps,
@@ -1397,6 +1393,163 @@ describe('Main Orchestrator - Integration Tests', () => {
         expect(ctx2.value.modifiedFiles).toContain('src/app.js');
         expect(ctx2.value.modifiedFiles).not.toContain('.ai_workflow/commit_history.json');
       });
+    });
+  });
+
+  describe('healthCheck, abort, and getStatus', () => {
+    const localTestDir = path.join(process.cwd(), '.test_health_abort');
+
+    beforeEach(async () => {
+      await fs.mkdir(path.join(localTestDir, 'metrics'), { recursive: true });
+      await fs.mkdir(path.join(localTestDir, 'summaries'), { recursive: true });
+      await fs.mkdir(path.join(localTestDir, 'checkpoints'), { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(localTestDir, { recursive: true, force: true });
+    });
+
+    test('healthCheck returns results with passed flag', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      const result = await orch.healthCheck();
+      expect(result).toHaveProperty('passed');
+      expect(result).toHaveProperty('checks');
+    });
+
+    test('abort delegates to workflowEngine.abort()', () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      let abortCalled = false;
+      orch.workflowEngine.abort = () => { abortCalled = true; };
+      orch.abort();
+      expect(abortCalled).toBe(true);
+    });
+
+    test('getStatus returns status object with expected shape', () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      const status = orch.getStatus();
+      expect(status).toHaveProperty('currentStep');
+      expect(status).toHaveProperty('completed');
+      expect(status).toHaveProperty('total');
+      expect(status).toHaveProperty('progress');
+      expect(status).toHaveProperty('status');
+      expect(status).toHaveProperty('duration');
+    });
+
+    test('getStatus reflects result updates', () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      orch.results.steps['step_00'] = { success: true };
+      orch.currentStep = 'step_01';
+      const status = orch.getStatus();
+      expect(status.currentStep).toBe('step_01');
+      expect(status.completed).toBe(1);
+    });
+  });
+
+  describe('healthCheck failure warnings and execute error path', () => {
+    const localTestDir = path.join(process.cwd(), '.test_execute_fail');
+
+    beforeEach(async () => {
+      await fs.mkdir(path.join(localTestDir, 'metrics'), { recursive: true });
+      await fs.mkdir(path.join(localTestDir, 'summaries'), { recursive: true });
+      await fs.mkdir(path.join(localTestDir, 'checkpoints'), { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(localTestDir, { recursive: true, force: true });
+    });
+
+    test('healthCheck warns when config check fails', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      // Null out configManager so the config health check fails
+      orch.configManager = null;
+      const result = await orch.healthCheck();
+      expect(result.passed).toBe(false);
+      expect(result.checks.configuration.passed).toBe(false);
+    });
+
+    test('execute returns failure when health checks fail', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      // Override healthCheck to return failure
+      orch.healthCheck = async () => ({ passed: false, checks: {} });
+      const result = await orch.execute({});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Health checks failed');
+    });
+
+    test('resume emits step events during workflow execution', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir, stage: 'quick' });
+
+      orch.checkpointManager.load = async () => ({
+        workflowId: 'event-test-workflow',
+        state: {
+          completedSteps: ['step_00', 'step_01'],
+          failedSteps: [],
+          skippedSteps: [],
+          results: {},
+          context: {},
+        },
+      });
+      orch.checkpointManager.save = async () => true;
+      orch.workflowEngine.loadWorkflow = async () => ({});
+
+      // Override executeWorkflow to emit step events so handlers are covered
+      orch.workflowEngine.executeWorkflow = async () => {
+        orch.workflowEngine.emit('step:start', { step: { id: 'step_02', name: 'Step 2' } });
+        orch.workflowEngine.emit('step:complete', {
+          step: { id: 'step_02', name: 'Step 2' },
+          result: { success: true, duration: 100 },
+        });
+        orch.workflowEngine.emit('step:error', {
+          step: { id: 'step_04', name: 'Step 4' },
+          error: new Error('test error'),
+        });
+        return { success: true, summary: { total: 2, succeeded: 1, failed: 1, skipped: 0 }, results: [], duration: 100 };
+      };
+
+      const result = await orch.resume('event-test-checkpoint');
+      expect(result.success).toBe(true);
+      expect(result.resumed).toBe(true);
+    });
+
+    test('execute emits step events during workflow execution', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir, stage: 'quick', auto: true });
+
+      // Override health check to pass without real system checks
+      orch.healthCheck = async () => ({
+        passed: true,
+        checks: { configuration: { passed: true }, environment: { passed: true } },
+      });
+
+      orch.checkpointManager.save = async () => 'checkpoint-id';
+      orch.workflowEngine.loadWorkflow = async (w) => w;
+
+      // executeWorkflow emits all four step event types so execute() handlers are covered
+      orch.workflowEngine.executeWorkflow = async () => {
+        orch.workflowEngine.emit('step:start', { step: { id: 'step_00', name: 'Step 0' } });
+        orch.workflowEngine.emit('step:complete', {
+          step: { id: 'step_00', name: 'Step 0' },
+          result: { success: true, duration: 200 },
+        });
+        orch.workflowEngine.emit('step:error', {
+          step: { id: 'step_01', name: 'Step 1' },
+          error: new Error('simulated error'),
+        });
+        orch.workflowEngine.emit('step:skipped', {
+          step: { id: 'step_02', name: 'Step 2' },
+          result: { reason: 'not needed' },
+        });
+        return {
+          success: true,
+          summary: { total: 3, succeeded: 1, failed: 1, skipped: 1 },
+          results: [],
+          duration: 500,
+        };
+      };
+
+      orch.summaryGenerator.generateSummary = async () => 'Summary';
+
+      const result = await orch.execute({});
+      expect(result.success).toBe(true);
     });
   });
 });

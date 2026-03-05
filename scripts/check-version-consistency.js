@@ -36,7 +36,7 @@ const colors = {
  * @returns {string} Semantic version string from package.json
  * @throws {Error} If package.json cannot be read or parsed
  */
-function getPackageVersion() {
+export function getPackageVersion() {
   const packagePath = join(projectRoot, 'package.json');
   try {
     const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
@@ -49,7 +49,7 @@ function getPackageVersion() {
 /**
  * Find all markdown files recursively
  */
-function findMarkdownFiles(dir, fileList = []) {
+export function findMarkdownFiles(dir, fileList = []) {
   const files = readdirSync(dir);
 
   files.forEach((file) => {
@@ -72,7 +72,7 @@ function findMarkdownFiles(dir, fileList = []) {
 /**
  * Extract version references from a markdown file
  */
-function extractVersionReferences(filePath) {
+export function extractVersionReferences(filePath) {
   const content = readFileSync(filePath, 'utf-8');
   const versions = new Set();
 
@@ -98,7 +98,7 @@ function extractVersionReferences(filePath) {
 /**
  * Check for version inconsistencies
  */
-function checkVersionConsistency() {
+export function checkVersionConsistency() {
   console.log(`${colors.cyan}🔍 Version Consistency Check${colors.reset}\n`);
 
   const packageVersion = getPackageVersion();
@@ -190,7 +190,7 @@ function checkVersionConsistency() {
  * @param {string} packageVersion - The correct version to write
  * @returns {Array<{file: string, fixed: boolean, error?: string}>}
  */
-function autoFixInconsistencies(inconsistencies, packageVersion) {
+export function autoFixInconsistencies(inconsistencies, packageVersion) {
   const results = [];
 
   for (const item of inconsistencies) {
@@ -226,7 +226,8 @@ function autoFixInconsistencies(inconsistencies, packageVersion) {
   return results;
 }
 
-// Run check
+// Run check (only when executed directly, not when imported as a module)
+if (process.argv[1] === __filename) {
 try {
   const autoFix = process.argv.includes('--auto-fix') || process.argv.includes('--fix');
   const exitCode = checkVersionConsistency();
@@ -266,3 +267,4 @@ try {
   console.error(`${colors.red}Fatal error:${colors.reset}`, error);
   process.exit(1);
 }
+} // end isMain guard

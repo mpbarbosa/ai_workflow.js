@@ -293,6 +293,35 @@ describe('Step19TypescriptReview', () => {
     );
   });
 
+  it('injects actual file contents into the AI prompt', async () => {
+    const fileContent = 'export function greet(): string { return "hi"; }';
+    mockFileOps.glob.mockResolvedValue(['src/utils.tsx']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce(fileContent) // utils.tsx
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task"\n  approach: "Type-first"'
+      );
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+
+    let capturedPrompt = '';
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain('**File Contents**');
+    expect(capturedPrompt).toContain('`src/utils.tsx`');
+    expect(capturedPrompt).toContain(fileContent);
+  });
+
   it('executes with AI unavailable and returns report without AI content', async () => {
     mockFileOps.glob.mockResolvedValue(['src/app.ts']);
     mockFileOps.readFile.mockResolvedValue('const x: string = "hi";');

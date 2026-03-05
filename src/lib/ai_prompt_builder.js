@@ -560,10 +560,10 @@ ${codeList}`;
  * @returns {string} Code quality review prompt
  */
 /** Maximum characters per file injected into the code review prompt (~1 000 tokens). */
-const MAX_CHARS_PER_FILE = 4_000;
+export const MAX_CHARS_PER_FILE = 4_000;
 
 /** Maximum total characters for all injected file contents (~7 500 tokens). */
-const MAX_CHARS_TOTAL_CONTENTS = 30_000;
+export const MAX_CHARS_TOTAL_CONTENTS = 30_000;
 
 /**
  * Build a fenced code block section for a single file, truncating if needed.
@@ -572,7 +572,7 @@ const MAX_CHARS_TOTAL_CONTENTS = 30_000;
  * @param {string} content  - Raw file content.
  * @returns {string} Markdown fenced block.
  */
-function buildFileContentBlock(filePath, content) {
+export function buildFileContentBlock(filePath, content) {
   const truncated =
     content.length > MAX_CHARS_PER_FILE
       ? content.substring(0, MAX_CHARS_PER_FILE) + '\n...(truncated)'

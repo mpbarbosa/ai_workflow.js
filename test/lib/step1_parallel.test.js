@@ -353,7 +353,7 @@ describe('Step 1 Parallel Processing', () => {
   // INTEGRATION TESTS
   // ==========================================================================
 
-  describe.skip('Step1ParallelProcessor', () => {
+  describe('Step1ParallelProcessor', () => {
     let processor;
 
     beforeEach(() => {

@@ -24,6 +24,9 @@ import {
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
+  buildFileContentBlock,
+  MAX_CHARS_PER_FILE,
+  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 
@@ -190,6 +193,23 @@ export class Step18Debugging {
           // the full role context, expertise spec, source file list, and output format.
           const cfg = parsedYaml[personaKey];
           let debugPrompt = null;
+
+          // Build a file-contents section shared by both prompt paths.
+          const fileContentBlocks = [];
+          let totalChars = 0;
+          for (let i = 0; i < sampleFiles.length; i++) {
+            const content = sampleContents[i] ?? '';
+            if (!content) continue;
+            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
+            if (totalChars + contribution > MAX_CHARS_TOTAL_CONTENTS) break;
+            fileContentBlocks.push(buildFileContentBlock(sampleFiles[i], content));
+            totalChars += contribution;
+          }
+          const fileContentsSection =
+            fileContentBlocks.length > 0
+              ? `**File Contents**:\n\n${fileContentBlocks.join('\n\n')}`
+              : '';
+
           if (cfg && typeof cfg === 'object') {
             const parts = [];
             const role = (cfg.role_prefix || cfg.role || '').trim();
@@ -199,6 +219,7 @@ export class Step18Debugging {
             parts.push(
               `**Source Files to Analyze** (${sourceFiles.length} total): ${sampleFiles.join(', ')}`
             );
+            if (fileContentsSection) parts.push(fileContentsSection);
             if (cfg.approach) parts.push(cfg.approach.trim());
             if (cfg.output_format) parts.push(`**Output Format**:\n${cfg.output_format.trim()}`);
             debugPrompt = parts.join('\n\n');
@@ -210,9 +231,10 @@ export class Step18Debugging {
               file_count: String(sourceFiles.length),
             });
             if (builtPrompt) {
-              debugPrompt = roleOverride
+              const base = roleOverride
                 ? `[Project-Kind Role: ${roleOverride}]\n\n${builtPrompt}`
                 : builtPrompt;
+              debugPrompt = fileContentsSection ? `${base}\n\n${fileContentsSection}` : base;
             }
           }
           if (debugPrompt) {

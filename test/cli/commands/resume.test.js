@@ -3,12 +3,14 @@
  * @module test/cli/commands/resume.test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import {
+  resumeCommand,
   validateResumeOptions,
   formatCheckpoint,
   formatCheckpointList,
 } from '../../../src/cli/commands/resume.js';
+import { logger } from '../../../src/core/logger.js';
 
 describe('Resume Command - Pure Functions', () => {
   describe('validateResumeOptions', () => {
@@ -114,5 +116,36 @@ describe('Resume Command - Pure Functions', () => {
       const result = formatCheckpointList(null);
       expect(result).toBe('No checkpoints found');
     });
+  });
+});
+
+describe('resumeCommand (impure wrapper)', () => {
+  let exitSpy;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('exits with code 1 when no checkpointId and no flags provided', async () => {
+    await expect(resumeCommand(null, {})).rejects.toThrow();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 when both --list and --latest are set', async () => {
+    await expect(resumeCommand(null, { list: true, latest: true })).rejects.toThrow();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 when checkpointId is provided with --list', async () => {
+    await expect(resumeCommand('cp-123', { list: true })).rejects.toThrow();
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

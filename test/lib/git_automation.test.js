@@ -587,3 +587,287 @@ describe('git_automation - GitAutomation Class', () => {
   // Note: getChangedFilesSince() requires a real commit hash to test end-to-end.
   // It is exercised indirectly via main_orchestrator integration.
 });
+
+import { jest } from '@jest/globals';
+
+describe('GitAutomation class methods (spyOn _exec)', () => {
+  let git;
+  let execSpy;
+
+  beforeEach(() => {
+    git = new GitAutomation({ repoPath: '/test/repo' });
+    execSpy = jest.spyOn(git, '_exec');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('isRepository', () => {
+    test('returns false for non-existent path', async () => {
+      const result = await git.isRepository('/nonexistent/path');
+      expect(result).toBe(false);
+    });
+
+    test('returns true for current working directory (has .git)', async () => {
+      const result = await git.isRepository(process.cwd());
+      expect(typeof result).toBe('boolean');
+    });
+  });
+
+  describe('executeGitCommand', () => {
+    test('executes command and returns stdout', async () => {
+      execSpy.mockReturnValue('output line\n');
+      const result = await git.executeGitCommand(['log', '--oneline']);
+      expect(execSpy).toHaveBeenCalledWith('git log --oneline');
+      expect(result).toEqual({ stdout: 'output line\n' });
+    });
+  });
+
+  describe('status', () => {
+    test('returns parsed status with staged/unstaged/untracked', async () => {
+      execSpy.mockReturnValue('M  src/foo.js\n?? src/new.js\n');
+      const result = await git.status();
+      expect(result).toHaveProperty('staged');
+      expect(result).toHaveProperty('unstaged');
+      expect(result).toHaveProperty('untracked');
+    });
+
+    test('returns empty arrays for clean status', async () => {
+      execSpy.mockReturnValue('');
+      const result = await git.status();
+      expect(result.staged).toEqual([]);
+      expect(result.untracked).toEqual([]);
+    });
+  });
+
+  describe('diff', () => {
+    test('diffs all changes by default', async () => {
+      execSpy.mockReturnValue('');
+      await git.diff();
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('git diff'));
+    });
+
+    test('diffs staged changes with --cached flag', async () => {
+      execSpy.mockReturnValue('');
+      await git.diff({ staged: true });
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('--cached'));
+    });
+
+    test('diffs specific files', async () => {
+      execSpy.mockReturnValue('');
+      await git.diff({ files: ['src/foo.js'] });
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('src/foo.js'));
+    });
+  });
+
+  describe('log', () => {
+    test('returns parsed commits', async () => {
+      execSpy.mockReturnValue('abc1234 feat: first commit\ndef5678 fix: second commit\n');
+      const result = await git.log({ limit: 2 });
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    test('includes --since option when provided', async () => {
+      execSpy.mockReturnValue('');
+      await git.log({ since: '2024-01-01' });
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('--since'));
+    });
+
+    test('returns empty array for empty output', async () => {
+      execSpy.mockReturnValue('');
+      const result = await git.log();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('add', () => {
+    test('stages specified files', async () => {
+      execSpy.mockReturnValue('');
+      await git.add(['src/foo.js', 'src/bar.js']);
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('git add'));
+    });
+
+    test('stages with force flag', async () => {
+      execSpy.mockReturnValue('');
+      await git.add(['src/foo.js'], { force: true });
+      expect(execSpy).toHaveBeenCalledWith(expect.stringContaining('-f'));
+    });
+
+    test('throws for empty files array', async () => {
+      await expect(git.add([])).rejects.toThrow();
+    });
+
+    test('throws for non-array input', async () => {
+      await expect(git.add('file.js')).rejects.toThrow();
+    });
+  });
+
+  describe('commit', () => {
+    test('creates a commit and returns hash', async () => {
+      execSpy
+        .mockReturnValueOnce('') // git commit
+        .mockReturnValueOnce('abc1234 feat: valid commit message here\n'); // git log -1
+      const hash = await git.commit('feat: valid commit message here');
+      expect(hash).toBe('abc1234');
+    });
+
+    test('throws for too-short commit message', async () => {
+      await expect(git.commit('bad')).rejects.toThrow();
+    });
+
+    test('includes --allow-empty when option set', async () => {
+      execSpy
+        .mockReturnValueOnce('')
+        .mockReturnValueOnce('abc1234 chore: valid commit message here\n');
+      await git.commit('chore: valid commit message here', { allowEmpty: true });
+      const calls = execSpy.mock.calls.map((c) => c[0]);
+      expect(calls.some((c) => c.includes('--allow-empty'))).toBe(true);
+    });
+
+    test('includes --no-verify when option set', async () => {
+      execSpy
+        .mockReturnValueOnce('')
+        .mockReturnValueOnce('abc1234 chore: valid commit message here\n');
+      await git.commit('chore: valid commit message here', { noVerify: true });
+      const calls = execSpy.mock.calls.map((c) => c[0]);
+      expect(calls.some((c) => c.includes('--no-verify'))).toBe(true);
+    });
+  });
+
+  describe('getCurrentBranch', () => {
+    test('returns trimmed branch name', async () => {
+      execSpy.mockReturnValue('main\n');
+      const branch = await git.getCurrentBranch();
+      expect(branch).toBe('main');
+    });
+  });
+
+  describe('getBranches', () => {
+    test('parses branch list with current marker', async () => {
+      execSpy.mockReturnValue('* main\n  feature-x\n');
+      const result = await git.getBranches();
+      expect(result).toHaveProperty('current');
+      expect(result).toHaveProperty('all');
+    });
+  });
+
+  describe('getRemotes', () => {
+    test('parses remote list', async () => {
+      execSpy.mockReturnValue(
+        'origin\thttps://github.com/org/repo.git (fetch)\norigin\thttps://github.com/org/repo.git (push)\n'
+      );
+      const remotes = await git.getRemotes();
+      expect(Array.isArray(remotes)).toBe(true);
+    });
+
+    test('returns empty array for no remotes', async () => {
+      execSpy.mockReturnValue('');
+      const remotes = await git.getRemotes();
+      expect(remotes).toEqual([]);
+    });
+  });
+
+  describe('hasChanges', () => {
+    test('returns true when there are untracked files', async () => {
+      execSpy.mockReturnValue('?? src/new.js\n');
+      const result = await git.hasChanges();
+      expect(result).toBe(true);
+    });
+
+    test('returns false when status is clean', async () => {
+      execSpy.mockReturnValue('');
+      const result = await git.hasChanges();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getLastCommit', () => {
+    test('returns the most recent commit object', async () => {
+      execSpy.mockReturnValue('abc1234 feat: recent commit message\n');
+      const commit = await git.getLastCommit();
+      expect(commit).toBeTruthy();
+    });
+
+    test('returns null when no commits exist', async () => {
+      execSpy.mockReturnValue('');
+      const commit = await git.getLastCommit();
+      expect(commit).toBeNull();
+    });
+  });
+
+  describe('getCommitsAhead', () => {
+    test('returns 0 when no origin remote', async () => {
+      // getCurrentBranch then getRemotes → empty = no 'origin'
+      execSpy.mockReturnValueOnce('main\n').mockReturnValueOnce('');
+      const count = await git.getCommitsAhead();
+      expect(count).toBe(0);
+    });
+
+    test('returns 0 on error', async () => {
+      execSpy.mockImplementation(() => {
+        throw new Error('git failed');
+      });
+      const count = await git.getCommitsAhead();
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('getTotalChanges', () => {
+    test('counts all changed files', async () => {
+      execSpy.mockReturnValue('M  src/foo.js\n?? src/new.js\n');
+      const total = await git.getTotalChanges();
+      expect(typeof total).toBe('number');
+      expect(total).toBeGreaterThanOrEqual(0);
+    });
+
+    test('returns 0 when status throws', async () => {
+      execSpy.mockImplementation(() => {
+        throw new Error('git failed');
+      });
+      const total = await git.getTotalChanges();
+      expect(total).toBe(0);
+    });
+  });
+
+  describe('getModifiedFiles', () => {
+    test('returns deduplicated list of modified files', async () => {
+      execSpy.mockReturnValue('M  src/foo.js\n?? src/new.js\n');
+      const files = await git.getModifiedFiles();
+      expect(Array.isArray(files)).toBe(true);
+    });
+
+    test('returns empty array when status throws', async () => {
+      execSpy.mockImplementation(() => {
+        throw new Error('fail');
+      });
+      const files = await git.getModifiedFiles();
+      expect(files).toEqual([]);
+    });
+  });
+
+  describe('getStatusOutput', () => {
+    test('returns empty string when executor is not set', async () => {
+      // executor is not set in the constructor, so this.executor is undefined → catch → ''
+      const output = await git.getStatusOutput();
+      expect(output).toBe('');
+    });
+  });
+
+  describe('getChangedFilesSince (via _exec spy)', () => {
+    test('returns parsed file list', () => {
+      execSpy.mockReturnValue('M\tsrc/foo.js\nA\tsrc/bar.js\n');
+      const files = git.getChangedFilesSince('abc1234');
+      expect(Array.isArray(files)).toBe(true);
+      expect(files.length).toBe(2);
+      expect(files[0]).toHaveProperty('file');
+      expect(files[0]).toHaveProperty('status');
+    });
+
+    test('returns empty array for empty diff output', () => {
+      execSpy.mockReturnValue('');
+      const files = git.getChangedFilesSince('abc1234');
+      expect(files).toEqual([]);
+    });
+  });
+});

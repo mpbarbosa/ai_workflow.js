@@ -3,12 +3,14 @@
  * @module test/cli/commands/clean.test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import {
+  cleanCommand,
   validateCleanOptions,
   determineCleanupTargets,
   formatCleanupResult,
 } from '../../../src/cli/commands/clean.js';
+import { logger } from '../../../src/core/logger.js';
 
 describe('Clean Command - Pure Functions', () => {
   describe('validateCleanOptions', () => {
@@ -91,5 +93,31 @@ describe('Clean Command - Pure Functions', () => {
       const formatted = formatCleanupResult(null);
       expect(formatted).toBe('No cleanup result');
     });
+  });
+});
+
+describe('cleanCommand (impure wrapper)', () => {
+  let exitSpy;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('exits with code 1 when no cleanup target is specified', async () => {
+    await expect(cleanCommand({})).rejects.toThrow('process.exit');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 when --all is combined with another flag', async () => {
+    await expect(cleanCommand({ all: true, cache: true })).rejects.toThrow('process.exit');
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

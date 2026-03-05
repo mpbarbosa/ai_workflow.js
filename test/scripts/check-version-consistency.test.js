@@ -1,162 +1,204 @@
-// test/check-version-consistency.test.js
+// test/scripts/check-version-consistency.test.js
 
-import fs from 'fs';
-import path from 'path';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
-// Mock fs and path modules
-jest.mock('fs');
-jest.mock('path');
+// ---------------------------------------------------------------------------
+// Mock 'fs' named imports BEFORE importing the module under test
+// ---------------------------------------------------------------------------
+const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
+const mockReaddirSync = jest.fn();
+const mockStatSync = jest.fn();
 
+jest.unstable_mockModule('fs', () => ({
+  readFileSync: mockReadFileSync,
+  writeFileSync: mockWriteFileSync,
+  readdirSync: mockReaddirSync,
+  statSync: mockStatSync,
+}));
+
+// Import AFTER mocking
 const {
   getPackageVersion,
   findMarkdownFiles,
   extractVersionReferences,
   checkVersionConsistency,
   autoFixInconsistencies,
-} = await import('../scripts/check-version-consistency.js');
+} = await import('../../scripts/check-version-consistency.js');
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function makeStat({ isDir = false } = {}) {
+  return { isDirectory: () => isDir };
+}
 
 describe('check-version-consistency.js', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Suppress console output in tests
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
+  // -------------------------------------------------------------------------
   describe('getPackageVersion', () => {
-    it('should return the version from package.json (happy path)', () => {
-      fs.readFileSync.mockReturnValue(JSON.stringify({ version: '1.2.3' }));
-      path.join.mockReturnValue('/project/package.json');
+    it('returns the version string from package.json', () => {
+      mockReadFileSync.mockReturnValue(JSON.stringify({ version: '1.2.3' }));
       expect(getPackageVersion()).toBe('1.2.3');
     });
 
-    it('should throw error if package.json cannot be read', () => {
-      fs.readFileSync.mockImplementation(() => { throw new Error('fail'); });
-      path.join.mockReturnValue('/project/package.json');
-      expect(() => getPackageVersion()).toThrow(/Failed to read package.json/);
+    it('throws if readFileSync fails', () => {
+      mockReadFileSync.mockImplementation(() => { throw new Error('ENOENT'); });
+      expect(() => getPackageVersion()).toThrow(/Failed to read package\.json/);
     });
 
-    it('should throw error if package.json is invalid JSON', () => {
-      fs.readFileSync.mockReturnValue('not-json');
-      path.join.mockReturnValue('/project/package.json');
-      expect(() => getPackageVersion()).toThrow(/Failed to read package.json/);
+    it('throws if package.json contains invalid JSON', () => {
+      mockReadFileSync.mockReturnValue('not-json');
+      expect(() => getPackageVersion()).toThrow(/Failed to read package\.json/);
     });
   });
 
+  // -------------------------------------------------------------------------
   describe('findMarkdownFiles', () => {
-    it('should find markdown files recursively (happy path)', () => {
-      fs.readdirSync.mockImplementation((dir) => {
-        if (dir === '/root') return ['a.md', 'sub', 'b.txt'];
-        if (dir === '/root/sub') return ['c.md'];
+    it('returns markdown files found recursively', () => {
+      mockReaddirSync.mockImplementation((dir) => {
+        if (dir.endsWith('root')) return ['a.md', 'sub', 'b.txt'];
+        if (dir.endsWith('sub')) return ['c.md'];
         return [];
       });
-      fs.statSync.mockImplementation((filePath) => ({
-        isDirectory: () => filePath.endsWith('sub'),
-      }));
-      path.join.mockImplementation((...args) => args.join('/'));
+      mockStatSync.mockImplementation((p) => makeStat({ isDir: p.endsWith('sub') }));
+
       const files = findMarkdownFiles('/root');
-      expect(files).toContain('/root/a.md');
-      expect(files).toContain('/root/sub/c.md');
-      expect(files).not.toContain('/root/b.txt');
+      expect(files.some((f) => f.endsWith('a.md'))).toBe(true);
+      expect(files.some((f) => f.endsWith('c.md'))).toBe(true);
+      expect(files.every((f) => f.endsWith('.md'))).toBe(true);
     });
 
-    it('should skip node_modules and hidden directories', () => {
-      fs.readdirSync.mockReturnValue(['.hidden', 'node_modules', 'file.md']);
-      fs.statSync.mockImplementation((filePath) => ({
-        isDirectory: () => filePath.endsWith('.hidden') || filePath.endsWith('node_modules'),
-      }));
-      path.join.mockImplementation((...args) => args.join('/'));
+    it('skips node_modules and hidden directories', () => {
+      mockReaddirSync.mockReturnValue(['.git', 'node_modules', 'readme.md']);
+      mockStatSync.mockImplementation((p) =>
+        makeStat({ isDir: p.endsWith('.git') || p.endsWith('node_modules') })
+      );
+
       const files = findMarkdownFiles('/root');
-      expect(files).toContain('/root/file.md');
-      expect(files).not.toContain('/root/.hidden/file.md');
-      expect(files).not.toContain('/root/node_modules/file.md');
+      expect(files.length).toBe(1);
+      expect(files[0]).toMatch(/readme\.md$/);
+    });
+
+    it('returns empty array when directory has no markdown files', () => {
+      mockReaddirSync.mockReturnValue(['index.js', 'config.yaml']);
+      mockStatSync.mockReturnValue(makeStat({ isDir: false }));
+      expect(findMarkdownFiles('/root')).toEqual([]);
     });
   });
 
+  // -------------------------------------------------------------------------
   describe('extractVersionReferences', () => {
-    it('should extract multiple version patterns from markdown', () => {
-      fs.readFileSync.mockReturnValue(
-        'Version: 1.2.3\nversion: v1.2.3\nv1.2.3\n@1.2.3\n[1.2.3]\nVersion: 2.0.0'
+    it('extracts versions matching all supported patterns', () => {
+      mockReadFileSync.mockReturnValue(
+        'Version: 1.2.3\nversion: v2.0.0\nv3.1.4\n@4.0.0\n[5.6.7]'
       );
       const versions = extractVersionReferences('/fake.md');
       expect(versions.has('1.2.3')).toBe(true);
       expect(versions.has('2.0.0')).toBe(true);
+      expect(versions.has('3.1.4')).toBe(true);
+      expect(versions.has('4.0.0')).toBe(true);
+      expect(versions.has('5.6.7')).toBe(true);
     });
 
-    it('should return empty set if no version found', () => {
-      fs.readFileSync.mockReturnValue('No version here');
-      const versions = extractVersionReferences('/fake.md');
-      expect(versions.size).toBe(0);
+    it('returns empty set when no versions are present', () => {
+      mockReadFileSync.mockReturnValue('No versions here at all.');
+      expect(extractVersionReferences('/fake.md').size).toBe(0);
     });
 
-    it('should handle edge case with malformed version', () => {
-      fs.readFileSync.mockReturnValue('Version: not.a.version');
+    it('deduplicates the same version seen multiple times', () => {
+      mockReadFileSync.mockReturnValue('v1.0.0 and v1.0.0 again');
       const versions = extractVersionReferences('/fake.md');
-      expect(versions.size).toBe(0);
+      expect(versions.size).toBe(1);
+      expect(versions.has('1.0.0')).toBe(true);
+    });
+
+    it('ignores strings that look like versions but are not (e.g. x.y.z)', () => {
+      mockReadFileSync.mockReturnValue('Version: not.a.ver');
+      expect(extractVersionReferences('/fake.md').size).toBe(0);
     });
   });
 
+  // -------------------------------------------------------------------------
   describe('checkVersionConsistency', () => {
-    beforeEach(() => {
-      fs.readFileSync.mockImplementation((filePath) => {
-        if (filePath.endsWith('package.json')) return JSON.stringify({ version: '1.2.3' });
-        if (filePath.endsWith('README.md')) return 'Version: 1.2.3';
-        if (filePath.endsWith('CHANGELOG.md')) return 'Version: 1.2.3';
-        if (filePath.endsWith('docs.md')) return 'Version: 2.0.0';
-        return '';
-      });
-      fs.readdirSync.mockReturnValue(['README.md', 'CHANGELOG.md', 'docs.md']);
-      fs.statSync.mockImplementation((filePath) => ({
-        isDirectory: () => false,
-      }));
-      path.join.mockImplementation((...args) => args.join('/'));
-    });
+    it('returns 0 when all version references match package.json', () => {
+      mockReadFileSync.mockReturnValue(JSON.stringify({ version: '1.2.3' }));
+      mockReaddirSync.mockReturnValue(['readme.md']);
+      mockStatSync.mockReturnValue(makeStat({ isDir: false }));
+      // readme.md content consistent with package.json
+      mockReadFileSync
+        .mockReturnValueOnce(JSON.stringify({ version: '1.2.3' })) // package.json
+        .mockReturnValue('Version: 1.2.3');                          // readme.md
 
-    it('should return 0 if all versions are consistent', () => {
-      fs.readFileSync.mockImplementation((filePath) => 'Version: 1.2.3');
       expect(checkVersionConsistency()).toBe(0);
     });
 
-    it('should return 1 if there are inconsistencies', () => {
-      fs.readFileSync.mockImplementation((filePath) => {
-        if (filePath.endsWith('package.json')) return JSON.stringify({ version: '1.2.3' });
-        if (filePath.endsWith('README.md')) return 'Version: 1.2.3';
-        if (filePath.endsWith('CHANGELOG.md')) return 'Version: 2.0.0';
-        return '';
-      });
+    it('returns 1 when an outdated version is found', () => {
+      mockReaddirSync.mockReturnValue(['old.md']);
+      mockStatSync.mockReturnValue(makeStat({ isDir: false }));
+      mockReadFileSync
+        .mockReturnValueOnce(JSON.stringify({ version: '2.0.0' })) // package.json
+        .mockReturnValue('Version: 1.0.0');                         // old.md
+
       expect(checkVersionConsistency()).toBe(1);
     });
 
-    it('should handle no markdown files gracefully', () => {
-      fs.readdirSync.mockReturnValue([]);
+    it('returns 0 when no markdown files contain version references', () => {
+      mockReaddirSync.mockReturnValue([]);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ version: '1.2.3' }));
       expect(checkVersionConsistency()).toBe(0);
     });
   });
 
+  // -------------------------------------------------------------------------
   describe('autoFixInconsistencies', () => {
-    it('should fix outdated version strings in files', () => {
-      fs.readFileSync.mockReturnValue('Version: 2.0.0');
-      let written = '';
-      fs.writeFileSync.mockImplementation((file, content) => { written = content; });
-      const inconsistencies = [{ file: '/fake.md', versions: ['2.0.0'] }];
-      const results = autoFixInconsistencies(inconsistencies, '1.2.3');
+    it('replaces outdated version and marks as fixed', () => {
+      mockReadFileSync.mockReturnValue('Version: 2.0.0');
+      mockWriteFileSync.mockImplementation(() => {});
+
+      const results = autoFixInconsistencies([{ file: '/f.md', versions: ['2.0.0'] }], '3.0.0');
       expect(results[0].fixed).toBe(true);
-      expect(written).toContain('1.2.3');
+      expect(mockWriteFileSync).toHaveBeenCalledWith('/f.md', expect.stringContaining('3.0.0'), 'utf-8');
     });
 
-    it('should skip files if version string not found', () => {
-      fs.readFileSync.mockReturnValue('No version here');
-      fs.writeFileSync.mockImplementation(() => {});
-      const inconsistencies = [{ file: '/fake.md', versions: ['2.0.0'] }];
-      const results = autoFixInconsistencies(inconsistencies, '1.2.3');
+    it('marks as not-fixed when version string is not found in file', () => {
+      mockReadFileSync.mockReturnValue('No version here');
+      mockWriteFileSync.mockImplementation(() => {});
+
+      const results = autoFixInconsistencies([{ file: '/f.md', versions: ['9.9.9'] }], '3.0.0');
       expect(results[0].fixed).toBe(false);
-      expect(results[0].error).toMatch(/not replaceable/);
+      expect(results[0].error).toMatch(/not found in file content/);
     });
 
-    it('should handle error during file write', () => {
-      fs.readFileSync.mockReturnValue('Version: 2.0.0');
-      fs.writeFileSync.mockImplementation(() => { throw new Error('write fail'); });
-      const inconsistencies = [{ file: '/fake.md', versions: ['2.0.0'] }];
-      const results = autoFixInconsistencies(inconsistencies, '1.2.3');
+    it('records error and marks as not-fixed when writeFileSync throws', () => {
+      mockReadFileSync.mockReturnValue('Version: 2.0.0');
+      mockWriteFileSync.mockImplementation(() => { throw new Error('disk full'); });
+
+      const results = autoFixInconsistencies([{ file: '/f.md', versions: ['2.0.0'] }], '3.0.0');
       expect(results[0].fixed).toBe(false);
-      expect(results[0].error).toMatch(/write fail/);
+      expect(results[0].error).toMatch(/disk full/);
+    });
+
+    it('processes multiple files and returns a result per file', () => {
+      mockReadFileSync
+        .mockReturnValueOnce('Version: 1.0.0')  // first file — fixable
+        .mockReturnValue('nothing');             // second file — not fixable
+      mockWriteFileSync.mockImplementation(() => {});
+
+      const inconsistencies = [
+        { file: '/a.md', versions: ['1.0.0'] },
+        { file: '/b.md', versions: ['1.0.0'] },
+      ];
+      const results = autoFixInconsistencies(inconsistencies, '2.0.0');
+      expect(results).toHaveLength(2);
+      expect(results[0].fixed).toBe(true);
+      expect(results[1].fixed).toBe(false);
     });
   });
 });

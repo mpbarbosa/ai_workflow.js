@@ -207,6 +207,43 @@ describe('Step18Debugging', () => {
     expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
   });
 
+  it('injects actual file contents into the AI prompt', async () => {
+    const personaYaml = [
+      'async_flow_debugger_prompt:',
+      '  role_prefix: RolePrefix',
+      '  specific_expertise: Expertise',
+      '  approach: Approach',
+      '  output_format: OutputFormat',
+    ].join('\n');
+    const fileContent = 'async function run() { await fetch(); }';
+    mockFileOps.glob.mockResolvedValue(['src/utils/myfile.js']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce(fileContent) // src/utils/myfile.js
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}');       // AI_PROJECT_KINDS_PATH
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+
+    let capturedPrompt = '';
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+      // Invoke the generator so the prompt is forwarded to executeRequest
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    // The prompt must contain a fenced code block with the actual file content,
+    // not just the filename in a comma-separated list.
+    expect(capturedPrompt).toContain('**File Contents**');
+    expect(capturedPrompt).toContain('`src/utils/myfile.js`');
+    expect(capturedPrompt).toContain(fileContent);
+  });
+
   it('executes with AI unavailable and returns report with no AI content', async () => {
     mockFileOps.glob.mockResolvedValue(['file1.js']);
     mockFileOps.readFile.mockResolvedValue('async function run() {}');

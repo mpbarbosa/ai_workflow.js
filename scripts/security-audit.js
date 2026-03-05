@@ -34,7 +34,7 @@ const colors = {
 };
 
 // Security findings
-const findings = {
+export const findings = {
   critical: [],
   high: [],
   medium: [],
@@ -45,7 +45,7 @@ const findings = {
 /**
  * Check for hardcoded secrets
  */
-async function checkHardcodedSecrets() {
+export async function checkHardcodedSecrets() {
   console.log(`${colors.cyan}▶${colors.reset} Checking for hardcoded secrets...`);
 
   const patterns = [
@@ -91,7 +91,7 @@ async function checkHardcodedSecrets() {
 /**
  * Check for command injection vulnerabilities
  */
-async function checkCommandInjection() {
+export async function checkCommandInjection() {
   console.log(`${colors.cyan}▶${colors.reset} Checking for command injection...`);
 
   const dangerousPatterns = [
@@ -134,7 +134,7 @@ async function checkCommandInjection() {
 /**
  * Check for path traversal vulnerabilities
  */
-async function checkPathTraversal() {
+export async function checkPathTraversal() {
   console.log(`${colors.cyan}▶${colors.reset} Checking for path traversal...`);
 
   const patterns = [
@@ -175,7 +175,7 @@ async function checkPathTraversal() {
 /**
  * Check npm dependencies for vulnerabilities
  */
-async function checkDependencies() {
+export async function checkDependencies() {
   console.log(`${colors.cyan}▶${colors.reset} Checking npm dependencies...`);
 
   try {
@@ -219,7 +219,7 @@ async function checkDependencies() {
 /**
  * Recursively get all JS files
  */
-async function getAllJSFiles(dir) {
+export async function getAllJSFiles(dir) {
   const files = [];
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
@@ -239,7 +239,7 @@ async function getAllJSFiles(dir) {
 /**
  * Generate security report
  */
-function generateReport() {
+export function generateReport() {
   console.log(`${colors.cyan}═══════════════════════════════════${colors.reset}`);
   console.log(`${colors.cyan}       Security Audit Report${colors.reset}`);
   console.log(`${colors.cyan}═══════════════════════════════════${colors.reset}\n`);
@@ -306,7 +306,7 @@ function generateReport() {
 /**
  * Main audit function
  */
-async function runSecurityAudit() {
+export async function runSecurityAudit() {
   console.log(`${colors.cyan}Starting Security Audit...${colors.reset}\n`);
 
   await checkHardcodedSecrets();
@@ -319,7 +319,9 @@ async function runSecurityAudit() {
 }
 
 // Run audit
-runSecurityAudit().catch((error) => {
-  console.error(`${colors.red}Error:${colors.reset}`, error.message);
-  process.exit(1);
-});
+if (process.argv[1] === __filename) {
+  runSecurityAudit().catch((error) => {
+    console.error(`${colors.red}Error:${colors.reset}`, error.message);
+    process.exit(1);
+  });
+}

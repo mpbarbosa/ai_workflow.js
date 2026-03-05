@@ -19,82 +19,39 @@ import { ValidationError, ConfigurationError } from '../../src/utils/errors.js';
 // ==============================================================================
 
 describe('classifyError — pure function', () => {
-  test('returns FATAL for ValidationError', () => {
-    expect(classifyError(new ValidationError('bad input'))).toBe(ErrorCategory.FATAL);
-  });
-
-  test('returns FATAL for ConfigurationError', () => {
-    expect(classifyError(new ConfigurationError('bad config'))).toBe(ErrorCategory.FATAL);
-  });
-
-  test('returns FATAL for error with code VALIDATION_ERROR', () => {
-    const err = Object.assign(new Error('x'), { code: 'VALIDATION_ERROR' });
+  test.each([
+    ['ValidationError instance', new ValidationError('bad input')],
+    ['ConfigurationError instance', new ConfigurationError('bad config')],
+    ['code VALIDATION_ERROR', Object.assign(new Error('x'), { code: 'VALIDATION_ERROR' })],
+    ['code CONFIG_ERROR', Object.assign(new Error('x'), { code: 'CONFIG_ERROR' })],
+  ])('returns FATAL for %s', (_, err) => {
     expect(classifyError(err)).toBe(ErrorCategory.FATAL);
   });
 
-  test('returns FATAL for error with code CONFIG_ERROR', () => {
-    const err = Object.assign(new Error('x'), { code: 'CONFIG_ERROR' });
-    expect(classifyError(err)).toBe(ErrorCategory.FATAL);
-  });
-
-  test('returns TRANSIENT for ENOENT', () => {
-    const err = Object.assign(new Error('no such file'), { code: 'ENOENT' });
+  test.each([
+    ['ENOENT', 'no such file'],
+    ['ECONNRESET', 'conn reset'],
+    ['ETIMEDOUT', 'timeout'],
+    ['EPIPE', 'pipe'],
+    ['EBUSY', 'busy'],
+  ])('returns TRANSIENT for system code %s', (code, msg) => {
+    const err = Object.assign(new Error(msg), { code });
     expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
   });
 
-  test('returns TRANSIENT for ECONNRESET', () => {
-    const err = Object.assign(new Error('conn reset'), { code: 'ECONNRESET' });
+  test.each([429, 500, 503])('returns TRANSIENT for HTTP status %i', (status) => {
+    const err = Object.assign(new Error('http error'), { status });
     expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
   });
 
-  test('returns TRANSIENT for ETIMEDOUT', () => {
-    const err = Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for EPIPE', () => {
-    const err = Object.assign(new Error('pipe'), { code: 'EPIPE' });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for EBUSY', () => {
-    const err = Object.assign(new Error('busy'), { code: 'EBUSY' });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for HTTP 429', () => {
-    const err = Object.assign(new Error('rate limit'), { status: 429 });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for HTTP 500', () => {
-    const err = Object.assign(new Error('server error'), { status: 500 });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for HTTP 503', () => {
-    const err = Object.assign(new Error('unavailable'), { status: 503 });
-    expect(classifyError(err)).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for "timeout" in message', () => {
-    expect(classifyError(new Error('request timeout'))).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for "timed out" in message', () => {
-    expect(classifyError(new Error('operation timed out'))).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for "rate limit" in message', () => {
-    expect(classifyError(new Error('rate limit exceeded'))).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for "too many requests" in message', () => {
-    expect(classifyError(new Error('too many requests'))).toBe(ErrorCategory.TRANSIENT);
-  });
-
-  test('returns TRANSIENT for "network" in message', () => {
-    expect(classifyError(new Error('network failure'))).toBe(ErrorCategory.TRANSIENT);
+  test.each([
+    'request timeout',
+    'operation timed out',
+    'rate limit exceeded',
+    'too many requests',
+    'network failure',
+  ])('returns TRANSIENT for message containing "%s"', (msg) => {
+    expect(classifyError(new Error(msg))).toBe(ErrorCategory.TRANSIENT);
   });
 
   test('returns UNKNOWN for generic Error', () => {
@@ -142,16 +99,12 @@ describe('shouldRetry — pure function', () => {
 // ==============================================================================
 
 describe('calculateDelay — pure function', () => {
-  test('attempt 0 returns baseDelay', () => {
-    expect(calculateDelay(0, 1000)).toBe(1000);
-  });
-
-  test('attempt 1 returns 2 * baseDelay', () => {
-    expect(calculateDelay(1, 1000)).toBe(2000);
-  });
-
-  test('attempt 2 returns 4 * baseDelay', () => {
-    expect(calculateDelay(2, 1000)).toBe(4000);
+  test.each([
+    [0, 1000, 1000],
+    [1, 1000, 2000],
+    [2, 1000, 4000],
+  ])('attempt %i with baseDelay %i returns %i', (attempt, base, expected) => {
+    expect(calculateDelay(attempt, base)).toBe(expected);
   });
 
   test('caps at maxDelay', () => {

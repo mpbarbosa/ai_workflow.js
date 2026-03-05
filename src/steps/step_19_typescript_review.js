@@ -21,7 +21,7 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { AI_HELPERS_PATH, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
+import { AI_HELPERS_PATH, buildYamlStepPrompt, buildFileContentBlock, MAX_CHARS_PER_FILE, MAX_CHARS_TOTAL_CONTENTS } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -218,6 +218,22 @@ export class Step19TypescriptReview {
           const cfg = parsedYaml['typescript_developer_prompt'];
           let tsPrompt = null;
 
+          // Build file-contents section (same budget as code-quality step)
+          const fileContentBlocks = [];
+          let totalChars = 0;
+          for (let i = 0; i < sampleFiles.length; i++) {
+            const content = sampleContents[i] ?? '';
+            if (!content) continue;
+            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
+            if (totalChars + contribution > MAX_CHARS_TOTAL_CONTENTS) break;
+            fileContentBlocks.push(buildFileContentBlock(sampleFiles[i], content));
+            totalChars += contribution;
+          }
+          const fileContentsSection =
+            fileContentBlocks.length > 0
+              ? `**File Contents**:\n\n${fileContentBlocks.join('\n\n')}`
+              : '';
+
           if (cfg && typeof cfg === 'object') {
             const parts = [];
             const role = (cfg.role_prefix || cfg.role || '').trim();
@@ -240,6 +256,7 @@ export class Step19TypescriptReview {
             parts.push(
               `**TypeScript Files to Review** (${tsFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
             );
+            if (fileContentsSection) parts.push(fileContentsSection);
             if (cfg.approach) parts.push(cfg.approach.trim());
             tsPrompt = parts.join('\n\n');
           } else {
@@ -249,7 +266,9 @@ export class Step19TypescriptReview {
               source_files: sampleFiles.join(', '),
               file_count: String(tsFiles.length),
             });
-            if (builtPrompt) tsPrompt = builtPrompt;
+            if (builtPrompt) {
+              tsPrompt = fileContentsSection ? `${builtPrompt}\n\n${fileContentsSection}` : builtPrompt;
+            }
           }
 
           if (tsPrompt) {

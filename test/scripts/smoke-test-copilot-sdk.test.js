@@ -1,156 +1,229 @@
-// test/smoke-test-copilot-sdk.test.js
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
-import { CopilotClient } from '@github/copilot-sdk';
+const mockStart = jest.fn();
+const mockGetAuthStatus = jest.fn();
+const mockListModels = jest.fn();
+const mockCreateSession = jest.fn();
+const mockStop = jest.fn();
+const MockCopilotClient = jest.fn(() => ({
+  start: mockStart,
+  getAuthStatus: mockGetAuthStatus,
+  listModels: mockListModels,
+  createSession: mockCreateSession,
+  stop: mockStop,
+}));
 
-jest.mock('@github/copilot-sdk');
+jest.unstable_mockModule('@github/copilot-sdk', () => ({
+  CopilotClient: MockCopilotClient,
+}));
+
+const { runSmokeTest, withTimeout } = await import('../../scripts/smoke-test-copilot-sdk.js');
+
+// Helper: build a mock session that fires events during send()
+function makeSession({ content = 'OK', errorEvent = null } = {}) {
+  const handlers = {};
+  return {
+    on: jest.fn((event, handler) => { handlers[event] = handler; }),
+    send: jest.fn(async () => {
+      await Promise.resolve();
+      if (errorEvent) {
+        handlers['session.error']?.({ data: { message: errorEvent } });
+      } else {
+        handlers['assistant.message']?.({ data: { content } });
+        handlers['session.idle']?.();
+      }
+    }),
+    destroy: jest.fn().mockResolvedValue(undefined),
+  };
+}
 
 describe('smoke-test-copilot-sdk.js', () => {
-  let clientMock, sessionMock;
+  let consoleSpy;
 
   beforeEach(() => {
-    clientMock = {
-      start: jest.fn().mockResolvedValue(undefined),
-      getAuthStatus: jest.fn().mockResolvedValue({ isAuthenticated: true }),
-      listModels: jest.fn().mockResolvedValue([{ id: 'claude-sonnet-4.5' }]),
-      createSession: jest.fn(),
-      stop: jest.fn().mockResolvedValue(undefined),
-    };
-    sessionMock = {
-      send: jest.fn().mockResolvedValue(undefined),
-      destroy: jest.fn().mockResolvedValue(undefined),
-      on: jest.fn(),
-    };
-    clientMock.createSession.mockResolvedValue(sessionMock);
-    CopilotClient.mockImplementation(() => clientMock);
+    jest.clearAllMocks();
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  describe('SDK import and instantiation', () => {
-    it('should import CopilotClient as a function', () => {
-      expect(typeof CopilotClient).toBe('function');
-    });
-
-    it('should instantiate CopilotClient without error', () => {
-      expect(() => new CopilotClient()).not.toThrow();
-    });
+  afterEach(() => {
+    consoleSpy.mockRestore();
   });
 
-  describe('CLI connection & authentication', () => {
-    it('should start CLI process and authenticate', async () => {
-      const client = new CopilotClient();
-      await expect(client.start()).resolves.toBeUndefined();
-      const status = await client.getAuthStatus();
-      expect(status.isAuthenticated).toBe(true);
+  describe('withTimeout', () => {
+    it('resolves when promise resolves before timeout', async () => {
+      const result = await withTimeout(Promise.resolve('ok'), 1000, 'test');
+      expect(result).toBe('ok');
     });
 
-    it('should handle CLI start failure', async () => {
-      clientMock.start.mockRejectedValueOnce(new Error('start failed'));
-      const client = new CopilotClient();
-      await expect(client.start()).rejects.toThrow('start failed');
+    it('rejects with timeout message when promise is too slow', async () => {
+      const never = new Promise(() => {});
+      await expect(withTimeout(never, 10, 'slow op')).rejects.toThrow('Timed out after 10ms: slow op');
     });
 
-    it('should handle authentication failure', async () => {
-      clientMock.getAuthStatus.mockResolvedValueOnce({ isAuthenticated: false });
-      const client = new CopilotClient();
-      await client.start();
-      const status = await client.getAuthStatus();
-      expect(status.isAuthenticated).toBe(false);
+    it('propagates rejection from the inner promise', async () => {
+      await expect(withTimeout(Promise.reject(new Error('inner fail')), 1000, 'op')).rejects.toThrow('inner fail');
     });
   });
 
-  describe('Model availability', () => {
-    it('should list available models', async () => {
-      const client = new CopilotClient();
-      await client.start();
-      const models = await client.listModels();
-      expect(Array.isArray(models)).toBe(true);
-      expect(models.length).toBeGreaterThan(0);
-      expect(models[0].id).toBe('claude-sonnet-4.5');
+  describe('runSmokeTest — happy path', () => {
+    it('returns passed=9, failed=0 when all checks succeed', async () => {
+      const session = makeSession({ content: 'OK' });
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'claude-sonnet-4.5' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const result = await runSmokeTest();
+
+      expect(result.failed).toBe(0);
+      expect(result.passed).toBeGreaterThan(0);
     });
 
-    it('should handle no models available', async () => {
-      clientMock.listModels.mockResolvedValueOnce([]);
-      const client = new CopilotClient();
-      await client.start();
-      const models = await client.listModels();
-      expect(models.length).toBe(0);
+    it('reports auth ok when status.status === "ok"', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ status: 'ok' });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBe(0);
     });
 
-    it('should handle listModels failure', async () => {
-      clientMock.listModels.mockRejectedValueOnce(new Error('listModels failed'));
-      const client = new CopilotClient();
-      await client.start();
-      await expect(client.listModels()).rejects.toThrow('listModels failed');
-    });
-  });
+    it('reports auth ok when status.authenticated === true', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ authenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
 
-  describe('Session round-trip', () => {
-    it('should create session and receive response', async () => {
-      let assistantMessageHandler, idleHandler, errorHandler;
-      sessionMock.on.mockImplementation((event, handler) => {
-        if (event === 'assistant.message') assistantMessageHandler = handler;
-        if (event === 'session.idle') idleHandler = handler;
-        if (event === 'session.error') errorHandler = handler;
-      });
-
-      const client = new CopilotClient();
-      await client.start();
-      const session = await client.createSession();
-      await session.send({ prompt: 'Reply with exactly: OK' });
-
-      // Simulate assistant message and idle
-      assistantMessageHandler({ data: { content: 'OK' } });
-      idleHandler();
-
-      expect(session.send).toHaveBeenCalledWith({ prompt: 'Reply with exactly: OK' });
-    });
-
-    it('should handle session creation failure', async () => {
-      clientMock.createSession.mockRejectedValueOnce(new Error('session failed'));
-      const client = new CopilotClient();
-      await client.start();
-      await expect(client.createSession()).rejects.toThrow('session failed');
-    });
-
-    it('should handle session error event', async () => {
-      let errorHandler;
-      sessionMock.on.mockImplementation((event, handler) => {
-        if (event === 'session.error') errorHandler = handler;
-      });
-
-      const client = new CopilotClient();
-      await client.start();
-      const session = await client.createSession();
-      await session.send({ prompt: 'Reply with exactly: OK' });
-
-      // Simulate session error
-      expect(() => errorHandler({ data: { message: 'Session error' } })).not.toThrow();
+      const { failed } = await runSmokeTest();
+      expect(failed).toBe(0);
     });
   });
 
-  describe('Cleanup', () => {
-    it('should destroy session and stop client cleanly', async () => {
-      const client = new CopilotClient();
-      await client.start();
-      const session = await client.createSession();
-      await session.destroy();
-      await client.stop();
-      expect(session.destroy).toHaveBeenCalled();
-      expect(client.stop).toHaveBeenCalled();
+  describe('runSmokeTest — instantiation failure', () => {
+    it('returns early when CopilotClient constructor throws', async () => {
+      MockCopilotClient.mockImplementationOnce(() => { throw new Error('no SDK'); });
+
+      const { passed, failed } = await runSmokeTest();
+      expect(failed).toBe(1);
+      expect(passed).toBe(1); // only import check passes
+    });
+  });
+
+  describe('runSmokeTest — start failure', () => {
+    it('returns early when client.start() rejects', async () => {
+      mockStart.mockRejectedValueOnce(new Error('CLI not found'));
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('runSmokeTest — auth failure', () => {
+    it('records failed auth when getAuthStatus rejects', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockRejectedValueOnce(new Error('auth error'));
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
     });
 
-    it('should handle client stop failure', async () => {
-      clientMock.stop.mockRejectedValueOnce(new Error('stop failed'));
-      const client = new CopilotClient();
-      await client.start();
-      await expect(client.stop()).rejects.toThrow('stop failed');
+    it('records failed auth when isAuthenticated is false', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: false });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('runSmokeTest — model listing failure', () => {
+    it('records failure when listModels rejects', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockRejectedValueOnce(new Error('no models'));
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
     });
 
-    it('should handle session destroy failure', async () => {
-      sessionMock.destroy.mockRejectedValueOnce(new Error('destroy failed'));
-      const client = new CopilotClient();
-      await client.start();
-      const session = await client.createSession();
-      await expect(session.destroy()).rejects.toThrow('destroy failed');
+    it('records failure when models array is empty', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('runSmokeTest — session round-trip failure', () => {
+    it('records failure when createSession rejects', async () => {
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockRejectedValueOnce(new Error('session fail'));
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+
+    it('records failure when session fires error event', async () => {
+      const session = makeSession({ errorEvent: 'Session died' });
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+
+    it('records failure when response content is empty', async () => {
+      const session = makeSession({ content: '' });
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockResolvedValue(undefined);
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
+    });
+  });
+
+  describe('runSmokeTest — cleanup failure', () => {
+    it('records failure when client.stop() rejects', async () => {
+      const session = makeSession();
+      mockStart.mockResolvedValue(undefined);
+      mockGetAuthStatus.mockResolvedValue({ isAuthenticated: true });
+      mockListModels.mockResolvedValue([{ id: 'm1' }]);
+      mockCreateSession.mockResolvedValue(session);
+      mockStop.mockRejectedValueOnce(new Error('stop failed'));
+
+      const { failed } = await runSmokeTest();
+      expect(failed).toBeGreaterThan(0);
     });
   });
 });

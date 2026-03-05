@@ -4,6 +4,7 @@
  * @jest-environment node
  */
 
+import { jest } from '@jest/globals';
 import {
   parseAiResponse,
   parseErrorResponse,
@@ -696,5 +697,423 @@ describe('AiHelper#checkConsistency', () => {
     expect(result).toHaveProperty('issues');
     expect(result).toHaveProperty('config');
     expect(result).toHaveProperty('state');
+  });
+});
+
+// ==============================================================================
+// AiHelper Class - Method Coverage Tests
+// ==============================================================================
+
+describe('AiHelper class methods', () => {
+  let helper;
+
+  beforeEach(() => {
+    helper = new AiHelper({ model: 'gpt-4.1' });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // ── Simple property-based methods ──────────────────────────────────────────
+
+  describe('isAvailable', () => {
+    test('returns false when not initialized', () => {
+      expect(helper.isAvailable()).toBe(false);
+    });
+
+    test('returns true when available and authenticated', () => {
+      helper.available = true;
+      helper.authenticated = true;
+      expect(helper.isAvailable()).toBe(true);
+    });
+
+    test('returns false when available but not authenticated', () => {
+      helper.available = true;
+      helper.authenticated = false;
+      expect(helper.isAvailable()).toBe(false);
+    });
+  });
+
+  describe('getAvailableModels', () => {
+    test('returns empty array before initialization', () => {
+      expect(helper.getAvailableModels()).toEqual([]);
+    });
+
+    test('returns models after they are set', () => {
+      helper.availableModels = [{ id: 'gpt-4.1' }, { id: 'gpt-4o' }];
+      expect(helper.getAvailableModels()).toHaveLength(2);
+    });
+  });
+
+  describe('isSdkAvailable', () => {
+    test('returns a boolean', () => {
+      const result = helper.isSdkAvailable();
+      expect(typeof result).toBe('boolean');
+    });
+  });
+
+  // ── initialize() ───────────────────────────────────────────────────────────
+
+  describe('initialize', () => {
+    test('returns current available state if already initialized', async () => {
+      helper.initialized = true;
+      helper.available = true;
+      const result = await helper.initialize();
+      expect(result).toBe(true);
+    });
+
+    test('returns false and sets flags when SDK not available', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(false);
+      const result = await helper.initialize();
+      expect(result).toBe(false);
+      expect(helper.initialized).toBe(true);
+      expect(helper.available).toBe(false);
+    });
+
+    test('sets available=true when authenticated', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      helper._wrapper = {
+        initialize: jest.fn().mockResolvedValue({
+          authenticated: true,
+          availableModels: [{ id: 'gpt-4.1' }],
+        }),
+        client: null,
+        session: null,
+      };
+      const result = await helper.initialize();
+      expect(result).toBe(true);
+      expect(helper.available).toBe(true);
+      expect(helper.authenticated).toBe(true);
+    });
+
+    test('sets available=false when not authenticated', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      helper._wrapper = {
+        initialize: jest.fn().mockResolvedValue({
+          authenticated: false,
+          availableModels: [],
+        }),
+        client: null,
+        session: null,
+      };
+      const result = await helper.initialize();
+      expect(result).toBe(false);
+      expect(helper.available).toBe(false);
+    });
+
+    test('returns false and sets flags when wrapper throws', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      helper._wrapper = {
+        initialize: jest.fn().mockRejectedValue(new Error('network error')),
+        client: null,
+        session: null,
+      };
+      const result = await helper.initialize();
+      expect(result).toBe(false);
+      expect(helper.initialized).toBe(true);
+    });
+  });
+
+  // ── validateSdk() ──────────────────────────────────────────────────────────
+
+  describe('validateSdk', () => {
+    test('returns unavailable when SDK not found', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(false);
+      const result = await helper.validateSdk();
+      expect(result.available).toBe(false);
+      expect(result.suggestions.length).toBeGreaterThan(0);
+    });
+
+    test('returns authenticated when SDK ready', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      jest.spyOn(helper, 'initialize').mockResolvedValue(true);
+      helper.authenticated = true;
+      const result = await helper.validateSdk();
+      expect(result.available).toBe(true);
+      expect(result.authenticated).toBe(true);
+    });
+
+    test('returns auth suggestions when not authenticated', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      jest.spyOn(helper, 'initialize').mockResolvedValue(false);
+      helper.authenticated = false;
+      const result = await helper.validateSdk();
+      expect(result.available).toBe(true);
+      expect(result.authenticated).toBe(false);
+      expect(result.suggestions.length).toBeGreaterThan(0);
+    });
+
+    test('handles errors during validation', async () => {
+      jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+      jest.spyOn(helper, 'initialize').mockRejectedValue(new Error('init failed'));
+      const result = await helper.validateSdk();
+      expect(result.message).toMatch(/SDK validation error/);
+    });
+  });
+
+  // ── shouldEnableAi() ───────────────────────────────────────────────────────
+
+  describe('shouldEnableAi', () => {
+    test('returns false when not available', async () => {
+      jest.spyOn(helper, 'initialize').mockResolvedValue(false);
+      helper.initialized = true;
+      helper.available = false;
+      const result = await helper.shouldEnableAi();
+      expect(result).toBe(false);
+    });
+
+    test('calls initialize if not yet initialized', async () => {
+      const initSpy = jest.spyOn(helper, 'initialize').mockResolvedValue(false);
+      helper.initialized = false;
+      await helper.shouldEnableAi();
+      expect(initSpy).toHaveBeenCalled();
+    });
+
+    test('returns true when available and authenticated', async () => {
+      jest.spyOn(helper, 'initialize').mockResolvedValue(true);
+      helper.initialized = true;
+      helper.available = true;
+      helper.authenticated = true;
+      const result = await helper.shouldEnableAi();
+      expect(result).toBe(true);
+    });
+  });
+
+  // ── executeRequest() ───────────────────────────────────────────────────────
+
+  describe('executeRequest', () => {
+    test('throws SystemError when not available', async () => {
+      helper.available = false;
+      helper.authenticated = false;
+      await expect(helper.executeRequest('test prompt')).rejects.toThrow('AI helper not available');
+    });
+
+    test('throws ValidationError for non-string prompt', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      await expect(helper.executeRequest(null)).rejects.toThrow();
+    });
+
+    test('throws ValidationError for empty string prompt', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      await expect(helper.executeRequest('')).rejects.toThrow();
+    });
+
+    test('returns parsed response on success', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      helper._wrapper = {
+        send: jest.fn().mockResolvedValue('Here is a detailed and comprehensive AI response.'),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      const result = await helper.executeRequest('What is the meaning of life?');
+      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty('content');
+    });
+
+    test('retries and eventually throws on repeated failures', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      helper.config.maxRetries = 2;
+      helper.config.baseDelay = 1;
+      helper._wrapper = {
+        send: jest.fn().mockRejectedValue(new Error('network error')),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      // shouldRetry returns false for non-retryable errors after first attempt
+      // so this should throw
+      await expect(
+        helper.executeRequest('test prompt that will fail with error')
+      ).rejects.toBeDefined();
+    });
+  });
+
+  // ── executeBatch() ─────────────────────────────────────────────────────────
+
+  describe('executeBatch', () => {
+    test('throws SystemError when not available', async () => {
+      helper.available = false;
+      await expect(helper.executeBatch([{ prompt: 'test' }])).rejects.toThrow(
+        'AI helper not available'
+      );
+    });
+
+    test('processes batch requests sequentially by default', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      const execSpy = jest
+        .spyOn(helper, 'executeRequest')
+        .mockResolvedValue({ success: true, content: 'ok' });
+      const results = await helper.executeBatch([
+        { prompt: 'prompt one' },
+        { prompt: 'prompt two' },
+      ]);
+      expect(execSpy).toHaveBeenCalledTimes(2);
+      expect(results).toHaveLength(2);
+    });
+  });
+});
+
+// ==============================================================================
+// Additional coverage - validateAiHelperState edge cases and class branches
+// ==============================================================================
+
+describe('validateAiHelperState - additional edge cases', () => {
+  const goodState = () => ({
+    initialized: false,
+    available: false,
+    authenticated: false,
+    client: null,
+    session: null,
+    _promptCounter: 0,
+  });
+
+  test('flags timeout that is unreasonably high', () => {
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 999999999, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      goodState()
+    );
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('unreasonably high'))).toBe(true);
+  });
+
+  test('flags negative baseDelay', () => {
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: -1, maxDelay: 5000, promptsDir: null },
+      goodState()
+    );
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('baseDelay'))).toBe(true);
+  });
+
+  test('flags maxDelay less than baseDelay', () => {
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 5000, maxDelay: 100, promptsDir: null },
+      goodState()
+    );
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('maxDelay'))).toBe(true);
+  });
+
+  test('flags non-string promptsDir that is not null', () => {
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: 42 },
+      goodState()
+    );
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('promptsDir'))).toBe(true);
+  });
+
+  test('flags empty string promptsDir', () => {
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: '   ' },
+      goodState()
+    );
+    expect(result.consistent).toBe(false);
+    expect(result.config.issues.some((i) => i.includes('empty string'))).toBe(true);
+  });
+
+  test('flags non-boolean state.initialized', () => {
+    const state = { ...goodState(), initialized: 'yes' };
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      state
+    );
+    expect(result.state.issues.some((i) => i.includes('initialized'))).toBe(true);
+  });
+
+  test('flags non-boolean state.available', () => {
+    const state = { ...goodState(), available: 1 };
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      state
+    );
+    expect(result.state.issues.some((i) => i.includes('available'))).toBe(true);
+  });
+
+  test('flags non-boolean state.authenticated', () => {
+    const state = { ...goodState(), authenticated: 'true' };
+    const result = validateAiHelperState(
+      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      state
+    );
+    expect(result.state.issues.some((i) => i.includes('authenticated'))).toBe(true);
+  });
+});
+
+describe('AiHelper class - additional method coverage', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('initialize warns when configured model is not in available models', async () => {
+    const helper = new AiHelper({ model: 'gpt-4.1' });
+    jest.spyOn(helper, 'isSdkAvailable').mockReturnValue(true);
+    helper._wrapper = {
+      initialize: jest.fn().mockResolvedValue({
+        authenticated: true,
+        availableModels: [{ id: 'gpt-3.5' }, { id: 'gpt-4o' }], // 'gpt-4.1' NOT in list
+      }),
+      client: null,
+      session: null,
+    };
+    const result = await helper.initialize();
+    expect(result).toBe(true); // still initializes successfully
+    expect(helper.available).toBe(true);
+  });
+
+  test('executeBatch - parallel mode with concurrency', async () => {
+    const helper = new AiHelper();
+    helper.available = true;
+    helper.authenticated = true;
+    jest
+      .spyOn(helper, 'executeRequest')
+      .mockResolvedValue({ success: true, content: 'parallel ok' });
+    const results = await helper.executeBatch(
+      [{ prompt: 'one' }, { prompt: 'two' }, { prompt: 'three' }],
+      { parallel: true, concurrency: 2 }
+    );
+    expect(results).toHaveLength(3);
+    expect(results.every((r) => r.success)).toBe(true);
+  });
+
+  test('executeBatch - sequential handles per-request errors gracefully', async () => {
+    const helper = new AiHelper();
+    helper.available = true;
+    helper.authenticated = true;
+    jest
+      .spyOn(helper, 'executeRequest')
+      .mockRejectedValueOnce(new Error('request failed'))
+      .mockResolvedValueOnce({ success: true, content: 'ok' });
+    const results = await helper.executeBatch([{ prompt: 'bad prompt' }, { prompt: 'good prompt' }]);
+    expect(results).toHaveLength(2);
+    expect(results[0].success).toBe(false);
+    expect(results[1].success).toBe(true);
+  });
+
+  test('executeBatch - returns empty array when no valid requests', async () => {
+    const helper = new AiHelper();
+    helper.available = true;
+    helper.authenticated = true;
+    const results = await helper.executeBatch([]);
+    expect(results).toEqual([]);
+  });
+
+  test('cleanup resets state', async () => {
+    const helper = new AiHelper();
+    helper.initialized = true;
+    helper.available = true;
+    helper.authenticated = true;
+    helper._wrapper = { cleanup: jest.fn().mockResolvedValue(undefined) };
+    await helper.cleanup();
+    expect(helper.initialized).toBe(false);
+    expect(helper.available).toBe(false);
+    expect(helper.authenticated).toBe(false);
   });
 });

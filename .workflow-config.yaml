@@ -10,6 +10,8 @@ project:
 
 tech_stack:
   primary_language: 'javascript' # e.g., bash, javascript, python, typescript
+  secondary_languages:
+    - 'typescript'
   build_system: 'npm' # e.g., none, npm, webpack, maven, gradle
   test_framework: 'jest' # e.g., shell-script, jest, pytest, mocha
   test_command: 'npm test' # e.g., ./tests/run_all_tests.sh, npm test, pytest

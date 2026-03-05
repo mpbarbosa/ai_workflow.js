@@ -153,7 +153,8 @@ export class CopilotSdkWrapper {
         try {
           this._availableModels = await this._client.listModels();
         } catch (modelErr) {
-          logger.debug(`Could not fetch available models: ${(modelErr as Error).message}`);
+          const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
+          logger.debug(`Could not fetch available models: ${msg}`);
         }
 
         const sessionConfig: SessionConfig = { model: this._model };

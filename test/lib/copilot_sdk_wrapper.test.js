@@ -37,6 +37,8 @@ jest.unstable_mockModule('@github/copilot-sdk', () => ({
 
 // Import the wrapper AFTER mocking the SDK
 const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
+// Also import the mocked CopilotClient so we can override behaviour per-test
+const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,6 +75,11 @@ describe('CopilotSdkWrapper.isAvailable (static)', () => {
     // The mock always returns mockClient
     expect(CopilotSdkWrapper.isAvailable()).toBe(true);
   });
+
+  test('returns false when CopilotClient constructor throws', () => {
+    MockCopilotClient.mockImplementationOnce(() => { throw new Error('SDK unavailable'); });
+    expect(CopilotSdkWrapper.isAvailable()).toBe(false);
+  });
 });
 
 // ==============================================================================
@@ -86,6 +93,12 @@ describe('CopilotSdkWrapper — getters', () => {
     expect(wrapper.session).toBeNull();
     expect(wrapper.authenticated).toBe(false);
     expect(wrapper.availableModels).toEqual([]);
+  });
+
+  test('default options used when constructed with no arguments', () => {
+    const wrapper = new CopilotSdkWrapper();
+    expect(wrapper.client).toBeNull();
+    expect(wrapper.authenticated).toBe(false);
   });
 });
 
@@ -150,6 +163,15 @@ describe('CopilotSdkWrapper — initialize()', () => {
     expect(wrapper.client).toBeNull();
   });
 
+  test('cookbook: error thrown when both auth and stop() fail; stop error is swallowed', async () => {
+    mockClient.getAuthStatus.mockRejectedValue(new Error('auth failed'));
+    mockClient.stop.mockRejectedValue(new Error('stop also failed'));
+    const wrapper = makeWrapper();
+
+    await expect(wrapper.initialize()).rejects.toThrow('auth failed');
+    expect(wrapper.client).toBeNull();
+  });
+
   test('listModels failure is non-fatal; session is still created', async () => {
     mockClient.listModels.mockRejectedValue(new Error('models unavailable'));
     const wrapper = makeWrapper();
@@ -157,6 +179,14 @@ describe('CopilotSdkWrapper — initialize()', () => {
 
     expect(result.authenticated).toBe(true);
     expect(wrapper.session).toBe(mockSession);
+  });
+
+  test('nullish getAuthStatus response treated as unauthenticated', async () => {
+    mockClient.getAuthStatus.mockResolvedValue({});
+    const wrapper = makeWrapper();
+    const result = await wrapper.initialize();
+
+    expect(result.authenticated).toBe(false);
   });
 });
 
@@ -220,6 +250,18 @@ describe('CopilotSdkWrapper — send()', () => {
     expect(r1.content).toBe('first');
     expect(r2.content).toBe('second');
   });
+
+  test('queue catch swallowed when sendAndWait throws; subsequent send still works', async () => {
+    mockSession.sendAndWait
+      .mockRejectedValueOnce(new Error('send failed'))
+      .mockResolvedValue({ data: { content: 'ok', success: true } });
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    await expect(wrapper.send('fail')).rejects.toThrow('send failed');
+    const result = await wrapper.send('recover');
+    expect(result.content).toBe('ok');
+  });
 });
 
 // ==============================================================================
@@ -240,6 +282,20 @@ describe('CopilotSdkWrapper — abort()', () => {
     const wrapper = makeWrapper();
     await expect(wrapper.abort()).resolves.toBeUndefined();
     expect(mockSession.abort).not.toHaveBeenCalled();
+  });
+
+  test('does nothing when session has no abort method', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    wrapper._session = { destroy: jest.fn() }; // no abort method
+    await expect(wrapper.abort()).resolves.toBeUndefined();
+  });
+
+  test('abort error is swallowed when session.abort() throws', async () => {
+    mockSession.abort.mockRejectedValue(new Error('abort failed'));
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    await expect(wrapper.abort()).resolves.toBeUndefined();
   });
 });
 
@@ -272,6 +328,28 @@ describe('CopilotSdkWrapper — recreateSession()', () => {
 
     await expect(wrapper.recreateSession()).resolves.toBeUndefined();
     expect(mockClient.stop).toHaveBeenCalledTimes(1);
+  });
+
+  test('stop() error is swallowed during recreateSession; restart continues', async () => {
+    mockClient.stop.mockRejectedValue(new Error('stop failed'));
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    await expect(wrapper.recreateSession()).resolves.toBeUndefined();
+    expect(mockClient.start).toHaveBeenCalledTimes(2); // once in initialize, once in recreate
+  });
+
+  test('workingDirectory is forwarded to createSession when recreating', async () => {
+    const wrapper = makeWrapper({ workingDirectory: '/tmp/wd' });
+    await wrapper.initialize();
+
+    const newSession = { sendAndWait: jest.fn(), destroy: jest.fn() };
+    mockClient.createSession.mockResolvedValue(newSession);
+    await wrapper.recreateSession();
+
+    expect(mockClient.createSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workingDirectory: '/tmp/wd' })
+    );
   });
 });
 
@@ -317,6 +395,20 @@ describe('CopilotSdkWrapper — cleanup()', () => {
     await cleanupPromise;
 
     expect(mockClient.forceStop).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  test('cookbook forceStop: forceStop() error is swallowed', async () => {
+    jest.useFakeTimers();
+    mockClient.stop.mockImplementation(() => new Promise(() => {}));
+    mockClient.forceStop.mockRejectedValue(new Error('forceStop failed'));
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const cleanupPromise = wrapper.cleanup();
+    await jest.advanceTimersByTimeAsync(6_000);
+    await expect(cleanupPromise).resolves.toBeUndefined();
     jest.useRealTimers();
   });
 
