@@ -661,13 +661,14 @@ ${filesContentBlock}`;
           const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        const cacheKey = `step_04|${results.filesChecked ?? 0}|${totalIssues}`;
+        // Build the file-content strings for the hash guard (same files that feed the prompt).
+        const fileHashEntries = fileEntries.map((e) => `${e.relativePath}:${e.content}`);
         // Use 'devops_engineer' persona: the configuration_specialist_prompt YAML template
         // defines a "Senior DevOps Engineer and Configuration Management Expert" role covering
         // config formats (JSON/YAML/TOML), CI/CD, Docker, IaC, and environment configuration.
         // 'security_expert' only covers one of the five validation categories (Security Analysis)
         // and creates a misleading mismatch with the actual broad-scope prompt content.
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+        const aiResult = await this.aiCache.withFileChangeGuard('step_04', fileHashEntries, () =>
           this.aiHelper.executeRequest(prompt, {
             persona: 'devops_engineer',
             model: 'claude-haiku-4.5',
@@ -692,14 +693,16 @@ ${filesContentBlock}`;
             project_name: projectRoot,
           });
           if (qPrompt) {
-            const qKey = `step_04_quality|${results.filesChecked ?? 0}|${totalIssues}`;
             // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
             // specialist" role (anti-patterns, best practices, maintainability) — not security.
-            const qResult = await this.aiCache.withCache(qKey, qKey, () =>
-              this.aiHelper.executeRequest(qPrompt, {
-                persona: 'code_quality_analyst',
-                model: 'claude-haiku-4.5',
-              })
+            const qResult = await this.aiCache.withFileChangeGuard(
+              'step_04_quality',
+              fileHashEntries,
+              () =>
+                this.aiHelper.executeRequest(qPrompt, {
+                  persona: 'code_quality_analyst',
+                  model: 'claude-haiku-4.5',
+                })
             );
             qualityContent = qResult?.content ?? '';
           }

@@ -250,6 +250,35 @@ export function validateCacheConfig(config) {
   };
 }
 
+/**
+ * Compute a SHA256 hash of a set of file contents.
+ *
+ * Entries are sorted before hashing so that the result is independent of the
+ * order in which the caller provides them. Each entry should be a string that
+ * uniquely identifies both the file identity and its contents (e.g.
+ * `"${relativePath}:${fileContent}"`).
+ *
+ * This is used by `AiCache.withFileChangeGuard` to decide whether the input
+ * to a step has changed since the last AI call.
+ *
+ * @param {string[]} fileContents - Array of file-identity strings
+ * @returns {string} SHA256 hex digest (64 characters), or empty string for empty input
+ *
+ * @example
+ * const hash = computeFilesContentHash([
+ *   'package.json:{"name":"my-app"}',
+ *   '.eslintrc.json:{"extends":"eslint:recommended"}',
+ * ]);
+ * // => 'a1b2c3...' (64 hex chars)
+ */
+export function computeFilesContentHash(fileContents) {
+  if (!Array.isArray(fileContents) || fileContents.length === 0) {
+    return '';
+  }
+  const combined = [...fileContents].sort().join('\n===\n');
+  return crypto.createHash('sha256').update(combined).digest('hex');
+}
+
 // ==============================================================================
 // IMPURE WRAPPER - File I/O and Cache Management
 // ==============================================================================
@@ -488,6 +517,96 @@ export class AiCache {
     await this.set(cacheKey, response, { prompt, context });
 
     return response;
+  }
+
+  /**
+   * Skip AI call when input file contents are unchanged since last run.
+   *
+   * Unlike `withCache`, this guard is TTL-independent: it returns the stored
+   * response for as long as the hashed file contents remain the same, and only
+   * invokes `aiFunction` when the hash changes (or on the very first call).
+   *
+   * File scope rule: `fileContents` must include exactly the files whose content
+   * is injected into the AI prompt for this step. Typically each element is
+   * `"${relativePath}:${rawContent}"`. Order does not matter (entries are sorted
+   * before hashing).
+   *
+   * The hash store is persisted at `<cacheDir>/step_hashes.json`.
+   *
+   * @param {string} stepId - Unique step identifier (e.g. 'step_04')
+   * @param {string[]} fileContents - File-identity strings to hash (see above)
+   * @param {Function} aiFunction - Async function that calls AI; invoked on cache miss
+   * @returns {Promise<*>} AI response (cached or fresh)
+   *
+   * @example
+   * const result = await cache.withFileChangeGuard(
+   *   'step_04',
+   *   fileEntries.map(e => `${e.relativePath}:${e.content}`),
+   *   () => aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
+   * );
+   */
+  async withFileChangeGuard(stepId, fileContents, aiFunction) {
+    if (!this.enabled) {
+      return aiFunction();
+    }
+
+    const currentHash = computeFilesContentHash(fileContents);
+
+    // Empty file list — no meaningful content to hash, call AI normally
+    if (!currentHash) {
+      return aiFunction();
+    }
+
+    const hashStore = await this._loadHashStore();
+    const entry = hashStore[stepId];
+
+    if (entry?.hash === currentHash && entry?.response !== undefined) {
+      logger.debug(`[ai_cache] ${stepId}: file hash unchanged, skipping AI call`);
+      this.metrics.hits += 1;
+      this.metrics.tokensSaved += 1000; // estimate
+      return entry.response;
+    }
+
+    // Hash changed or first run — call AI and persist new entry
+    logger.debug(`[ai_cache] ${stepId}: file hash ${entry ? 'changed' : 'not found'}, calling AI`);
+    this.metrics.misses += 1;
+    const response = await aiFunction();
+
+    hashStore[stepId] = { hash: currentHash, response, timestamp: Date.now() };
+    await this._saveHashStore(hashStore);
+
+    return response;
+  }
+
+  /**
+   * Load the step hash store from disk.
+   * @private
+   * @returns {Promise<Object>} Parsed store object (empty object if missing/invalid)
+   */
+  async _loadHashStore() {
+    const storeFile = path.join(this.cacheDir, 'step_hashes.json');
+    try {
+      const raw = await fs.readFile(storeFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Persist the step hash store to disk.
+   * @private
+   * @param {Object} store - Hash store object to write
+   */
+  async _saveHashStore(store) {
+    const storeFile = path.join(this.cacheDir, 'step_hashes.json');
+    try {
+      await fs.mkdir(this.cacheDir, { recursive: true });
+      await fs.writeFile(storeFile, JSON.stringify(store, null, 2), 'utf8');
+    } catch (error) {
+      logger.warn(`[ai_cache] Failed to save step_hashes.json: ${error.message}`);
+    }
   }
 
   /**

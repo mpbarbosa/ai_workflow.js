@@ -1071,4 +1071,104 @@ describe('Step 4: Configuration Validation', () => {
       expect(r.coverage).toBeCloseTo(0.5);
     });
   });
+
+  // ========================================================================
+  // withFileChangeGuard integration — Step 4 AI skip behavior
+  // ========================================================================
+
+  describe('Step4ConfigAnalyzer.execute — file-change-guard skip behavior', () => {
+    let mockFileOps;
+    let mockBacklog;
+    let mockGitOps;
+    let mockAiHelper;
+    let mockAiCache;
+    let analyzer;
+    let aiCallCount;
+
+    const FILES = ['package.json'];
+    const FILE_CONTENT = '{"name":"test"}';
+
+    beforeEach(() => {
+      aiCallCount = 0;
+
+      mockFileOps = {
+        readFile: (p) => {
+          if (p.endsWith('package.json')) return Promise.resolve(FILE_CONTENT);
+          if (p.endsWith('.yaml') || p.endsWith('.yml'))
+            return Promise.reject(new Error('not found'));
+          return Promise.reject(new Error('not found'));
+        },
+        glob: () => Promise.resolve([]),
+      };
+
+      mockBacklog = { saveStepSummary: () => Promise.resolve() };
+
+      mockGitOps = {
+        getModifiedFiles: () => Promise.resolve(FILES),
+      };
+
+      mockAiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: () => {
+          aiCallCount++;
+          return Promise.resolve({ content: `AI response #${aiCallCount}` });
+        },
+      };
+
+      // Simulate withFileChangeGuard: first call hits AI, subsequent calls with same
+      // fileContents return cached result.
+      let storedHash = null;
+      let storedResponse = null;
+      mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: async (stepId, fileContents, fn) => {
+          const hash = fileContents.sort().join('|');
+          if (hash === storedHash && storedResponse !== null) {
+            return storedResponse;
+          }
+          const result = await fn();
+          storedHash = hash;
+          storedResponse = result;
+          return result;
+        },
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+    });
+
+    test('calls AI on first execution', async () => {
+      await analyzer.execute('/project');
+      expect(aiCallCount).toBeGreaterThanOrEqual(1);
+    });
+
+    test('skips AI call on second execution with unchanged files', async () => {
+      await analyzer.execute('/project');
+      const countAfterFirst = aiCallCount;
+
+      await analyzer.execute('/project');
+
+      expect(aiCallCount).toBe(countAfterFirst); // no new AI calls
+    });
+
+    test('calls AI again when file content changes between executions', async () => {
+      await analyzer.execute('/project');
+      const countAfterFirst = aiCallCount;
+
+      // Simulate file change
+      mockFileOps.readFile = (p) => {
+        if (p.endsWith('package.json')) return Promise.resolve('{"name":"changed"}');
+        return Promise.reject(new Error('not found'));
+      };
+
+      await analyzer.execute('/project');
+
+      expect(aiCallCount).toBeGreaterThan(countAfterFirst);
+    });
+  });
 });

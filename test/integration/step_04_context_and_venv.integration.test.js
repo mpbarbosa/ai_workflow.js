@@ -56,6 +56,7 @@ function gitOpsReturning(files) {
 const passthroughAiCache = {
   init: () => Promise.resolve(),
   withCache: (_prompt, _key, factory) => factory(),
+  withFileChangeGuard: (_stepId, _fileContents, factory) => factory(),
 };
 
 /** backlog stub */

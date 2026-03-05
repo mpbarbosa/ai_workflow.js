@@ -16,6 +16,7 @@ import {
   createCacheEntry,
   mergeCacheMetrics,
   validateCacheConfig,
+  computeFilesContentHash,
   AiCache,
 } from '../../src/lib/ai_cache.js';
 
@@ -164,8 +165,20 @@ describe('AI Cache Module - Pure Functions', () => {
     });
 
     test('handles null/undefined entries gracefully', () => {
-      expect(calculateCacheStats(null, 2000, 1000)).toEqual({ total: 0, valid: 0, expired: 0, totalSize: 0, hitRate: 0 });
-      expect(calculateCacheStats(undefined, 2000, 1000)).toEqual({ total: 0, valid: 0, expired: 0, totalSize: 0, hitRate: 0 });
+      expect(calculateCacheStats(null, 2000, 1000)).toEqual({
+        total: 0,
+        valid: 0,
+        expired: 0,
+        totalSize: 0,
+        hitRate: 0,
+      });
+      expect(calculateCacheStats(undefined, 2000, 1000)).toEqual({
+        total: 0,
+        valid: 0,
+        expired: 0,
+        totalSize: 0,
+        hitRate: 0,
+      });
     });
   });
 
@@ -644,5 +657,175 @@ describe('AI Cache Module - Integration Tests', () => {
       const result = await disabledCache.get('key');
       expect(result).toBeNull();
     });
+  });
+});
+
+// ==============================================================================
+// computeFilesContentHash - Pure Function Tests
+// ==============================================================================
+
+describe('computeFilesContentHash', () => {
+  test('returns a 64-character hex string for non-empty input', () => {
+    const hash = computeFilesContentHash(['package.json:{"name":"foo"}']);
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('is deterministic for the same input', () => {
+    const entries = ['a.json:{}', 'b.yaml:key: value'];
+    expect(computeFilesContentHash(entries)).toBe(computeFilesContentHash(entries));
+  });
+
+  test('is order-independent (sorted internally)', () => {
+    const a = ['first.json:{}', 'second.yaml:x: 1'];
+    const b = ['second.yaml:x: 1', 'first.json:{}'];
+    expect(computeFilesContentHash(a)).toBe(computeFilesContentHash(b));
+  });
+
+  test('produces different hashes for different contents', () => {
+    const h1 = computeFilesContentHash(['file.json:{"a":1}']);
+    const h2 = computeFilesContentHash(['file.json:{"a":2}']);
+    expect(h1).not.toBe(h2);
+  });
+
+  test('returns empty string for empty array', () => {
+    expect(computeFilesContentHash([])).toBe('');
+  });
+
+  test('returns empty string for null/undefined', () => {
+    expect(computeFilesContentHash(null)).toBe('');
+    expect(computeFilesContentHash(undefined)).toBe('');
+  });
+});
+
+// ==============================================================================
+// withFileChangeGuard - Integration Tests
+// ==============================================================================
+
+describe('AiCache.withFileChangeGuard', () => {
+  let cacheDir;
+  let cache;
+
+  beforeEach(async () => {
+    cacheDir = path.join(os.tmpdir(), `ai-cache-guard-test-${Date.now()}`);
+    cache = new AiCache({ cacheDir, ttl: 86400, maxSizeMB: 10 });
+    await cache.init();
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(cacheDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  });
+
+  test('calls aiFunction on first invocation (no stored hash)', async () => {
+    let calls = 0;
+    const aiFunction = async () => {
+      calls++;
+      return { content: 'AI response' };
+    };
+
+    const result = await cache.withFileChangeGuard('step_x', ['file.json:{}'], aiFunction);
+
+    expect(calls).toBe(1);
+    expect(result).toEqual({ content: 'AI response' });
+  });
+
+  test('skips AI call when file contents are unchanged', async () => {
+    let calls = 0;
+    const aiFunction = async () => {
+      calls++;
+      return { content: 'cached response' };
+    };
+    const files = ['file.json:{"name":"test"}'];
+
+    // First call — populates hash store
+    await cache.withFileChangeGuard('step_x', files, aiFunction);
+    // Second call — same files, should skip AI
+    const result = await cache.withFileChangeGuard('step_x', files, aiFunction);
+
+    expect(calls).toBe(1);
+    expect(result).toEqual({ content: 'cached response' });
+  });
+
+  test('calls AI again when file contents change', async () => {
+    let calls = 0;
+    const responses = [{ content: 'first response' }, { content: 'second response' }];
+    const aiFunction = async () => responses[calls++];
+
+    const files1 = ['file.json:{"version":1}'];
+    const files2 = ['file.json:{"version":2}'];
+
+    await cache.withFileChangeGuard('step_x', files1, aiFunction);
+    const result = await cache.withFileChangeGuard('step_x', files2, aiFunction);
+
+    expect(calls).toBe(2);
+    expect(result).toEqual({ content: 'second response' });
+  });
+
+  test('persists hash store across AiCache instances (disk)', async () => {
+    const ai1 = async () => ({ content: 'persistent response' });
+    const files = ['cfg.yaml:key: value'];
+
+    // First instance writes the hash
+    await cache.withFileChangeGuard('step_disk', files, ai1);
+
+    // Second instance on same cacheDir reads the hash
+    const cache2 = new AiCache({ cacheDir, ttl: 86400, maxSizeMB: 10 });
+    await cache2.init();
+    let ai2Calls = 0;
+    const ai2 = async () => {
+      ai2Calls++;
+      return { content: 'should not appear' };
+    };
+
+    const result = await cache2.withFileChangeGuard('step_disk', files, ai2);
+
+    expect(ai2Calls).toBe(0);
+    expect(result).toEqual({ content: 'persistent response' });
+  });
+
+  test('calls AI normally when cache is disabled', async () => {
+    const disabledCache = new AiCache({ cacheDir, enabled: false });
+    let calls = 0;
+    const aiFunction = async () => {
+      calls++;
+      return { content: 'direct response' };
+    };
+
+    const result = await disabledCache.withFileChangeGuard('step_x', ['f:c'], aiFunction);
+
+    expect(calls).toBe(1);
+    expect(result).toEqual({ content: 'direct response' });
+  });
+
+  test('calls AI normally when fileContents is empty', async () => {
+    let calls = 0;
+    const aiFunction = async () => {
+      calls++;
+      return { content: 'empty response' };
+    };
+
+    const result = await cache.withFileChangeGuard('step_x', [], aiFunction);
+
+    expect(calls).toBe(1);
+    expect(result).toEqual({ content: 'empty response' });
+  });
+
+  test('increments hits metric on cache hit', async () => {
+    let hitCount = 0;
+    const aiFunction = async () => {
+      hitCount++;
+      return { content: 'resp' };
+    };
+    const files = ['x.json:{}'];
+
+    await cache.withFileChangeGuard('step_metrics', files, aiFunction);
+    const hitsBefore = cache.metrics.hits;
+    await cache.withFileChangeGuard('step_metrics', files, aiFunction);
+
+    expect(hitCount).toBe(1); // AI called only once
+    expect(cache.metrics.hits).toBe(hitsBefore + 1);
   });
 });
