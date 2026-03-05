@@ -628,7 +628,7 @@ project:
   name: 'Data Processing Service'
   type: 'python-application'
   kind: 'python_app'
-  version: '1.5.1'
+  version: '1.5.2'
   description: 'Data processing service with Flask'
 
 tech_stack:
