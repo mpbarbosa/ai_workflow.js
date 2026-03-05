@@ -30,8 +30,14 @@ const VERBOSE = args.includes('--verbose') || DRY_RUN;
 
 // Directories to exclude entirely
 const EXCLUDE_DIRS = new Set([
-  'node_modules', '.git', '.ai_workflow', '.workflow_core', '.test-e2e',
-  'coverage', 'dist', 'build',
+  'node_modules',
+  '.git',
+  '.ai_workflow',
+  '.workflow_core',
+  '.test-e2e',
+  'coverage',
+  'dist',
+  'build',
 ]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,12 +62,12 @@ function collectMarkdownFiles(dir) {
  * Fix all enabled rules in a single pass, respecting code-fence boundaries.
  * Returns the corrected content (or the original if nothing changed).
  */
-function fixContent(original) {
+export function fixContent(original) {
   const lines = original.split('\n');
   let inCodeBlock = false;
   let changed = false;
 
-  const fixed = lines.map((line, i) => {
+  const fixed = lines.map((line) => {
     // Track fenced code blocks (``` or ~~~, optionally with language tag)
     if (/^(`{3,}|~{3,})/.test(line)) {
       inCodeBlock = !inCodeBlock;
@@ -108,39 +114,41 @@ function fixContent(original) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-const files = collectMarkdownFiles(ROOT);
-let totalChanged = 0;
-const changedFiles = [];
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const files = collectMarkdownFiles(ROOT);
+  let totalChanged = 0;
+  const changedFiles = [];
 
-for (const filePath of files) {
-  const rel = relative(ROOT, filePath);
-  const original = readFileSync(filePath, 'utf8');
-  const { content, changed } = fixContent(original);
+  for (const filePath of files) {
+    const rel = relative(ROOT, filePath);
+    const original = readFileSync(filePath, 'utf8');
+    const { content, changed } = fixContent(original);
 
-  if (!changed) continue;
+    if (!changed) continue;
 
-  changedFiles.push(rel);
-  totalChanged++;
+    changedFiles.push(rel);
+    totalChanged++;
 
-  if (VERBOSE) {
-    console.log(`${CHECK ? '✗' : '✓'} ${rel}`);
+    if (VERBOSE) {
+      console.log(`${CHECK ? '✗' : '✓'} ${rel}`);
+    }
+
+    if (!DRY_RUN && !CHECK) {
+      writeFileSync(filePath, content, 'utf8');
+    }
   }
 
-  if (!DRY_RUN && !CHECK) {
-    writeFileSync(filePath, content, 'utf8');
+  if (totalChanged === 0) {
+    console.log('✅ All markdown files are clean — no issues found.');
+  } else if (DRY_RUN || CHECK) {
+    console.log(`\n${totalChanged} file(s) need fixes:\n`);
+    changedFiles.forEach((f) => console.log(`  ${f}`));
+    if (CHECK) {
+      console.error('\n❌ Markdown lint check failed. Run: node scripts/fix-markdown.js');
+      process.exit(1);
+    }
+  } else {
+    console.log(`✅ Fixed ${totalChanged} file(s):`);
+    changedFiles.forEach((f) => console.log(`  ${f}`));
   }
-}
-
-if (totalChanged === 0) {
-  console.log('✅ All markdown files are clean — no issues found.');
-} else if (DRY_RUN || CHECK) {
-  console.log(`\n${totalChanged} file(s) need fixes:\n`);
-  changedFiles.forEach((f) => console.log(`  ${f}`));
-  if (CHECK) {
-    console.error('\n❌ Markdown lint check failed. Run: node scripts/fix-markdown.js');
-    process.exit(1);
-  }
-} else {
-  console.log(`✅ Fixed ${totalChanged} file(s):`);
-  changedFiles.forEach((f) => console.log(`  ${f}`));
 }
