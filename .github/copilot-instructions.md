@@ -445,6 +445,7 @@ ai_workflow.js/
 │   │       └── CORRECTION_REPORT.md
 │   └── misc/
 ├── .workflow_core/              # Config templates submodule
+├── .workflow_fspec/             # Functional specification submodule
 ├── .ai_workflow/                # Workflow artifacts
 │   ├── backlog/                 # Execution reports
 │   ├── summaries/               # AI summaries
@@ -1100,7 +1101,7 @@ Always clarify which context applies to the current task.
 - **Documentation** (48 files in `docs/`): API reference, guides, architecture, reference, examples
 - **Configuration files**: `.workflow-config.yaml`, `package.json`, `jest.config.json`, `eslint.config.mjs`
 - **GitHub integration**: `.github/copilot-instructions.md`, workflows
-- **Submodule**: `.workflow_core/` (configuration templates from ai_workflow_core project)
+- **Submodules**: `.workflow_core/` (configuration templates from ai_workflow_core project), `.workflow_fspec/` (functional specification from ai_workflow_fspec project)
 
 **This repository is feature-complete through Phase 11.** Remaining work is Phase 12 (Testing & Documentation) and Phase 13 (Packaging & Release).
 

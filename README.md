@@ -144,17 +144,16 @@ This project leverages **GitHub Copilot SDK** to provide:
 
 ### Configuration & Templates
 
-The project uses [ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) as a Git submodule (`.workflow_core/`) to maintain consistency with the original workflow architecture. This provides:
+The project uses two Git submodules:
 
-- **Configuration Templates** - Pre-configured YAML files for workflow automation
-- **GitHub Integration** - Actions workflows and Copilot instructions
-- **Utility Scripts** - Cleanup and validation tools
-- **Standard Structure** - Artifact directories (`.ai_workflow/`)
+- [ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) (`.workflow_core/`) — shared configuration templates, GitHub integration, and utility scripts
+- [ai_workflow_fspec](https://github.com/mpbarbosa/ai_workflow_fspec) (`.workflow_fspec/`) — language-independent functional specification
 
-To update the configuration submodule:
+To update the submodules:
 
 ```bash
 git submodule update --remote .workflow_core
+git submodule update --remote .workflow_fspec
 ```
 
 See [.workflow-config.yaml](./.workflow-config.yaml) for project-specific configuration.
@@ -188,7 +187,8 @@ ai_workflow.js/
 ├── test/                 # Test suite
 ├── docs/                 # Documentation
 ├── .husky/               # Git hooks (pre-commit validation)
-└── .workflow_core/       # Configuration templates (submodule)
+├── .workflow_core/       # Configuration templates (submodule)
+└── .workflow_fspec/      # Functional specification (submodule)
 ```
 
 ## Installation (Future)
@@ -326,13 +326,13 @@ ai-workflow run
 
 ## Automation Scripts
 
-| Script | Description | Guide |
-| ------ | ----------- | ----- |
-| `scripts/setup.sh` | Set up development environment (deps, submodules, directories) | [SETUP.md](./docs/guides/SETUP.md) |
-| `scripts/test-integration.sh` | Run integration tests with optional coverage report | [TEST_INTEGRATION.md](./docs/guides/TEST_INTEGRATION.md) |
-| `scripts/validate.sh` | Full validation pipeline (lint, format, tests, versions) | [VALIDATE.md](./docs/guides/VALIDATE.md) |
-| `scripts/prepare-release.sh` | Prepare a versioned release (tests, version bump, changelog) | [PREPARE_RELEASE.md](./docs/guides/PREPARE_RELEASE.md) |
-| `scripts/cleanup_artifacts.sh` | Clean up workflow artifacts by age/type | [CLEANUP_ARTIFACTS.md](./docs/guides/CLEANUP_ARTIFACTS.md) |
+| Script                         | Description                                                    | Guide                                                      |
+| ------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `scripts/setup.sh`             | Set up development environment (deps, submodules, directories) | [SETUP.md](./docs/guides/SETUP.md)                         |
+| `scripts/test-integration.sh`  | Run integration tests with optional coverage report            | [TEST_INTEGRATION.md](./docs/guides/TEST_INTEGRATION.md)   |
+| `scripts/validate.sh`          | Full validation pipeline (lint, format, tests, versions)       | [VALIDATE.md](./docs/guides/VALIDATE.md)                   |
+| `scripts/prepare-release.sh`   | Prepare a versioned release (tests, version bump, changelog)   | [PREPARE_RELEASE.md](./docs/guides/PREPARE_RELEASE.md)     |
+| `scripts/cleanup_artifacts.sh` | Clean up workflow artifacts by age/type                        | [CLEANUP_ARTIFACTS.md](./docs/guides/CLEANUP_ARTIFACTS.md) |
 
 ### Project Structure
 
@@ -373,6 +373,7 @@ mpbarbosa
 - **Migration Plan**: [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) - Comprehensive migration framework
 - **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
 - **Core Configuration**: [mpbarbosa/ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) - Shared configuration templates
+- **Functional Specification**: [mpbarbosa/ai_workflow_fspec](https://github.com/mpbarbosa/ai_workflow_fspec) - Language-independent functional specification
 - **Issue Tracker**: [GitHub Issues](https://github.com/mpbarbosa/ai_workflow.js/issues)
 
 ---

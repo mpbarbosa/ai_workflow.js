@@ -2,7 +2,7 @@
 	path = .workflow_core
 	url = https://github.com/mpbarbosa/ai_workflow_core.git
 	pushurl = git@github.com:mpbarbosa/ai_workflow_core.git
-[submodule "ai_workflow_fspec"]
-	path = ai_workflow_fspec
+[submodule ".workflow_fspec"]
+	path = .workflow_fspec
 	url = https://github.com/mpbarbosa/ai_workflow_fspec.git
 	pushurl = git@github.com:mpbarbosa/ai_workflow_fspec.git
