@@ -4,25 +4,17 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { logger } from '../../src/core/logger.js';
-import {
-  WorkflowError,
-  SystemError,
-  ConfigurationError,
-} from '../../src/utils/errors.js';
+import { WorkflowError, SystemError, ConfigurationError } from '../../src/utils/errors.js';
 
 describe('Ambient Module: logger', () => {
-  it('should have all log level methods', () => {
-    expect(typeof logger.debug).toBe('function');
-    expect(typeof logger.info).toBe('function');
-    expect(typeof logger.warn).toBe('function');
-    expect(typeof logger.error).toBe('function');
+  const LOG_METHODS = ['debug', 'info', 'warn', 'error'];
+
+  test.each(LOG_METHODS)('logger.%s should be a function', (method) => {
+    expect(typeof logger[method]).toBe('function');
   });
 
-  it('should call logger methods without throwing', () => {
-    expect(() => logger.debug('debug message')).not.toThrow();
-    expect(() => logger.info('info message')).not.toThrow();
-    expect(() => logger.warn('warn message')).not.toThrow();
-    expect(() => logger.error('error message')).not.toThrow();
+  test.each(LOG_METHODS)('logger.%s should not throw', (method) => {
+    expect(() => logger[method](`${method} message`)).not.toThrow();
   });
 
   it('should handle empty string messages', () => {
@@ -65,7 +57,7 @@ describe('Ambient Module: SystemError', () => {
   it('should have a stack trace', () => {
     const err = new SystemError('oops');
     expect(err.stack).toBeDefined();
-    expect(err.stack).toContain('SystemError');
+    expect(err.stack).toMatch(/SystemError/);
   });
 });
 

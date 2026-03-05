@@ -15,6 +15,14 @@ import {
 import { ValidationError, ConfigurationError } from '../../src/utils/errors.js';
 
 // ==============================================================================
+// Shared helpers
+// ==============================================================================
+
+/** Create a transient-looking error with a system error code. */
+const makeTransientError = (code = 'ECONNRESET', msg = 'net') =>
+  Object.assign(new Error(msg), { code });
+
+// ==============================================================================
 // classifyError — pure function
 // ==============================================================================
 
@@ -73,7 +81,7 @@ describe('classifyError — pure function', () => {
 
 describe('shouldRetry — pure function', () => {
   test('returns true for TRANSIENT error within retry budget', () => {
-    const err = Object.assign(new Error('conn'), { code: 'ECONNRESET' });
+    const err = makeTransientError('ECONNRESET', 'conn');
     expect(shouldRetry(err, 0, 3)).toBe(true);
     expect(shouldRetry(err, 2, 3)).toBe(true);
   });
@@ -88,7 +96,7 @@ describe('shouldRetry — pure function', () => {
   });
 
   test('returns false when attempt >= maxRetries', () => {
-    const err = Object.assign(new Error('net'), { code: 'ENOENT' });
+    const err = makeTransientError('ENOENT');
     expect(shouldRetry(err, 3, 3)).toBe(false);
     expect(shouldRetry(err, 5, 3)).toBe(false);
   });
@@ -141,7 +149,7 @@ describe('withRetry — impure wrapper', () => {
   });
 
   test('retries on transient error and succeeds', async () => {
-    const transientErr = Object.assign(new Error('net'), { code: 'ECONNRESET' });
+    const transientErr = makeTransientError('ECONNRESET');
     const fn = jest.fn().mockRejectedValueOnce(transientErr).mockResolvedValue('recovered');
     const result = await withRetry(fn, { maxRetries: 2, sleep: instantSleep });
     expect(result).toBe('recovered');
@@ -149,7 +157,7 @@ describe('withRetry — impure wrapper', () => {
   });
 
   test('exhausts all retries and throws last error', async () => {
-    const transientErr = Object.assign(new Error('keep failing'), { code: 'ETIMEDOUT' });
+    const transientErr = makeTransientError('ETIMEDOUT', 'keep failing');
     const fn = jest.fn().mockRejectedValue(transientErr);
     await expect(withRetry(fn, { maxRetries: 2, sleep: instantSleep })).rejects.toThrow(
       'keep failing'
@@ -167,7 +175,7 @@ describe('withRetry — impure wrapper', () => {
   });
 
   test('calls onRetry with error, attempt index, and delay', async () => {
-    const transientErr = Object.assign(new Error('oops'), { code: 'EPIPE' });
+    const transientErr = makeTransientError('EPIPE', 'oops');
     const fn = jest.fn().mockRejectedValueOnce(transientErr).mockResolvedValue('done');
     const onRetry = jest.fn();
     await withRetry(fn, { maxRetries: 3, baseDelay: 100, onRetry, sleep: instantSleep });
@@ -195,7 +203,7 @@ describe('withRetry — impure wrapper', () => {
 
   test('uses custom sleep implementation', async () => {
     const sleepMock = jest.fn().mockResolvedValue(undefined);
-    const transientErr = Object.assign(new Error('net'), { code: 'EAGAIN' });
+    const transientErr = makeTransientError('EAGAIN');
     const fn = jest.fn().mockRejectedValueOnce(transientErr).mockResolvedValue('ok');
     await withRetry(fn, { maxRetries: 2, baseDelay: 1000, sleep: sleepMock });
     expect(sleepMock).toHaveBeenCalledTimes(1);
@@ -203,7 +211,7 @@ describe('withRetry — impure wrapper', () => {
   });
 
   test('succeeds on last possible retry', async () => {
-    const transientErr = Object.assign(new Error('net'), { code: 'ENOENT' });
+    const transientErr = makeTransientError('ENOENT');
     const fn = jest
       .fn()
       .mockRejectedValueOnce(transientErr)
