@@ -503,6 +503,26 @@ Metrics report/export
 4. Handle errors gracefully
 5. Add configuration options
 
+## Automation Scripts
+
+The `scripts/` directory contains shell and Node.js scripts for development and release automation. They integrate with the workflow engine and CI/CD pipeline.
+
+| Script                         | Purpose                                                                    | When to use                             |
+| ------------------------------ | -------------------------------------------------------------------------- | --------------------------------------- |
+| `scripts/setup.sh`             | Install deps, init submodules, create `.ai_workflow/` artifact directories | First-time setup or after cloning       |
+| `scripts/validate.sh`          | Full pipeline: lint → format → tests → version consistency                 | Before every commit or PR               |
+| `scripts/test-integration.sh`  | Integration tests; accepts `--coverage` flag                               | Before releases or on CI                |
+| `scripts/prepare-release.sh`   | Version bump, CHANGELOG update, full validation                            | When creating a new release             |
+| `scripts/cleanup_artifacts.sh` | Remove stale logs, metrics, cache from `.ai_workflow/`                     | Routine maintenance or after large runs |
+
+**Execution order for a release:**
+
+```
+setup.sh → validate.sh → test-integration.sh → prepare-release.sh
+```
+
+All scripts are idempotent and exit with code 0 on success, non-zero on failure.
+
 ## See Also
 
 - [Design Principles](./DESIGN_PRINCIPLES.md) - Detailed design patterns

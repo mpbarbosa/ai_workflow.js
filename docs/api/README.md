@@ -405,6 +405,20 @@ test/
     └── errors.test.js
 ```
 
+## 🛠️ Automation Scripts
+
+The `scripts/` directory provides shell and Node.js automation used alongside the API modules:
+
+| Script                         | Purpose                                                        |
+| ------------------------------ | -------------------------------------------------------------- |
+| `scripts/setup.sh`             | First-time environment setup (deps, submodules, artifact dirs) |
+| `scripts/validate.sh`          | Full validation pipeline (lint, format, tests, version checks) |
+| `scripts/test-integration.sh`  | Integration tests with optional `--coverage` flag              |
+| `scripts/prepare-release.sh`   | Release preparation (version bump, CHANGELOG, full validation) |
+| `scripts/cleanup_artifacts.sh` | Clean up `.ai_workflow/` logs, metrics, and cache by age/type  |
+
+See [README.md](../../README.md#scripts) for the complete scripts reference table.
+
 ## 📚 Related Documentation
 
 - **[Architecture Overview](../architecture/OVERVIEW.md)** - System design and patterns

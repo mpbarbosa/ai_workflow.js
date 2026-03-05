@@ -762,6 +762,32 @@ xcode-select --install
 
 ---
 
+## Development Scripts
+
+The `scripts/` directory contains shell and Node.js automation scripts for common development tasks.
+
+| Script                         | Purpose                                                          | Guide                                                  |
+| ------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------ |
+| `scripts/setup.sh`             | Set up development environment (deps, submodules, artifact dirs) | [SETUP.md](../guides/SETUP.md)                         |
+| `scripts/validate.sh`          | Full validation pipeline (lint, format, tests, version checks)   | [VALIDATE.md](../guides/VALIDATE.md)                   |
+| `scripts/test-integration.sh`  | Run integration tests with optional coverage report              | [TEST_INTEGRATION.md](../guides/TEST_INTEGRATION.md)   |
+| `scripts/prepare-release.sh`   | Prepare a versioned release (tests, version bump, changelog)     | [PREPARE_RELEASE.md](../guides/PREPARE_RELEASE.md)     |
+| `scripts/cleanup_artifacts.sh` | Clean up workflow artifacts (`.ai_workflow/`) by age or type     | [CLEANUP_ARTIFACTS.md](../guides/CLEANUP_ARTIFACTS.md) |
+
+**Quick usage:**
+
+```bash
+bash scripts/setup.sh             # First-time environment setup
+bash scripts/validate.sh          # Run full validation before committing
+bash scripts/test-integration.sh  # Run integration tests
+bash scripts/cleanup_artifacts.sh # Remove old workflow artifacts
+bash scripts/prepare-release.sh   # Prepare a release
+```
+
+**Prerequisites:** All shell scripts require Bash ≥ 4, Node.js ≥ 18, and a cloned repository with `npm install` already run.
+
+---
+
 ## Next Steps
 
 After successful installation:
