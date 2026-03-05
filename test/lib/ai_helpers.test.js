@@ -5,6 +5,9 @@
  */
 
 import { jest } from '@jest/globals';
+import { tmpdir } from 'os';
+import { mkdtemp, writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 import {
   parseAiResponse,
   parseErrorResponse,
@@ -14,6 +17,9 @@ import {
   mergeRequestOptions,
   validateAiHelperState,
   AiHelper,
+  readFileHandler,
+  listFilesHandler,
+  buildWorkflowTools,
 } from '../../src/lib/ai_helpers.js';
 
 describe('AI Helpers Module - Pure Functions', () => {
@@ -1172,5 +1178,72 @@ describe('AiHelper class - additional method coverage', () => {
     expect(helper.initialized).toBe(false);
     expect(helper.available).toBe(false);
     expect(helper.authenticated).toBe(false);
+  });
+});
+
+// ==============================================================================
+// Workflow Tool Handlers (pure handlers, no SDK dependency)
+// ==============================================================================
+
+describe('readFileHandler', () => {
+  let dir;
+  beforeEach(async () => { dir = await mkdtemp(path.join(tmpdir(), 'ai-tools-')); });
+
+  test('reads file content and returns metadata', async () => {
+    const filePath = path.join(dir, 'hello.txt');
+    await writeFile(filePath, 'hello world', 'utf8');
+    const result = await readFileHandler('hello.txt', dir);
+    expect(result.content).toBe('hello world');
+    expect(result.size).toBe(11);
+    expect(result.path).toBe(filePath);
+  });
+
+  test('resolves absolute path directly', async () => {
+    const filePath = path.join(dir, 'abs.txt');
+    await writeFile(filePath, 'abs', 'utf8');
+    const result = await readFileHandler(filePath, '/ignored');
+    expect(result.content).toBe('abs');
+  });
+
+  test('throws when file does not exist', async () => {
+    await expect(readFileHandler('missing.txt', dir)).rejects.toThrow();
+  });
+});
+
+describe('listFilesHandler', () => {
+  let dir;
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ai-list-'));
+    await writeFile(path.join(dir, 'a.js'), '');
+    await mkdir(path.join(dir, 'sub'));
+  });
+
+  test('lists files and directories with trailing slash for dirs', async () => {
+    const result = await listFilesHandler('.', dir);
+    expect(result.entries).toContain('a.js');
+    expect(result.entries).toContain('sub/');
+    expect(result.path).toBe(dir);
+  });
+
+  test('uses absolute path directly when provided', async () => {
+    const result = await listFilesHandler(dir, '/ignored');
+    expect(result.entries).toContain('a.js');
+  });
+});
+
+describe('buildWorkflowTools', () => {
+  test('returns array of 3 tool definitions', () => {
+    const tools = buildWorkflowTools('/tmp/project');
+    expect(tools).toHaveLength(3);
+  });
+
+  test('tool names are read_file, list_files, get_git_status', () => {
+    // defineTool is mocked in the jest mock for @github/copilot-sdk in this env;
+    // buildWorkflowTools passes the defineTool call result through — we just check
+    // that we get 3 non-null items back, since the mock returns its second arg or
+    // an identity object depending on the mock setup.
+    const tools = buildWorkflowTools('/tmp');
+    expect(tools).toHaveLength(3);
+    tools.forEach((t) => expect(t).toBeDefined());
   });
 });

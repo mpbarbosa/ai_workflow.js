@@ -33,7 +33,7 @@ describe('Step 02_5 Version Analysis Module', () => {
 # API Documentation v1.2.3
 Updated for version 2.0.0
 See @3.1.0 for details
-[1.5.1] is the minimum
+[1.5.2] is the minimum
       `;
 
       const versions = extractVersionReferences(content);
@@ -41,7 +41,7 @@ See @3.1.0 for details
       expect(versions).toContain('1.2.3');
       expect(versions).toContain('2.0.0');
       expect(versions).toContain('3.1.0');
-      expect(versions).toContain('1.5.1');
+      expect(versions).toContain('1.5.2');
     });
 
     test('returns unique versions sorted', () => {
@@ -143,7 +143,7 @@ See @3.1.0 for details
 
   describe('findOldestVersion', () => {
     test('finds oldest version', () => {
-      const versions = ['2.0.0', '1.5.1', '3.1.0', '1.2.3'];
+      const versions = ['2.0.0', '1.5.2', '3.1.0', '1.2.3'];
       expect(findOldestVersion(versions)).toBe('1.2.3');
     });
 
@@ -158,7 +158,7 @@ See @3.1.0 for details
 
   describe('findNewestVersion', () => {
     test('finds newest version', () => {
-      const versions = ['2.0.0', '1.5.1', '3.1.0', '1.2.3'];
+      const versions = ['2.0.0', '1.5.2', '3.1.0', '1.2.3'];
       expect(findNewestVersion(versions)).toBe('3.1.0');
     });
 
@@ -177,7 +177,7 @@ See @3.1.0 for details
 
   describe('isVersionOutdated', () => {
     test('returns true for major version gap', () => {
-      const versions = ['1.0.0', '1.5.1'];
+      const versions = ['1.0.0', '1.5.2'];
       const current = '3.0.0';
       expect(isVersionOutdated(versions, current)).toBe(true);
     });
@@ -242,7 +242,7 @@ See @3.1.0 for details
   describe('buildVersionAnalysis', () => {
     test('builds analysis for file with versions', () => {
       const data = {
-        versions: ['1.5.1', '2.0.0', '1.2.3'],
+        versions: ['1.5.2', '2.0.0', '1.2.3'],
         currentVersion: '3.0.0',
         thresholds: VERSION_THRESHOLDS,
       };
@@ -251,7 +251,7 @@ See @3.1.0 for details
 
       expect(analysis.file).toBe('docs/api.md');
       expect(analysis.hasVersions).toBe(true);
-      expect(analysis.versions).toEqual(['1.5.1', '2.0.0', '1.2.3']);
+      expect(analysis.versions).toEqual(['1.5.2', '2.0.0', '1.2.3']);
       expect(analysis.oldestVersion).toBe('1.2.3');
       expect(analysis.newestVersion).toBe('2.0.0');
       expect(analysis.versionGap.major).toBe(2);
@@ -328,7 +328,7 @@ See @3.1.0 for details
       const analyses = [
         {
           hasVersions: true,
-          versions: ['1.0.0', '1.5.1'],
+          versions: ['1.0.0', '1.5.2'],
           isOutdated: true,
           stalenessScore: 80,
         },

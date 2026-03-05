@@ -14,6 +14,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { defineTool } from '@github/copilot-sdk';
 export { defineTool };
 import { CopilotSdkWrapper } from './copilot_sdk_wrapper.js';
@@ -462,6 +464,108 @@ export function validateAiHelperState(config, state) {
 }
 
 // ==============================================================================
+// WORKFLOW TOOLS - Callable by Copilot during a session
+// ==============================================================================
+
+const _execFileAsync = promisify(execFile);
+
+/**
+ * Reads the content of a file relative to the working directory (PURE handler).
+ * Exported for unit testing the handler logic independently.
+ *
+ * @param {string} filePath - Relative or absolute path to read
+ * @param {string} workingDirectory - Base directory for relative paths
+ * @returns {Promise<{path: string, content: string, size: number}>}
+ * @pure
+ */
+export async function readFileHandler(filePath, workingDirectory = process.cwd()) {
+  const resolved = path.isAbsolute(filePath) ? filePath : path.join(workingDirectory, filePath);
+  const content = await fs.readFile(resolved, 'utf8');
+  return { path: resolved, content, size: content.length };
+}
+
+/**
+ * Lists files in a directory relative to the working directory (PURE handler).
+ * Exported for unit testing independently.
+ *
+ * @param {string} dirPath - Directory to list (default: '.')
+ * @param {string} workingDirectory - Base directory for relative paths
+ * @returns {Promise<{path: string, entries: string[]}>}
+ * @pure
+ */
+export async function listFilesHandler(dirPath = '.', workingDirectory = process.cwd()) {
+  const resolved = path.isAbsolute(dirPath) ? dirPath : path.join(workingDirectory, dirPath);
+  const entries = await fs.readdir(resolved, { withFileTypes: true });
+  return {
+    path: resolved,
+    entries: entries.map((e) => (e.isDirectory() ? `${e.name}/` : e.name)),
+  };
+}
+
+/**
+ * Returns the current git status of the working directory (PURE handler).
+ * Exported for unit testing independently.
+ *
+ * @param {string} workingDirectory - Repository root
+ * @returns {Promise<{branch: string, status: string, clean: boolean}>}
+ * @pure
+ */
+export async function getGitStatusHandler(workingDirectory = process.cwd()) {
+  const { stdout: branch } = await _execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: workingDirectory,
+  });
+  const { stdout: status } = await _execFileAsync('git', ['status', '--short'], {
+    cwd: workingDirectory,
+  });
+  return {
+    branch: branch.trim(),
+    status: status.trim(),
+    clean: status.trim() === '',
+  };
+}
+
+/**
+ * Builds the standard set of workflow tools for a given working directory.
+ * Returns an array ready to pass to `createSession({ tools })`.
+ *
+ * @param {string} workingDirectory - Absolute path to the project root
+ * @returns {Object[]} Array of tool definitions
+ */
+export function buildWorkflowTools(workingDirectory) {
+  return [
+    defineTool('read_file', {
+      description: 'Read the content of a file in the project',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'File path relative to the project root' },
+        },
+        required: ['path'],
+      },
+      handler: ({ path: filePath }) => readFileHandler(filePath, workingDirectory),
+    }),
+    defineTool('list_files', {
+      description: 'List files and directories in a project directory',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'Directory path relative to the project root (default: ".")',
+          },
+        },
+      },
+      handler: ({ path: dirPath = '.' }) => listFilesHandler(dirPath, workingDirectory),
+    }),
+    defineTool('get_git_status', {
+      description: 'Get the current git branch and working-tree status of the project',
+      parameters: { type: 'object', properties: {} },
+      handler: () => getGitStatusHandler(workingDirectory),
+    }),
+  ];
+}
+
+// ==============================================================================
 // IMPURE WRAPPER CLASS - SDK Integration
 // ==============================================================================
 
@@ -488,6 +592,7 @@ export class AiHelper {
    * @param {number} [config.maxRetries=3] - Maximum retry attempts
    * @param {boolean} [config.cache=true] - Enable response caching
    * @param {number} [config.timeout=120000] - Request timeout in ms
+   * @param {Object[]} [config.tools] - SDK tools for Copilot to call; defaults to buildWorkflowTools()
    */
   constructor(config = {}) {
     this.config = {
@@ -506,6 +611,7 @@ export class AiHelper {
       model: this.config.model,
       timeout: this.config.timeout,
       workingDirectory: this.config.workingDirectory,
+      tools: config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd()),
     });
     this.initialized = false;
     this.available = false;

@@ -558,3 +558,49 @@ describe('CopilotSdkWrapper — sendStream', () => {
     expect(order).toEqual([1, 2]);
   });
 });
+
+// ==============================================================================
+// CopilotSdkWrapper — tools option
+// ==============================================================================
+
+describe('CopilotSdkWrapper — tools: createSession flag', () => {
+  beforeEach(resetMocks);
+
+  test('createSession called without tools when tools is empty (default)', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tools: expect.anything() })
+    );
+  });
+
+  test('createSession called with tools when tools array is provided', async () => {
+    const mockTool = { name: 'read_file', handler: jest.fn() };
+    const wrapper = makeWrapper({ tools: [mockTool] });
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ tools: [mockTool] })
+    );
+  });
+
+  test('recreateSession preserves tools', async () => {
+    const mockTool = { name: 'list_files', handler: jest.fn() };
+    const wrapper = makeWrapper({ tools: [mockTool] });
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ tools: [mockTool] })
+    );
+  });
+
+  test('recreateSession does not set tools when tools is empty', async () => {
+    const wrapper = makeWrapper({ tools: [] });
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tools: expect.anything() })
+    );
+  });
+});

@@ -37,17 +37,19 @@ export class CopilotSdkWrapper {
   _timeout;
   _workingDirectory;
   _streaming;
+  _tools;
   _client;
   _session;
   _authenticated;
   _availableModels;
   /** Serialises concurrent send() calls — the SDK does not support simultaneous sendAndWait. */
   _sendQueue;
-  constructor({ model, timeout, workingDirectory, streaming = false } = {}) {
+  constructor({ model, timeout, workingDirectory, streaming = false, tools = [] } = {}) {
     this._model = model;
     this._timeout = timeout;
     this._workingDirectory = workingDirectory;
     this._streaming = streaming;
+    this._tools = tools;
     this._client = null;
     this._session = null;
     this._authenticated = false;
@@ -116,6 +118,9 @@ export class CopilotSdkWrapper {
         if (this._streaming) {
           sessionConfig.streaming = true;
         }
+        if (this._tools.length > 0) {
+          sessionConfig.tools = this._tools;
+        }
         this._session = await this._client.createSession(sessionConfig);
       }
     } catch (error) {
@@ -174,6 +179,7 @@ export class CopilotSdkWrapper {
       model: this._model,
       ...(this._workingDirectory ? { workingDirectory: this._workingDirectory } : {}),
       ...(this._streaming ? { streaming: true } : {}),
+      ...(this._tools.length > 0 ? { tools: this._tools } : {}),
     });
     // Reset the send queue so the fresh session isn't blocked by stale entries.
     this._sendQueue = Promise.resolve();
