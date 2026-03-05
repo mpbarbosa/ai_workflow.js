@@ -1,33 +1,37 @@
-// scripts/validate-exports.test.js
+// test/scripts/validate-exports.test.js
 
-import { readFileSync, writeFileSync, unlinkSync } from 'fs';
-import { join } from 'path';
-import {
-  extractExports,
-  extractReExports,
-} from './validate-exports.js';
+import { writeFileSync, unlinkSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { extractExports, extractReExports } from '../../scripts/validate-exports.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 describe('extractExports', () => {
   const tempFile = join(__dirname, 'temp-module.js');
 
   afterEach(() => {
-    try { unlinkSync(tempFile); } catch {}
+    try {
+      unlinkSync(tempFile);
+    } catch {
+      // ignore ENOENT
+    }
   });
 
-  it('should extract exported classes', () => {
+  it('extracts exported classes', () => {
     writeFileSync(tempFile, 'export class MyClass {}\n');
     const exports = extractExports(tempFile);
     expect(exports.has('MyClass')).toBe(true);
   });
 
-  it('should extract exported functions (sync and async)', () => {
+  it('extracts exported functions (sync and async)', () => {
     writeFileSync(tempFile, 'export function foo() {}\nexport async function bar() {}\n');
     const exports = extractExports(tempFile);
     expect(exports.has('foo')).toBe(true);
     expect(exports.has('bar')).toBe(true);
   });
 
-  it('should extract exported variables (const, let, var)', () => {
+  it('extracts exported variables (const, let, var)', () => {
     writeFileSync(tempFile, 'export const a = 1;\nexport let b = 2;\nexport var c = 3;\n');
     const exports = extractExports(tempFile);
     expect(exports.has('a')).toBe(true);
@@ -35,34 +39,34 @@ describe('extractExports', () => {
     expect(exports.has('c')).toBe(true);
   });
 
-  it('should extract named exports from export { ... }', () => {
+  it('extracts named exports from export { ... }', () => {
     writeFileSync(tempFile, 'const x = 1, y = 2;\nexport { x, y };\n');
     const exports = extractExports(tempFile);
     expect(exports.has('x')).toBe(true);
     expect(exports.has('y')).toBe(true);
   });
 
-  it('should extract named exports with "as" alias', () => {
+  it('extracts the source name (not alias) from "export { z as zz }"', () => {
     writeFileSync(tempFile, 'const z = 3;\nexport { z as zz };\n');
     const exports = extractExports(tempFile);
     expect(exports.has('z')).toBe(true);
     expect(exports.has('zz')).toBe(false);
   });
 
-  it('should extract default exports', () => {
+  it('extracts default exports (adds both "default" and the name)', () => {
     writeFileSync(tempFile, 'export default MyClass;\nclass MyClass {}\n');
     const exports = extractExports(tempFile);
     expect(exports.has('default')).toBe(true);
     expect(exports.has('MyClass')).toBe(true);
   });
 
-  it('should handle files with no exports', () => {
+  it('returns empty set for files with no exports', () => {
     writeFileSync(tempFile, 'const a = 1;\n');
     const exports = extractExports(tempFile);
     expect(exports.size).toBe(0);
   });
 
-  it('should not fail on malformed export statements', () => {
+  it('does not add empty strings for malformed export { , , } statements', () => {
     writeFileSync(tempFile, 'export { , , };\nexport class \nexport function \n');
     const exports = extractExports(tempFile);
     expect(exports.size).toBe(0);
@@ -73,10 +77,14 @@ describe('extractReExports', () => {
   const tempIndex = join(__dirname, 'temp-index.js');
 
   afterEach(() => {
-    try { unlinkSync(tempIndex); } catch {}
+    try {
+      unlinkSync(tempIndex);
+    } catch {
+      // ignore ENOENT
+    }
   });
 
-  it('should extract named re-exports from index.js', () => {
+  it('extracts named re-exports from index.js', () => {
     writeFileSync(tempIndex, "export { Foo, Bar } from './foo';\n");
     const reExports = extractReExports(tempIndex);
     expect(reExports).toEqual([
@@ -85,19 +93,14 @@ describe('extractReExports', () => {
     ]);
   });
 
-  it('should extract re-exports with "as" alias', () => {
+  it('extracts the source name (not alias) from "export { Baz as Qux }"', () => {
     writeFileSync(tempIndex, "export { Baz as Qux } from './baz';\n");
     const reExports = extractReExports(tempIndex);
-    expect(reExports).toEqual([
-      { exportName: 'Baz', modulePath: './baz', lineNumber: 1 },
-    ]);
+    expect(reExports).toEqual([{ exportName: 'Baz', modulePath: './baz', lineNumber: 1 }]);
   });
 
-  it('should handle multiple re-exports on different lines', () => {
-    writeFileSync(
-      tempIndex,
-      "export { A } from './a';\nexport { B, C } from './b';\n"
-    );
+  it('handles multiple re-exports on different lines', () => {
+    writeFileSync(tempIndex, "export { A } from './a';\nexport { B, C } from './b';\n");
     const reExports = extractReExports(tempIndex);
     expect(reExports).toEqual([
       { exportName: 'A', modulePath: './a', lineNumber: 1 },
@@ -106,22 +109,19 @@ describe('extractReExports', () => {
     ]);
   });
 
-  it('should ignore lines that are not re-exports', () => {
-    writeFileSync(
-      tempIndex,
-      "import { X } from './x';\nconst Y = 2;\nexport default Z;\n"
-    );
+  it('ignores import statements and non-re-export lines', () => {
+    writeFileSync(tempIndex, "import { X } from './x';\nconst Y = 2;\nexport default Z;\n");
     const reExports = extractReExports(tempIndex);
     expect(reExports).toEqual([]);
   });
 
-  it('should handle empty index.js', () => {
+  it('returns empty array for empty file', () => {
     writeFileSync(tempIndex, '');
     const reExports = extractReExports(tempIndex);
     expect(reExports).toEqual([]);
   });
 
-  it('should handle malformed re-export lines gracefully', () => {
+  it('skips empty export braces without adding empty-name entries', () => {
     writeFileSync(tempIndex, "export { } from './empty';\nexport {,} from './bad';\n");
     const reExports = extractReExports(tempIndex);
     expect(reExports).toEqual([]);

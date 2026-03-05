@@ -31,24 +31,26 @@ const colors = {
  * @param {string} filePath - Path to the file
  * @returns {Set<string>} - Set of exported names
  */
-function extractExports(filePath) {
+export function extractExports(filePath) {
   const content = readFileSync(filePath, 'utf-8');
   const exports = new Set();
 
   // Match: export class ClassName
-  const classMatches = content.matchAll(/export\s+class\s+(\w+)/g);
+  const classMatches = content.matchAll(/export[^\S\n]+class[^\S\n]+(\w+)/g);
   for (const match of classMatches) {
     exports.add(match[1]);
   }
 
   // Match: export function functionName
-  const functionMatches = content.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g);
+  const functionMatches = content.matchAll(
+    /export[^\S\n]+(?:async[^\S\n]+)?function[^\S\n]+(\w+)/g
+  );
   for (const match of functionMatches) {
     exports.add(match[1]);
   }
 
   // Match: export const/let/var varName
-  const varMatches = content.matchAll(/export\s+(?:const|let|var)\s+(\w+)/g);
+  const varMatches = content.matchAll(/export[^\S\n]+(?:const|let|var)[^\S\n]+(\w+)/g);
   for (const match of varMatches) {
     exports.add(match[1]);
   }
@@ -57,12 +59,12 @@ function extractExports(filePath) {
   const namedExportMatches = content.matchAll(/export\s+\{([^}]+)\}/g);
   for (const match of namedExportMatches) {
     const names = match[1].split(',').map((n) => n.trim().split(/\s+as\s+/)[0]);
-    names.forEach((name) => exports.add(name));
+    names.filter((n) => n).forEach((name) => exports.add(name));
   }
 
   // Match: export default ClassName (add as 'default')
-  if (/export\s+default\s+(\w+)/.test(content)) {
-    const match = content.match(/export\s+default\s+(\w+)/);
+  if (/export[^\S\n]+default[^\S\n]+(\w+)/.test(content)) {
+    const match = content.match(/export[^\S\n]+default[^\S\n]+(\w+)/);
     exports.add('default');
     exports.add(match[1]); // Also add the class/function name
   }
@@ -75,7 +77,7 @@ function extractExports(filePath) {
  * @param {string} indexPath - Path to index.js
  * @returns {Array} - Array of {exportName, modulePath, lineNumber}
  */
-function extractReExports(indexPath) {
+export function extractReExports(indexPath) {
   const content = readFileSync(indexPath, 'utf-8');
   const lines = content.split('\n');
   const reExports = [];
@@ -86,13 +88,15 @@ function extractReExports(indexPath) {
     if (namedMatch) {
       const names = namedMatch[1].split(',').map((n) => n.trim().split(/\s+as\s+/)[0]);
       const modulePath = namedMatch[2];
-      names.forEach((name) => {
-        reExports.push({
-          exportName: name,
-          modulePath,
-          lineNumber: index + 1,
+      names
+        .filter((n) => n)
+        .forEach((name) => {
+          reExports.push({
+            exportName: name,
+            modulePath,
+            lineNumber: index + 1,
+          });
         });
-      });
     }
   });
 
@@ -174,7 +178,9 @@ async function validateExports() {
 }
 
 // Run validation
-validateExports().catch((error) => {
-  console.error(`${colors.red}Fatal error:${colors.reset}`, error);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  validateExports().catch((error) => {
+    console.error(`${colors.red}Fatal error:${colors.reset}`, error);
+    process.exit(1);
+  });
+}
