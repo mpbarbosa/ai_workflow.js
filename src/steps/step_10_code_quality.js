@@ -17,7 +17,13 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
-import { buildCodeQualityPrompt, AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  buildCodeQualityPrompt,
+  AI_HELPERS_PATH,
+  AI_PROJECT_KINDS_PATH,
+  buildYamlStepPrompt,
+  buildProjectKindPrompt,
+} from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
@@ -569,10 +575,12 @@ export function buildFileContentMap(fileContents, options = {}) {
  */
 export function formatFileContentMap(contentMap) {
   if (!Array.isArray(contentMap) || contentMap.length === 0) return '(no source files provided)';
-  return contentMap.map(({ path, excerpt, truncated }) => {
-    const note = truncated ? ' [truncated]' : '';
-    return `### ${path}${note}\n\`\`\`\n${excerpt}\n\`\`\``;
-  }).join('\n\n');
+  return contentMap
+    .map(({ path, excerpt, truncated }) => {
+      const note = truncated ? ' [truncated]' : '';
+      return `### ${path}${note}\n\`\`\`\n${excerpt}\n\`\`\``;
+    })
+    .join('\n\n');
 }
 
 /**
@@ -795,112 +803,137 @@ export class Step10CodeQualityAnalyzer {
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
               const parsedPk = yaml.load(pkYaml);
-              const pk = buildProjectKindPrompt(parsedPk, _options?.projectKind ?? 'default', 'code_quality_auditor');
+              const pk = buildProjectKindPrompt(
+                parsedPk,
+                options?.projectKind ?? 'default',
+                'code_quality_auditor'
+              );
               if (pk?.role) sharedRoleOverride = pk.role;
-            } catch { /* optional */ }
-          } catch { /* fallback to hardcoded builder below */ }
+            } catch {
+              /* optional */
+            }
+          } catch {
+            /* fallback to hardcoded builder below */
+          }
 
           // Run all slices in parallel — each slice is independent (different file set, unique cache key).
-          const aiSectionResults = await Promise.all(slices.map(async (sliceFiles, si) => {
-            const sliceContents = {};
-            for (const f of sliceFiles) {
-              if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
-                sliceContents[f] = fileContents[f];
+          const aiSectionResults = await Promise.all(
+            slices.map(async (sliceFiles, si) => {
+              const sliceContents = {};
+              for (const f of sliceFiles) {
+                if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
+                  sliceContents[f] = fileContents[f];
+                }
               }
-            }
 
-            // Try YAML-based prompt; fall back to hardcoded builder
-            let prompt;
-            try {
-              if (sharedParsedYaml) {
-                const prioritizedContents = {};
-                for (const f of prioritizeSourceFiles(sliceFiles)) {
-                  if (Object.prototype.hasOwnProperty.call(sliceContents, f)) {
-                    prioritizedContents[f] = sliceContents[f];
+              // Try YAML-based prompt; fall back to hardcoded builder
+              let prompt;
+              try {
+                if (sharedParsedYaml) {
+                  const prioritizedContents = {};
+                  for (const f of prioritizeSourceFiles(sliceFiles)) {
+                    if (Object.prototype.hasOwnProperty.call(sliceContents, f)) {
+                      prioritizedContents[f] = sliceContents[f];
+                    }
                   }
-                }
-                const contentMap = buildFileContentMap(prioritizedContents, {
-                  maxFiles: sliceFiles.length,
-                  maxCharsPerFile: 5000,
-                });
-                const fileContentMap = formatFileContentMap(contentMap);
-                const sampleCode = '';
-                const largeFList = sliceFiles.join(', ');
-                const projectName = basename(projectRoot);
-                const projectDescription = options?.projectDescription ?? '';
-                const changeScope = options?.changeScope ?? 'full';
-                const modifiedFiles = options?.modifiedFiles ?? [];
-                const modifiedCount = modifiedFiles.length;
-                const totalFiles = aggregateTotals.fileCount ?? sliceFiles.length;
-                const languageBreakdown = detectedLanguages.map(l => `${l}`).join(', ') || primaryLanguage;
-                prompt = buildYamlStepPrompt(sharedParsedYaml, 'step9_code_quality_prompt', {
-                  project_name: projectName,
-                  project_description: projectDescription,
-                  primary_language: primaryLanguage,
-                  tech_stack_summary: detectedLanguages.join(', '),
-                  change_scope: changeScope,
-                  modified_count: modifiedCount,
-                  total_files: totalFiles,
-                  language_breakdown: languageBreakdown,
-                  quality_summary: `${aggregateTotals.totalIssues} issue(s)`,
-                  quality_report_content: report.slice(0, 3000),
-                  large_files_list: largeFList,
-                  sample_code: sampleCode,
-                  file_content_map: fileContentMap,
-                });
-                if (prompt && sharedRoleOverride) {
-                  prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
-                }
-                // Supplementary: issue extraction — only append when actual log content is available
-                const logFile = options?.sessionLogFile ?? '';
-                const logContent = options?.sessionLogContent ?? '';
-                if (logFile && logContent) {
-                  const issuePrompt = buildYamlStepPrompt(sharedParsedYaml, 'issue_extraction_prompt', {
+                  const contentMap = buildFileContentMap(prioritizedContents, {
+                    maxFiles: sliceFiles.length,
+                    maxCharsPerFile: 5000,
+                  });
+                  const fileContentMap = formatFileContentMap(contentMap);
+                  const sampleCode = '';
+                  const largeFList = sliceFiles.join(', ');
+                  const projectName = basename(projectRoot);
+                  const projectDescription = options?.projectDescription ?? '';
+                  const changeScope = options?.changeScope ?? 'full';
+                  const modifiedFiles = options?.modifiedFiles ?? [];
+                  const modifiedCount = modifiedFiles.length;
+                  const totalFiles = aggregateTotals.fileCount ?? sliceFiles.length;
+                  const languageBreakdown =
+                    detectedLanguages.map((l) => `${l}`).join(', ') || primaryLanguage;
+                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step9_code_quality_prompt', {
                     project_name: projectName,
+                    project_description: projectDescription,
                     primary_language: primaryLanguage,
-                    log_file: logFile,
-                    log_content: logContent,
+                    tech_stack_summary: detectedLanguages.join(', '),
+                    change_scope: changeScope,
+                    modified_count: modifiedCount,
+                    total_files: totalFiles,
+                    language_breakdown: languageBreakdown,
+                    quality_summary: `${aggregateTotals.totalIssues} issue(s)`,
+                    quality_report_content: report.slice(0, 3000),
+                    large_files_list: largeFList,
+                    sample_code: sampleCode,
+                    file_content_map: fileContentMap,
                   });
-                  if (issuePrompt && prompt) {
-                    prompt = `${prompt}\n\n---\n\n${issuePrompt}`;
+                  if (prompt && sharedRoleOverride) {
+                    prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
+                  }
+                  // Supplementary: issue extraction — only append when actual log content is available
+                  const logFile = options?.sessionLogFile ?? '';
+                  const logContent = options?.sessionLogContent ?? '';
+                  if (logFile && logContent) {
+                    const issuePrompt = buildYamlStepPrompt(
+                      sharedParsedYaml,
+                      'issue_extraction_prompt',
+                      {
+                        project_name: projectName,
+                        primary_language: primaryLanguage,
+                        log_file: logFile,
+                        log_content: logContent,
+                      }
+                    );
+                    if (issuePrompt && prompt) {
+                      prompt = `${prompt}\n\n---\n\n${issuePrompt}`;
+                    }
+                  }
+                  // Front-end projects: add front_end_developer perspective
+                  const fePks = ['react_spa', 'client_spa', 'static_website'];
+                  if (fePks.includes(options?.projectKind ?? '')) {
+                    const fePrompt = buildYamlStepPrompt(
+                      sharedParsedYaml,
+                      'front_end_developer_prompt',
+                      {
+                        project_name: basename(projectRoot),
+                      }
+                    );
+                    if (fePrompt && prompt) {
+                      prompt = `${prompt}\n\n---\n\n${fePrompt}`;
+                    }
                   }
                 }
-                // Front-end projects: add front_end_developer perspective
-                const fePks = ['react_spa', 'client_spa', 'static_website'];
-                if (fePks.includes(_options?.projectKind ?? '')) {
-                  const fePrompt = buildYamlStepPrompt(sharedParsedYaml, 'front_end_developer_prompt', {
-                    project_name: basename(projectRoot),
-                  });
-                  if (fePrompt && prompt) {
-                    prompt = `${prompt}\n\n---\n\n${fePrompt}`;
-                  }
-                }
+              } catch {
+                /* fallback */
               }
-            } catch { /* fallback */ }
 
-            if (!prompt) {
-              prompt = buildCodeQualityPrompt({
-                codeFiles: sliceFiles,
-                language: primaryLanguage,
-                projectInfo: { projectRoot, language: primaryLanguage, languages: detectedLanguages },
-                fileContents: sliceContents,
-              });
-            }
+              if (!prompt) {
+                prompt = buildCodeQualityPrompt({
+                  codeFiles: sliceFiles,
+                  language: primaryLanguage,
+                  projectInfo: {
+                    projectRoot,
+                    language: primaryLanguage,
+                    languages: detectedLanguages,
+                  },
+                  fileContents: sliceContents,
+                });
+              }
 
-            const cacheKey = `step_10|v2|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}|${buildCodeContentHash(sliceContents)}`;
-            // Use 'code_quality_analyst' persona: Step 10 performs code quality review
-            // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
-            // YAML template, which defines a "comprehensive software quality engineer" role.
-            // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
-            // a misleading mismatch between the logged persona and the actual prompt content.
-            const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-              this.aiHelper.executeRequest(prompt, {
-                persona: 'code_quality_analyst',
-                timeout: 240000,
-              })
-            );
-            return aiResult?.content ?? '';
-          }));
+              const cacheKey = `step_10|v2|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}|${buildCodeContentHash(sliceContents)}`;
+              // Use 'code_quality_analyst' persona: Step 10 performs code quality review
+              // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
+              // YAML template, which defines a "comprehensive software quality engineer" role.
+              // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
+              // a misleading mismatch between the logged persona and the actual prompt content.
+              const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+                this.aiHelper.executeRequest(prompt, {
+                  persona: 'code_quality_analyst',
+                  timeout: 240000,
+                })
+              );
+              return aiResult?.content ?? '';
+            })
+          );
 
           const aiSections = aiSectionResults.filter((c) => c);
 
@@ -1015,6 +1048,19 @@ export class Step10CodeQualityAnalyzer {
               '**/.cache/**',
               '**/legacy-tests/**',
               '**/vendor/**',
+              // Exclude test directories and test file patterns so only source files
+              // are counted; linters (e.g. eslint 'src/**') already exclude tests.
+              '**/test/**',
+              '**/tests/**',
+              '**/__tests__/**',
+              '**/*.test.js',
+              '**/*.test.ts',
+              '**/*.test.jsx',
+              '**/*.test.tsx',
+              '**/*.spec.js',
+              '**/*.spec.ts',
+              '**/*.spec.jsx',
+              '**/*.spec.tsx',
             ],
           });
           allFiles = allFiles.concat(files);

@@ -103,6 +103,32 @@ describe('Step 3: Script Reference Validation', () => {
       const content = 'This is a document without script references';
       expect(extractScriptReferences(content)).toHaveLength(0);
     });
+
+    test('does not extract false reference from bash source substitution', () => {
+      // Regression: source "$(dirname "${BASH_SOURCE[0]}")/colors.sh" was producing
+      // the false reference ")/colors.sh" via the code-block regex.
+      const content = [
+        '```bash',
+        'source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"',
+        'echo -e "${GREEN}Success${NC}"',
+        '```',
+      ].join('\n');
+      const refs = extractScriptReferences(content);
+      expect(refs).toHaveLength(0);
+    });
+
+    test('still extracts clean script path after shell-substitution line', () => {
+      // Ensure the $(  guard does not skip subsequent clean lines
+      const content = [
+        '```bash',
+        'source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"',
+        'bash scripts/deploy.sh',
+        '```',
+      ].join('\n');
+      const refs = extractScriptReferences(content);
+      expect(refs).toContain('scripts/deploy.sh');
+      expect(refs.every((r) => !r.startsWith(')'))).toBe(true);
+    });
   });
 
   describe('validateScriptReferences', () => {
@@ -274,7 +300,9 @@ describe('Step 3: Script Reference Validation', () => {
     });
 
     test('formats a partially documented script correctly', () => {
-      const map = [{ script: 'cdn-delivery.sh', foundIn: ['README.md'], missingFrom: ['docs/API.md'] }];
+      const map = [
+        { script: 'cdn-delivery.sh', foundIn: ['README.md'], missingFrom: ['docs/API.md'] },
+      ];
       const output = formatDocCoverageMap(map);
       expect(output).toContain('documented in [README.md]');
       expect(output).toContain('MISSING from [docs/API.md]');
@@ -296,7 +324,6 @@ describe('Step 3: Script Reference Validation', () => {
       expect(output).toContain('b.sh');
     });
   });
-
 
   describe('formatScriptReport', () => {
     test('formats report with no issues', () => {

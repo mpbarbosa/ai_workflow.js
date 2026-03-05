@@ -108,6 +108,7 @@ export function extractScriptReferences(content) {
   while ((match = codeBlockPattern.exec(content)) !== null) {
     const commands = match[1].trim().split('\n');
     for (const cmd of commands) {
+      if (cmd.includes('$(')) continue; // skip shell substitutions (e.g. source "$(dirname ...)/script.sh")
       const scriptMatch = cmd.match(/\.?\/?([^\s]+\.(?:sh|py|js|mjs|ts|rb|go))/);
       if (scriptMatch) {
         references.push(scriptMatch[1]);
@@ -201,9 +202,7 @@ export function isScriptDocumented(scriptPath, readmeContent, extraDocs = []) {
   const normalized = scriptPath.replace(/^\.\//, '');
 
   const mentionedIn = (content) =>
-    content.includes(scriptName) ||
-    content.includes(scriptPath) ||
-    content.includes(normalized);
+    content.includes(scriptName) || content.includes(scriptPath) || content.includes(normalized);
 
   if (mentionedIn(readmeContent)) return true;
   return extraDocs.some(({ content }) => mentionedIn(content));
@@ -226,9 +225,7 @@ export function buildDocCoverageMap(scripts, docFiles) {
 
     for (const { path: docPath, content } of docFiles) {
       const found =
-        content.includes(scriptName) ||
-        content.includes(script) ||
-        content.includes(normalized);
+        content.includes(scriptName) || content.includes(script) || content.includes(normalized);
       if (found) {
         foundIn.push(docPath);
       } else {
@@ -249,7 +246,9 @@ export function buildDocCoverageMap(scripts, docFiles) {
 export function formatDocCoverageMap(coverageMap) {
   return coverageMap
     .map(({ script, foundIn, missingFrom }) => {
-      const found = foundIn.length ? `documented in [${foundIn.join(', ')}]` : 'NOT found in any doc file';
+      const found = foundIn.length
+        ? `documented in [${foundIn.join(', ')}]`
+        : 'NOT found in any doc file';
       const missing = missingFrom.length ? ` — MISSING from [${missingFrom.join(', ')}]` : '';
       return `${script}: ${found}${missing}`;
     })
@@ -388,10 +387,9 @@ export class Step3ScriptAnalyzer {
       // Phase 3: Load README and additional doc files for reference checking
       const readmeContent = await this.loadReadme(projectRoot);
       const extraDocs = await this.loadExtraDocs(projectRoot);
-      const allDocFiles = [
-        { path: 'README.md', content: readmeContent },
-        ...extraDocs,
-      ].filter(({ content }) => content.length > 0);
+      const allDocFiles = [{ path: 'README.md', content: readmeContent }, ...extraDocs].filter(
+        ({ content }) => content.length > 0
+      );
 
       // Phase 4: Extract and validate script references
       const allReferences = extractScriptReferences(readmeContent);

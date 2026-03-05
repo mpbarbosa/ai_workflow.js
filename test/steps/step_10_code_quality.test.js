@@ -136,6 +136,20 @@ describe('Step 10: Code Quality Analysis', () => {
 
       expect(result.totalIssues).toBe(0);
     });
+
+    test('parses warnings-only output (0 errors, N warnings)', () => {
+      const output = `
+/path/to/jq_wrapper.ts
+  87:8  warning  Function 'foo' has a complexity of 17  complexity
+
+✖ 1 problem (0 errors, 1 warning)
+`;
+      const result = parseEslintOutput(output);
+
+      expect(result.totalIssues).toBe(1);
+      expect(result.errors).toBe(0);
+      expect(result.warnings).toBe(1);
+    });
   });
 
   describe('parseFlake8Output', () => {
@@ -442,9 +456,16 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
     });
 
     test('puts src/ files before test/ files', () => {
-      const files = ['test/core/colors.test.ts', 'src/core/utils.ts', 'src/index.ts', 'test/index.test.ts'];
+      const files = [
+        'test/core/colors.test.ts',
+        'src/core/utils.ts',
+        'src/index.ts',
+        'test/index.test.ts',
+      ];
       const result = prioritizeSourceFiles(files);
-      expect(result.indexOf('src/core/utils.ts')).toBeLessThan(result.indexOf('test/core/colors.test.ts'));
+      expect(result.indexOf('src/core/utils.ts')).toBeLessThan(
+        result.indexOf('test/core/colors.test.ts')
+      );
       expect(result.indexOf('src/index.ts')).toBeLessThan(result.indexOf('test/index.test.ts'));
     });
 
@@ -835,6 +856,28 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
       const result = await analyzer.execute('/project');
       expect(result.success).toBe(true);
+    });
+
+    test('countSourceFiles excludes test directories and test file patterns', async () => {
+      // Capture all glob calls and their ignore options
+      const globCalls = [];
+      mockFileOps.glob = async (pattern, opts) => {
+        globCalls.push({ pattern, ignore: opts?.ignore ?? [] });
+        return ['src/utils.js'];
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      await analyzer.execute('/project');
+
+      // At least one glob call must have been made for source file counting
+      expect(globCalls.length).toBeGreaterThan(0);
+
+      // Every glob call must exclude test directories and patterns
+      for (const call of globCalls) {
+        const ignoreStr = call.ignore.join('|');
+        expect(ignoreStr).toMatch(/\*\*\/test(s?)\/\*\*/);
+        expect(ignoreStr).toMatch(/\*\*\/\*\.test\.(js|ts|jsx|tsx)/);
+      }
     });
   });
 });
