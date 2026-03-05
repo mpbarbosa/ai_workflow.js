@@ -2,8 +2,8 @@
   "version": "1.0.0",
   "created": "2026-02-20T21:00:57.000Z",
   "createdEpoch": 1771621257,
-  "lastCleanup": "2026-03-04T22:33:40.000Z",
-  "lastCleanupEpoch": 1772663620,
+  "lastCleanup": "2026-03-05T01:50:29.000Z",
+  "lastCleanupEpoch": 1772675429,
   "entries": [
     {
       "cacheKey": "5324f4b5dffa296ff153ac54f91f09ed2a29e7711366f3ee18df4947a01244a0",
@@ -3956,8 +3956,8 @@
     {
       "cacheKey": "cd5435dc934761c1a8f4229d8ab2695ada2a922badaa78460eb7080985d9b30a",
       "created": "2026-02-27T01:11:55.000Z",
-      "lastAccessed": "2026-03-04T22:36:36.000Z",
-      "accessCount": 5
+      "lastAccessed": "2026-03-05T01:55:36.084Z",
+      "accessCount": 6
     },
     {
       "cacheKey": "c3122ade15ed185fee13c4e6788a0b5caa176cf09a685daf583cc1cc7f5c8929",
@@ -4256,8 +4256,8 @@
     {
       "cacheKey": "e3ef3909a9cc46e351753d2fc1757381483ed6280a4fe131f7a791fa3737d2e9",
       "created": "2026-02-28T22:30:41.000Z",
-      "lastAccessed": "2026-03-04T22:34:22.320Z",
-      "accessCount": 6
+      "lastAccessed": "2026-03-05T01:53:14.829Z",
+      "accessCount": 7
     },
     {
       "cacheKey": "ec1e609b4f7241a7a01f0d562cda7d56f5577b2f528d60107112d7323c7b29e9",
@@ -4340,8 +4340,8 @@
     {
       "cacheKey": "5c8d96762474bdb413347ab382bcc3fbb70a174eae7df6de0f12b575f517062e",
       "created": "2026-02-28T23:16:57.000Z",
-      "lastAccessed": "2026-03-04T22:15:59.895Z",
-      "accessCount": 73
+      "lastAccessed": "2026-03-05T01:24:11.660Z",
+      "accessCount": 136
     },
     {
       "cacheKey": "36c879182a5547ea8e207fe2227e440831cbe3e57ef98d16b9c2918737f3eadb",
@@ -6680,8 +6680,8 @@
     {
       "cacheKey": "18695e000b4a304ff502c6b3ae2b1bd888ce0f3bf92515a583635d7740a3f10a",
       "created": "2026-03-03T22:23:08.000Z",
-      "lastAccessed": "2026-03-04T22:36:57.000Z",
-      "accessCount": 3
+      "lastAccessed": "2026-03-05T01:55:38.578Z",
+      "accessCount": 4
     },
     {
       "cacheKey": "062feac7773c9c1d7b3a0a85f5e18933a5027006ae1c54b5293afff3f1ef1bd1",
@@ -6788,8 +6788,8 @@
     {
       "cacheKey": "7ac7c86971c6f7d99a31dd47da717a48ad1026677c8d101c6320d8ae87a63dec",
       "created": "2026-03-03T22:25:34.000Z",
-      "lastAccessed": "2026-03-04T22:38:03.000Z",
-      "accessCount": 3
+      "lastAccessed": "2026-03-05T01:56:20.145Z",
+      "accessCount": 4
     },
     {
       "cacheKey": "6f10a36f84e1865993876203d163a46bc9cf1edf4f8ffbeba374afee8dee05a2",
@@ -7430,8 +7430,8 @@
     {
       "cacheKey": "f1f6d35e30bc857d62dac1be5d69ba7619aecf43bb46f1671f19c8af7e585901",
       "created": "2026-03-04T16:14:53.000Z",
-      "lastAccessed": "2026-03-04T22:34:33.832Z",
-      "accessCount": 3
+      "lastAccessed": "2026-03-05T01:54:25.693Z",
+      "accessCount": 4
     },
     {
       "cacheKey": "244c7f1685fa49406d5ed1dd464c4187c530125fb7a8e3206d881ff73879a00b",
@@ -7724,8 +7724,8 @@
     {
       "cacheKey": "8b380fafcfd5f2d4e2cb02218cfb38c380a81ce0a6287443f9ff2274ce60b94d",
       "created": "2026-03-04T22:36:48.000Z",
-      "lastAccessed": "2026-03-04T22:36:48.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-03-05T01:55:38.574Z",
+      "accessCount": 2
     },
     {
       "cacheKey": "db92655794aa93cffce627d1e7bffef2d5dd2f08e0f3aee3f25720ee5b2cd520",
@@ -7748,7 +7748,109 @@
     {
       "cacheKey": "befb5644f109174092565462ee17b0cb70f9eea87350ad89e8174648ece588c5",
       "created": "2026-03-04T22:38:19.000Z",
-      "lastAccessed": "2026-03-04T22:38:19.000Z",
+      "lastAccessed": "2026-03-05T01:56:22.611Z",
+      "accessCount": 2
+    },
+    {
+      "cacheKey": "2f701bd9094136e3916e4506a72763f302ff40797176fbd8e3dbd2eb928a785a",
+      "created": "2026-03-04T22:38:27.000Z",
+      "lastAccessed": "2026-03-04T22:38:27.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "0a1a642f6f99bb5f443a3fc6ec9e225e7aa97f5a8e6eea125bd98799a896cdfd",
+      "created": "2026-03-05T01:50:42.000Z",
+      "lastAccessed": "2026-03-05T01:50:42.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "802a9528a052668c56333e6871ea1086c6634b765904c89403f27b978c0d578c",
+      "created": "2026-03-05T01:50:48.000Z",
+      "lastAccessed": "2026-03-05T01:50:48.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "60f88ed30483fdb4d257f76530a39fbbcc75d1ab991f72642759b21a1996c97e",
+      "created": "2026-03-05T01:50:57.000Z",
+      "lastAccessed": "2026-03-05T01:50:57.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "630d1a30309992a44c2a56e06ecdf74ce7a2175c4122c5fcfba217ac2f39cb19",
+      "created": "2026-03-05T01:53:14.000Z",
+      "lastAccessed": "2026-03-05T01:53:14.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "5289cc3fc4615e8354037d96c45bfab65e1f6f60a2dc12b28d31f76bc91d8954",
+      "created": "2026-03-05T01:53:37.000Z",
+      "lastAccessed": "2026-03-05T01:53:37.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "631e7a6885761b6a320c359c80594f22d4606e043d4ce35e1c025a71c8c05034",
+      "created": "2026-03-05T01:53:51.000Z",
+      "lastAccessed": "2026-03-05T01:53:51.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "4582337a396b8a0028e5a81be9bdeffe1d5e8eabcf7d2b3ef890295076eba117",
+      "created": "2026-03-05T01:54:00.000Z",
+      "lastAccessed": "2026-03-05T01:54:00.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "606a45976c6ca66c6837d9b3d57438834291fd8e40d723ac03792d6248a33928",
+      "created": "2026-03-05T01:54:20.000Z",
+      "lastAccessed": "2026-03-05T01:54:20.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "fb48fd87920fc3f72428268858c707999df81fd9ed2b4a9982a55dec812e5e4c",
+      "created": "2026-03-05T01:54:45.000Z",
+      "lastAccessed": "2026-03-05T01:54:45.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "a870c61800740d5d50d053a0dd9f63f3350a46baa7d4caa1b58b9f49b0f23af0",
+      "created": "2026-03-05T01:55:00.000Z",
+      "lastAccessed": "2026-03-05T01:55:00.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "b16b6958b5237b424037c675377856d987118df9c11f3ebaef6b6e63f5f79058",
+      "created": "2026-03-05T01:55:11.000Z",
+      "lastAccessed": "2026-03-05T01:55:11.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "9e1a4774d2b77392d44c724fdcd8daec344bdc1da07552c21b8fc994d5cacb4f",
+      "created": "2026-03-05T01:55:21.000Z",
+      "lastAccessed": "2026-03-05T01:55:21.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "3e55d7d81179db4e095f3c61a4fc467d9bf2bcaf8bee75363200e408d3c98940",
+      "created": "2026-03-05T01:55:36.000Z",
+      "lastAccessed": "2026-03-05T01:55:36.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "61bf80a4a54d3de7751d8f1da19ba82fa431266dc87ed25d2bf0c5dff700f84e",
+      "created": "2026-03-05T01:55:48.000Z",
+      "lastAccessed": "2026-03-05T01:55:48.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "51a04e5d5f76b224f2104b6799da0ffc2f6e17a41a5da9a9ce686781e334af1b",
+      "created": "2026-03-05T01:56:09.000Z",
+      "lastAccessed": "2026-03-05T01:56:09.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "b94fc6b782cdb5f46bf7bd99ebd8b69d2faaa2274e03c5e93d5192e492b0a512",
+      "created": "2026-03-05T01:56:17.000Z",
+      "lastAccessed": "2026-03-05T01:56:17.000Z",
       "accessCount": 1
     }
   ]

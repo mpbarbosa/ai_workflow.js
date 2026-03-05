@@ -444,7 +444,7 @@ When reviewing a prompt-response log file (`.ai_workflow/logs/.../prompts/<step>
 
 ## Success Criteria
 
-### Phase 7 Complete When:
+### Phase 7 Complete When
 
 - ✅ 15-step workflow executes end-to-end
 - ✅ Test regression detection implemented

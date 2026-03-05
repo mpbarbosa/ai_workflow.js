@@ -572,7 +572,7 @@ steps:
     run: npm run build
 ```
 
-### Example detect-changes.js:
+### Example detect-changes.js
 
 ```javascript
 const detector = new ChangeDetector({ gitAutomation: git });

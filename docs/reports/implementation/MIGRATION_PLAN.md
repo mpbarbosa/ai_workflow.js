@@ -81,11 +81,11 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 ## Current Implementation Status (ai_workflow.js)
 
-**Project Version**: 1.4.0 (JavaScript implementation)
+**Project Version**: 1.5.0 (JavaScript implementation)
 **Implementation Progress**: 100% complete (Phases 1-11)
 **Test Suite**: 3,601 passing tests out of 3,621 total (19 skipped, 1 failed, 99.5% pass rate)
 
-### ✅ Completed Phases (1-11):
+### ✅ Completed Phases (1-11)
 
 | Phase | Name                         | Modules | Tests | Status    |
 | ----- | ---------------------------- | ------- | ----- | --------- |
@@ -103,7 +103,7 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 **Total Phases 1-9**: 67 modules, 3,473 tests (100% passing)
 
-### ✅ Phase 9: Workflow Steps (100% COMPLETE!):
+### ✅ Phase 9: Workflow Steps (100% COMPLETE!)
 
 - **Implemented**: 20 of 20 workflow steps ✅
 - **Tests**: 1,047 tests (all passing)
@@ -132,7 +132,7 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 - step_16_version_update.js - Version updates
 - **step_17_summary.js** - Workflow summary and reporting ✅ **NEW!**
 
-### 📋 Planned Phases (12-13):
+### 📋 Planned Phases (12-13)
 
 - Phase 12: Testing & Documentation
 - Phase 13: Packaging & Release
@@ -659,20 +659,20 @@ ai_workflow/
 **Depends on**: Phase 1, 2, 3 (file operations)
 **Priority**: **HIGH** - Enables tech-stack-aware features
 
-#### Modules (4):
+#### Modules (4)
 
 - [ ] `lib/project_kind_detection.js` - Auto-detect project type (nodejs_api, react_spa, python_app, etc.)
 - [ ] `lib/project_kind_config.js` - Load project kind configuration from ai_workflow_core
 - [ ] `lib/tech_stack.js` - Tech stack detection (languages, frameworks, tools)
 - [ ] `lib/third_party_exclusion.js` - Exclude third-party files (node_modules, vendor, etc.)
 
-#### Detection Strategy:
+#### Detection Strategy
 
 - Analyze package.json, requirements.txt, Cargo.toml, etc.
 - Detect test frameworks, build systems, linters
 - Use ai_workflow_core project_kinds.yaml for validation rules
 
-#### Success Criteria:
+#### Success Criteria
 
 - Correctly detect 7+ project kinds
 - Load validation rules from .workflow_core
@@ -689,7 +689,7 @@ ai_workflow/
 **Depends on**: Phase 1, 2, 3 (file operations)
 **Priority**: **HIGH** - Enables change detection and auto-commit
 
-#### Modules (5):
+#### Modules (5)
 
 - [ ] `lib/git_automation.js` - Git operations (status, diff, add, commit, push)
 - [ ] `lib/git_cache.js` - Git state caching (avoid repeated git calls)
@@ -698,7 +698,7 @@ ai_workflow/
 - [ ] `lib/batch_ai_commit.js` - Batch AI commit message generation
 - [ ] `lib/git_submodule_helpers.js` - Git submodule lifecycle management (NEW v3.2.0+)
 
-#### Git Features:
+#### Git Features
 
 - Detect repository root
 - Track file changes since last run
@@ -707,7 +707,7 @@ ai_workflow/
 - Git submodule support (detect, init, update, commit, push) (NEW v3.2.0+)
 - Automatic submodule pointer updates in parent repository
 
-#### Success Criteria:
+#### Success Criteria
 
 - All git operations async with proper error handling
 - Change detection correctly categorizes changes
@@ -724,7 +724,7 @@ ai_workflow/
 **Depends on**: Phase 1, 2, 3, 4 (project detection)
 **Priority**: **HIGH** - Enables AI-powered workflow steps
 
-#### Modules (6):
+#### Modules (6)
 
 - [ ] `lib/ai_helpers.js` - AI integration helpers (~3,500 lines from source!)
   - GitHub Copilot CLI integration
@@ -739,7 +739,7 @@ ai_workflow/
 - [ ] `lib/ai_validation.js` - AI validation helpers (schema validation, confidence scoring)
 - [ ] `lib/model_selector.js` - Intelligent AI model selection based on complexity (NEW v3.1.1+)
 
-#### AI Features:
+#### AI Features
 
 - 14 specialized AI personas
 - Project-kind-specific prompts
@@ -751,7 +751,7 @@ ai_workflow/
   - Automatic complexity analysis (code, docs, tests)
   - 30-50% token usage reduction with optimized model selection
 
-#### Success Criteria:
+#### Success Criteria
 
 - All 14 personas implemented
 - Prompt generation uses project context
@@ -768,7 +768,7 @@ ai_workflow/
 **Depends on**: Phase 2, 3, 4, 5 (Git)
 **Priority**: **CRITICAL** - Core workflow orchestration
 
-#### Modules (6):
+#### Modules (6)
 
 - [ ] `lib/step_execution.js` - Step execution engine (run, validate, error handling)
 - [ ] `lib/step_metadata.js` - Step metadata management (step definitions, requirements)
@@ -777,7 +777,7 @@ ai_workflow/
 - [ ] `lib/step_adaptation.js` - Dynamic step adaptation (project-kind-aware steps)
 - [ ] `lib/step_validation_cache.js` - Validation caching (skip unchanged steps)
 
-#### Execution Features:
+#### Execution Features
 
 - Dependency-based step ordering
 - Conditional execution (skip if no changes)
@@ -785,7 +785,7 @@ ai_workflow/
 - Validation caching
 - Error recovery strategies
 
-#### Success Criteria:
+#### Success Criteria
 
 - Correct dependency resolution
 - Steps skip when no relevant changes
@@ -803,7 +803,7 @@ ai_workflow/
 **Priority**: **MEDIUM** - Performance enhancements
 **Status**: ✅ **COMPLETE** - All 11 modules implemented with comprehensive tests
 
-#### Modules (11) - ALL IMPLEMENTED:
+#### Modules (11) - ALL IMPLEMENTED
 
 - [x] `lib/performance.js` - Performance tracking (timing, memory, I/O) ✅
 - [x] `lib/performance_monitoring.js` - Real-time monitoring (warnings, alerts) ✅
@@ -818,7 +818,7 @@ ai_workflow/
 - [x] `lib/step1_incremental.js` - File-level hash tracking for Step 1 (NEW v3.1.1+) ✅
 - [x] `lib/step1_parallel.js` - Category-based parallel processing for Step 1 (NEW v3.1.1+) ✅ (18 skipped tests)
 
-#### Optimization Strategy:
+#### Optimization Strategy
 
 - 40-85% faster with change-based skipping
 - 33% faster with parallel execution
@@ -849,7 +849,7 @@ ai_workflow/
 **Priority**: **HIGH** - Core functionality
 **Status**: 🚧 **19 of 20 steps complete** (95% done)
 
-#### 20 Step Modules (19 complete, 1 remaining):
+#### 20 Step Modules (19 complete, 1 remaining)
 
 - [x] `steps/step_00_analyze.js` - Project analysis (detect tech stack, project kind) ✅
 - [x] `steps/step_0b_bootstrap_docs.js` - Bootstrap documentation (gap analysis, generation) _(NEW v3.1+)_ ✅
@@ -876,7 +876,7 @@ ai_workflow/
 - [x] `steps/step_16_version_update.js` - Version update ✅
 - [ ] `steps/step_17_summary.js` - Workflow summary and reporting (REMAINING)
 
-#### Implementation Strategy:
+#### Implementation Strategy
 
 - Build steps incrementally (2-3 per week)
 - Each step has comprehensive tests
@@ -926,7 +926,7 @@ ai_workflow/
 - [x] Progress tracking - Real-time progress updates
 - [x] Dashboard support - Metrics dashboard data
 
-#### Orchestration Features:
+#### Orchestration Features
 
 - Run full 20-step workflow
 - Resume from checkpoint
@@ -967,7 +967,7 @@ ai_workflow/
 - [x] Workflow templates support - Pre-configured workflows
 - [x] Rich help system - Command help, examples, guides
 
-#### CLI Features:
+#### CLI Features
 
 - Rich progress indicators (progress bars, spinners)
 - Colored output (ANSI colors with terminal detection)
@@ -987,7 +987,7 @@ ai_workflow/
 
 **Status**: ✅ **COMPLETE** - CLI layer implemented with 133 tests (v2.0.0)
 
-#### Modules Implemented (11):
+#### Modules Implemented (11)
 
 - `src/cli/index.js` - Main CLI entry point
 - `src/cli/help.js` - Help system
@@ -1009,7 +1009,7 @@ ai_workflow/
 **Depends on**: All phases
 **Priority**: **HIGH** - Quality assurance
 
-#### Testing:
+#### Testing
 
 - [ ] Comprehensive unit tests (target: 500+ tests)
   - All modules thoroughly tested
@@ -1024,7 +1024,7 @@ ai_workflow/
   - Regression testing
   - Load testing
 
-#### Documentation:
+#### Documentation
 
 - [ ] API documentation (JSDoc-generated)
 - [ ] User guide (getting started, tutorials, examples)
@@ -1035,7 +1035,7 @@ ai_workflow/
   - [ ] `scripts/test-integration.sh` - Integration test runner
   - [ ] `scripts/validate.sh` - Full validation pipeline (linting, tests, formatting)
 
-#### Success Criteria:
+#### Success Criteria
 
 - 90%+ code coverage
 - All integration tests passing
@@ -1053,7 +1053,7 @@ ai_workflow/
 **Depends on**: All phases
 **Priority**: **HIGH** - Distribution
 
-#### Deliverables:
+#### Deliverables
 
 - [ ] npm package configuration
   - package.json complete
@@ -1072,7 +1072,7 @@ ai_workflow/
   - Performance benchmarks documented
   - Migration guide validated
 
-#### Success Criteria:
+#### Success Criteria
 
 - Package published to npm
 - CI/CD pipeline operational
@@ -1143,7 +1143,7 @@ This is **NOT a line-by-line translation**. We will:
 
 **Total: ~18 weeks** (4.5 months from start)
 
-### Dependency Flow:
+### Dependency Flow
 
 ```
 Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 ✅
@@ -1364,5 +1364,5 @@ After Phase 10 completion:
 
 **Migration Status:** Phase 9 nearly complete (19/20 steps, 3,417 passing tests), Phase 10 (Main Orchestrator) next
 **Source Version:** v4.0.1
-**Implementation Version:** v1.4.0
+**Implementation Version:** v1.5.0
 **Last Updated:** February 10, 2026 (v3.8.0 - Source sync, Phase 8 complete, Phase 9 95% done)
