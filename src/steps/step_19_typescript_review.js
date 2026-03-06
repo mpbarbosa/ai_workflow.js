@@ -272,8 +272,8 @@ export class Step19TypescriptReview {
           }
 
           if (tsPrompt) {
-            const cacheKey = `step_19|typescript_reviewer|${projectRoot}|${tsFiles.length}`;
-            const aiResult = await this.aiCache.withCache(cacheKey, cacheKey, () =>
+            const fileHashEntries = sampleFiles.map((f, i) => `${f}:${sampleContents[i] ?? ''}`);
+            const aiResult = await this.aiCache.withFileChangeGuard('step_19', fileHashEntries, () =>
               this.aiHelper.executeRequest(tsPrompt, {
                 persona: 'typescript_reviewer',
                 model: 'claude-haiku-4.5',

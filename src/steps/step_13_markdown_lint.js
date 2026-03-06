@@ -34,7 +34,7 @@ import yaml from 'js-yaml';
 
 export const MARKDOWN_PATTERNS = {
   files: '**/*.md',
-  excludeDirs: ['node_modules', 'coverage', '.git', 'dist', 'build', '.ai_workflow'],
+  excludeDirs: ['node_modules', 'coverage', '.git', 'dist', 'build', '.ai_workflow', '.workflow_core', '.workflow_fspec'],
 };
 
 export const ANTI_PATTERNS = {
@@ -835,8 +835,13 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
           project_name: projectRoot,
         });
       }
-      const cacheKey = `step_13|${fileCount}|${stats.totalIssues}`;
-      const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+      // Hash key: lint results capture all meaningful input changes (derived from file content).
+      const lintHashEntries = [
+        `fileCount:${fileCount}`,
+        `issues:${issuesByRule}`,
+        `byFile:${issuesByFile}`,
+      ];
+      const aiResult = await this.aiCache.withFileChangeGuard('step_13', lintHashEntries, () =>
         this.aiHelper.executeRequest(prompt, { persona: 'technical_writer' })
       );
       const aiContent = aiResult?.content ?? '';

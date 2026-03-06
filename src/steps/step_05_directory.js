@@ -390,6 +390,14 @@ export class Step5DirectoryAnalyzer {
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const full = path.join(current, entry.name);
+          // Git submodule roots contain a .git FILE (not directory). Skip them so
+          // submodule internals don't appear in the project's own directory analysis.
+          try {
+            const gitMarker = await fs.stat(path.join(full, '.git'));
+            if (gitMarker.isFile()) continue;
+          } catch {
+            // No .git file — not a submodule root, proceed normally
+          }
           results.push(full);
           await traverse(full);
         }
@@ -483,8 +491,8 @@ export class Step5DirectoryAnalyzer {
           const approach = `Provide concise recommendations to improve the project directory structure. Be specific.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        const cacheKey = `step_05|${results.totalDirs ?? 0}|${structureResults.issues?.length ?? 0}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+        const dirHashEntries = (structureResults.existingDirs ?? []).map((d) => `dir:${d}`);
+        const aiResult = await this.aiCache.withFileChangeGuard('step_05', dirHashEntries, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
         const aiContent = aiResult?.content ?? '';
@@ -516,9 +524,11 @@ export class Step5DirectoryAnalyzer {
             }
           );
           if (reqPrompt) {
-            const reqKey = `step_05_req|${projectRoot}|${results.totalDirs ?? 0}`;
-            const reqResult = await this.aiCache.withCache(reqKey, reqKey, () =>
-              this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
+            const reqResult = await this.aiCache.withFileChangeGuard(
+              'step_05_req',
+              dirHashEntries,
+              () =>
+                this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
             );
             requirementsContent = reqResult?.content ?? '';
           }

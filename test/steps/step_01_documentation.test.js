@@ -446,6 +446,7 @@ describe('Step 1: Documentation Validation', () => {
         mockAiCache = {
           init: () => Promise.resolve(),
           withCache: (_prompt, _ctx, fn) => fn(),
+          withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
         };
 
         mockFileOps.readFile = (path) => {

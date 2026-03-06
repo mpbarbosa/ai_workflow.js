@@ -305,7 +305,8 @@ describe('Step 3: Script Reference Validation', () => {
       ];
       const output = formatDocCoverageMap(map);
       expect(output).toContain('documented in [README.md]');
-      expect(output).toContain('MISSING from [docs/API.md]');
+      // "MISSING from" is suppressed when the script is covered in at least one doc
+      expect(output).not.toContain('MISSING from');
     });
 
     test('formats a fully undocumented script correctly', () => {

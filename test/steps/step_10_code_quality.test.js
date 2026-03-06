@@ -821,6 +821,7 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       analyzer.aiCache = {
         init: jest.fn().mockResolvedValue(undefined),
         withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+        withFileChangeGuard: jest.fn().mockImplementation((_stepId, _fileContents, fn) => fn()),
       };
 
       // Use a real writable temp directory so the partition cache can persist state.
@@ -852,6 +853,7 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       analyzer.aiCache = {
         init: jest.fn().mockResolvedValue(undefined),
         withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+        withFileChangeGuard: jest.fn().mockImplementation((_stepId, _fileContents, fn) => fn()),
       };
 
       const result = await analyzer.execute('/project');

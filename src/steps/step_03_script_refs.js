@@ -249,7 +249,12 @@ export function formatDocCoverageMap(coverageMap) {
       const found = foundIn.length
         ? `documented in [${foundIn.join(', ')}]`
         : 'NOT found in any doc file';
-      const missing = missingFrom.length ? ` — MISSING from [${missingFrom.join(', ')}]` : '';
+      // Only show "MISSING from" when the script has NO documentation at all — if it's
+      // already covered in at least one doc the gap list is noise that misleads the AI.
+      const missing =
+        foundIn.length === 0 && missingFrom.length
+          ? ` — MISSING from [${missingFrom.join(', ')}]`
+          : '';
       return `${script}: ${found}${missing}`;
     })
     .join('\n');
@@ -476,17 +481,12 @@ export class Step3ScriptAnalyzer {
           const approach = `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        // v3: cache key version bumped — now includes doc content hash to bust
-        // stale responses when documentation changes but issue counts stay the same.
-        const docHash = allDocFiles
-          .map(({ content }) => content.slice(0, 100))
-          .join('')
-          .split('')
-          .reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
-          .toString(16)
-          .slice(-8);
-        const cacheKey = `step_03|v3|${results.scriptsFound ?? 0}|${totalIssues}|${docHash}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+        // Build file-content hash entries from doc files (already read) + script paths.
+        const fileHashEntries = [
+          ...allDocFiles.map(({ path: p, content }) => `${p}:${content}`),
+          ...scripts.map((s) => `script:${s}`),
+        ];
+        const aiResult = await this.aiCache.withFileChangeGuard('step_03', fileHashEntries, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
         );
         const aiContent = aiResult?.content ?? '';

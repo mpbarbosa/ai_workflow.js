@@ -460,6 +460,7 @@ export function scanFilesContainingVersion(
     'coverage',
     '.ai_workflow',
     '.workflow_core',
+    '.workflow_fspec',
     '__pycache__',
   ]);
   const SKIP_EXTS = new Set([

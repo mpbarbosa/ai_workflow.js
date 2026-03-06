@@ -224,6 +224,7 @@ describe('Step19TypescriptReview', () => {
     mockAiCache = {
       init: jest.fn().mockResolvedValue(undefined),
       withCache: jest.fn(),
+      withFileChangeGuard: jest.fn((_stepId, _fileContents, fn) => fn()),
     };
     loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
     loggerSuccessSpy = jest.spyOn(logger, 'success').mockImplementation(() => {});
@@ -267,7 +268,7 @@ describe('Step19TypescriptReview', () => {
       );
 
     mockAiHelper.initialize.mockResolvedValue(true);
-    mockAiCache.withCache.mockImplementation(async (_k1, _k2, _fn) => ({
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, _fn) => ({
       content: 'Great TypeScript!',
     }));
 
@@ -306,7 +307,7 @@ describe('Step19TypescriptReview', () => {
     mockAiCache.init.mockResolvedValue(undefined);
 
     let capturedPrompt = '';
-    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
       await fn();
       return { content: 'ok' };
     });

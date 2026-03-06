@@ -808,6 +808,17 @@ export class Step9DependencyValidator {
           await this.aiCache.init();
           const vuln = vulnerabilities.summary?.total ?? 0;
           const outdated = outdatedPackages.length;
+          // Hash key: dependency identity (package names + counts) captures meaningful input changes.
+          const depHashEntries = [
+            `${language}:total:${dependencyCounts.total ?? 0}:vuln:${vuln}:outdated:${outdated}`,
+            ...Object.keys(dependencyCounts.dependencies ?? {})
+              .slice(0, 30)
+              .map((k) => `prod:${k}`),
+            ...Object.keys(dependencyCounts.devDependencies ?? {})
+              .slice(0, 30)
+              .map((k) => `dev:${k}`),
+            ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
+          ];
           let prompt;
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
@@ -868,8 +879,7 @@ export class Step9DependencyValidator {
               language,
             });
           }
-          const cacheKey = `step_09|${language}|vuln${vuln}|outdated${outdated}`;
-          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+          const aiResult = await this.aiCache.withFileChangeGuard('step_09', depHashEntries, () =>
             this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
           );
           const aiContent = aiResult?.content ?? '';
@@ -933,9 +943,12 @@ export class Step9DependencyValidator {
                 current_package_json: currentPackageJson,
               });
               if (jsPrompt) {
-                const jsKey = `step_09_js|${projectRoot}|${vuln}|${outdated}`;
-                const jsResult = await this.aiCache.withCache(jsKey, jsKey, () =>
-                  this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
+                const jsHashEntries = [`package.json:${currentPackageJson}`];
+                const jsResult = await this.aiCache.withFileChangeGuard(
+                  'step_09_js',
+                  jsHashEntries,
+                  () =>
+                    this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
                 );
                 jsContent = jsResult?.content ?? '';
               }

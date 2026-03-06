@@ -535,9 +535,11 @@ export class Step6TestReviewer {
               prompt = buildTestReviewPrompt({ testFiles: sliceFiles, framework: language });
             }
 
-            const cacheKey = `step_06|v2|p${partition.index}|s${si}|${language}|${sliceFiles.join(',')}`;
-            const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-              this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+            const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
+            const aiResult = await this.aiCache.withFileChangeGuard(
+              `step_06_p${partition.index}_s${si}`,
+              fileHashEntries,
+              () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
             );
             return aiResult?.content ?? '';
           }));

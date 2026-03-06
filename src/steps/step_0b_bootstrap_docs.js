@@ -392,6 +392,31 @@ export function extractGitignoreDirNames(gitignoreContent) {
   return [...nameSet];
 }
 
+/**
+ * Extract submodule path names from a .gitmodules file.
+ * Returns the bare directory name of each submodule (e.g. `.workflow_core`).
+ * @param {string} gitmodulesContent - Raw .gitmodules file content
+ * @returns {string[]} Array of submodule directory names to exclude
+ * @pure
+ */
+export function extractGitmodulePaths(gitmodulesContent) {
+  if (!gitmodulesContent || typeof gitmodulesContent !== 'string') {
+    return [];
+  }
+  const paths = [];
+  for (const line of gitmodulesContent.split('\n')) {
+    const match = line.match(/^\s*path\s*=\s*(.+)$/);
+    if (match) {
+      const p = match[1].trim();
+      // Only include bare names (top-level submodule dirs, no nested paths)
+      if (p && !p.includes('/')) {
+        paths.push(p);
+      }
+    }
+  }
+  return paths;
+}
+
 // ============================================================================
 // STEP0BBOOTSTRAPDOCS - Impure Wrapper Class
 // ============================================================================
@@ -658,7 +683,18 @@ export class Step0bBootstrapDocs {
     try {
       const gitignorePath = path.join(this.projectRoot, '.gitignore');
       const content = await this.fileOps.readFile(gitignorePath);
-      return extractGitignoreDirNames(content);
+      const fromGitignore = extractGitignoreDirNames(content);
+
+      let fromSubmodules = [];
+      try {
+        const gitmodulesPath = path.join(this.projectRoot, '.gitmodules');
+        const gmContent = await this.fileOps.readFile(gitmodulesPath);
+        fromSubmodules = extractGitmodulePaths(gmContent);
+      } catch {
+        // No .gitmodules or unreadable — proceed without submodule exclusions
+      }
+
+      return [...new Set([...fromGitignore, ...fromSubmodules])];
     } catch {
       return [];
     }

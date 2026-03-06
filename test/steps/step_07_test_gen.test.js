@@ -465,6 +465,7 @@ describe('Step 7: Test Generation', () => {
       mockAiCache = {
         init: () => Promise.resolve(),
         withCache: (_prompt, _key, fn) => fn(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
       };
 
       generator = new Step7TestGenerator({

@@ -579,9 +579,12 @@ export class Step7TestGenerator {
                 const stratPromptWithRole = roleOverride
                   ? `[Project-Kind Role: ${roleOverride}]\n\n${strategyPrompt}`
                   : strategyPrompt;
-                const stratKey = `step_07_strategy|${projectRoot}|${language}|${untestedFiles.length}`;
-                const stratResult = await this.aiCache.withCache(stratKey, stratKey, () =>
-                  this.aiHelper.executeRequest(stratPromptWithRole, { persona: 'test_engineer' })
+                const stratHashEntries = [...untestedFiles, ...testFiles].map((f) => `file:${f}`);
+                const stratResult = await this.aiCache.withFileChangeGuard(
+                  'step_07_strategy',
+                  stratHashEntries,
+                  () =>
+                    this.aiHelper.executeRequest(stratPromptWithRole, { persona: 'test_engineer' })
                 );
                 const stratContent = stratResult?.content ?? '';
                 if (stratContent) {
@@ -659,11 +662,10 @@ export class Step7TestGenerator {
       }
 
       const prompt = await this._buildSingleFilePrompt(sourceFile, content, language);
-      const cacheKey = `step_07|${sourceFile}|${content.length}`;
-
-      logger.info(`Generating tests for: ${sourceFile}`);
-      const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-        this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+      const aiResult = await this.aiCache.withFileChangeGuard(
+        `step_07|${sourceFile}`,
+        [`${sourceFile}:${content}`],
+        () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
       );
 
       const aiContent = aiResult?.content ?? '';

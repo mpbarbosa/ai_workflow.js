@@ -919,17 +919,20 @@ export class Step10CodeQualityAnalyzer {
                 });
               }
 
-              const cacheKey = `step_10|v2|p${partition.index}|s${si}|${detectedLanguages.join(',')}|${aggregateTotals.totalIssues}|${buildCodeContentHash(sliceContents)}`;
+              const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
               // Use 'code_quality_analyst' persona: Step 10 performs code quality review
               // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
               // YAML template, which defines a "comprehensive software quality engineer" role.
               // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
               // a misleading mismatch between the logged persona and the actual prompt content.
-              const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-                this.aiHelper.executeRequest(prompt, {
-                  persona: 'code_quality_analyst',
-                  timeout: 240000,
-                })
+              const aiResult = await this.aiCache.withFileChangeGuard(
+                `step_10_p${partition.index}_s${si}`,
+                fileHashEntries,
+                () =>
+                  this.aiHelper.executeRequest(prompt, {
+                    persona: 'code_quality_analyst',
+                    timeout: 240000,
+                  })
               );
               return aiResult?.content ?? '';
             })

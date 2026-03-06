@@ -582,13 +582,27 @@ export class Step2ConsistencyAnalyzer {
             prompt = prompt.substring(0, MAX_PROMPT_CHARS) + '\n\n...(truncated for length)';
           }
 
-          const cacheKey = `step_02|${projectRoot}|part${i}of${totalParts}|${docFiles.length}|${totalIssues}`;
+          // Build file-content hash entries from the actual doc files in this partition.
+          // Scanning results (broken refs, version issues) are fully derived from file
+          // content, so hashing file content captures all meaningful prompt inputs.
+          const fileHashEntries = await Promise.all(
+            partFiles.map(async (relPath) => {
+              try {
+                const raw = await this.fileOps.readFile(`${projectRoot}/${relPath}`);
+                return `${relPath}:${raw}`;
+              } catch {
+                return `${relPath}:`; // unreadable — include path with empty content
+              }
+            })
+          );
           // Use 'documentation_expert' persona: Step 2 performs documentation consistency
           // analysis (cross-references, version sync, terminology), not code quality review.
           // The YAML prompt template (step2_consistency_prompt) also defines a documentation
           // specialist role — both layers must agree to avoid misleading prompt logs.
-          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-            this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
+          const aiResult = await this.aiCache.withFileChangeGuard(
+            `step_02_part${i}of${totalParts}`,
+            fileHashEntries,
+            () => this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
           );
           const aiContent = aiResult?.content ?? '';
 
@@ -645,7 +659,18 @@ export class Step2ConsistencyAnalyzer {
    */
   async discoverDocumentationFiles(projectRoot) {
     const patterns = ['**/*.md', '**/README*', '**/CHANGELOG*', '**/CONTRIBUTING*'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'venv', '.venv', 'env'];
+    const exclude = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'coverage',
+      'venv',
+      '.venv',
+      'env',
+      '.workflow_core',
+      '.workflow_fspec',
+    ];
 
     const files = [];
     for (const pattern of patterns) {
@@ -730,7 +755,18 @@ export class Step2ConsistencyAnalyzer {
    * @returns {Promise<Set>} Set of existing file paths
    */
   async buildFileIndex(projectRoot) {
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'venv', '.venv', 'env'];
+    const exclude = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'coverage',
+      'venv',
+      '.venv',
+      'env',
+      '.workflow_core',
+      '.workflow_fspec',
+    ];
     const ignoreList = exclude.map((dir) => `**/${dir}/**`);
 
     // Two passes: regular entries + dotfile directories (e.g. .github/, .husky/)

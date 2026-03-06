@@ -382,6 +382,7 @@ export class Step1DocumentationAnalyzer {
             // Read actual file contents for both doc files and changed files so the
             // model can reason about real content rather than hallucinating.
             let fileContentsSection = '';
+            const fileHashEntries = [];
             try {
               let totalChars = 0;
               const blocks = [];
@@ -392,6 +393,7 @@ export class Step1DocumentationAnalyzer {
                   const raw = await this.fileOps.readFile(`${projectRoot}/${fp}`);
                   totalChars += raw.length;
                   blocks.push(buildFileContentBlock(fp, raw));
+                  fileHashEntries.push(`${fp}:${raw}`);
                 } catch {
                   // File unreadable — skip gracefully
                 }
@@ -440,11 +442,14 @@ export class Step1DocumentationAnalyzer {
             } catch {
               /* optional */
             }
-            const cacheContext = `documentation_expert|${files.join(',')}`;
-            const response = await this.aiCache.withCache(prompt, cacheContext, () =>
-              this.aiHelper.executeRequest(prompt, {
-                persona: 'documentation_expert',
-              })
+            const cacheCategory = files.join(',');
+            const response = await this.aiCache.withFileChangeGuard(
+              `step_01|${cacheCategory}`,
+              fileHashEntries,
+              () =>
+                this.aiHelper.executeRequest(prompt, {
+                  persona: 'documentation_expert',
+                })
             );
             return { success: response.success, response };
           },
