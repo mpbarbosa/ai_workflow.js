@@ -60,6 +60,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-05T23:09:03.829Z"
+    },
+    "src/steps/step_01_documentation.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+    },
+    "src/steps/step_02_consistency.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+    },
+    "src/steps/step_03_script_refs.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+    },
+    "src/steps/step_05_directory.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+    },
+    "src/steps/step_06_test_review.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
     }
   }
 }
