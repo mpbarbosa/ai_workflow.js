@@ -6,6 +6,7 @@
 import { jest } from '@jest/globals';
 import {
   Step8TestExecutor,
+  buildCiRetryCmd,
   getTestCommand,
   getCoverageFiles,
   hasTestScript,
@@ -294,9 +295,7 @@ describe('Step 8: Test Execution', () => {
     });
 
     test('detects Jest empty-test-file message', () => {
-      expect(
-        hasNoTestsFoundMessage('Your test suite must contain at least one test.')
-      ).toBe(true);
+      expect(hasNoTestsFoundMessage('Your test suite must contain at least one test.')).toBe(true);
     });
 
     test('returns false for normal test output', () => {
@@ -439,9 +438,10 @@ describe('Step 8: Test Execution', () => {
         capturedCommand = cmd;
         return { exitCode: 0, stdout: 'Tests: 1 passed, 1 total', stderr: '' };
       };
-      mockFileOps.readFile = async () => JSON.stringify({
-        scripts: { test: "jest --testPathPattern='test/(core|utils)' --passWithNoTests" },
-      });
+      mockFileOps.readFile = async () =>
+        JSON.stringify({
+          scripts: { test: "jest --testPathPattern='test/(core|utils)' --passWithNoTests" },
+        });
 
       await executor.execute('/project');
 
@@ -645,7 +645,6 @@ describe('Step 8: Test Execution', () => {
 
   describe('[FIX] runner crash → informative warning message', () => {
     let warnSpy;
-    let debugSpy;
     let mockExecutor;
     let mockFileOps;
 
@@ -660,7 +659,7 @@ describe('Step 8: Test Execution', () => {
 
     beforeEach(() => {
       warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
-      debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+      jest.spyOn(logger, 'debug').mockImplementation(() => {});
 
       mockExecutor = { execute: null };
       mockFileOps = {
@@ -861,6 +860,54 @@ describe('Step 8: Test Execution', () => {
       expect(snippetLog).toBeDefined();
       expect(snippetLog).toContain('↵');
       expect(snippetLog).not.toContain('\n');
+    });
+  });
+
+  // ========================================================================
+  // buildCiRetryCmd — retry command construction
+  // ========================================================================
+
+  describe('buildCiRetryCmd', () => {
+    test('appends --ci directly for jest invocations', () => {
+      expect(buildCiRetryCmd('jest')).toBe('jest --ci');
+      expect(buildCiRetryCmd('jest --testPathPattern=foo')).toBe('jest --testPathPattern=foo --ci');
+      expect(buildCiRetryCmd('npx jest')).toBe('npx jest --ci');
+    });
+
+    test('appends --ci directly for vitest invocations', () => {
+      expect(buildCiRetryCmd('vitest run')).toBe('vitest run --ci');
+    });
+
+    test('appends --ci directly for mocha invocations', () => {
+      expect(buildCiRetryCmd('mocha --recursive')).toBe('mocha --recursive --ci');
+    });
+
+    test('appends -- --ci for npm test invocations', () => {
+      expect(buildCiRetryCmd('npm test')).toBe('npm test -- --ci');
+    });
+
+    test('appends -- --ci for npm run test invocations', () => {
+      expect(buildCiRetryCmd('npm run test')).toBe('npm run test -- --ci');
+    });
+
+    test('appends -- --ci for yarn test invocations', () => {
+      expect(buildCiRetryCmd('yarn test')).toBe('yarn test -- --ci');
+    });
+
+    test('appends -- --ci for pnpm test invocations', () => {
+      expect(buildCiRetryCmd('pnpm test')).toBe('pnpm test -- --ci');
+    });
+
+    test('returns command unchanged for unknown runners', () => {
+      expect(buildCiRetryCmd('python -m pytest')).toBe('python -m pytest');
+      expect(buildCiRetryCmd('go test ./...')).toBe('go test ./...');
+      expect(buildCiRetryCmd('cargo test')).toBe('cargo test');
+    });
+
+    test('is a pure function — does not mutate input', () => {
+      const cmd = 'npm test';
+      buildCiRetryCmd(cmd);
+      expect(cmd).toBe('npm test');
     });
   });
 });

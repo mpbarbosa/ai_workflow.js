@@ -454,6 +454,30 @@ export function formatTestReport(results, coverageGaps = [], threshold = 80) {
 // ============================================================================
 
 /**
+ * Build the retry command with a `--ci` flag appended appropriately for the
+ * detected test runner invocation style.
+ *
+ * - Direct runner invocations (`jest`, `vitest`, `mocha`, …) accept `--ci`
+ *   as a direct flag: `jest --ci`
+ * - Package-manager invocations (`npm test`, `yarn test`, `pnpm test`) must
+ *   forward the flag via `--`: `npm test -- --ci`
+ * - Unknown invocations are returned unchanged to avoid breaking them.
+ *
+ * @param {string} cmd - The original test command.
+ * @returns {string} Command with `--ci` flag appended, or unchanged if runner
+ *   is unrecognised.
+ */
+export function buildCiRetryCmd(cmd) {
+  if (/\b(jest|vitest|mocha|jasmine|tap|ava)\b/.test(cmd)) {
+    return `${cmd} --ci`;
+  }
+  if (/^(npm(\s+run)?\s+test|yarn(\s+run)?\s+test|pnpm(\s+run)?\s+test)\b/.test(cmd.trim())) {
+    return `${cmd} -- --ci`;
+  }
+  return cmd;
+}
+
+/**
  * Step 8 executor for test execution
  */
 export class Step8TestExecutor {
@@ -511,9 +535,14 @@ export class Step8TestExecutor {
       logger.info(`Test command: ${testCommand}`);
 
       // Phase 2: Execute tests
+      logger.debug(`[step_08] Executing test command: ${testCommand} in ${projectRoot}`);
+      logger.step('Executing tests...');
       const testResult = await this.runTests(projectRoot, testCommand, options);
+      logger.debug(`[step_08] Test command exited with code ${testResult.exitCode}`);
+      logger.debug(`[step_08] Raw output length: ${testResult.output.length} chars`);
 
       // Phase 3: Parse test output
+      logger.info('Parsing test results...');
       const testResults = parseTestOutput(testResult.output, language);
       logger.debug(
         `[step_08] Parsed results — passed: ${testResults.passed}, failed: ${testResults.failed}, skipped: ${testResults.skipped}, total: ${testResults.total}, suitesFailed: ${testResults.suitesFailed}`
@@ -675,7 +704,9 @@ export class Step8TestExecutor {
         if (testResults.failed > 0 || testResults.suitesFailed > 0) {
           logger.warn(
             `Step 8 completed - ${testResults.failed} test(s) failed` +
-              (testResults.suitesFailed > 0 ? `, ${testResults.suitesFailed} suite(s) failed to run` : '')
+              (testResults.suitesFailed > 0
+                ? `, ${testResults.suitesFailed} suite(s) failed to run`
+                : '')
           );
         } else {
           logger.warn(
@@ -834,7 +865,7 @@ export class Step8TestExecutor {
       logger.warn(
         '[step_08] Test runner produced no output (possible crash) — retrying with --ci flag'
       );
-      const ciCmd = testCommand.includes('jest') ? `${testCommand} --ci` : testCommand;
+      const ciCmd = buildCiRetryCmd(testCommand);
       const retry = await runOnce(ciCmd);
       if (retry.output.length > 0 || retry.exitCode === 0) {
         return retry;
