@@ -352,7 +352,7 @@ if (!result.success) {
 
 ```javascript
 const result = await analyzer.execute({
-  expectedVersion: '1.5.3',
+  expectedVersion: '1.5.4',
   checkLinks: false,
   checkVersions: true,
 });

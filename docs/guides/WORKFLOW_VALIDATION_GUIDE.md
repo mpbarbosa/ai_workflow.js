@@ -1,6 +1,6 @@
 # Workflow Execution Validation Guide
 
-**Version:** 1.5.3
+**Version:** 1.5.4
 **Last Updated:** 2026-02-21
 **Applies to:** ai_workflow.js v1.2.0+
 

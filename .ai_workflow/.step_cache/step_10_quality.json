@@ -85,6 +85,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+    },
+    "src/cli/commands/resume.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+    },
+    "src/cli/commands/run.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+    },
+    "src/cli/help.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+    },
+    "src/cli/index.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+    },
+    "src/cli/tui/App.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
     }
   }
 }

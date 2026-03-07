@@ -169,7 +169,7 @@ Increment a semantic version string.
 
 ```javascript
 bumpVersion('1.4.2', 'patch');  // '1.4.3'
-bumpVersion('1.4.2', 'minor');  // '1.5.3'
+bumpVersion('1.4.2', 'minor');  // '1.5.4'
 bumpVersion('1.4.2', 'major');  // '2.0.0'
 ```
 
@@ -191,9 +191,9 @@ Replace all version occurrences in file content.
 const updated = replaceVersionInContent(
   '{"version": "1.4.2"}',
   '1.4.2',
-  '1.5.3'
+  '1.5.4'
 );
-// '{"version": "1.5.3"}'
+// '{"version": "1.5.4"}'
 ```
 
 #### `inferBumpType(diffStats, changedFiles)`
@@ -271,7 +271,7 @@ const step = new Step16VersionUpdate();
 const result = await step.execute('/path/to/project');
 
 console.log(`${result.oldVersion} → ${result.newVersion} (${result.bumpType})`);
-// '1.4.2 → 1.5.3 (minor)'
+// '1.4.2 → 1.5.4 (minor)'
 ```
 
 ## Usage Examples
