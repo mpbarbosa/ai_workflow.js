@@ -10,8 +10,8 @@ import {
   validateArgjsonPairs,
   buildJqCommand,
   JqWrapper,
+  JqExecutionError,
 } from '../../src/lib/jq_wrapper.js';
-import { ExecutionError } from '../../src/utils/errors.js';
 
 // =============================================================================
 // PURE FUNCTION TESTS
@@ -338,45 +338,45 @@ describe('jq_wrapper - JqWrapper Class', () => {
   // ---------------------------------------------------------------------------
 
   describe('execute', () => {
-    test('executes simple jq command', () => {
-      const result = wrapper.execute(['-n', '{"foo": "bar"}']);
+    test('executes simple jq command', async () => {
+      const result = await wrapper.execute(['-n', '{"foo": "bar"}']);
       const parsed = JSON.parse(result);
       expect(parsed).toEqual({ foo: 'bar' });
     });
 
-    test('executes jq with --arg', () => {
-      const result = wrapper.execute(['-n', '--arg', 'name', 'test', '{name: $name}']);
+    test('executes jq with --arg', async () => {
+      const result = await wrapper.execute(['-n', '--arg', 'name', 'test', '{name: $name}']);
       const parsed = JSON.parse(result);
       expect(parsed).toEqual({ name: 'test' });
     });
 
-    test('executes jq with --argjson', () => {
-      const result = wrapper.execute(['-n', '--argjson', 'count', '5', '{count: $count}']);
+    test('executes jq with --argjson', async () => {
+      const result = await wrapper.execute(['-n', '--argjson', 'count', '5', '{count: $count}']);
       const parsed = JSON.parse(result);
       expect(parsed).toEqual({ count: 5 });
     });
 
-    test('throws on empty --argjson value', () => {
-      expect(() => {
-        wrapper.execute(['-n', '--argjson', 'count', '', '{count: $count}']);
-      }).toThrow(ExecutionError);
+    test('throws on empty --argjson value', async () => {
+      await expect(
+        wrapper.execute(['-n', '--argjson', 'count', '', '{count: $count}']),
+      ).rejects.toThrow(JqExecutionError);
     });
 
-    test('throws on invalid JSON in --argjson', () => {
-      expect(() => {
-        wrapper.execute(['-n', '--argjson', 'data', '{invalid}', '{data: $data}']);
-      }).toThrow(ExecutionError);
+    test('throws on invalid JSON in --argjson', async () => {
+      await expect(
+        wrapper.execute(['-n', '--argjson', 'data', '{invalid}', '{data: $data}']),
+      ).rejects.toThrow(JqExecutionError);
     });
 
-    test('returns empty string when throwOnError is false', () => {
-      const result = wrapper.execute(['-n', '--argjson', 'count', '', '{count: $count}'], {
+    test('returns empty string when throwOnError is false', async () => {
+      const result = await wrapper.execute(['-n', '--argjson', 'count', '', '{count: $count}'], {
         throwOnError: false,
       });
       expect(result).toBe('');
     });
 
-    test('executes with multiple --argjson args', () => {
-      const result = wrapper.execute([
+    test('executes with multiple --argjson args', async () => {
+      const result = await wrapper.execute([
         '-n',
         '--argjson',
         'a',
@@ -396,18 +396,18 @@ describe('jq_wrapper - JqWrapper Class', () => {
   // ---------------------------------------------------------------------------
 
   describe('executeAndParse', () => {
-    test('executes and parses JSON result', () => {
-      const result = wrapper.executeAndParse(['-n', '{"foo": "bar"}']);
+    test('executes and parses JSON result', async () => {
+      const result = await wrapper.executeAndParse(['-n', '{"foo": "bar"}']);
       expect(result).toEqual({ foo: 'bar' });
     });
 
-    test('parses array result', () => {
-      const result = wrapper.executeAndParse(['-n', '[1, 2, 3]']);
+    test('parses array result', async () => {
+      const result = await wrapper.executeAndParse(['-n', '[1, 2, 3]']);
       expect(result).toEqual([1, 2, 3]);
     });
 
-    test('parses primitive result', () => {
-      const result = wrapper.executeAndParse(['-n', '42']);
+    test('parses primitive result', async () => {
+      const result = await wrapper.executeAndParse(['-n', '42']);
       expect(result).toBe(42);
     });
 
@@ -423,25 +423,25 @@ describe('jq_wrapper - JqWrapper Class', () => {
   // ---------------------------------------------------------------------------
 
   describe('validateJsonWithJq', () => {
-    test('validates valid JSON', () => {
-      const result = wrapper.validateJsonWithJq('{"foo": "bar"}');
+    test('validates valid JSON', async () => {
+      const result = await wrapper.validateJsonWithJq('{"foo": "bar"}');
       expect(result).toBe(true);
     });
 
-    test('rejects invalid JSON', () => {
-      const result = wrapper.validateJsonWithJq('{invalid}');
+    test('rejects invalid JSON', async () => {
+      const result = await wrapper.validateJsonWithJq('{invalid}');
       expect(result).toBe(false);
     });
 
-    test('validates array', () => {
-      const result = wrapper.validateJsonWithJq('[1, 2, 3]');
+    test('validates array', async () => {
+      const result = await wrapper.validateJsonWithJq('[1, 2, 3]');
       expect(result).toBe(true);
     });
 
-    test('validates primitives', () => {
-      expect(wrapper.validateJsonWithJq('42')).toBe(true);
-      expect(wrapper.validateJsonWithJq('"string"')).toBe(true);
-      expect(wrapper.validateJsonWithJq('true')).toBe(true);
+    test('validates primitives', async () => {
+      expect(await wrapper.validateJsonWithJq('42')).toBe(true);
+      expect(await wrapper.validateJsonWithJq('"string"')).toBe(true);
+      expect(await wrapper.validateJsonWithJq('true')).toBe(true);
     });
   });
 });
@@ -451,20 +451,20 @@ describe('jq_wrapper - JqWrapper Class', () => {
 // =============================================================================
 
 describe('jq_wrapper - Error Handling', () => {
-  test('ExecutionError contains proper code for validation error', () => {
+  test('JqExecutionError contains proper code for validation error', async () => {
     const wrapper = new JqWrapper({ callerContext: 'test' });
 
     try {
-      wrapper.execute(['-n', '--argjson', 'x', '', '{x: $x}']);
+      await wrapper.execute(['-n', '--argjson', 'x', '', '{x: $x}']);
       throw new Error('Should have thrown');
     } catch (error) {
-      expect(error).toBeInstanceOf(ExecutionError);
+      expect(error).toBeInstanceOf(JqExecutionError);
       expect(error.code).toBe('JQ_VALIDATION_ERROR');
       expect(error.context).toBe('test');
     }
   });
 
-  test('ExecutionError contains proper code for parse error', () => {
+  test('JqExecutionError contains proper code for parse error', () => {
     // Skip - requires complex mocking
     expect(true).toBe(true);
   });

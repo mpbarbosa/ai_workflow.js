@@ -129,6 +129,18 @@ export async function runCommand(options) {
     const orchestratorOptions = createOrchestratorOptions(options);
     const orchestrator = new MainOrchestrator(orchestratorOptions);
 
+    // ── TUI mode ────────────────────────────────────────────────────────────
+    if (options.tui) {
+      const { startTui } = await import('../tui/index.js');
+      const result = await startTui(orchestrator, {
+        stage: orchestratorOptions.stage,
+        version: '1.5.4',
+      });
+      process.exit(result.aborted ? 130 : result.success ? 0 : 1);
+      return;
+    }
+    // ── Standard (spinner) mode ─────────────────────────────────────────────
+
     // Handle Ctrl+C: abort gracefully after the current step finishes
     onSigint = () => {
       console.log(chalk.yellow('\n\n⚠ Interrupt received — stopping after current step...'));
@@ -191,8 +203,10 @@ export async function runCommand(options) {
     // Exit with appropriate code
     process.exit(result.aborted ? 130 : result.success ? 0 : 1);
   } catch (error) {
-    // Remove SIGINT listener on error path
-    process.removeListener('SIGINT', onSigint);
+    // Remove SIGINT listener on error path (only set in non-TUI mode)
+    if (onSigint) {
+      process.removeListener('SIGINT', onSigint);
+    }
 
     // Stop spinner on error
     if (spinner) {

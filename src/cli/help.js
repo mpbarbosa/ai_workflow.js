@@ -47,6 +47,14 @@ export function getCommandExamples(command) {
         description: 'Run with custom config',
         command: 'ai-workflow run --config .my-config.yaml',
       },
+      {
+        description: 'Run with interactive TUI dashboard',
+        command: 'ai-workflow run --tui',
+      },
+      {
+        description: 'Run quick stage with TUI dashboard',
+        command: 'ai-workflow run --stage quick --tui',
+      },
     ],
     resume: [
       {
@@ -60,6 +68,10 @@ export function getCommandExamples(command) {
       {
         description: 'Resume from specific checkpoint',
         command: 'ai-workflow resume wf-20260211-123456',
+      },
+      {
+        description: 'Resume with TUI dashboard',
+        command: 'ai-workflow resume --latest --tui',
       },
     ],
     status: [
@@ -375,6 +387,48 @@ export function displayWorkflowStages() {
 }
 
 /**
+ * Display TUI mode documentation
+ * @returns {void}
+ */
+export function displayTuiHelp() {
+  console.log();
+  console.log(chalk.bold.cyan('TUI Dashboard (--tui)'));
+  console.log(chalk.gray('━'.repeat(60)));
+  console.log();
+  console.log(chalk.gray('Add --tui to the run or resume command to display a live'));
+  console.log(chalk.gray('interactive dashboard instead of plain spinner output.'));
+  console.log();
+  console.log(chalk.bold('Layout:'));
+  console.log(chalk.gray('  ┌─────────────────────────────────────────────────────┐'));
+  console.log(chalk.gray('  │  AI Workflow v1.5.4  stage: full         Step 5/20  │'));
+  console.log(chalk.gray('  ├──────────────────────┬──────────────────────────────┤'));
+  console.log(chalk.gray('  │  STEPS               │  LIVE LOG                    │'));
+  console.log(chalk.gray('  │  ✅ step_00  1.2s    │  [19:15:02] → Starting…      │'));
+  console.log(chalk.gray('  │  ⚡ step_01 running  │  [19:15:03] ✓ Completed…     │'));
+  console.log(chalk.gray('  │  ⏳ step_02           │                              │'));
+  console.log(chalk.gray('  ├──────────────────────┴──────────────────────────────┤'));
+  console.log(chalk.gray('  │  ████████░░░░░  40%   Elapsed 1m23s   ETA 2m10s    │'));
+  console.log(chalk.gray('  ├─────────────────────────────────────────────────────┤'));
+  console.log(chalk.gray('  │  [q] Quit   [a] Abort workflow   [↑/↓] Scroll log   │'));
+  console.log(chalk.gray('  └─────────────────────────────────────────────────────┘'));
+  console.log();
+  console.log(chalk.bold('Keyboard shortcuts:'));
+  console.log(`  ${chalk.cyan('q')}       Quit and exit`);
+  console.log(`  ${chalk.cyan('a')}       Abort the running workflow gracefully`);
+  console.log(`  ${chalk.cyan('↑ / ↓')}  Scroll the live log panel`);
+  console.log();
+  console.log(chalk.bold('Requirements:'));
+  console.log('  • Terminal width  ≥ 80 columns');
+  console.log('  • Terminal height ≥ 20 rows');
+  console.log();
+  console.log(chalk.bold('Examples:'));
+  console.log(chalk.cyan('  $ ai-workflow run --tui'));
+  console.log(chalk.cyan('  $ ai-workflow run --stage quick --tui'));
+  console.log(chalk.cyan('  $ ai-workflow resume --latest --tui'));
+  console.log();
+}
+
+/**
  * Display configuration options
  * @returns {void}
  */
@@ -442,4 +496,5 @@ export default {
   displayWorkflowStages,
   displayConfigOptions,
   displayQuickStart,
+  displayTuiHelp,
 };

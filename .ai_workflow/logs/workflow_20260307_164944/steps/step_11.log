@@ -1,0 +1,13 @@
+[2026-03-07T19:53:28.871Z] 
+→ Starting: Context Management
+[2026-03-07T19:53:28.872Z] ════════════════════════════════════════════════════════════
+[2026-03-07T19:53:28.872Z] 🔷  Step 11: Context Analysis
+[2026-03-07T19:53:28.872Z] ════════════════════════════════════════════════════════════
+[2026-03-07T19:53:28.872Z] Workflow completion: 100% (13/13)
+[2026-03-07T19:53:28.914Z] Git state: 0 modified, 0 staged
+[2026-03-07T19:53:29.041Z] Change impact: low (score: 0)
+[2026-03-07T19:53:29.041Z] Issues: 0 total, 0 critical
+[2026-03-07T19:53:29.042Z] Workflow duration: 3m 43s
+[2026-03-07T19:53:29.068Z] ✓ Step 11 completed - workflow context analyzed!
+[2026-03-07T19:53:29.068Z] ✓ Step step_11 completed in 197ms
+[2026-03-07T19:53:29.068Z] ✓ Completed: Context Management (0s)

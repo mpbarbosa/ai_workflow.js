@@ -1,0 +1,36 @@
+/**
+ * @fileoverview Header component — top bar of the TUI dashboard
+ * @module cli/tui/components/Header
+ *
+ * Displays project name, version, active stage, and step counter.
+ *
+ * @version 1.0.0
+ * @since 2026-03-07
+ */
+
+import React from 'react';
+import { Box, Text } from 'ink';
+
+/**
+ * @param {{ stage: string, completed: number, total: number, version?: string }} props
+ */
+export function Header({ stage, completed, total, version = '1.5.4' }) {
+  const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
+
+  return React.createElement(
+    Box,
+    { borderStyle: 'single', borderColor: 'blue', paddingX: 1, flexDirection: 'row', justifyContent: 'space-between' },
+    React.createElement(
+      Text,
+      { bold: true, color: 'blueBright' },
+      'AI Workflow ',
+      React.createElement(Text, { color: 'gray', bold: false }, `v${version}`),
+      '  ',
+      React.createElement(Text, { color: 'cyan' }, `stage: ${stage}`)
+    ),
+    React.createElement(Text, { color: 'gray' }, stepLabel)
+  );
+}
+
+export default Header;
+

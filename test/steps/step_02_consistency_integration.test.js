@@ -264,8 +264,8 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
     });
 
     test('accepts v-prefixed version matching package.json', async () => {
-      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.5.3' }));
-      await writeFile(path.join(tempDir, 'README.md'), '# Project v1.5.3\n');
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.5.4' }));
+      await writeFile(path.join(tempDir, 'README.md'), '# Project v1.5.4\n');
 
       const { stub } = buildBacklogStub();
       const analyzer = buildAnalyzer(tempDir, stub);

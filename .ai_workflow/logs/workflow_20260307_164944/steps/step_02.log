@@ -1,0 +1,48 @@
+[2026-03-07T19:50:04.785Z] 
+→ Starting: Consistency Analysis
+[2026-03-07T19:50:04.785Z] ════════════════════════════════════════════════════════════
+[2026-03-07T19:50:04.785Z] 🔷  Step 2: Documentation Consistency Analysis
+[2026-03-07T19:50:04.785Z] ════════════════════════════════════════════════════════════
+[2026-03-07T19:50:06.852Z] Found 355 documentation files
+[2026-03-07T19:50:06.853Z] Expected version: 1.5.3
+[2026-03-07T19:50:06.899Z] Version check: 1455 issue(s) found
+[2026-03-07T19:50:07.447Z] Link check: 542 broken link(s) found
+[2026-03-07T19:50:10.974Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-07T19:50:10.974Z] Available Copilot models (13): claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-07T19:50:11.024Z] [step_02] Running AI analysis in 8 partition(s) of ≤50 files
+[2026-03-07T19:50:11.047Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14601
+[2026-03-07T19:50:15.629Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 4582ms
+[2026-03-07T19:50:15.630Z] ✓ AI request completed successfully
+[2026-03-07T19:50:15.634Z] ⚠ [step_02] Partition 1: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:15.651Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14590
+[2026-03-07T19:50:18.807Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3156ms
+[2026-03-07T19:50:18.807Z] ✓ AI request completed successfully
+[2026-03-07T19:50:18.811Z] ⚠ [step_02] Partition 2: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:18.836Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14582
+[2026-03-07T19:50:22.691Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3855ms
+[2026-03-07T19:50:22.692Z] ✓ AI request completed successfully
+[2026-03-07T19:50:22.694Z] ⚠ [step_02] Partition 3: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:22.712Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14371
+[2026-03-07T19:50:26.480Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3768ms
+[2026-03-07T19:50:26.480Z] ✓ AI request completed successfully
+[2026-03-07T19:50:26.483Z] ⚠ [step_02] Partition 4: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:26.500Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 13699
+[2026-03-07T19:50:30.473Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3973ms
+[2026-03-07T19:50:30.473Z] ✓ AI request completed successfully
+[2026-03-07T19:50:30.477Z] ⚠ [step_02] Partition 5: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:30.495Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 12575
+[2026-03-07T19:50:34.364Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3869ms
+[2026-03-07T19:50:34.365Z] ✓ AI request completed successfully
+[2026-03-07T19:50:34.368Z] ⚠ [step_02] Partition 6: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:34.385Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 12932
+[2026-03-07T19:50:38.563Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 4178ms
+[2026-03-07T19:50:38.563Z] ✓ AI request completed successfully
+[2026-03-07T19:50:38.567Z] ⚠ [step_02] Partition 7: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:38.570Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 10790
+[2026-03-07T19:50:42.465Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 96, latency: 3895ms
+[2026-03-07T19:50:42.465Z] ✓ AI request completed successfully
+[2026-03-07T19:50:42.469Z] ⚠ [step_02] Partition 8: AI response quality low (reason=too_short, coverage=0%). Consider re-running this partition.
+[2026-03-07T19:50:42.470Z] ⚠ Step 2 completed - 1997 issue(s) found
+[2026-03-07T19:50:42.470Z] ✓ Step step_02 completed in 37686ms
+[2026-03-07T19:50:42.471Z] ✗ [CRITICAL] Operation 'step_02' took 37.7s (memory: 61.86MB)
+[2026-03-07T19:50:42.471Z] ✓ Completed: Consistency Analysis (38s)

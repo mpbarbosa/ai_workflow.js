@@ -16,8 +16,8 @@ import {
   buildFileMetadata,
   calculateRelativePath,
   FileOperations,
+  FileSystemError,
 } from '../../src/lib/file_operations.js';
-import { FileSystemError } from '../../src/utils/errors.js';
 
 /**
  * PURE FUNCTION TESTS - Deterministic, no I/O

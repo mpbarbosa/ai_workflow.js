@@ -25,7 +25,7 @@ import { cleanCommand } from './commands/clean.js';
 import { deployCommand } from './commands/deploy.js';
 
 // Package information
-const VERSION = '1.5.3';
+const VERSION = '1.5.4';
 const DESCRIPTION = 'AI-powered workflow automation for software development';
 
 // ============================================================================
@@ -125,6 +125,7 @@ export function createProgram() {
     .option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
     .option('--no-parallel', 'Disable parallel step execution')
     .option('--sdk-smoke-test', 'Run a Copilot API smoke test before starting the workflow', false)
+    .option('--tui', 'Display interactive TUI dashboard', false)
     .action((options) => {
       const globalOpts = program.opts();
       runCommand({ ...options, ...globalOpts });
@@ -138,6 +139,7 @@ export function createProgram() {
     .option('--latest', 'Resume from latest checkpoint', false)
     .option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
     .option('--project-root <path>', 'Project root directory')
+    .option('--tui', 'Display interactive TUI dashboard', false)
     .action(async (checkpointId, options) => {
       const globalOpts = program.opts();
       await resumeCommand(checkpointId, { ...globalOpts, ...options });

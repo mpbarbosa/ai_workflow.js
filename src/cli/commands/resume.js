@@ -203,7 +203,20 @@ export async function resumeCommand(checkpointId, options) {
     const orchestrator = new MainOrchestrator({
       workflowDir,
       projectRoot: options.projectRoot || process.cwd(),
+      resumeFromCheckpoint: checkpointId,
     });
+
+    // ── TUI mode ────────────────────────────────────────────────────────────
+    if (options.tui) {
+      const { startTui } = await import('../tui/index.js');
+      const result = await startTui(orchestrator, {
+        stage: options.stage || 'full',
+        version: '1.5.4',
+      });
+      process.exit(result.aborted ? 130 : result.success ? 0 : 1);
+      return;
+    }
+    // ── Standard (spinner) mode ─────────────────────────────────────────────
 
     // Handle Ctrl+C: abort gracefully after the current step finishes
     onSigint = () => {
