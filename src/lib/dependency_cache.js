@@ -27,6 +27,7 @@ import { logger } from '../core/logger.js';
 export const DEPENDENCY_CACHE_CONFIG = {
   cacheDir: '.dependency_cache',
   ttl: 3600, // 1 hour in seconds (dependencies change frequently)
+  auditTtl: 3600, // explicit max TTL for audit entries — ensures advisories published after a cache fill are picked up within this window
   maxSizeMB: 50,
   enabled: true,
 };
@@ -47,14 +48,17 @@ export const CACHE_TYPE = {
 // =============================================================================
 
 /**
- * Generate cache key from package.json dependencies and cache type
+ * Generate cache key from package.json dependencies, cache type, and lockfile hash.
+ * Including the lockfile hash ensures the cache is invalidated whenever
+ * package-lock.json changes, even if package.json dependency ranges are unchanged.
  * @pure
  * @param {Object} dependencies - Dependencies object from package.json
  * @param {Object} devDependencies - DevDependencies object from package.json
  * @param {string} cacheType - Cache type from CACHE_TYPE
+ * @param {string} [lockfileHash=''] - SHA256 hash of the lockfile content (package-lock.json, yarn.lock, etc.)
  * @returns {string} SHA256 hash as cache key
  */
-export function generateCacheKey(dependencies, devDependencies, cacheType) {
+export function generateCacheKey(dependencies, devDependencies, cacheType, lockfileHash = '') {
   const depsData = {
     dependencies: dependencies || {},
     devDependencies: devDependencies || {},
@@ -73,8 +77,8 @@ export function generateCacheKey(dependencies, devDependencies, cacheType) {
     return value;
   });
 
-  // Hash dependencies + cache type
-  const dataToHash = `${cacheType}_${depsJson}`;
+  // Hash dependencies + cache type + lockfile hash (lockfileHash busts cache on lockfile changes)
+  const dataToHash = `${cacheType}_${depsJson}_${lockfileHash}`;
   return crypto.createHash('sha256').update(dataToHash).digest('hex');
 }
 
@@ -325,11 +329,17 @@ export class DependencyCache {
     }
 
     // Check if cache is valid (not expired)
+    // Audit entries use auditTtl (explicit cap) so newly published advisories
+    // are picked up within that window even if the lockfile hasn't changed.
     if (await this.fileOps.exists(paths.meta)) {
       const meta = await this.fileOps.readJson(paths.meta);
       const currentTime = Math.floor(Date.now() / 1000);
+      const effectiveTtl =
+        meta.cacheType === CACHE_TYPE.AUDIT
+          ? Math.min(this.config.ttl, this.config.auditTtl ?? this.config.ttl)
+          : this.config.ttl;
 
-      if (!isCacheValid(meta.createdAt, currentTime, this.config.ttl)) {
+      if (!isCacheValid(meta.createdAt, currentTime, effectiveTtl)) {
         logger.debug(`Cache expired (age: ${calculateCacheAge(meta.createdAt, currentTime)}s)`);
         return false;
       }

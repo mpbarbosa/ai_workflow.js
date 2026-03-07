@@ -81,6 +81,40 @@ describe('Dependency Cache', () => {
         const key = generateCacheKey(null, undefined, CACHE_TYPE.AUDIT);
         expect(key).toMatch(/^[a-f0-9]{64}$/);
       });
+
+      test('generates different keys for different lockfile hashes', () => {
+        const deps = { express: '^4.18.0' };
+        const devDeps = {};
+
+        const keyNoHash = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT);
+        const keyWithHash = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT, 'abc123');
+        const keyDiffHash = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT, 'def456');
+
+        expect(keyNoHash).not.toBe(keyWithHash);
+        expect(keyWithHash).not.toBe(keyDiffHash);
+        expect(keyWithHash).toMatch(/^[a-f0-9]{64}$/);
+      });
+
+      test('generates same key when lockfile hash is unchanged', () => {
+        const deps = { express: '^4.18.0' };
+        const devDeps = {};
+        const lockfileHash = 'aabbccdd';
+
+        const key1 = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT, lockfileHash);
+        const key2 = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT, lockfileHash);
+
+        expect(key1).toBe(key2);
+      });
+
+      test('empty lockfile hash is backward-compatible with no-hash calls', () => {
+        const deps = { express: '^4.18.0' };
+        const devDeps = {};
+
+        const key1 = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT);
+        const key2 = generateCacheKey(deps, devDeps, CACHE_TYPE.AUDIT, '');
+
+        expect(key1).toBe(key2);
+      });
     });
 
     describe('isCacheValid', () => {

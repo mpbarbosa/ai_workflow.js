@@ -3,6 +3,9 @@
  * @group steps
  */
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
   Step9DependencyValidator,
   getDependencyFiles,
@@ -29,6 +32,8 @@ import {
   formatDependencyReport,
   SEVERITY,
   FIX_COMMANDS,
+  validateLockfileStructure,
+  computeLockfileHash,
 } from '../../src/steps/step_09_dependencies.js';
 
 describe('Step 9: Dependency Validation', () => {
@@ -54,8 +59,12 @@ describe('Step 9: Dependency Validation', () => {
   });
 
   describe('getAuditCommand', () => {
-    test('returns npm audit for JavaScript', () => {
-      expect(getAuditCommand('javascript')).toBe('npm audit --json');
+    test('returns npm audit with --package-lock-only for JavaScript', () => {
+      expect(getAuditCommand('javascript')).toBe('npm audit --json --package-lock-only');
+    });
+
+    test('returns npm audit with --package-lock-only for TypeScript', () => {
+      expect(getAuditCommand('typescript')).toBe('npm audit --json --package-lock-only');
     });
 
     test('returns pip-audit for Python', () => {
@@ -857,6 +866,158 @@ describe('Step 9: Dependency Validation', () => {
       });
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+  });
+
+  // ==========================================================================
+  // PURE FUNCTIONS - Lockfile Integrity (a3)
+  // ==========================================================================
+
+  describe('validateLockfileStructure', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'step09-test-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    function writeLockfile(content) {
+      const lockfilePath = path.join(tmpDir, 'package-lock.json');
+      fs.writeFileSync(lockfilePath, JSON.stringify(content, null, 2));
+      return lockfilePath;
+    }
+
+    test('returns valid for a well-formed lockfile', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          '': { name: 'my-app', version: '1.0.0' },
+          'node_modules/lodash': {
+            version: '4.17.21',
+            resolved: 'https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz',
+            integrity: 'sha512-abc123==',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(true);
+      expect(result.issues).toHaveLength(0);
+    });
+
+    test('returns issue for non-HTTPS resolved URL', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/evil': {
+            version: '1.0.0',
+            resolved: 'http://evil.example.com/evil.tgz',
+            integrity: 'sha512-abc==',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(false);
+      expect(result.issues.some((i) => i.includes('non-HTTPS'))).toBe(true);
+    });
+
+    test('returns issue for empty integrity hash', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/foo': {
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/foo/-/foo-1.0.0.tgz',
+            integrity: '',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(false);
+      expect(result.issues.some((i) => i.includes('empty integrity hash'))).toBe(true);
+    });
+
+    test('returns issue for invalid version string', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/bar': {
+            version: 'not-a-version',
+            resolved: 'https://registry.npmjs.org/bar/-/bar-1.0.0.tgz',
+            integrity: 'sha512-abc==',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(false);
+      expect(result.issues.some((i) => i.includes('invalid version'))).toBe(true);
+    });
+
+    test('skips link entries (workspace symlinks)', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/my-workspace-pkg': { link: true },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(true);
+    });
+
+    test('returns error for unparseable lockfile', () => {
+      const lockfilePath = path.join(tmpDir, 'package-lock.json');
+      fs.writeFileSync(lockfilePath, 'not valid json {{{');
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.valid).toBe(false);
+      expect(result.issues[0]).toMatch(/Cannot parse lockfile/);
+    });
+
+    test('returns error for missing lockfile', () => {
+      const result = validateLockfileStructure(path.join(tmpDir, 'nonexistent.json'));
+      expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('computeLockfileHash', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'step09-hash-test-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    test('returns a SHA256 hex string for a valid file', () => {
+      const lockfilePath = path.join(tmpDir, 'package-lock.json');
+      fs.writeFileSync(lockfilePath, '{"lockfileVersion":3}');
+      const hash = computeLockfileHash(lockfilePath);
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    test('returns different hashes for different content', () => {
+      const p1 = path.join(tmpDir, 'lock1.json');
+      const p2 = path.join(tmpDir, 'lock2.json');
+      fs.writeFileSync(p1, '{"lockfileVersion":3,"a":1}');
+      fs.writeFileSync(p2, '{"lockfileVersion":3,"a":2}');
+      expect(computeLockfileHash(p1)).not.toBe(computeLockfileHash(p2));
+    });
+
+    test('returns same hash for identical content', () => {
+      const content = '{"lockfileVersion":3}';
+      const p1 = path.join(tmpDir, 'lock1.json');
+      const p2 = path.join(tmpDir, 'lock2.json');
+      fs.writeFileSync(p1, content);
+      fs.writeFileSync(p2, content);
+      expect(computeLockfileHash(p1)).toBe(computeLockfileHash(p2));
+    });
+
+    test('returns empty string for missing file', () => {
+      const hash = computeLockfileHash(path.join(tmpDir, 'nonexistent.json'));
+      expect(hash).toBe('');
     });
   });
 });

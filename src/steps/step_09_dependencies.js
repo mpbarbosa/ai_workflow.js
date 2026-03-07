@@ -8,6 +8,8 @@
 
 import { STEP_KIND } from './step_contract.js';
 import path from 'path';
+import crypto from 'crypto';
+import fs from 'fs';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -45,8 +47,8 @@ export const DEPENDENCY_FILES = {
  * Audit commands by language
  */
 export const AUDIT_COMMANDS = {
-  javascript: 'npm audit --json',
-  typescript: 'npm audit --json',
+  javascript: 'npm audit --json --package-lock-only',
+  typescript: 'npm audit --json --package-lock-only',
   python: 'pip-audit --format json',
   go: 'govulncheck -json ./...',
   java: 'mvn org.owasp:dependency-check-maven:check -Dformat=JSON -q',
@@ -548,6 +550,80 @@ export function determineSeverity(summary) {
 }
 
 // ============================================================================
+// PURE FUNCTIONS - Lockfile Integrity
+// ============================================================================
+
+/**
+ * Compute a SHA256 hash of a lockfile's raw content.
+ * Used as a cache-key component so that any lockfile change busts the audit cache.
+ * @pure
+ * @param {string} lockfilePath - Absolute path to the lockfile
+ * @returns {string} SHA256 hex digest, or empty string if the file cannot be read
+ */
+export function computeLockfileHash(lockfilePath) {
+  try {
+    const content = fs.readFileSync(lockfilePath);
+    return crypto.createHash('sha256').update(content).digest('hex');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Validate the structural integrity of a package-lock.json file.
+ * Checks that each package entry has:
+ *  - a valid semver version string (where present)
+ *  - an HTTPS resolved URL (where present)
+ *  - a non-empty integrity hash (where present)
+ *
+ * @pure
+ * @param {string} lockfilePath - Absolute path to package-lock.json
+ * @returns {{ valid: boolean, issues: string[] }} Validation result
+ */
+export function validateLockfileStructure(lockfilePath) {
+  const issues = [];
+
+  let lockfile;
+  try {
+    const raw = fs.readFileSync(lockfilePath, 'utf8');
+    lockfile = JSON.parse(raw);
+  } catch (err) {
+    return { valid: false, issues: [`Cannot parse lockfile: ${err.message}`] };
+  }
+
+  const packages = lockfile.packages || {};
+  const semverRangeRe = /^[~^]?\d+\.\d+\.\d+/;
+
+  for (const [name, entry] of Object.entries(packages)) {
+    if (!entry || typeof entry !== 'object') continue;
+    if (entry.link) continue; // symlinked workspace packages — skip
+
+    // Validate version (only if present — root entry has no version)
+    if (entry.version !== undefined) {
+      if (typeof entry.version !== 'string' || !semverRangeRe.test(entry.version)) {
+        issues.push(`${name || '(root)'}: invalid version "${entry.version}"`);
+      }
+    }
+
+    // Validate resolved URL (must be HTTPS when present)
+    if (entry.resolved !== undefined) {
+      if (typeof entry.resolved !== 'string' || !entry.resolved.startsWith('https://')) {
+        issues.push(`${name}: non-HTTPS resolved URL "${entry.resolved}"`);
+      }
+    }
+
+    // Validate integrity hash (must be non-empty when present)
+    if (entry.integrity !== undefined) {
+      if (typeof entry.integrity !== 'string' || entry.integrity.trim() === '') {
+        issues.push(`${name}: empty integrity hash`);
+      }
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+// ============================================================================
 // PURE FUNCTIONS - Reporting
 // ============================================================================
 
@@ -732,10 +808,32 @@ export class Step9DependencyValidator {
       const dependencyCounts = await this.parseDependencies(projectRoot, language);
       logger.info(`Total dependencies: ${dependencyCounts.total}`);
 
+      // Phase 3.5: Lockfile structural validation (catches corrupted entries
+      // such as non-existent version specifiers — issues npm audit cannot detect)
+      const lockfilePath = path.join(projectRoot, 'package-lock.json');
+      const lockfileExists = fs.existsSync(lockfilePath);
+      let lockfileIssues = [];
+      if ((language === 'javascript' || language === 'typescript') && lockfileExists) {
+        const lockfileValidation = validateLockfileStructure(lockfilePath);
+        lockfileIssues = lockfileValidation.issues;
+        if (lockfileIssues.length > 0) {
+          logger.warn(`Lockfile integrity issues found (${lockfileIssues.length}):`);
+          for (const issue of lockfileIssues) {
+            logger.warn(`  • ${issue}`);
+          }
+        } else {
+          logger.success('Lockfile structure valid');
+        }
+      }
+
+      // Compute lockfile hash for cache key — ensures cache is busted whenever
+      // package-lock.json changes, even if package.json ranges are unchanged.
+      const lockfileHash = lockfileExists ? computeLockfileHash(lockfilePath) : '';
+
       // Initialize dependency cache
       let depCacheReady = false;
       try {
-        await this.depCache.initialize();
+        await this.depCache.init(); // NOTE: method is init(), not initialize()
         depCacheReady = true;
       } catch {
         // Cache unavailable — proceed without it
@@ -744,14 +842,16 @@ export class Step9DependencyValidator {
         ? generateCacheKey(
             dependencyCounts.dependencies || {},
             dependencyCounts.devDependencies || {},
-            CACHE_TYPE.AUDIT
+            CACHE_TYPE.AUDIT,
+            lockfileHash
           )
         : null;
       const outdatedCacheKey = depCacheReady
         ? generateCacheKey(
             dependencyCounts.dependencies || {},
             dependencyCounts.devDependencies || {},
-            CACHE_TYPE.OUTDATED
+            CACHE_TYPE.OUTDATED,
+            lockfileHash
           )
         : null;
 
@@ -771,6 +871,25 @@ export class Step9DependencyValidator {
         logger.warn(`Found ${vulnerabilities.summary.total} vulnerabilities`);
       } else {
         logger.success('No vulnerabilities found');
+      }
+
+      // Phase 4.5: Dry-run install check (catches non-existent version specifiers
+      // in the lockfile that npm audit cannot detect)
+      let dryRunIssues = [];
+      if (language === 'javascript' || language === 'typescript') {
+        try {
+          await this.executor.execute('npm install --dry-run --ignore-scripts 2>&1', {
+            cwd: projectRoot,
+            shell: true,
+            timeout: 60000,
+          });
+          logger.success('npm install --dry-run: lockfile resolvable');
+        } catch (dryRunError) {
+          const errOutput = (dryRunError.stdout || '') + (dryRunError.stderr || '');
+          dryRunIssues = [errOutput.trim().slice(0, 500)];
+          logger.warn(`npm install --dry-run failed — possible unresolvable lockfile entries`);
+          logger.warn(`  ${dryRunIssues[0]}`);
+        }
       }
 
       // Phase 5: Check for outdated packages (with cache)
@@ -795,6 +914,8 @@ export class Step9DependencyValidator {
         dependencyCounts,
         vulnerabilities,
         outdatedPackages,
+        lockfileIssues,
+        dryRunIssues,
         skipped: false,
       };
 
@@ -947,8 +1068,7 @@ export class Step9DependencyValidator {
                 const jsResult = await this.aiCache.withFileChangeGuard(
                   'step_09_js',
                   jsHashEntries,
-                  () =>
-                    this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
+                  () => this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
                 );
                 jsContent = jsResult?.content ?? '';
               }
