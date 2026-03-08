@@ -199,3 +199,137 @@ export function terminalIsSufficient(cols, rows) {
 export function stepsPanelWidth(totalCols) {
   return Math.min(45, Math.max(25, Math.floor(totalCols * 0.35)));
 }
+
+// ============================================================================
+// PURE FUNCTIONS - Log Search
+// ============================================================================
+
+/**
+ * Find which log entry indices match a search query (case-insensitive).
+ * @pure
+ * @param {Array<{message: string, time: number}>} logs
+ * @param {string} query - Search string
+ * @returns {{ matchCount: number, matchIndices: number[] }}
+ */
+export function filterLogLines(logs, query) {
+  if (!Array.isArray(logs) || !query || typeof query !== 'string' || query.length === 0) {
+    return { matchCount: 0, matchIndices: [] };
+  }
+  const lower = query.toLowerCase();
+  const matchIndices = [];
+  for (let i = 0; i < logs.length; i++) {
+    const msg = typeof logs[i]?.message === 'string' ? logs[i].message : '';
+    if (msg.toLowerCase().includes(lower)) {
+      matchIndices.push(i);
+    }
+  }
+  return { matchCount: matchIndices.length, matchIndices };
+}
+
+/**
+ * Split a log line into segments, marking which parts match the query.
+ * @pure
+ * @param {string} line - Source string
+ * @param {string} query - Search string
+ * @returns {Array<{text: string, isMatch: boolean}>}
+ */
+export function highlightSearchMatch(line, query) {
+  if (typeof line !== 'string') return [{ text: '', isMatch: false }];
+  if (!query || typeof query !== 'string' || query.length === 0) {
+    return [{ text: line, isMatch: false }];
+  }
+  const lower = line.toLowerCase();
+  const qLower = query.toLowerCase();
+  const segments = [];
+  let start = 0;
+  let idx = lower.indexOf(qLower);
+  while (idx !== -1) {
+    if (idx > start) segments.push({ text: line.slice(start, idx), isMatch: false });
+    segments.push({ text: line.slice(idx, idx + query.length), isMatch: true });
+    start = idx + query.length;
+    idx = lower.indexOf(qLower, start);
+  }
+  if (start < line.length) segments.push({ text: line.slice(start), isMatch: false });
+  return segments.length > 0 ? segments : [{ text: line, isMatch: false }];
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Error Display
+// ============================================================================
+
+/**
+ * Truncate a stack trace string to at most maxLines lines.
+ * @pure
+ * @param {string|null|undefined} stack - Error stack trace
+ * @param {number} [maxLines=20] - Maximum lines to return
+ * @returns {string[]}
+ */
+export function truncateStackTrace(stack, maxLines = 20) {
+  if (!stack || typeof stack !== 'string') return [];
+  return stack.split('\n').slice(0, Math.max(1, Math.floor(maxLines)));
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Help Content
+// ============================================================================
+
+/**
+ * Return the static list of all TUI keybinding descriptions for the help overlay.
+ * @pure
+ * @returns {string[]}
+ */
+export function buildHelpLines() {
+  return [
+    'q / Q          Quit TUI',
+    'a / A          Abort workflow',
+    'Tab            Cycle panel focus (Steps ↔ Log)',
+    'h              Toggle this help overlay',
+    'e              Show/hide last error detail',
+    '',
+    'When Steps panel focused:',
+    '  j / ↓        Select next step',
+    '  k / ↑        Select previous step',
+    '  Enter        Open step detail overlay',
+    '',
+    'When Log panel focused:',
+    '  j / ↓        Scroll down (newer)',
+    '  k / ↑        Scroll up (older)',
+    '  g            Jump to bottom (newest)',
+    '  G            Jump to top (oldest)',
+    '  /            Open search bar',
+    '  n / N        Next / previous match',
+    '  Esc          Clear search / close overlay',
+    '',
+    'Mouse:',
+    '  Scroll wheel  Scroll active panel',
+    '  Click step    Select step',
+  ];
+}
+
+// ============================================================================
+// PURE FUNCTIONS - Step Detail
+// ============================================================================
+
+/**
+ * Format a step entry into display lines for the step detail overlay.
+ * @pure
+ * @param {{ id?: string, name?: string, status?: string, duration?: number|null, retryCount?: number, exitCode?: number|null, errorMessage?: string|null, dependsOn?: string[], stepLogs?: string[] }} step
+ * @returns {{ lines: string[], hasError: boolean, logLines: string[] }}
+ */
+export function formatStepDetail(step) {
+  if (!step) return { lines: [], hasError: false, logLines: [] };
+  const lines = [
+    `Name:       ${step.name ?? '(unknown)'}`,
+    `ID:         ${step.id ?? '(unknown)'}`,
+    `Status:     ${step.status ?? 'pending'}`,
+  ];
+  if (step.duration != null) lines.push(`Duration:   ${formatDuration(step.duration)}`);
+  if (step.retryCount != null && step.retryCount > 0) lines.push(`Retries:    ${step.retryCount}`);
+  const deps = Array.isArray(step.dependsOn) ? step.dependsOn : [];
+  lines.push(`Depends-on: ${deps.length > 0 ? deps.join(', ') : '(none)'}`);
+  const hasError = !!(step.exitCode != null || step.errorMessage);
+  if (step.exitCode != null) lines.push(`Exit code:  ${step.exitCode}`);
+  if (step.errorMessage) lines.push(`Error:      ${step.errorMessage}`);
+  const logLines = Array.isArray(step.stepLogs) ? step.stepLogs.slice(-10) : [];
+  return { lines, hasError, logLines };
+}

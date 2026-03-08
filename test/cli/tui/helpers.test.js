@@ -20,6 +20,11 @@ import {
   keepLast,
   terminalIsSufficient,
   stepsPanelWidth,
+  filterLogLines,
+  highlightSearchMatch,
+  truncateStackTrace,
+  buildHelpLines,
+  formatStepDetail,
 } from '../../../src/cli/tui/helpers.js';
 
 // ============================================================================
@@ -384,5 +389,275 @@ describe('stepsPanelWidth', () => {
       const result = stepsPanelWidth(cols);
       expect(Number.isInteger(result)).toBe(true);
     }
+  });
+});
+
+// ============================================================================
+// filterLogLines
+// ============================================================================
+describe('filterLogLines', () => {
+  const logs = [
+    { message: 'Starting workflow', time: 1 },
+    { message: 'Error: build failed', time: 2 },
+    { message: 'Warning: deprecated API', time: 3 },
+    { message: 'Error: lint failed', time: 4 },
+    { message: 'Done', time: 5 },
+  ];
+
+  test('returns empty matchIndices for empty query', () => {
+    const result = filterLogLines(logs, '');
+    expect(result.matchCount).toBe(0);
+    expect(result.matchIndices).toEqual([]);
+  });
+
+  test('returns empty matchIndices for null query', () => {
+    const result = filterLogLines(logs, null);
+    expect(result.matchCount).toBe(0);
+    expect(result.matchIndices).toEqual([]);
+  });
+
+  test('returns empty matchIndices for non-array logs', () => {
+    const result = filterLogLines('not an array', 'error');
+    expect(result.matchCount).toBe(0);
+    expect(result.matchIndices).toEqual([]);
+  });
+
+  test('finds case-insensitive matches', () => {
+    const result = filterLogLines(logs, 'ERROR');
+    expect(result.matchCount).toBe(2);
+    expect(result.matchIndices).toEqual([1, 3]);
+  });
+
+  test('finds partial matches', () => {
+    const result = filterLogLines(logs, 'ork');
+    expect(result.matchCount).toBe(1);
+    expect(result.matchIndices).toEqual([0]);
+  });
+
+  test('returns zero matchCount when no matches', () => {
+    const result = filterLogLines(logs, 'zzzzz');
+    expect(result.matchCount).toBe(0);
+    expect(result.matchIndices).toEqual([]);
+  });
+
+  test('handles empty logs array', () => {
+    const result = filterLogLines([], 'error');
+    expect(result.matchCount).toBe(0);
+    expect(result.matchIndices).toEqual([]);
+  });
+
+  test('handles log entries with non-string messages', () => {
+    const weirdLogs = [
+      { message: 123, time: 1 },
+      { message: null, time: 2 },
+    ];
+    const result = filterLogLines(weirdLogs, 'test');
+    expect(result.matchCount).toBe(0);
+  });
+});
+
+// ============================================================================
+// highlightSearchMatch
+// ============================================================================
+describe('highlightSearchMatch', () => {
+  test('returns full line as non-match when query is empty', () => {
+    const result = highlightSearchMatch('hello world', '');
+    expect(result).toEqual([{ text: 'hello world', isMatch: false }]);
+  });
+
+  test('returns full line as non-match when query is null', () => {
+    const result = highlightSearchMatch('hello world', null);
+    expect(result).toEqual([{ text: 'hello world', isMatch: false }]);
+  });
+
+  test('returns empty text for non-string input', () => {
+    const result = highlightSearchMatch(null, 'test');
+    expect(result).toEqual([{ text: '', isMatch: false }]);
+  });
+
+  test('marks single match at start', () => {
+    const result = highlightSearchMatch('error: build failed', 'error');
+    expect(result[0]).toEqual({ text: 'error', isMatch: true });
+    expect(result[1]).toEqual({ text: ': build failed', isMatch: false });
+  });
+
+  test('marks match in middle', () => {
+    const result = highlightSearchMatch('build failed here', 'failed');
+    expect(result).toEqual([
+      { text: 'build ', isMatch: false },
+      { text: 'failed', isMatch: true },
+      { text: ' here', isMatch: false },
+    ]);
+  });
+
+  test('marks match at end', () => {
+    const result = highlightSearchMatch('build error', 'error');
+    expect(result).toEqual([
+      { text: 'build ', isMatch: false },
+      { text: 'error', isMatch: true },
+    ]);
+  });
+
+  test('case-insensitive matching', () => {
+    const result = highlightSearchMatch('ERROR occurred', 'error');
+    expect(result[0]).toEqual({ text: 'ERROR', isMatch: true });
+  });
+
+  test('multiple matches in one line', () => {
+    const result = highlightSearchMatch('a b a b a', 'a');
+    const matches = result.filter((s) => s.isMatch);
+    expect(matches).toHaveLength(3);
+    expect(matches.every((m) => m.text === 'a')).toBe(true);
+  });
+});
+
+// ============================================================================
+// truncateStackTrace
+// ============================================================================
+describe('truncateStackTrace', () => {
+  test('returns empty array for null/undefined', () => {
+    expect(truncateStackTrace(null)).toEqual([]);
+    expect(truncateStackTrace(undefined)).toEqual([]);
+    expect(truncateStackTrace('')).toEqual([]);
+  });
+
+  test('returns all lines when under limit', () => {
+    const stack = 'Error: fail\n  at foo.js:1\n  at bar.js:2';
+    const result = truncateStackTrace(stack, 20);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toBe('Error: fail');
+  });
+
+  test('truncates at maxLines', () => {
+    const lines = Array.from({ length: 30 }, (_, i) => `  at frame${i}`);
+    const stack = lines.join('\n');
+    const result = truncateStackTrace(stack, 20);
+    expect(result).toHaveLength(20);
+    expect(result[0]).toBe('  at frame0');
+    expect(result[19]).toBe('  at frame19');
+  });
+
+  test('defaults to 20 maxLines', () => {
+    const lines = Array.from({ length: 25 }, (_, i) => `line${i}`);
+    const result = truncateStackTrace(lines.join('\n'));
+    expect(result).toHaveLength(20);
+  });
+
+  test('returns non-string as empty array', () => {
+    expect(truncateStackTrace(42)).toEqual([]);
+    expect(truncateStackTrace({})).toEqual([]);
+  });
+});
+
+// ============================================================================
+// buildHelpLines
+// ============================================================================
+describe('buildHelpLines', () => {
+  test('returns an array of strings', () => {
+    const result = buildHelpLines();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    result.forEach((line) => expect(typeof line).toBe('string'));
+  });
+
+  test('is deterministic (same output every call)', () => {
+    expect(buildHelpLines()).toEqual(buildHelpLines());
+  });
+
+  test('contains q/Q entry', () => {
+    const result = buildHelpLines();
+    const hasQ = result.some((line) => line.includes('q') && line.toLowerCase().includes('quit'));
+    expect(hasQ).toBe(true);
+  });
+
+  test('contains Tab entry', () => {
+    const result = buildHelpLines();
+    const hasTab = result.some((line) => line.includes('Tab'));
+    expect(hasTab).toBe(true);
+  });
+
+  test('contains search / entry', () => {
+    const result = buildHelpLines();
+    const hasSearch = result.some(
+      (line) => line.includes('/') && line.toLowerCase().includes('search')
+    );
+    expect(hasSearch).toBe(true);
+  });
+});
+
+// ============================================================================
+// formatStepDetail
+// ============================================================================
+describe('formatStepDetail', () => {
+  const baseStep = {
+    id: 'step_01',
+    name: 'Documentation Validation',
+    status: 'done',
+    duration: 5000,
+    retryCount: 0,
+    dependsOn: ['step_00'],
+    exitCode: null,
+    errorMessage: null,
+    stepLogs: ['log line 1', 'log line 2'],
+  };
+
+  test('returns empty result for null/undefined step', () => {
+    expect(formatStepDetail(null)).toEqual({ lines: [], hasError: false, logLines: [] });
+    expect(formatStepDetail(undefined)).toEqual({ lines: [], hasError: false, logLines: [] });
+  });
+
+  test('includes name, id, and status', () => {
+    const { lines } = formatStepDetail(baseStep);
+    expect(lines.some((l) => l.includes('Documentation Validation'))).toBe(true);
+    expect(lines.some((l) => l.includes('step_01'))).toBe(true);
+    expect(lines.some((l) => l.includes('done'))).toBe(true);
+  });
+
+  test('includes duration in human-readable form', () => {
+    const { lines } = formatStepDetail(baseStep);
+    expect(lines.some((l) => l.includes('Duration') && l.includes('5s'))).toBe(true);
+  });
+
+  test('includes depends-on list', () => {
+    const { lines } = formatStepDetail(baseStep);
+    expect(lines.some((l) => l.includes('step_00'))).toBe(true);
+  });
+
+  test('shows (none) when no dependencies', () => {
+    const { lines } = formatStepDetail({ ...baseStep, dependsOn: [] });
+    expect(lines.some((l) => l.includes('(none)'))).toBe(true);
+  });
+
+  test('hasError is false for successful step', () => {
+    const { hasError } = formatStepDetail(baseStep);
+    expect(hasError).toBe(false);
+  });
+
+  test('hasError is true when errorMessage is set', () => {
+    const { hasError } = formatStepDetail({ ...baseStep, errorMessage: 'Something failed' });
+    expect(hasError).toBe(true);
+  });
+
+  test('includes error message in lines', () => {
+    const { lines } = formatStepDetail({ ...baseStep, errorMessage: 'Build failed' });
+    expect(lines.some((l) => l.includes('Build failed'))).toBe(true);
+  });
+
+  test('includes exit code when set', () => {
+    const { lines } = formatStepDetail({ ...baseStep, exitCode: 1 });
+    expect(lines.some((l) => l.includes('Exit code') && l.includes('1'))).toBe(true);
+  });
+
+  test('returns last 10 stepLogs as logLines', () => {
+    const manyLogs = Array.from({ length: 15 }, (_, i) => `log ${i}`);
+    const { logLines } = formatStepDetail({ ...baseStep, stepLogs: manyLogs });
+    expect(logLines).toHaveLength(10);
+    expect(logLines[0]).toBe('log 5');
+    expect(logLines[9]).toBe('log 14');
+  });
+
+  test('returns empty logLines when stepLogs is not an array', () => {
+    const { logLines } = formatStepDetail({ ...baseStep, stepLogs: null });
+    expect(logLines).toEqual([]);
   });
 });

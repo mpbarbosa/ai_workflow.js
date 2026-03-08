@@ -30,9 +30,11 @@ const MAX_LOG_LINES = 200;
  *   currentStepId: string|null,
  *   isComplete: boolean,
  *   workflowError: string|null,
+ *   lastError: ErrorEntry|null,
  * }}
  *
- * @typedef {{ id: string, name: string, status: 'pending'|'running'|'done'|'skipped'|'error', startTime: number|null, duration: number|null }} StepEntry
+ * @typedef {{ id: string, name: string, status: 'pending'|'running'|'done'|'skipped'|'error', startTime: number|null, duration: number|null, retryCount?: number, exitCode?: number|null, errorMessage?: string|null, dependsOn?: string[], stepLogs?: Array<string> }} StepEntry
+ * @typedef {{ stepId: string, stepName: string, message: string, stack: string|null }} ErrorEntry
  * @typedef {{ time: number, message: string }} LogEntry
  */
 export function useOrchestrator(orchestrator) {
@@ -41,7 +43,7 @@ export function useOrchestrator(orchestrator) {
   const [progress, setProgress] = useState(0);
   const [currentStepId, setCurrentStepId] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
-  const [workflowError, setWorkflowError] = useState(null);
+  const [lastError, setLastError] = useState(null);
 
   useEffect(() => {
     if (!orchestrator?.workflowEngine) return;
@@ -84,11 +86,24 @@ export function useOrchestrator(orchestrator) {
     const onStepError = ({ step, error }) => {
       const id = step?.id ?? 'unknown';
       const name = step?.name ?? id;
+      const errMsg = error?.message ?? 'unknown error';
       setSteps((prev) => ({
         ...prev,
-        [id]: { ...(prev[id] ?? { id, name }), status: 'error', duration: null },
+        [id]: {
+          ...(prev[id] ?? { id, name }),
+          status: 'error',
+          duration: null,
+          exitCode: error?.exitCode ?? null,
+          errorMessage: errMsg,
+        },
       }));
-      addLog(`✗ Failed: ${name} — ${error?.message ?? 'unknown error'}`);
+      setLastError({
+        stepId: id,
+        stepName: name,
+        message: errMsg,
+        stack: error?.stack ?? null,
+      });
+      addLog(`✗ Failed: ${name} — ${errMsg}`);
     };
 
     const onStepSkipped = ({ step, result }) => {
@@ -140,7 +155,7 @@ export function useOrchestrator(orchestrator) {
     };
   }, [orchestrator]);
 
-  return { steps, logs, progress, currentStepId, isComplete, workflowError };
+  return { steps, logs, progress, currentStepId, isComplete, lastError };
 }
 
 export default useOrchestrator;

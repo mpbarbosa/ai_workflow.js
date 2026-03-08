@@ -12,25 +12,33 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 /**
- * @param {{ stage: string, completed: number, total: number, version?: string }} props
+ * @param {{ stage: string, completed: number, total: number, version?: string, projectRoot?: string }} props
  */
-export function Header({ stage, completed, total, version = '1.5.4' }) {
+export function Header({ stage, completed, total, version = '1.5.4', projectRoot = '' }) {
   const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
 
   return React.createElement(
     Box,
-    { borderStyle: 'single', borderColor: 'blue', paddingX: 1, flexDirection: 'row', justifyContent: 'space-between' },
+    {
+      borderStyle: 'single',
+      borderColor: 'blue',
+      paddingX: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
     React.createElement(
       Text,
       { bold: true, color: 'blueBright' },
       'AI Workflow ',
       React.createElement(Text, { color: 'gray', bold: false }, `v${version}`),
       '  ',
-      React.createElement(Text, { color: 'cyan' }, `stage: ${stage}`)
+      React.createElement(Text, { color: 'cyan' }, `stage: ${stage}`),
+      projectRoot
+        ? React.createElement(Text, { color: 'gray', bold: false }, `  ${projectRoot}`)
+        : null
     ),
     React.createElement(Text, { color: 'gray' }, stepLabel)
   );
 }
 
 export default Header;
-

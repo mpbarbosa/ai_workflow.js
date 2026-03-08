@@ -11,17 +11,19 @@ import { Box, Text } from 'ink';
 
 const KEY_HINTS = [
   { key: 'q', label: 'Quit' },
-  { key: 'a', label: 'Abort workflow' },
-  { key: '↑/↓', label: 'Scroll log' },
+  { key: 'a', label: 'Abort' },
+  { key: 'Tab', label: 'Focus' },
+  { key: '↑/↓ j/k', label: 'Scroll' },
+  { key: '/', label: 'Search' },
+  { key: 'h', label: 'Help' },
+  { key: 'e', label: 'Error' },
 ];
 
 /**
  * @param {{ isComplete?: boolean }} props
  */
 export function StatusBar({ isComplete = false }) {
-  const hints = isComplete
-    ? [{ key: 'q', label: 'Exit' }]
-    : KEY_HINTS;
+  const hints = isComplete ? [{ key: 'q', label: 'Exit' }] : KEY_HINTS;
 
   return React.createElement(
     Box,

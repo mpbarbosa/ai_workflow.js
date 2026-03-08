@@ -2,15 +2,15 @@
  * @fileoverview App — root Ink component for the TUI dashboard
  * @module cli/tui/App
  *
- * Composes Header, StepsPanel, LogPanel, ProgressBar, and StatusBar into
- * the full-terminal dashboard.  Handles keyboard shortcuts and enforces a
- * minimum terminal size.
+ * Composes Header, StepsPanel, LogPanel, ProgressBar, StatusBar, and overlay
+ * components into the full-terminal dashboard. Handles keyboard shortcuts,
+ * panel focus management, and overlay rendering.
  *
  * Architecture: v2.0.0 Pattern
  * - Pure layout/size logic delegated to helpers.js
  * - This component is the impure UI boundary (keyboard, terminal, state)
  *
- * @version 1.0.0
+ * @version 1.1.0
  * @since 2026-03-07
  */
 
@@ -22,6 +22,9 @@ import { StepsPanel } from './components/StepsPanel.js';
 import { LogPanel } from './components/LogPanel.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { StatusBar } from './components/StatusBar.js';
+import { HelpOverlay } from './components/HelpOverlay.js';
+import { StepDetailOverlay } from './components/StepDetailOverlay.js';
+import { ErrorDetailPanel } from './components/ErrorDetailPanel.js';
 import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
 
 /**
@@ -35,27 +38,87 @@ import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
  *   onExit?: () => void,
  * }} props
  */
-export function App({ orchestrator, stage, version = '1.5.4', onAbort, onExit }) {
+export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
-  const { steps, logs, progress, currentStepId, isComplete } = useOrchestrator(orchestrator);
+  const { steps, logs, progress, currentStepId, isComplete, lastError } =
+    useOrchestrator(orchestrator);
 
   const startTimeRef = useRef(Date.now());
   const [exiting, setExiting] = useState(false);
+
+  // ── Panel focus & overlay state ──────────────────────────────────────────
+  /** @type {'steps'|'log'} */
+  const [focusedPanel, setFocusedPanel] = useState('log');
+  const [selectedStepId, setSelectedStepId] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showErrorDetail, setShowErrorDetail] = useState(false);
+  const [showStepDetail, setShowStepDetail] = useState(false);
 
   // Terminal dimensions (reactive)
   const cols = stdout?.columns ?? 80;
   const rows = stdout?.rows ?? 24;
 
+  // Auto-open error detail when a new step error occurs
+  useEffect(() => {
+    if (lastError) {
+      setShowErrorDetail(true);
+    }
+  }, [lastError]);
+
   // Keyboard handler
   useInput((input, key) => {
+    // ── Quit / Abort ─────────────────────────────────────────────────────
     if ((input === 'q' || input === 'Q') && !exiting) {
       setExiting(true);
       onExit?.();
       exit();
+      return;
     }
     if ((input === 'a' || input === 'A') && !exiting && !isComplete) {
       orchestrator?.abort?.();
+      return;
+    }
+
+    // ── Escape — close topmost overlay ──────────────────────────────────
+    if (key.escape) {
+      if (showHelp) {
+        setShowHelp(false);
+        return;
+      }
+      if (showErrorDetail) {
+        setShowErrorDetail(false);
+        return;
+      }
+      if (showStepDetail) {
+        setShowStepDetail(false);
+        return;
+      }
+      return;
+    }
+
+    // ── h — toggle help overlay ──────────────────────────────────────────
+    if (input === 'h' || input === 'H') {
+      setShowHelp((prev) => !prev);
+      return;
+    }
+
+    // ── e — toggle error detail ──────────────────────────────────────────
+    if ((input === 'e' || input === 'E') && lastError) {
+      setShowErrorDetail((prev) => !prev);
+      return;
+    }
+
+    // ── Tab — cycle focus between panels ────────────────────────────────
+    if (key.tab) {
+      setFocusedPanel((prev) => (prev === 'log' ? 'steps' : 'log'));
+      return;
+    }
+
+    // ── Enter — open step detail for selected step ───────────────────────
+    if (key.return && selectedStepId && steps[selectedStepId]) {
+      setShowStepDetail((prev) => !prev);
+      return;
     }
   });
 
@@ -74,15 +137,22 @@ export function App({ orchestrator, stage, version = '1.5.4', onAbort, onExit })
     return React.createElement(
       Box,
       { flexDirection: 'column', padding: 1 },
-      React.createElement(Text, { color: 'yellow', bold: true }, '⚠ Terminal too small for TUI mode'),
-      React.createElement(Text, { color: 'gray' }, `Minimum size: 80×20.  Current: ${cols}×${rows}`),
+      React.createElement(
+        Text,
+        { color: 'yellow', bold: true },
+        '⚠ Terminal too small for TUI mode'
+      ),
+      React.createElement(
+        Text,
+        { color: 'gray' },
+        `Minimum size: 80×20.  Current: ${cols}×${rows}`
+      ),
       React.createElement(Text, { color: 'gray' }, 'Resize your terminal or run without --tui.')
     );
   }
 
   // ── Layout calculation ───────────────────────────────────────────────────
   const leftWidth = stepsPanelWidth(cols);
-  // Fixed chrome: header(3) + progress(3) + statusbar(3) = 9 rows
   const contentHeight = Math.max(5, rows - 9);
 
   const completedCount = Object.values(steps).filter(
@@ -100,12 +170,31 @@ export function App({ orchestrator, stage, version = '1.5.4', onAbort, onExit })
   return React.createElement(
     Box,
     { flexDirection: 'column', width: cols },
-    React.createElement(Header, { stage, version, completed: completedCount, total: totalSteps }),
+    React.createElement(Header, {
+      stage,
+      version,
+      completed: completedCount,
+      total: totalSteps,
+      projectRoot: orchestrator?.projectRoot || process.cwd(),
+    }),
     React.createElement(
       Box,
       { flexDirection: 'row', height: contentHeight },
-      React.createElement(StepsPanel, { steps, currentStepId, width: leftWidth, height: contentHeight }),
-      React.createElement(LogPanel, { logs, width: cols - leftWidth, height: contentHeight, isFocused: true })
+      React.createElement(StepsPanel, {
+        steps,
+        currentStepId,
+        width: leftWidth,
+        height: contentHeight,
+        isFocused: focusedPanel === 'steps',
+        selectedStepId,
+        onSelectStep: setSelectedStepId,
+      }),
+      React.createElement(LogPanel, {
+        logs,
+        width: cols - leftWidth,
+        height: contentHeight,
+        isFocused: focusedPanel === 'log',
+      })
     ),
     React.createElement(ProgressBar, { pct: progress, startTime: startTimeRef.current }),
     React.createElement(StatusBar, { isComplete }),
@@ -119,6 +208,24 @@ export function App({ orchestrator, stage, version = '1.5.4', onAbort, onExit })
             '✓ Workflow complete — exiting in 3s  (press q to exit now)'
           )
         )
+      : null,
+    // ── Overlays (rendered on top) ─────────────────────────────────────────
+    showHelp
+      ? React.createElement(HelpOverlay, { key: 'help', onClose: () => setShowHelp(false) })
+      : null,
+    showErrorDetail && lastError
+      ? React.createElement(ErrorDetailPanel, {
+          key: 'error',
+          error: lastError,
+          onClose: () => setShowErrorDetail(false),
+        })
+      : null,
+    showStepDetail && selectedStepId && steps[selectedStepId]
+      ? React.createElement(StepDetailOverlay, {
+          key: 'stepdetail',
+          step: steps[selectedStepId],
+          onClose: () => setShowStepDetail(false),
+        })
       : null
   );
 }
