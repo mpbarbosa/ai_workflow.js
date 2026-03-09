@@ -11,12 +11,15 @@ import {
   isUiFile,
   categorizeUiFile,
   filterUiFiles,
+  filterFrameworkUiFiles,
   groupUiFilesByType,
   selectKeyFiles,
   buildUxAnalysisPrompt,
   calculateSeverityScore,
   parseUxAnalysisResult,
   formatUxAnalysisReport,
+  FRAMEWORK_EXTENSIONS,
+  EXCLUDED_DIRECTORIES,
 } from '../../src/steps/step_15_ux_analysis.js';
 
 describe('Step 15: UX Analysis', () => {
@@ -63,9 +66,34 @@ describe('Step 15: UX Analysis', () => {
       expect(shouldExcludeFile('src/build/output.js')).toBe(true);
     });
 
+    test('excludes TypeDoc generated docs directory (docs/api)', () => {
+      expect(shouldExcludeFile('docs/api/classes/GeoPosition.html')).toBe(true);
+      expect(shouldExcludeFile('docs/api/assets/style.css')).toBe(true);
+      expect(shouldExcludeFile('docs/api/index.html')).toBe(true);
+    });
+
+    test('excludes alternate doc output directories', () => {
+      expect(shouldExcludeFile('typedoc/index.html')).toBe(true);
+      expect(shouldExcludeFile('api-docs/classes/Foo.html')).toBe(true);
+      expect(shouldExcludeFile('jsdoc/global.html')).toBe(true);
+    });
+
+    test('excludes coverage HTML reports', () => {
+      expect(shouldExcludeFile('coverage/lcov-report/src/index.html')).toBe(true);
+      expect(shouldExcludeFile('src/lcov-report/index.html')).toBe(true);
+    });
+
     test('includes normal files', () => {
       expect(shouldExcludeFile('src/components/App.jsx')).toBe(false);
       expect(shouldExcludeFile('public/index.html')).toBe(false);
+    });
+
+    test('EXCLUDED_DIRECTORIES includes generated-doc entries', () => {
+      expect(EXCLUDED_DIRECTORIES).toContain('docs/api');
+      expect(EXCLUDED_DIRECTORIES).toContain('typedoc');
+      expect(EXCLUDED_DIRECTORIES).toContain('api-docs');
+      expect(EXCLUDED_DIRECTORIES).toContain('jsdoc');
+      expect(EXCLUDED_DIRECTORIES).toContain('lcov-report');
     });
   });
 
@@ -138,6 +166,103 @@ describe('Step 15: UX Analysis', () => {
     });
   });
 
+  // ========================================================================
+  // PURE FUNCTIONS - Framework UI Detection (non-UI project probe)
+  // ========================================================================
+
+  describe('FRAMEWORK_EXTENSIONS', () => {
+    test('contains React/Vue/Svelte extensions', () => {
+      expect(FRAMEWORK_EXTENSIONS).toContain('.jsx');
+      expect(FRAMEWORK_EXTENSIONS).toContain('.tsx');
+      expect(FRAMEWORK_EXTENSIONS).toContain('.vue');
+      expect(FRAMEWORK_EXTENSIONS).toContain('.svelte');
+    });
+
+    test('does NOT contain .html or .css', () => {
+      expect(FRAMEWORK_EXTENSIONS).not.toContain('.html');
+      expect(FRAMEWORK_EXTENSIONS).not.toContain('.css');
+      expect(FRAMEWORK_EXTENSIONS).not.toContain('.scss');
+      expect(FRAMEWORK_EXTENSIONS).not.toContain('.less');
+    });
+  });
+
+  describe('filterFrameworkUiFiles', () => {
+    test('keeps React/Vue/Svelte files', () => {
+      const files = [
+        'src/App.jsx',
+        'src/Button.tsx',
+        'src/Home.vue',
+        'src/Widget.svelte',
+        'public/index.html',
+        'src/styles.css',
+        'src/utils.ts',
+      ];
+      const result = filterFrameworkUiFiles(files);
+      expect(result).toEqual([
+        'src/App.jsx',
+        'src/Button.tsx',
+        'src/Home.vue',
+        'src/Widget.svelte',
+      ]);
+    });
+
+    test('excludes plain .html and .css (the false-positive types)', () => {
+      const files = ['public/index.html', 'assets/styles.css', 'docs/page.scss'];
+      expect(filterFrameworkUiFiles(files)).toEqual([]);
+    });
+
+    test('excludes files in EXCLUDED_DIRECTORIES', () => {
+      const files = ['node_modules/react/index.jsx', 'dist/app.jsx', 'src/App.vue'];
+      const result = filterFrameworkUiFiles(files);
+      expect(result).toEqual(['src/App.vue']);
+    });
+
+    test('returns empty array for no framework files', () => {
+      const files = ['src/utils.ts', 'README.md', 'package.json'];
+      expect(filterFrameworkUiFiles(files)).toEqual([]);
+    });
+
+    // Regression test: the exact scenario from paraty_geocore.js workflow run
+    // that caused step_15 to execute falsely.
+    test('regression: TypeDoc HTML/CSS files do NOT trigger framework detection', () => {
+      const typedocFiles = [
+        'docs/api/classes/GeoPosition.html',
+        'docs/api/classes/ObserverSubject.html',
+        'docs/api/classes/GeocodingState.html',
+        'docs/api/classes/GeoPositionError.html',
+        'docs/api/classes/DualObserverSubject.html',
+        'docs/api/functions/calculateDistance.html',
+        'docs/api/functions/delay.html',
+        'docs/api/hierarchy.html',
+        'docs/api/index.html',
+        'docs/api/interfaces/GeoCoords.html',
+        'docs/api/interfaces/GeoPositionInput.html',
+        'docs/api/interfaces/GeocodingStateSnapshot.html',
+        'docs/api/modules.html',
+        'docs/api/types/AccuracyQuality.html',
+        'docs/api/types/ObserverFunction.html',
+        'docs/api/types/ObserverObject.html',
+        'docs/api/variables/EARTH_RADIUS_METERS.html',
+        'docs/api/assets/highlight.css',
+        'docs/api/assets/style.css',
+      ];
+      // Using filterFrameworkUiFiles (the probe used for non-UI projects) must
+      // return an empty list so that step_15 correctly skips.
+      expect(filterFrameworkUiFiles(typedocFiles)).toEqual([]);
+    });
+
+    test('regression: TypeDoc HTML + actual Vue SPA — only Vue file triggers', () => {
+      const hybridProject = [
+        'docs/api/index.html',
+        'docs/api/assets/style.css',
+        'src/ui/App.vue',
+        'src/ui/components/Map.vue',
+      ];
+      const result = filterFrameworkUiFiles(hybridProject);
+      expect(result).toEqual(['src/ui/App.vue', 'src/ui/components/Map.vue']);
+    });
+  });
+
   describe('groupUiFilesByType', () => {
     test('groups files by UI type', () => {
       const files = [
@@ -207,7 +332,10 @@ describe('Step 15: UX Analysis', () => {
       // Real-world case: 197 html files, 27 css files, maxFiles=10
       const htmlFiles = Array.from({ length: 197 }, (_, i) => `page${i}.html`);
       const cssFiles = Array.from({ length: 27 }, (_, i) => `style${i}.css`);
-      const result = selectKeyFiles([...htmlFiles, ...cssFiles], { html: htmlFiles, css: cssFiles });
+      const result = selectKeyFiles([...htmlFiles, ...cssFiles], {
+        html: htmlFiles,
+        css: cssFiles,
+      });
       const cssInResult = result.filter((f) => f.endsWith('.css'));
       expect(cssInResult.length).toBeGreaterThan(0); // CSS must always be represented
       expect(result.length).toBe(10); // Total capped at maxFiles
