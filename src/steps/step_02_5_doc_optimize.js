@@ -540,13 +540,12 @@ export class DocumentationOptimizer {
 
   /**
    * Helper: Group exact duplicates by content hash
-   * @param {Array<string>} duplicates - Duplicate file paths
+   * @param {Array<Array<string>>} duplicates - Duplicate file groups (already grouped by heuristics)
    * @returns {Array<Array<string>>} - Grouped duplicates
    */
   groupDuplicatesByHash(duplicates) {
-    // This is a simplified version - in reality, we'd need file hashes
-    // For now, just return as single group
-    return duplicates.length > 0 ? [duplicates] : [];
+    // exactDuplicates from heuristics is already Array<Array<string>> (groups of duplicate files)
+    return duplicates.length > 0 ? duplicates : [];
   }
 
   /**
