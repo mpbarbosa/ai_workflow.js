@@ -21,7 +21,13 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { AI_HELPERS_PATH, buildYamlStepPrompt, buildFileContentBlock, MAX_CHARS_PER_FILE, MAX_CHARS_TOTAL_CONTENTS } from '../lib/ai_prompt_builder.js';
+import {
+  AI_HELPERS_PATH,
+  buildYamlStepPrompt,
+  buildFileContentBlock,
+  MAX_CHARS_PER_FILE,
+  MAX_CHARS_TOTAL_CONTENTS,
+} from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -213,6 +219,7 @@ export class Step19TypescriptReview {
         await this.aiCache.init();
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const contextProfile = await this._loadContextProfile(projectRoot);
           const parsedYaml = yaml.load(yamlContent);
 
           const cfg = parsedYaml['typescript_developer_prompt'];
@@ -239,6 +246,11 @@ export class Step19TypescriptReview {
             const role = (cfg.role_prefix || cfg.role || '').trim();
             if (role) parts.push(`**Role**: ${role}`);
             if (cfg.behavioral_guidelines) parts.push(String(cfg.behavioral_guidelines).trim());
+            if (contextProfile) {
+              parts.push(
+                `**Codebase Profile — Verified Ground Truth**:\n\nThe following facts about this codebase have been verified against the live code. Treat them as authoritative. Do NOT flag items documented here as issues.\n\n${contextProfile}`
+              );
+            }
             // Interpolate task_template placeholders
             if (cfg.task_template) {
               const task = cfg.task_template
@@ -267,17 +279,26 @@ export class Step19TypescriptReview {
               file_count: String(tsFiles.length),
             });
             if (builtPrompt) {
-              tsPrompt = fileContentsSection ? `${builtPrompt}\n\n${fileContentsSection}` : builtPrompt;
+              let combined = fileContentsSection
+                ? `${builtPrompt}\n\n${fileContentsSection}`
+                : builtPrompt;
+              if (contextProfile) {
+                combined += `\n\n**Codebase Profile — Verified Ground Truth**:\n\nThe following facts about this codebase have been verified against the live code. Treat them as authoritative. Do NOT flag items documented here as issues.\n\n${contextProfile}`;
+              }
+              tsPrompt = combined;
             }
           }
 
           if (tsPrompt) {
             const fileHashEntries = sampleFiles.map((f, i) => `${f}:${sampleContents[i] ?? ''}`);
-            const aiResult = await this.aiCache.withFileChangeGuard('step_19', fileHashEntries, () =>
-              this.aiHelper.executeRequest(tsPrompt, {
-                persona: 'typescript_reviewer',
-                model: 'claude-haiku-4.5',
-              })
+            const aiResult = await this.aiCache.withFileChangeGuard(
+              'step_19',
+              fileHashEntries,
+              () =>
+                this.aiHelper.executeRequest(tsPrompt, {
+                  persona: 'typescript_reviewer',
+                  model: 'claude-haiku-4.5',
+                })
             );
             aiContent = aiResult?.content ?? '';
           }
@@ -314,6 +335,30 @@ export class Step19TypescriptReview {
       logger.error(`Step 19 failed: ${error.message}`);
       return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Load the project-specific codebase profile from `.ai_workflow/context/typescript_profile.md`.
+   *
+   * Returns the profile content if found, or null if the file does not exist.
+   * The profile is injected into the AI prompt as verified ground truth to prevent
+   * the reviewer from flagging known intentional patterns as false-positive issues.
+   *
+   * @param {string} projectRoot
+   * @returns {Promise<string|null>}
+   */
+  async _loadContextProfile(projectRoot) {
+    const profilePath = path.join(projectRoot, '.ai_workflow', 'context', 'typescript_profile.md');
+    try {
+      const content = await this.fileOps.readFile(profilePath);
+      if (content) {
+        logger.info('Loaded codebase profile from .ai_workflow/context/typescript_profile.md');
+        return content;
+      }
+    } catch {
+      // Profile not present — proceed without it
+    }
+    return null;
   }
 
   /**

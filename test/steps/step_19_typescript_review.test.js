@@ -430,4 +430,62 @@ describe('Step19TypescriptReview', () => {
     // buildYamlStepPrompt returns null for null config, so no AI call is made
     expect(result.aiContent).toBe('');
   });
+
+  it('injects codebase profile into prompt when typescript_profile.md exists', async () => {
+    const profileContent = '## Codebase Profile\n- no Zod usage\n- as any: intentional in tests';
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const x: string = "hi";') // index.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
+      ) // ai_helpers.yaml
+      .mockResolvedValueOnce(profileContent); // typescript_profile.md
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain('Codebase Profile — Verified Ground Truth');
+    expect(capturedPrompt).toContain(profileContent);
+    expect(capturedPrompt).toContain('Do NOT flag items documented here as issues');
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining('typescript_profile.md'));
+  });
+
+  it('succeeds without codebase profile when typescript_profile.md is absent', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const x: string = "hi";') // index.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
+      ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT: no such file')); // typescript_profile.md absent
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    const result = await step.execute('/project/root');
+
+    expect(result.success).toBe(true);
+    expect(result.aiContent).toBe('ok');
+    expect(capturedPrompt).not.toContain('Codebase Profile');
+  });
 });
