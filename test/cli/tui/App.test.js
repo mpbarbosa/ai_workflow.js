@@ -73,6 +73,15 @@ describe('App TUI Component', () => {
     currentStepId: 'step3',
     isComplete: false,
     lastError: null,
+    streamChunks: {
+      liveText: '',
+      stepId: null,
+      stepName: null,
+      persona: null,
+      tokenCount: 0,
+      tokensPerSec: 0,
+      history: [],
+    },
     ...overrides,
   });
 

@@ -7,7 +7,7 @@
  *
  * Usage:
  *   import { startTui } from './tui/index.js';
- *   await startTui(orchestrator, { stage: 'full', version: '1.5.4' });
+ *   await startTui(orchestrator, { stage: 'full', version: '1.6.0' });
  *
  * Architecture: v2.0.0 Pattern
  * - Impure entry point: I/O, process management, Ink render lifecycle
@@ -33,11 +33,12 @@ import { terminalIsSufficient } from './helpers.js';
  * @param {{
  *   stage?: string,
  *   version?: string,
+ *   verbose?: boolean,
  * }} [options={}]
  * @returns {Promise<{ success: boolean, aborted: boolean, error?: string }>}
  */
 export async function startTui(orchestrator, options = {}) {
-  const { stage = 'full', version = '1.5.4' } = options;
+  const { stage = 'full', version = '1.6.0', verbose = false } = options;
 
   // Warn and fall back gracefully if the terminal is too small
   const cols = process.stdout.columns ?? 80;
@@ -52,13 +53,6 @@ export async function startTui(orchestrator, options = {}) {
   }
 
   let inkApp = null;
-  let resolveWorkflow;
-  let rejectWorkflow;
-
-  const workflowPromise = new Promise((res, rej) => {
-    resolveWorkflow = res;
-    rejectWorkflow = rej;
-  });
 
   const handleExit = () => {
     // Unmount Ink gracefully before the process ends
@@ -94,6 +88,7 @@ export async function startTui(orchestrator, options = {}) {
         orchestrator,
         stage,
         version,
+        verbose,
         onAbort: handleAbort,
         onExit: handleExit,
       }),

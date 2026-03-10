@@ -889,7 +889,7 @@ export class Step10CodeQualityAnalyzer {
                   }
                   // Front-end projects: add front_end_developer perspective
                   const fePks = ['react_spa', 'client_spa', 'static_website'];
-                  if (fePks.includes(options?.projectKind ?? '')) {
+                  if (fePks.includes(options?.projectType ?? options?.projectKind ?? '')) {
                     const fePrompt = buildYamlStepPrompt(
                       sharedParsedYaml,
                       'front_end_developer_prompt',

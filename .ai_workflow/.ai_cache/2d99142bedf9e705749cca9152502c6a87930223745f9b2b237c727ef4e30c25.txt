@@ -1,0 +1,1 @@
+{"content":"Bump Type: patch  \nReasoning: The only change is a minor edit to the README.md, updating a description line. No code, test, or configuration files were modified, and there are no breaking changes or new features—just a documentation tweak.  \nConfidence: high","metadata":{"model":"unknown","tokens":0,"finishReason":"complete"},"confidence":0.8,"success":true}

@@ -12,9 +12,9 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 /**
- * @param {{ stage: string, completed: number, total: number, version?: string, projectRoot?: string }} props
+ * @param {{ stage: string, completed: number, total: number, version?: string, projectRoot?: string, projectVersion?: string | null }} props
  */
-export function Header({ stage, completed, total, version = '1.5.4', projectRoot = '' }) {
+export function Header({ stage, completed, total, version = '1.6.0', projectRoot = '', projectVersion = null }) {
   const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
 
   return React.createElement(
@@ -34,7 +34,14 @@ export function Header({ stage, completed, total, version = '1.5.4', projectRoot
       '  ',
       React.createElement(Text, { color: 'cyan' }, `stage: ${stage}`),
       projectRoot
-        ? React.createElement(Text, { color: 'gray', bold: false }, `  ${projectRoot}`)
+        ? React.createElement(
+            Text,
+            { color: 'gray', bold: false },
+            `  ${projectRoot}`,
+            projectVersion
+              ? React.createElement(Text, { color: 'yellow', bold: false }, ` v${projectVersion}`)
+              : null
+          )
         : null
     ),
     React.createElement(Text, { color: 'gray' }, stepLabel)

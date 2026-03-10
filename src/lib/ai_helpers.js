@@ -604,6 +604,9 @@ export class AiHelper {
       maxDelay: config.maxDelay || DEFAULT_REQUEST.MAX_DELAY_MS,
       promptsDir: config.promptsDir || null,
       workingDirectory: config.workingDirectory || null,
+      // When set, every executeRequest call automatically streams via this callback.
+      // The callback receives (delta: string, meta: {persona, model}) per token chunk.
+      streamingCallback: config.streamingCallback ?? null,
     };
 
     this.logger = config.logger || logger;
@@ -611,6 +614,7 @@ export class AiHelper {
       model: this.config.model,
       timeout: this.config.timeout,
       workingDirectory: this.config.workingDirectory,
+      streaming: !!this.config.streamingCallback,
       tools: config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd()),
     });
     this.initialized = false;
@@ -845,12 +849,21 @@ export class AiHelper {
         logger.debug(`Executing AI request (attempt ${attempt + 1}/${this.config.maxRetries})`);
         const callStart = Date.now();
 
-        // Execute request via SDK — stream if onChunk provided and stream option is set
-        const useStreaming = requestOptions.stream === true && typeof onChunk === 'function';
+        // Execute request via SDK — stream if onChunk provided and stream option is set,
+        // OR if the instance was configured with a persistent streamingCallback.
+        // When using the instance-level streamingCallback, enrich each chunk with
+        // persona metadata so upstream listeners (e.g. the TUI) can display context.
+        let effectiveOnChunk = onChunk;
+        if (!effectiveOnChunk && this.config.streamingCallback) {
+          effectiveOnChunk = (delta) => this.config.streamingCallback(delta, { persona });
+        }
+        const useStreaming =
+          (requestOptions.stream === true || !!this.config.streamingCallback) &&
+          typeof effectiveOnChunk === 'function';
         const rawResponse = useStreaming
           ? await this._wrapper.sendStream(
               prompt,
-              onChunk,
+              effectiveOnChunk,
               requestOptions.timeout || this.config.timeout
             )
           : await this._wrapper.send(

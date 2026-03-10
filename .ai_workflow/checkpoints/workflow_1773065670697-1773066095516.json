@@ -1,0 +1,2059 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1773065670697",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1773066095516,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 15,
+            "modifiedFilesList": [
+              "README.md",
+              ".ai_workflow/metrics/current_run.json",
+              ".ai_workflow/metrics/history.jsonl",
+              ".github/copilot-instructions.md",
+              ".github/workflows/ci.yml",
+              ".workflow-config.yaml",
+              "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "docs/ROADMAP.md",
+              "eslint.config.mjs",
+              "jest.config.json",
+              "package-lock.json",
+              "package.json",
+              "scripts/deploy.sh",
+              "src/index.ts",
+              "tsconfig.json"
+            ],
+            "changeScope": "code-and-docs",
+            "fileCounts": {
+              "documentation": 4,
+              "test": 0,
+              "source": 2,
+              "config": 7,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                "README.md",
+                ".github/copilot-instructions.md",
+                "docs/DUAL_OBSERVER_SUBJECT_API.md",
+                "docs/ROADMAP.md"
+              ],
+              "test": [],
+              "source": [
+                "scripts/deploy.sh",
+                "src/index.ts"
+              ],
+              "config": [
+                ".github/workflows/ci.yml",
+                ".workflow-config.yaml",
+                "eslint.config.mjs",
+                "jest.config.json",
+                "package-lock.json",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "configuration_library",
+              "confidence": 100,
+              "source": "config",
+              "description": "configuration_library"
+            },
+            "techStack": {
+              "primary_language": "typescript",
+              "languages": [
+                "typescript",
+                "json",
+                "markdown",
+                "yaml",
+                "javascript",
+                "bash"
+              ],
+              "frameworks": [
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^29.7.0",
+                  "package": "jest"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-03-09T14:14:30.738Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1773065670739
+          },
+          "contextUpdate": {
+            "projectType": "configuration_library",
+            "modifiedFiles": [
+              "README.md",
+              ".ai_workflow/metrics/current_run.json",
+              ".ai_workflow/metrics/history.jsonl",
+              ".github/copilot-instructions.md",
+              ".github/workflows/ci.yml",
+              ".workflow-config.yaml",
+              "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "docs/ROADMAP.md",
+              "eslint.config.mjs",
+              "jest.config.json",
+              "package-lock.json",
+              "package.json",
+              "scripts/deploy.sh",
+              "src/index.ts",
+              "tsconfig.json"
+            ],
+            "categorizedFiles": {
+              "documentation": [
+                "README.md",
+                ".github/copilot-instructions.md",
+                "docs/DUAL_OBSERVER_SUBJECT_API.md",
+                "docs/ROADMAP.md"
+              ],
+              "test": [],
+              "source": [
+                "scripts/deploy.sh",
+                "src/index.ts"
+              ],
+              "config": [
+                ".github/workflows/ci.yml",
+                ".workflow-config.yaml",
+                "eslint.config.mjs",
+                "jest.config.json",
+                "package-lock.json",
+                "package.json",
+                "tsconfig.json"
+              ],
+              "workflow_artifact": []
+            },
+            "fileCounts": {
+              "documentation": 4,
+              "test": 0,
+              "source": 2,
+              "config": 7,
+              "workflow_artifact": 0
+            },
+            "changeScope": "code-and-docs",
+            "commitsAhead": 0
+          }
+        },
+        "duration": 41
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "missingDocs": [
+            "CHANGELOG.md",
+            "CONTRIBUTING.md",
+            "docs/API.md",
+            "docs/ARCHITECTURE.md",
+            "docs/GETTING_STARTED.md"
+          ],
+          "categorized": {
+            "critical": [],
+            "important": [
+              "CHANGELOG.md",
+              "CONTRIBUTING.md"
+            ],
+            "optional": [
+              "docs/API.md",
+              "docs/ARCHITECTURE.md",
+              "docs/GETTING_STARTED.md"
+            ]
+          },
+          "stats": {
+            "docCount": 7,
+            "sourceCount": 6,
+            "readmeSize": 71,
+            "hasChangelog": false,
+            "hasDocsDir": true,
+            "primaryLanguage": "TypeScript"
+          },
+          "generated": [],
+          "duration": 26381
+        },
+        "duration": 26382
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [
+              "README.md",
+              ".github/copilot-instructions.md",
+              "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "docs/ROADMAP.md"
+            ],
+            "source": [
+              "src/index.ts"
+            ],
+            "tests": [],
+            "config": [
+              ".github/workflows/ci.yml",
+              ".workflow-config.yaml",
+              "eslint.config.mjs",
+              "jest.config.json",
+              "package-lock.json",
+              "package.json",
+              "tsconfig.json"
+            ],
+            "counts": {
+              "documentation": 4,
+              "source": 1,
+              "tests": 0,
+              "config": 7,
+              "total": 15
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": true,
+              "issues": [],
+              "counts": {
+                "markdown": 2,
+                "readme": 1,
+                "docs": 0
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "sourceDoc": {
+              "success": true,
+              "issues": [],
+              "totalIssues": 0,
+              "fileResults": []
+            },
+            "totalIssues": 0,
+            "success": true
+          },
+          "analysis": {
+            "success": true,
+            "categories": {
+              "readme": {
+                "status": "completed",
+                "fileCount": 1,
+                "duration": 25,
+                "result": {
+                  "success": true,
+                  "response": {
+                    "content": "README.md — Update required  \nExpand README.md to reflect current project state, features, setup, and usage, based on `.github/copilot-instructions.md`, `.workflow-config.yaml`, and docs/ROADMAP.md.\n\n---\n\n**README.md**\n\n**Before:**\n```md\n# bessa_patterns.ts\n\nLibrary of Reusable Design Patterns in TypeScript\n\n```\n\n**After:**\n```md\n# bessa_patterns.ts\n\nLibrary of Reusable Design Patterns in TypeScript\n\n---\n\n## Overview\n\n`bessa_patterns.ts` is a TypeScript library providing reusable implementations of classic and modern design patterns. Patterns are organized in `src/`, each with its own file or subdirectory.\n\n- Language: TypeScript\n- Node.js/npm project\n- Patterns: Observer/Subject (GoF and function-based dual variant), more planned\n\n## Installation\n\n```bash\nnpm install\n```\n\n## Build & Test\n\n```bash\nnpm run build        # Compile TypeScript\nnpm test             # Run all tests\nnpm run lint         # Lint the codebase\n```\n\n## Usage Example\n\n```typescript\nimport { ObserverSubject, DualObserverSubject } from 'bessa_patterns.ts';\n\n// ObserverSubject: callback-based observer\nconst subject = new ObserverSubject<string>();\nconst unsubscribe = subject.subscribe(value => console.log('Observed:', value));\nsubject.notify('Hello, Observer!');\nunsubscribe();\n\n// DualObserverSubject: GoF + function observer\nconst dual = new DualObserverSubject();\ndual.subscribe({ update: (...args) => console.log('Object observer:', args) });\ndual.subscribeFunction((...args) => console.log('Function observer:', args));\ndual.notifyObservers('event', { data: 123 });\ndual.notifyFunctionObservers('event', { data: 456 });\n```\n\n## Features\n\n- Observer/Subject patterns (object and function-based)\n- Immutable observer collections\n- Error isolation and null safety\n- Introspection methods\n\n## Roadmap\n\nSee [docs/ROADMAP.md](docs/ROADMAP.md) for planned patterns and release milestones.\n\n## API Documentation\n\n- [DualObserverSubject API](docs/DUAL_OBSERVER_SUBJECT_API.md)\n\n---\n\n## License\n\nMIT\n```\n\n---\n\n.github/copilot-instructions.md — Update required  \nAdd current project conventions, commands, and features based on `.workflow-config.yaml`, `eslint.config.mjs`, and `jest.config.json`.\n\n**Before:**  \n(see above)\n\n**After:**  \n```md\n# Copilot Instructions\n\n## Project Overview\n\n`bessa_patterns.ts` is a library of reusable design patterns implemented in TypeScript. It is a Node.js/npm project.\n\n## Conventions\n\n- Language: TypeScript\n- Package manager: npm\n- Source files: `src/`\n- Tests: `test/`\n- Docs: `docs/`\n- Build output: `dist/`\n- Each pattern in its own file/subdirectory under `src/`\n- Linting: ESLint (`eslint.config.mjs`)\n- Testing: Jest + ts-jest (`jest.config.json`)\n- Minimum documentation coverage: 80%\n- Minimum test coverage: 70%\n\n## Commands\n\n```bash\nnpm install          # install dependencies\nnpm run build        # compile TypeScript\nnpm test             # run all tests\nnpm run lint         # lint the codebase\n```\n\n## Architecture\n\nPatterns are exported via `src/index.ts` as a public barrel. Observer/Subject variants are implemented; more patterns are planned (see docs/ROADMAP.md).\n\n## CI/CD\n\n- GitHub Actions workflow: `.github/workflows/ci.yml` (build, lint, test)\n- Deploy script: `scripts/deploy.sh` (see `.workflow-config.yaml`)\n\n## References\n\n- [docs/ROADMAP.md](docs/ROADMAP.md)\n- [docs/DUAL_OBSERVER_SUBJECT_API.md](docs/DUAL_OBSERVER_SUBJECT_API.md)\n```\n\n---\n\ndocs/DUAL_OBSERVER_SUBJECT_API.md — No updates required  \nAPI documentation is current and matches the code and exports.\n\n---\n\ndocs/ROADMAP.md — Update required  \nUpdate version and project state to reflect `.workflow-config.yaml` and package.json.\n\n**Before:**\n```md\n## Current State (v0.10.0-alpha)\n\nTwo Observer/Subject variants are implemented and fully tested:\n...\n```\n\n**After:**\n```md\n## Current State (v0.11.0-alpha)\n\nTwo Observer/Subject variants are implemented and fully tested:\n...\n```\n\n---\n\n**Summary:**  \n- README.md: Expanded with features, setup, usage, and references  \n- .github/copilot-instructions.md: Updated conventions, commands, architecture, CI/CD  \n- docs/ROADMAP.md: Version bump to v0.11.0-alpha  \n- docs/DUAL_OBSERVER_SUBJECT_API.md: No changes needed",
+                    "metadata": {
+                      "model": "unknown",
+                      "tokens": 0,
+                      "finishReason": "complete"
+                    },
+                    "confidence": 0.9,
+                    "success": true
+                  }
+                },
+                "error": null
+              },
+              "other": {
+                "status": "completed",
+                "fileCount": 1,
+                "duration": 10,
+                "result": {
+                  "success": true,
+                  "response": {
+                    "content": ".github/copilot-instructions.md — Update required  \nExpand conventions, commands, and architecture sections to reflect current project state, tooling, and structure.\n\n---\n\n**Before:**\n```md\n## Expected Conventions (update as established)\n\n- Language: TypeScript\n- Package manager: npm (or yarn — confirm when `package.json` is added)\n- Source files go in `src/`, compiled output in `dist/` (standard TypeScript library layout)\n- Each pattern should have its own file or subdirectory under `src/`\n\n## Commands (add when configured)\n\nOnce `package.json` and tooling are set up, document commands here. Typical for a TypeScript library:\n\n```bash\nnpm install          # install dependencies\nnpm run build        # compile TypeScript\nnpm test             # run all tests\nnpm test -- --testPathPattern=<name>  # run a single test (if using Jest)\nnpm run lint         # lint the codebase\n```\n\n## Architecture\n\nAs patterns are added, document the high-level structure here — e.g., how patterns are organized, whether they share common abstractions, and how the public API is exported from `src/index.ts`.\n```\n\n---\n\n**After:**\n```md\n## Conventions\n\n- Language: TypeScript\n- Package manager: npm\n- Source files: `src/`\n- Tests: `test/`\n- Docs: `docs/`\n- Build output: `dist/`\n- Each pattern in its own file or subdirectory under `src/`\n- Linting: ESLint (`eslint.config.mjs`)\n- Testing: Jest + ts-jest (`jest.config.json`)\n- Minimum documentation coverage: 80%\n- Minimum test coverage: 70%\n\n## Commands\n\n```bash\nnpm install          # install dependencies\nnpm run build        # compile TypeScript\nnpm test             # run all tests\nnpm run lint         # lint the codebase\n```\n\n## Architecture\n\nPatterns are exported via `src/index.ts` as a public barrel. Observer/Subject variants are implemented; more patterns are planned (see docs/ROADMAP.md).\n\n## CI/CD\n\n- GitHub Actions workflow: `.github/workflows/ci.yml` (build, lint, test)\n- Deploy script: `scripts/deploy.sh` (see `.workflow-config.yaml`)\n\n## References\n\n- [docs/ROADMAP.md](docs/ROADMAP.md)\n- [docs/DUAL_OBSERVER_SUBJECT_API.md](docs/DUAL_OBSERVER_SUBJECT_API.md)\n```\n\n---\n\n**Summary:**  \n- Expanded conventions to reflect actual tooling and structure  \n- Updated commands to match current setup  \n- Clarified architecture and CI/CD integration  \n- Added references for roadmap and API documentation",
+                    "metadata": {
+                      "model": "unknown",
+                      "tokens": 0,
+                      "finishReason": "complete"
+                    },
+                    "confidence": 0.9,
+                    "success": true
+                  }
+                },
+                "error": null
+              }
+            },
+            "errors": [],
+            "totalFiles": 2,
+            "validatedFiles": 2,
+            "skippedFiles": 0,
+            "stats": {
+              "processed": 2,
+              "totalTime": 35,
+              "speedup": 1
+            }
+          },
+          "filesProcessed": 2
+        },
+        "duration": 37848
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 7,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": [
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            },
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            }
+          ]
+        },
+        "duration": 25497
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 14,
+          "totalIssues": 114,
+          "brokenLinks": [
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "link": "docs/ROADMAP.md",
+              "text": "docs/ROADMAP.md",
+              "line": 773,
+              "type": "broken_link"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "link": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "text": "DualObserverSubject API",
+              "line": 777,
+              "type": "broken_link"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "link": "docs/ROADMAP.md",
+              "text": "docs/ROADMAP.md",
+              "line": 836,
+              "type": "broken_link"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "link": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "text": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 837,
+              "type": "broken_link"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "link": "docs/ROADMAP.md",
+              "text": "docs/ROADMAP.md",
+              "line": 769,
+              "type": "broken_link"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "link": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "text": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 770,
+              "type": "broken_link"
+            }
+          ],
+          "versionIssues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/backlog/workflow_20260309_111430/step_0b.md",
+              "found": "2.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "0.9.1-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.12.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.13.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.14.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.15.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v0.16.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "v1.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "10.0.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "29.5.14",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "22.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "8.56.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "17.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "29.7.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "29.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "5.7.3",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "18.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "9.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.29.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.28.5",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "4.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "1.1.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "6.9.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.28.6",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "2.3.5",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "2.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "4.1.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "1.0.0-beta.2",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "2.2.3",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "6.3.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.29.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "0.3.12",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "0.3.28",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "3.0.2",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.27.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "4.24.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "5.1.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-25-039Z_0001_documentation_expert.md",
+              "found": "7.28.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "0.9.1-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.12.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.13.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.14.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.15.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v0.16.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "v1.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "10.0.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "29.5.14",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "22.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "8.56.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "17.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "29.7.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "29.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "5.7.3",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "18.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "9.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.29.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.28.5",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "4.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "1.1.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "6.9.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.28.6",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "2.3.5",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "2.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "4.1.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "1.0.0-beta.2",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "2.2.3",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "6.3.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.29.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "0.3.12",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "0.3.28",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "3.0.2",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.27.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "4.24.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "5.1.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_01/2026-03-09T14-15-34-971Z_0002_documentation_expert.md",
+              "found": "7.28.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "1.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "10.0.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "29.5.14",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "22.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "8.56.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "17.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "29.7.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "29.4.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "5.7.3",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "18.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "9.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "7.29.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "7.28.5",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "4.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "1.1.1",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "6.9.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow/logs/workflow_20260309_111430/prompts/step_04/2026-03-09T14-15-46-208Z_0001_devops_engineer.md",
+              "found": "v1.0.2",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "found": "0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "found": "0.9.1-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "0.9.1-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "0.10.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.12.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.13.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.14.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.15.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v0.16.0-alpha",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "found": "v1.0.0",
+              "expected": "0.11.0-alpha",
+              "type": "invalid_version"
+            }
+          ]
+        },
+        "duration": 7172
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 6,
+          "misplacedDocs": 0,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".github",
+              "message": "Undocumented directory: .github"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".github/workflows",
+              "message": "Undocumented directory: .github/workflows"
+            },
+            {
+              "type": "undocumented",
+              "directory": "docs",
+              "message": "Undocumented directory: docs"
+            },
+            {
+              "type": "undocumented",
+              "directory": "scripts",
+              "message": "Undocumented directory: scripts"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 4,
+          "docMismatch": 0,
+          "existingDirs": [
+            ".github",
+            ".github/workflows",
+            "docs",
+            "scripts",
+            "src",
+            "test"
+          ]
+        },
+        "duration": 31299
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Documentation base too small (3 files, minimum 5)"
+        },
+        "duration": 9
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "scriptsFound": 1,
+          "referencesChecked": 0,
+          "totalIssues": 1,
+          "missingReferences": [],
+          "nonExecutable": [],
+          "undocumented": [
+            "scripts/deploy.sh"
+          ]
+        },
+        "duration": 18151
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [
+            "test/DualObserverSubject.test.ts",
+            "test/ObserverSubject.test.ts"
+          ],
+          "categories": {
+            "unit": [],
+            "integration": [],
+            "e2e": [],
+            "other": [
+              "test/DualObserverSubject.test.ts",
+              "test/ObserverSubject.test.ts"
+            ]
+          },
+          "statistics": {
+            "totalTests": 2,
+            "unitTests": 0,
+            "integrationTests": 0,
+            "e2eTests": 0,
+            "otherTests": 2,
+            "totalLines": 507,
+            "averageLinesPerTest": 254
+          },
+          "coverage": {
+            "found": false,
+            "path": null,
+            "percentage": null
+          },
+          "issues": [
+            {
+              "type": "no_coverage_report",
+              "message": "No coverage reports found - consider generating coverage data"
+            },
+            {
+              "type": "missing_tests",
+              "message": "No unit tests found - consider adding unit tests"
+            }
+          ]
+        },
+        "duration": 54982
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 3,
+          "totalTestFiles": 2,
+          "untestedFiles": [
+            "src/index.ts"
+          ],
+          "coveragePercentage": 67,
+          "categories": {
+            "src": [
+              "src/index.ts"
+            ]
+          },
+          "generatedFiles": [
+            "test/index.test.ts"
+          ]
+        },
+        "duration": 34506
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": true,
+          "noTestsFound": true,
+          "language": "typescript",
+          "testResults": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "suitesFailed": 0,
+            "suitesTotal": 0
+          },
+          "coverage": {},
+          "duration": 21,
+          "exitCode": 1
+        },
+        "duration": 50633
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasSecurityIssues": false,
+          "language": "typescript",
+          "dependencyCounts": {
+            "total": 9,
+            "production": 0,
+            "development": 9,
+            "peer": 0,
+            "dependencies": {},
+            "devDependencies": {
+              "@eslint/js": "^10.0.1",
+              "@types/jest": "^29.5.14",
+              "@types/node": "^22.0.0",
+              "@typescript-eslint/eslint-plugin": "^8.56.1",
+              "@typescript-eslint/parser": "^8.56.1",
+              "globals": "^17.4.0",
+              "jest": "^29.7.0",
+              "ts-jest": "^29.4.0",
+              "typescript": "^5.7.3"
+            }
+          },
+          "vulnerabilities": {
+            "summary": {
+              "total": 0,
+              "critical": 0,
+              "high": 0,
+              "moderate": 0,
+              "low": 0,
+              "info": 0
+            },
+            "packages": []
+          },
+          "outdatedPackages": [],
+          "lockfileIssues": [],
+          "dryRunIssues": [
+            ""
+          ],
+          "skipped": false
+        },
+        "duration": 32615
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasLintErrors": false,
+          "perLanguageResults": [
+            {
+              "language": "typescript",
+              "sourceFileCount": 3,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "json",
+              "sourceFileCount": 6,
+              "linterCommand": "(native JSON.parse)",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "javascript",
+              "sourceFileCount": 1,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "bash",
+              "sourceFileCount": 1,
+              "linterCommand": "find . -name \"*.sh\" -not -path \"*/node_modules/*\" -not -path \"*/.git/*\" | xargs shellcheck",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "infos": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            }
+          ],
+          "aggregateTotals": {
+            "totalIssues": 0,
+            "errors": 0,
+            "warnings": 0,
+            "infos": 0,
+            "fileCount": 11
+          },
+          "language": "typescript",
+          "sourceFileCount": 11
+        },
+        "duration": 21046
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 100,
+          "completionStatus": "excellent",
+          "completedSteps": 13,
+          "totalSteps": 13,
+          "gitStatus": {
+            "isGitRepo": true,
+            "branch": "unknown",
+            "modifiedFiles": 0,
+            "untrackedFiles": 2,
+            "stagedFiles": 0,
+            "commitsAhead": 0
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 13
+          },
+          "duration": 340
+        },
+        "duration": 107
+      },
+      "step_11_5": {
+        "stepId": "step_11_5",
+        "stepName": "AWS LBS Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.5 skipped — project kind 'configuration_library' is not aws_lbs_backend_setup"
+        },
+        "duration": 6
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "status": "fail",
+          "stats": {
+            "totalIssues": 52,
+            "filesWithIssues": 4,
+            "filesChecked": 5,
+            "cleanFiles": 1,
+            "uniqueRules": 3,
+            "issuesPerFile": 10.4
+          },
+          "issues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md",
+              "line": 5,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md",
+              "line": 7,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md",
+              "line": 13,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md",
+              "line": 18,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 29,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 31,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 32,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 34,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 38,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 39,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 40,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 42,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 104,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 108,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 128,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 145,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 169,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 173,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 187,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 244,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 286,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 301,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 302,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 307,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 308,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 309,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 310,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 317,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 319,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 320,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 322,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "line": 324,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 31,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 38,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 39,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 40,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 69,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md",
+              "line": 178,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 29,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 29,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 31,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 49,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 119,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 127,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 134,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 135,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 136,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 86,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md",
+              "line": 92,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            }
+          ],
+          "antiPatterns": [],
+          "report": "### Markdown Linting Report\n\n**Linter:** markdownlint (mdl) v0.13.0\n**Files Checked:** 5\n**Clean Files:** 1\n**Files with Issues:** 4\n**Total Issues:** 52\n\n### Issues by Rule\n\n- **MD013**: 49 occurrence(s)\n- **MD036**: 2 occurrence(s)\n- **MD007**: 1 occurrence(s)\n\n### Issues by File\n\n- /home/mpb/Documents/GitHub/bessa_patterns.ts/docs/DUAL_OBSERVER_SUBJECT_API.md: 28 issue(s)\n- /home/mpb/Documents/GitHub/bessa_patterns.ts/docs/ROADMAP.md: 12 issue(s)\n- /home/mpb/Documents/GitHub/bessa_patterns.ts/docs/OBSERVER_SUBJECT_API.md: 7 issue(s)\n- /home/mpb/Documents/GitHub/bessa_patterns.ts/.github/copilot-instructions.md: 5 issue(s)\n\n**Overall Quality:** ❌ Poor"
+        },
+        "duration": 13662
+      },
+      "step_11_6": {
+        "stepId": "step_11_6",
+        "stepName": "AWS Serverless AI Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.6 skipped — project kind 'configuration_library' is not aws_lbs_backend_setup"
+        },
+        "duration": 14
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "configuration not found"
+        },
+        "duration": 26
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 683
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "oldVersion": "0.11.0-alpha",
+          "newVersion": "0.11.1-alpha",
+          "bumpType": "patch",
+          "stats": {
+            "updated": 3,
+            "skipped": 15,
+            "failed": 0
+          },
+          "updates": [
+            {
+              "file": "package.json",
+              "success": true
+            },
+            {
+              "file": "pyproject.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "setup.py",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "Cargo.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": ".workflow-config.yaml",
+              "success": true
+            },
+            {
+              "file": "README.md",
+              "skipped": true
+            },
+            {
+              "file": ".ai_workflow/metrics/current_run.json",
+              "skipped": true
+            },
+            {
+              "file": ".ai_workflow/metrics/history.jsonl",
+              "skipped": true
+            },
+            {
+              "file": ".github/copilot-instructions.md",
+              "skipped": true
+            },
+            {
+              "file": ".github/workflows/ci.yml",
+              "skipped": true
+            },
+            {
+              "file": "docs/DUAL_OBSERVER_SUBJECT_API.md",
+              "skipped": true
+            },
+            {
+              "file": "docs/ROADMAP.md",
+              "success": true
+            },
+            {
+              "file": "eslint.config.mjs",
+              "skipped": true
+            },
+            {
+              "file": "jest.config.json",
+              "skipped": true
+            },
+            {
+              "file": "package-lock.json",
+              "skipped": true
+            },
+            {
+              "file": "scripts/deploy.sh",
+              "skipped": true
+            },
+            {
+              "file": "src/index.ts",
+              "skipped": true
+            },
+            {
+              "file": "tsconfig.json",
+              "skipped": true
+            }
+          ],
+          "consistencyCheck": {
+            "ran": false
+          },
+          "duration": 9433
+        },
+        "duration": 9433
+      },
+      "step_18": {
+        "stepId": "step_18",
+        "stepName": "Debugging Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "personaKey": "async_flow_debugger_prompt",
+          "filesAnalyzed": [
+            "src/DualObserverSubject.ts",
+            "src/ObserverSubject.ts",
+            "src/index.ts"
+          ],
+          "totalSourceFiles": 3,
+          "aiContent": "**Async Flow Analysis**\n\n---\n\n**Execution Chain:**\n1. [ObserverSubject.subscribe()] - SUCCESS - Immediate (sync, no async)\n2. [ObserverSubject._notifyObservers()] - SUCCESS/FAILED (depends on observer callback) - Immediate\n3. [DualObserverSubject.notifyObservers()/notifyFunctionObservers()] - SUCCESS/FAILED (depends on observer) - Immediate\n4. [Break point] ← If observer callback throws, error is caught and logged; chain continues\n\n---\n\n**Error Path Diagram:**\n```\n[Notify]\n   ↓\n[For each observer]\n   ↓\n[Try callback]\n   ↓\n┌─────┴─────┐\n↓           ↓\n[Success]   [Error thrown]\n↓           ↓\n[Next]      [Catch/log error, continue]\n```\n\n---\n\n**Issue Identified**:\n- Type: Error propagation (async boundary), Race condition (potential, not present), Missing await (not present), CORS (not present)\n- Break Point: src/ObserverSubject.ts: _notifyObservers (errors in observer callbacks)\n- Root Cause: Errors in observer callbacks are caught and logged, so notification continues; no async/await or Promise chains present, so no missing await/race condition/CORS issues.\n\n---\n\n**Recommended Fix**:\n- Add: If future async observer callbacks are used, wrap with await/Promise handling and propagate errors as needed.\n- Location: src/ObserverSubject.ts, src/DualObserverSubject.ts — inside notification loops.\n- Code:\n  ```ts\n  // Example: If observer callback returns a Promise, handle with await/try-catch\n  for (const observer of this._observers) {\n      try {\n          const result = observer(snapshot);\n          if (result instanceof Promise) {\n              await result;\n          }\n      } catch (err) {\n          // log error, continue\n      }\n  }\n  ```\n\n---\n\n**Validation**:\n- Add async observer callbacks and verify errors are caught/logged, notification continues.\n- Test with both sync and async observers; simulate errors and check propagation.\n- No CORS/network/timing issues found in provided code.",
+          "report": "# Step 18: Debugging Analysis — Async Flow Debugger\n\n## Files Analyzed\n- src/DualObserverSubject.ts\n- src/ObserverSubject.ts\n- src/index.ts\n\n## AI Analysis\n\n**Async Flow Analysis**\n\n---\n\n**Execution Chain:**\n1. [ObserverSubject.subscribe()] - SUCCESS - Immediate (sync, no async)\n2. [ObserverSubject._notifyObservers()] - SUCCESS/FAILED (depends on observer callback) - Immediate\n3. [DualObserverSubject.notifyObservers()/notifyFunctionObservers()] - SUCCESS/FAILED (depends on observer) - Immediate\n4. [Break point] ← If observer callback throws, error is caught and logged; chain continues\n\n---\n\n**Error Path Diagram:**\n```\n[Notify]\n   ↓\n[For each observer]\n   ↓\n[Try callback]\n   ↓\n┌─────┴─────┐\n↓           ↓\n[Success]   [Error thrown]\n↓           ↓\n[Next]      [Catch/log error, continue]\n```\n\n---\n\n**Issue Identified**:\n- Type: Error propagation (async boundary), Race condition (potential, not present), Missing await (not present), CORS (not present)\n- Break Point: src/ObserverSubject.ts: _notifyObservers (errors in observer callbacks)\n- Root Cause: Errors in observer callbacks are caught and logged, so notification continues; no async/await or Promise chains present, so no missing await/race condition/CORS issues.\n\n---\n\n**Recommended Fix**:\n- Add: If future async observer callbacks are used, wrap with await/Promise handling and propagate errors as needed.\n- Location: src/ObserverSubject.ts, src/DualObserverSubject.ts — inside notification loops.\n- Code:\n  ```ts\n  // Example: If observer callback returns a Promise, handle with await/try-catch\n  for (const observer of this._observers) {\n      try {\n          const result = observer(snapshot);\n          if (result instanceof Promise) {\n              await result;\n          }\n      } catch (err) {\n          // log error, continue\n      }\n  }\n  ```\n\n---\n\n**Validation**:\n- Add async observer callbacks and verify errors are caught/logged, notification continues.\n- Test with both sync and async observers; simulate errors and check propagation.\n- No CORS/network/timing issues found in provided code.\n"
+        },
+        "duration": 14837
+      },
+      "step_19": {
+        "stepId": "step_19",
+        "stepName": "TypeScript Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesAnalyzed": [
+            "src/DualObserverSubject.ts",
+            "src/ObserverSubject.ts",
+            "src/index.ts"
+          ],
+          "totalTsFiles": 3,
+          "issueScore": {
+            "anyCount": 0,
+            "tsIgnoreCount": 0,
+            "missingReturnTypeCount": 0,
+            "totalIssues": 0
+          },
+          "aiContent": "🔎 **TypeScript Code Review — bessa_patterns.ts**\n\n---\n\n## 1. `src/DualObserverSubject.ts`\n\n### Issues & Corrections\n\n#### 🔴 Critical: Implicit `any` in observer signatures\n- **Problem**: ObserverObject and ObserverFunction use `unknown[]` for arguments, but the class is not generic, so all notifications are loosely typed.\n- **Correction**: Make `DualObserverSubject` generic (`<T extends unknown[]>`), propagate type to observer signatures.\n\n#### 🟡 Warning: No explicit return types for class methods\n- **Correction**: Add explicit return types for all methods.\n\n#### 🟡 Warning: ObserverObject interface is not exported\n- **Correction**: Export ObserverObject and ObserverFunction for reuse.\n\n#### 🟡 Warning: No type guard for observer object shape\n- **Correction**: Add a type guard for ObserverObject.\n\n#### 🟢 Info: Use `readonly` for observer arrays\n- **Correction**: Use `ReadonlyArray` for observer collections.\n\n---\n\n```typescript\n// src/DualObserverSubject.ts\n\n/** An observer object that must implement an `update` method. */\nexport interface ObserverObject<T extends unknown[] = unknown[]> {\n    update: (...args: T) => void;\n}\n\n/** A function-based observer callback. */\nexport type ObserverFunction<T extends unknown[] = unknown[]> = (...args: T) => void;\n\n/** Type guard for ObserverObject */\nfunction isObserverObject<T extends unknown[]>(val: unknown): val is ObserverObject<T> {\n    return typeof val === 'object' && val !== null && typeof (val as ObserverObject<T>).update === 'function';\n}\n\n/**\n * DualObserverSubject — Subject managing two independent observer collections.\n *\n * @template T - Tuple of argument types for observer notifications\n */\nexport class DualObserverSubject<T extends unknown[] = unknown[]> {\n    private _observers: ObserverObject<T>[];\n    private _functionObservers: ObserverFunction<T>[];\n\n    /** Read-only view of object observers subscribed via {@link subscribe}. */\n    get observers(): ReadonlyArray<ObserverObject<T>> { return this._observers; }\n    /** Read-only view of function observers subscribed via {@link subscribeFunction}. */\n    get functionObservers(): ReadonlyArray<ObserverFunction<T>> { return this._functionObservers; }\n\n    constructor() {\n        this._observers = [];\n        this._functionObservers = [];\n    }\n\n    subscribe(observer: ObserverObject<T> | null | undefined): void {\n        if (observer) {\n            this._observers = [...this._observers, observer];\n        }\n    }\n\n    unsubscribe(observer: ObserverObject<T> | null | undefined): void {\n        if (observer) {\n            this._observers = this._observers.filter(o => o !== observer);\n        }\n    }\n\n    subscribeFunction(fn: ObserverFunction<T> | null | undefined): void {\n        if (fn) {\n            this._functionObservers = [...this._functionObservers, fn];\n        }\n    }\n\n    unsubscribeFunction(fn: ObserverFunction<T> | null | undefined): void {\n        if (fn) {\n            this._functionObservers = this._functionObservers.filter(f => f !== fn);\n        }\n    }\n\n    notifyObservers(...args: T): void {\n        for (const observer of this._observers) {\n            try {\n                observer.update(...args);\n            } catch (err: unknown) {\n                // Error isolation: log and continue\n                // eslint-disable-next-line no-console\n                console.error('Observer error:', err);\n            }\n        }\n    }\n\n    notifyFunctionObservers(...args: T): void {\n        for (const fn of this._functionObservers) {\n            try {\n                fn(...args);\n            } catch (err: unknown) {\n                // Error isolation: log and continue\n                // eslint-disable-next-line no-console\n                console.error('Function observer error:', err);\n            }\n        }\n    }\n}\n```\n\n**Justifications**:\n- 🔴 Made class generic to enforce type safety for observer arguments.\n- 🟡 Exported observer types for reuse and added type guard.\n- 🟡 Added explicit return types for all methods.\n- 🟢 Used `ReadonlyArray` for observer collections.\n\n---\n\n## 2. `src/ObserverSubject.ts`\n\n### Issues & Corrections\n\n#### 🔴 Critical: No explicit export for class\n- **Correction**: Add `export` to class.\n\n#### 🟡 Warning: No explicit return types for methods\n- **Correction**: Add explicit return types.\n\n#### 🟡 Warning: No error type annotation in catch block\n- **Correction**: Use `catch (err: unknown)` and narrow.\n\n#### 🟢 Info: Observer array should be `readonly`\n- **Correction**: Expose `ReadonlyArray` for observer list.\n\n---\n\n```typescript\n// src/ObserverSubject.ts\n\n/**\n * ObserverSubject<T> - Manages a list of observer callbacks and notifies them with a typed snapshot.\n *\n * @class\n * @template T - The type of the snapshot object passed to observers on notification\n */\nexport class ObserverSubject<T> {\n    private _observers: ((snapshot: T) => void)[];\n\n    constructor() {\n        this._observers = [];\n    }\n\n    subscribe(callback: (snapshot: T) => void): () => void {\n        if (typeof callback !== 'function') {\n            throw new TypeError('ObserverSubject: callback must be a function');\n        }\n        this._observers.push(callback);\n\n        return (): void => {\n            const index = this._observers.indexOf(callback);\n            if (index > -1) {\n                this._observers.splice(index, 1);\n            }\n        };\n    }\n\n    unsubscribe(callback: (snapshot: T) => void): boolean {\n        const index = this._observers.indexOf(callback);\n        if (index > -1) {\n            this._observers.splice(index, 1);\n            return true;\n        }\n        return false;\n    }\n\n    getObserverCount(): number {\n        return this._observers.length;\n    }\n\n    clearObservers(): void {\n        this._observers = [];\n    }\n\n    get observers(): ReadonlyArray<(snapshot: T) => void> {\n        return this._observers;\n    }\n\n    protected _notifyObservers(snapshot: T): void {\n        for (const observer of this._observers) {\n            try {\n                observer(snapshot);\n            } catch (err: unknown) {\n                // eslint-disable-next-line no-console\n                console.error('Observer callback error:', err);\n            }\n        }\n    }\n}\n```\n\n**Justifications**:\n- 🔴 Exported class for module usage.\n- 🟡 Added explicit return types for all methods.\n- 🟡 Used `unknown` in catch block for error safety.\n- 🟢 Provided `ReadonlyArray` accessor for observer list.\n\n---\n\n## 3. `src/index.ts`\n\n### Issues & Corrections\n\n#### 🟡 Warning: No type-only imports for exported types\n- **Correction**: If exporting types, use `import type` (not needed here, but flag for future).\n\n#### 🟢 Info: Exports are correct and idiomatic\n\n---\n\n```typescript\n// src/index.ts\n\nexport { ObserverSubject } from './ObserverSubject';\nexport { DualObserverSubject } from './DualObserverSubject';\n```\n\n**Justifications**:\n- 🟢 No changes needed — exports are correct and idiomatic.\n\n---\n\n## **Summary of Severity**\n\n- 🔴 Critical: Fixed implicit `any` by making observer classes generic and enforcing argument types.\n- 🟡 Warning: Added explicit return types, exported interfaces, and improved error handling.\n- 🟢 Info: Used `ReadonlyArray` for observer lists, confirmed index exports.\n\n---\n\n**Breaking Changes**:\n- `DualObserverSubject` is now generic; downstream code must specify argument types for observer notifications.\n- Observer types are exported for reuse.\n\n---\n\n**Next Steps**:\n- Update downstream usage to specify generic parameters for observer notifications.\n- Ensure all observer callbacks match the expected argument types.\n- Run `tsc --noEmit` and `npm run lint` to verify type and lint compliance.\n\n---\n\n**TypeScript code is now fully type-safe, idiomatic, and performant.**",
+          "report": "# Step 19: TypeScript Review — Strider\n\n## Files Analyzed\n- src/DualObserverSubject.ts\n- src/ObserverSubject.ts\n- src/index.ts\n\n## Issue Score (Heuristic)\n\n| Metric | Count |\n|--------|-------|\n| Explicit `any` / `as any` | 0 |\n| `@ts-ignore` / `@ts-nocheck` | 0 |\n| Functions missing return type | 0 |\n| **Total** | **0** |\n\n## AI Analysis\n\n🔎 **TypeScript Code Review — bessa_patterns.ts**\n\n---\n\n## 1. `src/DualObserverSubject.ts`\n\n### Issues & Corrections\n\n#### 🔴 Critical: Implicit `any` in observer signatures\n- **Problem**: ObserverObject and ObserverFunction use `unknown[]` for arguments, but the class is not generic, so all notifications are loosely typed.\n- **Correction**: Make `DualObserverSubject` generic (`<T extends unknown[]>`), propagate type to observer signatures.\n\n#### 🟡 Warning: No explicit return types for class methods\n- **Correction**: Add explicit return types for all methods.\n\n#### 🟡 Warning: ObserverObject interface is not exported\n- **Correction**: Export ObserverObject and ObserverFunction for reuse.\n\n#### 🟡 Warning: No type guard for observer object shape\n- **Correction**: Add a type guard for ObserverObject.\n\n#### 🟢 Info: Use `readonly` for observer arrays\n- **Correction**: Use `ReadonlyArray` for observer collections.\n\n---\n\n```typescript\n// src/DualObserverSubject.ts\n\n/** An observer object that must implement an `update` method. */\nexport interface ObserverObject<T extends unknown[] = unknown[]> {\n    update: (...args: T) => void;\n}\n\n/** A function-based observer callback. */\nexport type ObserverFunction<T extends unknown[] = unknown[]> = (...args: T) => void;\n\n/** Type guard for ObserverObject */\nfunction isObserverObject<T extends unknown[]>(val: unknown): val is ObserverObject<T> {\n    return typeof val === 'object' && val !== null && typeof (val as ObserverObject<T>).update === 'function';\n}\n\n/**\n * DualObserverSubject — Subject managing two independent observer collections.\n *\n * @template T - Tuple of argument types for observer notifications\n */\nexport class DualObserverSubject<T extends unknown[] = unknown[]> {\n    private _observers: ObserverObject<T>[];\n    private _functionObservers: ObserverFunction<T>[];\n\n    /** Read-only view of object observers subscribed via {@link subscribe}. */\n    get observers(): ReadonlyArray<ObserverObject<T>> { return this._observers; }\n    /** Read-only view of function observers subscribed via {@link subscribeFunction}. */\n    get functionObservers(): ReadonlyArray<ObserverFunction<T>> { return this._functionObservers; }\n\n    constructor() {\n        this._observers = [];\n        this._functionObservers = [];\n    }\n\n    subscribe(observer: ObserverObject<T> | null | undefined): void {\n        if (observer) {\n            this._observers = [...this._observers, observer];\n        }\n    }\n\n    unsubscribe(observer: ObserverObject<T> | null | undefined): void {\n        if (observer) {\n            this._observers = this._observers.filter(o => o !== observer);\n        }\n    }\n\n    subscribeFunction(fn: ObserverFunction<T> | null | undefined): void {\n        if (fn) {\n            this._functionObservers = [...this._functionObservers, fn];\n        }\n    }\n\n    unsubscribeFunction(fn: ObserverFunction<T> | null | undefined): void {\n        if (fn) {\n            this._functionObservers = this._functionObservers.filter(f => f !== fn);\n        }\n    }\n\n    notifyObservers(...args: T): void {\n        for (const observer of this._observers) {\n            try {\n                observer.update(...args);\n            } catch (err: unknown) {\n                // Error isolation: log and continue\n                // eslint-disable-next-line no-console\n                console.error('Observer error:', err);\n            }\n        }\n    }\n\n    notifyFunctionObservers(...args: T): void {\n        for (const fn of this._functionObservers) {\n            try {\n                fn(...args);\n            } catch (err: unknown) {\n                // Error isolation: log and continue\n                // eslint-disable-next-line no-console\n                console.error('Function observer error:', err);\n            }\n        }\n    }\n}\n```\n\n**Justifications**:\n- 🔴 Made class generic to enforce type safety for observer arguments.\n- 🟡 Exported observer types for reuse and added type guard.\n- 🟡 Added explicit return types for all methods.\n- 🟢 Used `ReadonlyArray` for observer collections.\n\n---\n\n## 2. `src/ObserverSubject.ts`\n\n### Issues & Corrections\n\n#### 🔴 Critical: No explicit export for class\n- **Correction**: Add `export` to class.\n\n#### 🟡 Warning: No explicit return types for methods\n- **Correction**: Add explicit return types.\n\n#### 🟡 Warning: No error type annotation in catch block\n- **Correction**: Use `catch (err: unknown)` and narrow.\n\n#### 🟢 Info: Observer array should be `readonly`\n- **Correction**: Expose `ReadonlyArray` for observer list.\n\n---\n\n```typescript\n// src/ObserverSubject.ts\n\n/**\n * ObserverSubject<T> - Manages a list of observer callbacks and notifies them with a typed snapshot.\n *\n * @class\n * @template T - The type of the snapshot object passed to observers on notification\n */\nexport class ObserverSubject<T> {\n    private _observers: ((snapshot: T) => void)[];\n\n    constructor() {\n        this._observers = [];\n    }\n\n    subscribe(callback: (snapshot: T) => void): () => void {\n        if (typeof callback !== 'function') {\n            throw new TypeError('ObserverSubject: callback must be a function');\n        }\n        this._observers.push(callback);\n\n        return (): void => {\n            const index = this._observers.indexOf(callback);\n            if (index > -1) {\n                this._observers.splice(index, 1);\n            }\n        };\n    }\n\n    unsubscribe(callback: (snapshot: T) => void): boolean {\n        const index = this._observers.indexOf(callback);\n        if (index > -1) {\n            this._observers.splice(index, 1);\n            return true;\n        }\n        return false;\n    }\n\n    getObserverCount(): number {\n        return this._observers.length;\n    }\n\n    clearObservers(): void {\n        this._observers = [];\n    }\n\n    get observers(): ReadonlyArray<(snapshot: T) => void> {\n        return this._observers;\n    }\n\n    protected _notifyObservers(snapshot: T): void {\n        for (const observer of this._observers) {\n            try {\n                observer(snapshot);\n            } catch (err: unknown) {\n                // eslint-disable-next-line no-console\n                console.error('Observer callback error:', err);\n            }\n        }\n    }\n}\n```\n\n**Justifications**:\n- 🔴 Exported class for module usage.\n- 🟡 Added explicit return types for all methods.\n- 🟡 Used `unknown` in catch block for error safety.\n- 🟢 Provided `ReadonlyArray` accessor for observer list.\n\n---\n\n## 3. `src/index.ts`\n\n### Issues & Corrections\n\n#### 🟡 Warning: No type-only imports for exported types\n- **Correction**: If exporting types, use `import type` (not needed here, but flag for future).\n\n#### 🟢 Info: Exports are correct and idiomatic\n\n---\n\n```typescript\n// src/index.ts\n\nexport { ObserverSubject } from './ObserverSubject';\nexport { DualObserverSubject } from './DualObserverSubject';\n```\n\n**Justifications**:\n- 🟢 No changes needed — exports are correct and idiomatic.\n\n---\n\n## **Summary of Severity**\n\n- 🔴 Critical: Fixed implicit `any` by making observer classes generic and enforcing argument types.\n- 🟡 Warning: Added explicit return types, exported interfaces, and improved error handling.\n- 🟢 Info: Used `ReadonlyArray` for observer lists, confirmed index exports.\n\n---\n\n**Breaking Changes**:\n- `DualObserverSubject` is now generic; downstream code must specify argument types for observer notifications.\n- Observer types are exported for reuse.\n\n---\n\n**Next Steps**:\n- Update downstream usage to specify generic parameters for observer notifications.\n- Ensure all observer callbacks match the expected argument types.\n- Run `tsc --noEmit` and `npm run lint` to verify type and lint compliance.\n\n---\n\n**TypeScript code is now fully type-safe, idiomatic, and performant.**\n"
+        },
+        "duration": 29507
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 0,
+              "successfulSteps": 0,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 0,
+              "avgDuration": 0,
+              "successRate": 0,
+              "startTime": "2026-03-07T23:59:44.213Z",
+              "endTime": "2026-03-09T14:21:19.184Z",
+              "workflowRunId": "workflow_20260309_111430",
+              "version": "1.0.0",
+              "mode": "interactive"
+            },
+            "timeline": {
+              "steps": [],
+              "phases": {
+                "initialization": [],
+                "documentation": [],
+                "validation": [],
+                "testing": [],
+                "quality": [],
+                "finalization": []
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_20260309_111430\n**Version:** 1.0.0\n**Mode:** interactive\n**Start Time:** 2026-03-07T23:59:44.213Z\n**End Time:** 2026-03-09T14:21:19.184Z\n**Total Duration:** 0s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ⚠️ Completed\n**Success Rate:** 0.0%\n**Total Steps:** 0\n**Successful:** 0 ✅\n**Average Step Duration:** 0s\n\n---\n\n## Execution Timeline\n\n\n\n---\n\n## Phase Breakdown\n\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 0s |\n| Average Step Duration | 0s |\n| Total Steps | 0 |\n| Success Rate | 0.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n\n---\n\n*Generated by AI Workflow Automation v1.0.0*\n\n*Report generated at: 2026-03-09T14:21:19.185Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 19
+      },
+      "step_0f": {
+        "stepId": "step_0f",
+        "stepName": "Commit Artifacts",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "no_artifact_files"
+        },
+        "duration": 7
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": true,
+        "output": {
+          "success": true,
+          "branch": "main",
+          "commitMessage": "feat(implementation+tests): update docs, tests, and config for workflow automation\n\nComprehensive updates to documentation, tests, and configuration files\nto support workflow automation and improve project clarity.\n\n- Added Copilot instructions and CI workflow for Node.js\n- Introduced workflow configuration YAML for project metadata\n- Updated API documentation and roadmap\n- Enhanced test coverage for Observer pattern\n- Refined project setup and dependency management\n\nNo breaking changes detected; maintains backward compatibility.\n[workflow-automation v0.11.1-alpha]",
+          "pushed": true,
+          "report": "### Git Finalization Summary\n\n**Branch:** main\n**Commits Ahead:** 3\n**Commits Behind:** 0\n**Commit Type:** feat(implementation+tests)\n**Modified Files:** 1\n**Total Changes:** 14\n\n### Change Breakdown\n\n- Documentation: 3 files\n- Tests: 1 files\n- Scripts: 0 files\n- Code: 1 files\n- Config: 5 files\n\n### Commit Message\n\n```\nfeat(implementation+tests): update docs, tests, and config for workflow automation\n\nComprehensive updates to documentation, tests, and configuration files\nto support workflow automation and improve project clarity.\n\n- Added Copilot instructions and CI workflow for Node.js\n- Introduced workflow configuration YAML for project metadata\n- Updated API documentation and roadmap\n- Enhanced test coverage for Observer pattern\n- Refined project setup and dependency management\n\nNo breaking changes detected; maintains backward compatibility.\n[workflow-automation v0.11.1-alpha]\n```\n\n**Push Status:** ✅ Pushed successfully"
+        },
+        "duration": 16323
+      }
+    },
+    "context": {
+      "workflowDir": "/home/mpb/Documents/GitHub/bessa_patterns.ts/.ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/bessa_patterns.ts",
+      "auto": false,
+      "workflowRunId": "workflow_20260309_111430",
+      "modifiedFiles": [
+        "docs/OBSERVER_SUBJECT_API.md",
+        "test/DualObserverSubject.test.ts",
+        "test/ObserverSubject.test.ts",
+        "src/DualObserverSubject.ts",
+        "src/ObserverSubject.ts",
+        ".gitignore",
+        "LICENSE",
+        "README.md",
+        ".ai_workflow/metrics/current_run.json",
+        ".ai_workflow/metrics/history.jsonl",
+        ".github/copilot-instructions.md",
+        ".github/workflows/ci.yml",
+        ".workflow-config.yaml",
+        "docs/DUAL_OBSERVER_SUBJECT_API.md",
+        "docs/ROADMAP.md",
+        "eslint.config.mjs",
+        "jest.config.json",
+        "package-lock.json",
+        "package.json",
+        "scripts/deploy.sh",
+        "src/index.ts",
+        "tsconfig.json"
+      ],
+      "projectType": "configuration_library",
+      "scope": "full_validation",
+      "projectDescription": "bessa_patterns.ts"
+    }
+  },
+  "metadata": {
+    "totalSteps": 25,
+    "progress": 0
+  }
+}

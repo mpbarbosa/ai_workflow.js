@@ -369,6 +369,15 @@ export function createExecutionContext(workflow, options = {}) {
  * @class
  * @extends EventEmitter
  *
+ * @fires WorkflowEngine#step:start
+ * @fires WorkflowEngine#step:complete
+ * @fires WorkflowEngine#step:error
+ * @fires WorkflowEngine#step:skipped
+ * @fires WorkflowEngine#ai:stream:chunk - Emitted per token when streaming is enabled.
+ *   Payload: `{ stepId, stepName, persona, delta, tokenIndex }`
+ * @fires WorkflowEngine#ai:stream:end - Emitted once per AI request when streaming ends.
+ *   Payload: `{ stepId, stepName, totalTokens, durationMs, tokensPerSec }`
+ *
  * @example
  * const engine = new WorkflowEngine({ dryRun: false });
  * engine.on('step:start', ({ step }) => console.log(`Starting ${step.name}`));

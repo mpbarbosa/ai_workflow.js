@@ -34,6 +34,7 @@ import { FileOperations } from '../lib/file_operations.js';
 import { PerformanceTracker } from '../lib/performance.js';
 import { PerformanceMonitor, DEFAULT_THRESHOLDS } from '../lib/performance_monitoring.js';
 import { WorkflowProfileManager } from '../lib/workflow_profiles.js';
+import { AiHelper } from '../lib/ai_helpers.js';
 import { DocsOnlyOptimizer } from '../lib/docs_only_optimization.js';
 import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
 import { FullChangesOptimizer } from '../lib/full_changes_optimization.js';
@@ -286,6 +287,9 @@ export class MainOrchestrator {
     this.noParallel = options.noParallel || false;
     this.resumeFromCheckpoint = options.resumeFromCheckpoint || null;
     this.sdkSmokeTest = options.sdkSmokeTest || false;
+    // When true, each step receives a streaming AiHelper whose token deltas are
+    // forwarded to workflowEngine as 'ai:stream:chunk' events for TUI display.
+    this.streamingEnabled = !!(options.verbose || options.streamingEnabled);
 
     // Validate config
     const validation = validateOrchestratorConfig(options);
@@ -959,6 +963,45 @@ export class MainOrchestrator {
           sdkSmokeTest: this.sdkSmokeTest,
           promptsDir: this.logsRunDir ? path.join(this.logsRunDir, 'prompts', stepId) : null,
         };
+
+        // When streaming is enabled, inject a pre-configured AiHelper that forwards
+        // every token delta to workflowEngine as an 'ai:stream:chunk' event.
+        // Steps use 'options.aiHelper || new AiHelper(...)' so they pick this up for free.
+        if (this.streamingEnabled) {
+          const engine = this.workflowEngine;
+          const stepName = stepDef.name;
+          let tokenIndex = 0;
+          const streamStart = Date.now();
+          commonDeps.aiHelper = new AiHelper({
+            promptsDir: commonDeps.promptsDir,
+            streamingCallback: (delta, meta = {}) => {
+              engine.emit('ai:stream:chunk', {
+                stepId,
+                stepName,
+                persona: meta.persona ?? 'default',
+                delta,
+                tokenIndex: tokenIndex++,
+              });
+            },
+          });
+          // Wire stream-end emission to the step:complete event for this step.
+          // We use a one-time listener keyed by stepId so it fires once then detaches.
+          const onStepComplete = ({ step: completedStep }) => {
+            if (completedStep?.id !== stepId) return;
+            engine.off('step:complete', onStepComplete);
+            engine.off('step:error', onStepComplete);
+            const durationMs = Date.now() - streamStart;
+            engine.emit('ai:stream:end', {
+              stepId,
+              stepName,
+              totalTokens: tokenIndex,
+              durationMs,
+              tokensPerSec: tokenIndex > 0 ? Math.round((tokenIndex / durationMs) * 1000) : 0,
+            });
+          };
+          engine.on('step:complete', onStepComplete);
+          engine.on('step:error', onStepComplete);
+        }
 
         // Create executor instance with dependencies
         const executor = new ExecutorClass(commonDeps);

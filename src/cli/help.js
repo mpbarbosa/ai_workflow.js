@@ -400,7 +400,7 @@ export function displayTuiHelp() {
   console.log();
   console.log(chalk.bold('Layout:'));
   console.log(chalk.gray('  ┌─────────────────────────────────────────────────────┐'));
-  console.log(chalk.gray('  │  AI Workflow v1.5.4  stage: full         Step 5/20  │'));
+  console.log(chalk.gray('  │  AI Workflow v1.6.0  stage: full         Step 5/20  │'));
   console.log(chalk.gray('  ├──────────────────────┬──────────────────────────────┤'));
   console.log(chalk.gray('  │  STEPS               │  LIVE LOG                    │'));
   console.log(chalk.gray('  │  ✅ step_00  1.2s    │  [19:15:02] → Starting…      │'));

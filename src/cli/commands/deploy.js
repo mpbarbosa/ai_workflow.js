@@ -85,6 +85,7 @@ export function resolveDeployConfig(workflowConfig) {
       script: deploySection.script || null,
       command: deploySection.command || null,
       description: deploySection.description || 'Deploy project',
+      args: deploySection.args || null,
       enabled: true,
     },
     error: null,
@@ -96,27 +97,61 @@ export function resolveDeployConfig(workflowConfig) {
  * @pure
  * @param {Object} deployConfig - Resolved deploy configuration
  * @param {string} projectRoot - Absolute project root path
+ * @param {string|null} [extraArgs] - Additional CLI arguments to append (overrides config args)
  * @returns {Object} { command: string, cwd: string }
  */
-export function buildDeployCommand(deployConfig, projectRoot) {
+export function buildDeployCommand(deployConfig, projectRoot, extraArgs = null) {
   if (!deployConfig || typeof deployConfig !== 'object') {
     throw new Error('deployConfig must be a valid object');
   }
+
+  // CLI-supplied extraArgs take priority over YAML-configured args
+  const resolvedArgs = extraArgs !== null ? extraArgs : (deployConfig.args || '');
+  const argsSuffix = resolvedArgs ? ` ${resolvedArgs}` : '';
+
   // script: takes priority over command:
   if (deployConfig.script) {
     const scriptPath = path.isAbsolute(deployConfig.script)
       ? deployConfig.script
       : path.join(projectRoot, deployConfig.script);
     return {
-      command: `bash "${scriptPath}"`,
+      command: `bash "${scriptPath}"${argsSuffix}`,
       cwd: projectRoot,
     };
   }
 
   return {
-    command: deployConfig.command,
+    command: `${deployConfig.command}${argsSuffix}`,
     cwd: projectRoot,
   };
+}
+
+/**
+ * Parse a .env file's text content into a key/value object.
+ * Skips blank lines and lines starting with #.
+ * Values may optionally be quoted with single or double quotes.
+ * @pure
+ * @param {string} content - Raw text content of the .env file
+ * @returns {Object} Key/value pairs found in the file
+ */
+export function parseEnvFile(content) {
+  if (!content || typeof content !== 'string') return {};
+  const result = {};
+  for (const raw of content.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eqIdx = line.indexOf('=');
+    if (eqIdx < 1) continue;
+    const key = line.slice(0, eqIdx).trim();
+    let value = line.slice(eqIdx + 1).trim();
+    // Strip surrounding quotes
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (key) result[key] = value;
+  }
+  return result;
 }
 
 /**
@@ -136,6 +171,75 @@ export function formatDeployResult(result) {
   }
 
   return `Deployment failed: ${result.error || 'Unknown error'}`;
+}
+
+/**
+ * Detect well-known npm publish errors from captured output and return
+ * a structured hint object, or null when no known pattern is matched.
+ * @pure
+ * @param {string} output - Combined stdout + stderr captured during deployment
+ * @returns {{ message: string, hint: string, url: string|null }|null}
+ */
+export function detectNpmPublishError(output) {
+  if (!output || typeof output !== 'string') return null;
+
+  // 403 Forbidden — invalid / expired / missing token
+  if (/npm error code E403/i.test(output) || /403 Forbidden/i.test(output)) {
+    const isCredentials =
+      /credentials/i.test(output) ||
+      /token/i.test(output) ||
+      /You may not perform that action/i.test(output);
+    if (isCredentials) {
+      return {
+        message: 'npm publish failed: invalid or expired token.',
+        hint: 'Verify NPM_TOKEN is a valid Automation token with publish rights.',
+        url: 'https://www.npmjs.com/settings/~/tokens',
+      };
+    }
+    return {
+      message: 'npm publish failed: access forbidden (E403).',
+      hint: 'Check that your npm token has publish rights for this package.',
+      url: 'https://docs.npmjs.com/creating-and-viewing-access-tokens',
+    };
+  }
+
+  // 401 Unauthenticated
+  if (/npm error code E401/i.test(output) || /401 Unauthorized/i.test(output)) {
+    return {
+      message: 'npm publish failed: authentication required (E401).',
+      hint: 'Set a valid NPM_TOKEN environment variable or run `npm login`.',
+      url: 'https://docs.npmjs.com/creating-and-viewing-access-tokens',
+    };
+  }
+
+  // 409 Conflict — version already published
+  if (/npm error code E409/i.test(output) || /409 Conflict/i.test(output) || /cannot publish over/i.test(output)) {
+    return {
+      message: 'npm publish failed: this version is already published (E409).',
+      hint: 'Bump the version in package.json before publishing.',
+      url: null,
+    };
+  }
+
+  // ENEEDAUTH — no credentials at all
+  if (/npm error code ENEEDAUTH/i.test(output)) {
+    return {
+      message: 'npm publish failed: no npm credentials found (ENEEDAUTH).',
+      hint: 'Run `npm login` or set the NPM_TOKEN environment variable.',
+      url: 'https://docs.npmjs.com/creating-and-viewing-access-tokens',
+    };
+  }
+
+  // 404 Not Found — org/scope doesn't exist
+  if (/npm error code E404/i.test(output)) {
+    return {
+      message: 'npm publish failed: package or scope not found (E404).',
+      hint: 'Ensure the npm organization/scope exists and the package name is correct.',
+      url: null,
+    };
+  }
+
+  return null;
 }
 
 // ============================================================================
@@ -193,7 +297,8 @@ export async function deployCommand(options = {}) {
   }
 
   // Build the command
-  const { command, cwd } = buildDeployCommand(deployConfig, projectRoot);
+  const extraArgs = options.source ? `--source ${options.source}` : null;
+  const { command, cwd } = buildDeployCommand(deployConfig, projectRoot, extraArgs);
 
   console.log();
   console.log(chalk.cyan(`📦 ${deployConfig.description}`));
@@ -207,6 +312,24 @@ export async function deployCommand(options = {}) {
     process.exit(0);
   }
 
+  // Load .env file from project root (if present) and merge into environment
+  const envFilePath = path.join(projectRoot, '.env');
+  let deployEnv = { ...process.env };
+  if (fs.existsSync(envFilePath)) {
+    try {
+      const envContent = fs.readFileSync(envFilePath, 'utf8');
+      const fileVars = parseEnvFile(envContent);
+      const fileVarCount = Object.keys(fileVars).length;
+      deployEnv = { ...deployEnv, ...fileVars };
+      if (options.verbose && fileVarCount > 0) {
+        console.log(chalk.gray(`   Loaded ${fileVarCount} variable(s) from ${envFilePath}`));
+        console.log();
+      }
+    } catch (envErr) {
+      logger.warn(chalk.yellow(`Warning: failed to read ${envFilePath}: ${envErr.message}`));
+    }
+  }
+
   // Execute deployment
   const startTime = Date.now();
   let spinner;
@@ -215,10 +338,15 @@ export async function deployCommand(options = {}) {
     spinner = ora('Deploying...').start();
   }
 
+  // Buffer all output so we can analyse it for known errors on failure
+  const outputBuffer = [];
+
   try {
     await executeStream(command, {
       cwd,
+      env: deployEnv,
       onStdout: (line) => {
+        outputBuffer.push(line);
         if (options.verbose) {
           process.stdout.write(line);
         } else if (spinner) {
@@ -228,6 +356,7 @@ export async function deployCommand(options = {}) {
         }
       },
       onStderr: (line) => {
+        outputBuffer.push(line);
         if (options.verbose) {
           process.stderr.write(chalk.yellow(line));
         }
@@ -248,11 +377,27 @@ export async function deployCommand(options = {}) {
 
     if (spinner) spinner.fail('Deploy failed');
 
-    const resultMessage = formatDeployResult({ success: false, error: error.message, duration });
-    console.log(chalk.red(`✗ ${resultMessage}`));
+    const capturedOutput = outputBuffer.join('');
+    const npmError = detectNpmPublishError(capturedOutput);
 
-    if (options.verbose && error.stderr) {
-      console.log(chalk.gray(error.stderr));
+    if (npmError) {
+      console.log(chalk.red(`✗ ${npmError.message}`));
+      console.log(chalk.yellow(`  ${npmError.hint}`));
+      if (npmError.url) {
+        console.log(chalk.gray(`  ${npmError.url}`));
+      }
+    } else {
+      const resultMessage = formatDeployResult({ success: false, error: error.message, duration });
+      console.log(chalk.red(`✗ ${resultMessage}`));
+
+      if (error.stderr) {
+        console.log(chalk.gray(error.stderr));
+      } else if (!options.verbose && capturedOutput.trim()) {
+        // Surface the last few lines of captured output to help diagnose the failure
+        const lines = capturedOutput.trim().split('\n');
+        const tail = lines.slice(-5).join('\n');
+        console.log(chalk.gray(tail));
+      }
     }
 
     console.log();
@@ -260,4 +405,4 @@ export async function deployCommand(options = {}) {
   }
 }
 
-export default { deployCommand, validateDeployOptions, resolveDeployConfig, buildDeployCommand, formatDeployResult };
+export default { deployCommand, validateDeployOptions, resolveDeployConfig, buildDeployCommand, formatDeployResult, detectNpmPublishError, parseEnvFile };

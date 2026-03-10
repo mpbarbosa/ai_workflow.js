@@ -9,6 +9,7 @@ import {
   resolveDeployConfig,
   buildDeployCommand,
   formatDeployResult,
+  detectNpmPublishError,
 } from '../../../src/cli/commands/deploy.js';
 
 describe('Deploy Command - Pure Functions', () => {
@@ -74,6 +75,19 @@ describe('Deploy Command - Pure Functions', () => {
       const workflowConfig = { deploy: { script: 'deploy.sh' } };
       const result = resolveDeployConfig(workflowConfig);
       expect(result.config.description).toBe('Deploy project');
+    });
+
+    test('should pass through args when specified', () => {
+      const workflowConfig = { deploy: { script: 'scripts/deploy.sh', args: '--source src' } };
+      const result = resolveDeployConfig(workflowConfig);
+      expect(result.error).toBeNull();
+      expect(result.config.args).toBe('--source src');
+    });
+
+    test('should set args to null when not specified', () => {
+      const workflowConfig = { deploy: { script: 'deploy.sh' } };
+      const result = resolveDeployConfig(workflowConfig);
+      expect(result.config.args).toBeNull();
     });
 
     test('should error when deploy section is missing', () => {
@@ -145,6 +159,36 @@ describe('Deploy Command - Pure Functions', () => {
     test('should throw when deployConfig is not an object', () => {
       expect(() => buildDeployCommand('invalid', '/project')).toThrow('deployConfig must be a valid object');
     });
+
+    test('should append args from config to script command', () => {
+      const deployConfig = { script: 'scripts/deploy.sh', command: null, args: '--source src' };
+      const result = buildDeployCommand(deployConfig, '/project');
+      expect(result.command).toBe('bash "/project/scripts/deploy.sh" --source src');
+    });
+
+    test('should append args from config to bare command', () => {
+      const deployConfig = { script: null, command: 'npm run deploy', args: '--env staging' };
+      const result = buildDeployCommand(deployConfig, '/project');
+      expect(result.command).toBe('npm run deploy --env staging');
+    });
+
+    test('should use extraArgs over config args when extraArgs is provided', () => {
+      const deployConfig = { script: 'scripts/deploy.sh', command: null, args: '--source dist' };
+      const result = buildDeployCommand(deployConfig, '/project', '--source src');
+      expect(result.command).toBe('bash "/project/scripts/deploy.sh" --source src');
+    });
+
+    test('should produce no suffix when args is null and no extraArgs', () => {
+      const deployConfig = { script: 'scripts/deploy.sh', command: null, args: null };
+      const result = buildDeployCommand(deployConfig, '/project');
+      expect(result.command).toBe('bash "/project/scripts/deploy.sh"');
+    });
+
+    test('should produce no suffix when args is empty string and no extraArgs', () => {
+      const deployConfig = { script: 'scripts/deploy.sh', command: null, args: '' };
+      const result = buildDeployCommand(deployConfig, '/project');
+      expect(result.command).toBe('bash "/project/scripts/deploy.sh"');
+    });
   });
 
   // ============================================================================
@@ -176,6 +220,73 @@ describe('Deploy Command - Pure Functions', () => {
     test('should handle null result', () => {
       const result = formatDeployResult(null);
       expect(result).toBe('No result available');
+    });
+  });
+
+  // ============================================================================
+  // detectNpmPublishError
+  // ============================================================================
+  describe('detectNpmPublishError', () => {
+    test('should return null for empty input', () => {
+      expect(detectNpmPublishError('')).toBeNull();
+      expect(detectNpmPublishError(null)).toBeNull();
+      expect(detectNpmPublishError(undefined)).toBeNull();
+    });
+
+    test('should return null for unrecognised errors', () => {
+      expect(detectNpmPublishError('Something went wrong')).toBeNull();
+      expect(detectNpmPublishError('error: ENOENT no such file')).toBeNull();
+    });
+
+    test('should detect E403 with credential hint', () => {
+      const output =
+        'npm error code E403\nnpm error 403 Forbidden - You may not perform that action with these credentials.';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/invalid or expired token/i);
+      expect(result.hint).toMatch(/NPM_TOKEN/i);
+      expect(result.url).toContain('npmjs.com');
+    });
+
+    test('should detect E403 without credential hint', () => {
+      const output = 'npm error code E403\n403 Forbidden';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/access forbidden/i);
+      expect(result.hint).toMatch(/publish rights/i);
+    });
+
+    test('should detect E401', () => {
+      const output = 'npm error code E401\n401 Unauthorized';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/authentication required/i);
+      expect(result.hint).toMatch(/NPM_TOKEN/i);
+    });
+
+    test('should detect E409 version conflict', () => {
+      const output = 'npm error code E409\ncannot publish over existing version';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/already published/i);
+      expect(result.hint).toMatch(/version/i);
+      expect(result.url).toBeNull();
+    });
+
+    test('should detect ENEEDAUTH', () => {
+      const output = 'npm error code ENEEDAUTH\nnpm error need auth';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/no npm credentials/i);
+      expect(result.hint).toMatch(/npm login/i);
+    });
+
+    test('should detect E404 scope not found', () => {
+      const output = 'npm error code E404\n404 Not Found';
+      const result = detectNpmPublishError(output);
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/not found/i);
+      expect(result.hint).toMatch(/scope/i);
     });
   });
 });

@@ -31,12 +31,36 @@ const MAX_LOG_LINES = 200;
  *   isComplete: boolean,
  *   workflowError: string|null,
  *   lastError: ErrorEntry|null,
+ *   streamChunks: StreamState,
  * }}
  *
  * @typedef {{ id: string, name: string, status: 'pending'|'running'|'done'|'skipped'|'error', startTime: number|null, duration: number|null, retryCount?: number, exitCode?: number|null, errorMessage?: string|null, dependsOn?: string[], stepLogs?: Array<string> }} StepEntry
  * @typedef {{ stepId: string, stepName: string, message: string, stack: string|null }} ErrorEntry
  * @typedef {{ time: number, message: string }} LogEntry
+ * @typedef {{
+ *   stepId: string|null,
+ *   stepName: string|null,
+ *   persona: string|null,
+ *   liveText: string,
+ *   tokenCount: number,
+ *   tokensPerSec: number,
+ *   history: Array<{stepId:string, stepName:string, persona:string, fullText:string, tokenCount:number, tokensPerSec:number}>,
+ * }} StreamState
  */
+/** Maximum stream history entries kept (last N completed AI responses). */
+const MAX_STREAM_HISTORY = 5;
+
+/** Empty / initial stream state. */
+const INITIAL_STREAM_STATE = {
+  stepId: null,
+  stepName: null,
+  persona: null,
+  liveText: '',
+  tokenCount: 0,
+  tokensPerSec: 0,
+  history: [],
+};
+
 export function useOrchestrator(orchestrator) {
   const [steps, setSteps] = useState({});
   const [logs, setLogs] = useState([]);
@@ -44,6 +68,7 @@ export function useOrchestrator(orchestrator) {
   const [currentStepId, setCurrentStepId] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
   const [lastError, setLastError] = useState(null);
+  const [streamChunks, setStreamChunks] = useState(INITIAL_STREAM_STATE);
 
   useEffect(() => {
     if (!orchestrator?.workflowEngine) return;
@@ -122,11 +147,46 @@ export function useOrchestrator(orchestrator) {
     engine.on('step:error', onStepError);
     engine.on('step:skipped', onStepSkipped);
 
+    // ── AI streaming events ──────────────────────────────────────────────────
+    const onAiStreamChunk = ({ stepId, stepName, persona, delta }) => {
+      setStreamChunks((prev) => ({
+        ...prev,
+        stepId,
+        stepName,
+        persona,
+        liveText: prev.liveText + delta,
+        tokenCount: prev.tokenCount + 1,
+      }));
+    };
+
+    const onAiStreamEnd = ({ stepId, stepName, totalTokens, tokensPerSec }) => {
+      setStreamChunks((prev) => {
+        const entry = {
+          stepId,
+          stepName,
+          persona: prev.persona ?? 'default',
+          fullText: prev.liveText,
+          tokenCount: totalTokens,
+          tokensPerSec,
+        };
+        const history = keepLast([...prev.history, entry], MAX_STREAM_HISTORY);
+        return {
+          ...INITIAL_STREAM_STATE,
+          history,
+        };
+      });
+    };
+
+    engine.on('ai:stream:chunk', onAiStreamChunk);
+    engine.on('ai:stream:end', onAiStreamEnd);
+
     return () => {
       engine.off('step:start', onStepStart);
       engine.off('step:complete', onStepComplete);
       engine.off('step:error', onStepError);
       engine.off('step:skipped', onStepSkipped);
+      engine.off('ai:stream:chunk', onAiStreamChunk);
+      engine.off('ai:stream:end', onAiStreamEnd);
     };
   }, [orchestrator]);
 
@@ -155,7 +215,7 @@ export function useOrchestrator(orchestrator) {
     };
   }, [orchestrator]);
 
-  return { steps, logs, progress, currentStepId, isComplete, lastError };
+  return { steps, logs, progress, currentStepId, isComplete, lastError, streamChunks };
 }
 
 export default useOrchestrator;

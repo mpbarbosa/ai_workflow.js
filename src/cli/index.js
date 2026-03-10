@@ -25,7 +25,7 @@ import { cleanCommand } from './commands/clean.js';
 import { deployCommand } from './commands/deploy.js';
 
 // Package information
-const VERSION = '1.5.4';
+const VERSION = '1.6.0';
 const DESCRIPTION = 'AI-powered workflow automation for software development';
 
 // ============================================================================
@@ -202,6 +202,7 @@ export function createProgram() {
     .description('Deploy the project using the script defined in .workflow-config.yaml')
     .option('--project-root <path>', 'Project root directory')
     .option('--dry-run', 'Preview deployment command without executing', false)
+    .option('--source <dir>', 'Source folder to deploy: dist (default) or src')
     .action(async (options) => {
       const globalOpts = program.opts();
       await deployCommand({ ...globalOpts, ...options });

@@ -558,6 +558,12 @@ export class Step7TestGenerator {
           if (aiAvailable) {
             await this.aiCache.init();
 
+            // Compute filesToGenerate here so the strategy prompt can report projected coverage,
+            // avoiding a false "Critical" gap for files that are about to be generated in this run.
+            const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
+            const projectedTestedCount = testedCount + filesToGenerate.length;
+            const projectedCoverage = calculateCoverage(projectedTestedCount, sourceFiles.length);
+
             // Preliminary: test strategy analysis using test_strategy_prompt + project-kind overlay
             try {
               const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
@@ -572,6 +578,8 @@ export class Step7TestGenerator {
               const strategyPrompt = buildYamlStepPrompt(parsedYaml, 'test_strategy_prompt', {
                 project_name: path.basename(projectRoot),
                 coverage_stats: `${coveragePercentage}% (${testedCount}/${sourceFiles.length} source files have tests, ${testFiles.length} total test files)`,
+                projected_coverage_stats: `${projectedCoverage}% after generating ${filesToGenerate.length} file(s) in this run`,
+                files_to_generate: filesToGenerate.join(', ') || 'none',
                 test_files: buildTestFilesSummary(testFiles),
                 modified_count: options?.modifiedFiles?.length ?? 0,
               });
@@ -593,8 +601,6 @@ export class Step7TestGenerator {
                 }
               }
             } catch { /* non-fatal */ }
-
-            const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
             logger.info(
               `Generating tests for ${filesToGenerate.length} file(s) via AI (cap: ${MAX_FILES_TO_GENERATE})...`
             );

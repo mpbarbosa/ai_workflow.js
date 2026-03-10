@@ -15,6 +15,8 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { useOrchestrator } from './hooks/useOrchestrator.js';
 import { Header } from './components/Header.js';
@@ -25,6 +27,7 @@ import { StatusBar } from './components/StatusBar.js';
 import { HelpOverlay } from './components/HelpOverlay.js';
 import { StepDetailOverlay } from './components/StepDetailOverlay.js';
 import { ErrorDetailPanel } from './components/ErrorDetailPanel.js';
+import { StreamViewer } from './components/StreamViewer.js';
 import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
 
 /**
@@ -34,26 +37,43 @@ import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
  *   orchestrator: import('../../orchestrator/main_orchestrator.js').MainOrchestrator,
  *   stage: string,
  *   version?: string,
+ *   verbose?: boolean,
  *   onAbort?: () => void,
  *   onExit?: () => void,
  * }} props
  */
-export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
+export function App({ orchestrator, stage, version = '1.6.0', verbose = false, onExit }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
-  const { steps, logs, progress, currentStepId, isComplete, lastError } =
+  const { steps, logs, progress, currentStepId, isComplete, lastError, streamChunks } =
     useOrchestrator(orchestrator);
 
   const startTimeRef = useRef(Date.now());
   const [exiting, setExiting] = useState(false);
+  const [projectVersion, setProjectVersion] = useState(null);
+
+  // Read the target project's version from its package.json (if available)
+  useEffect(() => {
+    const root = orchestrator?.projectRoot || process.cwd();
+    readFile(join(root, 'package.json'), 'utf8')
+      .then((raw) => {
+        const pkg = JSON.parse(raw);
+        if (pkg.version) setProjectVersion(pkg.version);
+      })
+      .catch(() => {
+        /* no package.json — leave projectVersion null */
+      });
+  }, [orchestrator?.projectRoot]);
 
   // ── Panel focus & overlay state ──────────────────────────────────────────
-  /** @type {'steps'|'log'} */
+  /** @type {'steps'|'log'|'stream'} */
   const [focusedPanel, setFocusedPanel] = useState('log');
   const [selectedStepId, setSelectedStepId] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showErrorDetail, setShowErrorDetail] = useState(false);
   const [showStepDetail, setShowStepDetail] = useState(false);
+  // Stream viewer is shown by default when --verbose is set; toggled with `v`.
+  const [showStream, setShowStream] = useState(verbose);
 
   // Terminal dimensions (reactive)
   const cols = stdout?.columns ?? 80;
@@ -111,7 +131,24 @@ export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
 
     // ── Tab — cycle focus between panels ────────────────────────────────
     if (key.tab) {
-      setFocusedPanel((prev) => (prev === 'log' ? 'steps' : 'log'));
+      setFocusedPanel((prev) => {
+        if (showStream) {
+          // Three-way cycle: log → stream → steps → log
+          if (prev === 'log') return 'stream';
+          if (prev === 'stream') return 'steps';
+          return 'log';
+        }
+        return prev === 'log' ? 'steps' : 'log';
+      });
+      return;
+    }
+
+    // ── v — toggle stream viewer ─────────────────────────────────────────
+    if (input === 'v' || input === 'V') {
+      setShowStream((prev) => {
+        if (prev && focusedPanel === 'stream') setFocusedPanel('log');
+        return !prev;
+      });
       return;
     }
 
@@ -153,7 +190,14 @@ export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
 
   // ── Layout calculation ───────────────────────────────────────────────────
   const leftWidth = stepsPanelWidth(cols);
+  const rightWidth = cols - leftWidth;
   const contentHeight = Math.max(5, rows - 9);
+  // When the stream viewer is shown, split the right panel vertically.
+  // LogPanel gets 60%, StreamViewer gets 40% (min 8 lines each).
+  const logHeight = showStream
+    ? Math.max(8, Math.floor(contentHeight * 0.6))
+    : contentHeight;
+  const streamHeight = showStream ? Math.max(8, contentHeight - logHeight) : 0;
 
   const completedCount = Object.values(steps).filter(
     (s) => s.status === 'done' || s.status === 'skipped'
@@ -176,6 +220,7 @@ export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
       completed: completedCount,
       total: totalSteps,
       projectRoot: orchestrator?.projectRoot || process.cwd(),
+      projectVersion,
     }),
     React.createElement(
       Box,
@@ -189,12 +234,24 @@ export function App({ orchestrator, stage, version = '1.5.4', onExit }) {
         selectedStepId,
         onSelectStep: setSelectedStepId,
       }),
-      React.createElement(LogPanel, {
-        logs,
-        width: cols - leftWidth,
-        height: contentHeight,
-        isFocused: focusedPanel === 'log',
-      })
+      React.createElement(
+        Box,
+        { flexDirection: 'column', width: rightWidth },
+        React.createElement(LogPanel, {
+          logs,
+          width: rightWidth,
+          height: logHeight,
+          isFocused: focusedPanel === 'log',
+        }),
+        showStream
+          ? React.createElement(StreamViewer, {
+              streamChunks,
+              width: rightWidth,
+              height: streamHeight,
+              isFocused: focusedPanel === 'stream',
+            })
+          : null
+      )
     ),
     React.createElement(ProgressBar, { pct: progress, startTime: startTimeRef.current }),
     React.createElement(StatusBar, { isComplete }),

@@ -995,6 +995,94 @@ describe('AiHelper class methods', () => {
       expect(send).toHaveBeenCalled();
       expect(helper._wrapper.sendStream).not.toHaveBeenCalled();
     });
+
+    // ── streamingCallback (instance-level) ──────────────────────────────────
+
+    test('streamingCallback: uses sendStream automatically without explicit stream:true', async () => {
+      const streamingCallback = jest.fn();
+      const sendStream = jest.fn().mockResolvedValue('Streamed via instance callback.');
+      const h = new AiHelper({ streamingCallback });
+      h.available = true;
+      h.authenticated = true;
+      h._wrapper = {
+        send: jest.fn(),
+        sendStream,
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      const result = await h.executeRequest('prompt', {});
+      expect(sendStream).toHaveBeenCalled();
+      expect(h._wrapper.send).not.toHaveBeenCalled();
+      expect(result).toHaveProperty('success', true);
+    });
+
+    test('streamingCallback: wraps callback with persona metadata', async () => {
+      const received = [];
+      const streamingCallback = (delta, meta) => received.push({ delta, meta });
+      // The wrapper will call the effectiveOnChunk with just the delta.
+      // We need to simulate what _doSendStream does: call onChunk(delta).
+      const sendStream = jest.fn().mockImplementation(async (_prompt, onChunk) => {
+        onChunk('hello');
+        onChunk(' world');
+        return 'hello world';
+      });
+      const h = new AiHelper({ streamingCallback });
+      h.available = true;
+      h.authenticated = true;
+      h._wrapper = {
+        send: jest.fn(),
+        sendStream,
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      await h.executeRequest('p', { persona: 'test_engineer' });
+      expect(received).toHaveLength(2);
+      expect(received[0].delta).toBe('hello');
+      expect(received[0].meta).toMatchObject({ persona: 'test_engineer' });
+      expect(received[1].delta).toBe(' world');
+    });
+
+    test('streamingCallback: does not activate when null (non-streaming default)', async () => {
+      const h = new AiHelper({ streamingCallback: null });
+      const send = jest.fn().mockResolvedValue('plain response');
+      h.available = true;
+      h.authenticated = true;
+      h._wrapper = {
+        send,
+        sendStream: jest.fn(),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      await h.executeRequest('prompt', {});
+      expect(send).toHaveBeenCalled();
+      expect(h._wrapper.sendStream).not.toHaveBeenCalled();
+    });
+
+    test('explicit onChunk arg takes precedence over streamingCallback', async () => {
+      const instanceCb = jest.fn();
+      const explicitCb = jest.fn();
+      const sendStream = jest.fn().mockImplementation(async (_p, onChunk) => {
+        onChunk('tok');
+        return 'tok';
+      });
+      const h = new AiHelper({ streamingCallback: instanceCb });
+      h.available = true;
+      h.authenticated = true;
+      h._wrapper = {
+        send: jest.fn(),
+        sendStream,
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+      await h.executeRequest('p', { stream: true }, explicitCb);
+      // The explicit callback is passed directly (without persona wrapping)
+      expect(explicitCb).toHaveBeenCalledWith('tok');
+      expect(instanceCb).not.toHaveBeenCalled();
+    });
   });
 
   // ── executeBatch() ─────────────────────────────────────────────────────────

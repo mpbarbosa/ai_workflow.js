@@ -664,29 +664,34 @@ export class Step8TestExecutor {
         );
         const aiContent = aiResult?.content ?? '';
 
-        // Supplementary: e2e test engineering analysis
+        // Supplementary: e2e test engineering analysis — only for frontend/browser projects.
+        // Library and API projects have no UI, so browser-based E2E tests are not applicable.
+        const fePks = ['react_spa', 'client_spa', 'static_website'];
+        const resolvedKind = options?.projectType ?? options?.projectKind ?? '';
         let e2eContent = '';
-        try {
-          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml2 = yaml.load(yamlContent2);
-          const e2ePrompt = buildYamlStepPrompt(parsedYaml2, 'e2e_test_engineer_prompt', {
-            project_name: path.basename(projectRoot),
-            project_description: options?.projectDescription ?? 'N/A',
-            project_type: options?.projectKind ?? '',
-            e2e_framework: language,
-            test_command: testCommand,
-            browser_targets: '',
-            modified_count: String((options?.modifiedFiles ?? []).length),
-          });
-          if (e2ePrompt) {
-            const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
-            const e2eResult = await this.aiCache.withCache(e2eKey, e2eKey, () =>
-              this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
-            );
-            e2eContent = e2eResult?.content ?? '';
+        if (fePks.includes(resolvedKind)) {
+          try {
+            const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+            const parsedYaml2 = yaml.load(yamlContent2);
+            const e2ePrompt = buildYamlStepPrompt(parsedYaml2, 'e2e_test_engineer_prompt', {
+              project_name: path.basename(projectRoot),
+              project_description: options?.projectDescription ?? 'N/A',
+              project_type: resolvedKind,
+              e2e_framework: language,
+              test_command: testCommand,
+              browser_targets: '',
+              modified_count: String((options?.modifiedFiles ?? []).length),
+            });
+            if (e2ePrompt) {
+              const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
+              const e2eResult = await this.aiCache.withCache(e2eKey, e2eKey, () =>
+                this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
+              );
+              e2eContent = e2eResult?.content ?? '';
+            }
+          } catch {
+            /* optional */
           }
-        } catch {
-          /* optional */
         }
 
         if (aiContent || e2eContent) {
