@@ -388,6 +388,18 @@ describe('Step 2: Consistency Analysis', () => {
       expect(globOptions.some((o) => o.absolute === true)).toBe(true);
     });
 
+    test('excludes .ai_workflow/logs from documentation discovery', async () => {
+      const ignorePatterns = [];
+      mockFileOps.glob = (pattern, options) => {
+        if (options?.ignore) ignorePatterns.push(...options.ignore);
+        return Promise.resolve([]);
+      };
+
+      await analyzer.execute('/project');
+
+      expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.ai_workflow/logs/**']));
+    });
+
     test('executes successfully with documentation', async () => {
       mockFileOps.glob = () => Promise.resolve(['/project/README.md', '/project/docs/guide.md']);
       mockFileOps.readFile = (path) => {
