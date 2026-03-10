@@ -66,14 +66,18 @@ export function buildPromptFromTemplate(template, context = {}) {
   // the cleanup pass, so bash/shell ${VAR} in injected content is never stripped.
   // Replace ${variable} patterns first, then {variable} patterns.
   // Order matters: ${var} must be processed before {var}.
+  // IMPORTANT: use a replacer function (not a string) so that special replacement
+  // patterns in the value (e.g. $& or $1) are never interpreted by String#replace.
   for (const [key, value] of Object.entries(context)) {
     const dollarPattern = new RegExp(`\\$\\{${key}\\}`, 'g');
-    result = result.replace(dollarPattern, String(value ?? ''));
+    const str = String(value ?? '');
+    result = result.replace(dollarPattern, () => str);
   }
 
   for (const [key, value] of Object.entries(context)) {
     const bracePattern = new RegExp(`\\{${key}\\}`, 'g');
-    result = result.replace(bracePattern, String(value ?? ''));
+    const str = String(value ?? '');
+    result = result.replace(bracePattern, () => str);
   }
 
   return result;
