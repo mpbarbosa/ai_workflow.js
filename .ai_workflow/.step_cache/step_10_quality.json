@@ -110,6 +110,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+    },
+    "src/cli/commands/deploy.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+    },
+    "src/cli/tui/components/Header.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+    },
+    "src/cli/tui/components/StreamViewer.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+    },
+    "src/cli/tui/helpers.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+    },
+    "src/cli/tui/hooks/useOrchestrator.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
     }
   }
 }

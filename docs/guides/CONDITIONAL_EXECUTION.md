@@ -1,6 +1,6 @@
 # Conditional Execution Strategy
 
-**Version:** 1.5.4
+**Version:** 1.6.0
 **Status:** ✅ Implemented
 **Impact:** 40-60% reduction in CI/CD time for low-impact changes
 
@@ -856,7 +856,7 @@ Run only tests that cover changed code:
 
 ## Changelog
 
-### [1.5.4] - 2026-02-07
+### [1.6.0] - 2026-02-07
 
 - ✨ Initial implementation of conditional execution
 - ✨ Change impact analyzer script

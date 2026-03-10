@@ -1,8 +1,0 @@
-[2026-03-07T19:53:29.068Z] 
-→ Starting: AWS LBS Validation
-[2026-03-07T19:53:29.069Z] ════════════════════════════════════════════════════════════
-[2026-03-07T19:53:29.069Z] 🔷  Step 11.5: AWS LBS Backend Validation
-[2026-03-07T19:53:29.069Z] ════════════════════════════════════════════════════════════
-[2026-03-07T19:53:29.082Z] Step 11.5 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup
-[2026-03-07T19:53:29.082Z] ✓ Step step_11_5 completed in 14ms
-[2026-03-07T19:53:29.082Z] ✓ Completed: AWS LBS Validation (0s)
