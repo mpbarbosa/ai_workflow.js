@@ -83,7 +83,8 @@ describe('AI Prompt Builder Module - Template Processing', () => {
     test('preserves bash ${VAR} expressions inside injected file content', () => {
       // Regression: bash ${SCRIPT_DIR} in sample_code was being stripped by the
       // cleanup pass that runs after substitution, corrupting shell script samples.
-      const bashContent = 'PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"\nTAG="v${PACKAGE_VERSION}"';
+      const bashContent =
+        'PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"\nTAG="v${PACKAGE_VERSION}"';
       const template = 'Review this:\n{sample_code}';
       const result = buildPromptFromTemplate(template, { sample_code: bashContent });
       expect(result).toContain('${SCRIPT_DIR}');
@@ -94,6 +95,18 @@ describe('AI Prompt Builder Module - Template Processing', () => {
       const template = '{filled} and {unfilled}';
       const result = buildPromptFromTemplate(template, { filled: 'hello' });
       expect(result).toBe('hello and ');
+    });
+
+    test('preserves special regex replacement patterns ($&, $1) in injected file content', () => {
+      // Regression: String.prototype.replace() with a string second argument expands
+      // $& to the matched text. When file_content_map contains source code with \\$&
+      // (e.g. a regex replace like /pattern/g, '\\$&'), the injected content was
+      // corrupted to \\{file_content_map} — the literal matched placeholder text.
+      const sourceCode = "return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');";
+      const template = 'Code:\n{file_content_map}';
+      const result = buildPromptFromTemplate(template, { file_content_map: sourceCode });
+      expect(result).toContain('\\$&');
+      expect(result).not.toContain('{file_content_map}');
     });
   });
 
