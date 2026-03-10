@@ -20,6 +20,7 @@ import {
   AI_HELPERS_PATH,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
+import path from 'node:path';
 
 // ============================================================================
 // CONSTANTS
@@ -542,14 +543,19 @@ export class Step3ScriptAnalyzer {
     for (const dir of directories) {
       for (const pattern of patterns) {
         try {
+          // path.join normalises '.' away so './*.sh' becomes '*.sh',
+          // which minimatch can correctly match against bare relative paths.
+          const directPattern = path.join(dir, pattern);
+          const recursivePattern = path.join(dir, '**', pattern);
+
           // Match files directly in the directory
-          const direct = await this.fileOps.glob(`${dir}/${pattern}`, {
+          const direct = await this.fileOps.glob(directPattern, {
             cwd: projectRoot,
             ignore: exclude.map((ex) => `**/${ex}/**`),
           });
           scripts.push(...direct);
           // Match files in subdirectories
-          const recursive = await this.fileOps.glob(`${dir}/**/${pattern}`, {
+          const recursive = await this.fileOps.glob(recursivePattern, {
             cwd: projectRoot,
             ignore: exclude.map((ex) => `**/${ex}/**`),
           });

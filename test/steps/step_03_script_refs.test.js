@@ -424,6 +424,25 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.reason).toBe('no_scripts');
     });
 
+    test('discovers scripts in project root (dot directory)', async () => {
+      // Regression: patterns like `./*.sh` were passed verbatim to minimatch, which
+      // never matched bare relative paths like `cdn-delivery.sh`. path.join normalises
+      // `./*.sh` → `*.sh` so root-level scripts are picked up correctly.
+      const capturedPatterns = [];
+      mockFileOps.glob = (pattern, _opts) => {
+        capturedPatterns.push(pattern);
+        if (pattern === '*.sh') return Promise.resolve(['cdn-delivery.sh']);
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = () => Promise.resolve('Run `cdn-delivery.sh`');
+
+      const result = await analyzer.execute('/project');
+
+      expect(capturedPatterns).toContain('*.sh');
+      expect(capturedPatterns).not.toContain('./*.sh');
+      expect(result.scriptsFound).toBe(1);
+    });
+
     test('executes successfully with scripts', async () => {
       mockFileOps.glob = () => Promise.resolve(['scripts/build.sh', 'scripts/test.sh']);
       mockFileOps.readFile = () =>
