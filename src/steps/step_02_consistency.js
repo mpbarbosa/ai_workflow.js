@@ -670,6 +670,7 @@ export class Step2ConsistencyAnalyzer {
       'env',
       '.workflow_core',
       '.workflow_fspec',
+      '.ai_workflow/logs',
     ];
 
     const files = [];
