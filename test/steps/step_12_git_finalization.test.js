@@ -569,7 +569,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status (has changes)
         .mockRejectedValueOnce(new Error('no submodules')) // submodules check
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
@@ -616,7 +617,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
@@ -653,7 +655,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockRejectedValueOnce(nothingToCommitError); // git commit fails
 
       const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
@@ -687,7 +690,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach git add -A
         .mockResolvedValueOnce({ stdout: '' }) // _stageSubmoduleChanges: git submodule foreach commit
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent)
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
@@ -727,7 +731,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git submodule foreach git add -A
         .mockRejectedValueOnce(new Error('Committer identity unknown')) // submodule commit fails
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent) — must still run
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
@@ -764,7 +769,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
@@ -804,7 +810,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockResolvedValueOnce({ stdout: '' }) // git tag v1.2.3
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v1.2.3
@@ -843,7 +850,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         // no tag call expected
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
@@ -881,7 +889,8 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
         .mockRejectedValueOnce(new Error('no submodules')) // submodules
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
         .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
         .mockRejectedValueOnce(
           Object.assign(new Error('tag already exists'), {

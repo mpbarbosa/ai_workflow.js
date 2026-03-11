@@ -691,16 +691,16 @@ export class Step12GitFinalization {
       await this._stageSubmoduleChanges();
     }
     await this._executeGit('git add -A');
-    // Force-add the workflow artifact directory: parts of .ai_workflow/ (e.g.
-    // .ai_cache/, .step_cache/) are typically .gitignore-d, so git add -A
-    // silently skips them. git add -f stages them explicitly.
-    // We limit the force-add to .ai_workflow/ only to avoid accidentally
-    // committing other gitignore-d trees (node_modules, dist, …).
-    try {
-      await this._executeGit('git add -f .ai_workflow/');
-      this.logger.debug('Force-staged .ai_workflow/ artifacts');
-    } catch {
-      // .ai_workflow/ may not exist in some project setups — ignore
+    // Force-add only the specific .ai_workflow/ artifacts that are intentionally
+    // tracked despite being gitignored in target projects. Broad force-adding
+    // (.ai_workflow/) would bypass gitignore for logs/, checkpoints/, and other
+    // ephemeral subdirectories that must never be committed.
+    for (const target of ['.ai_workflow/.step_cache/', '.ai_workflow/commit_history.json']) {
+      try {
+        await this._executeGit(`git add -f ${target}`);
+      } catch {
+        // path may not exist in all project setups — ignore
+      }
     }
     this.logger.info('Changes staged successfully');
   }
@@ -785,9 +785,9 @@ export class Step12GitFinalization {
     const ARTIFACT_DIRS = /^(\.ai_workflow\/|\.jest-cache\/|node_modules\/|\.git\/)/;
     const relevantFiles = allFiles.filter((f) => !ARTIFACT_DIRS.test(f));
 
-    let diffSummary = '';
-    let diffSample = '';
-    let gitLog = '';
+    let diffSummary;
+    let diffSample;
+    let gitLog;
 
     try {
       diffSummary = await this._executeGit('git diff --shortstat HEAD');
@@ -933,7 +933,7 @@ export class Step12GitFinalization {
       }
       // Re-throw with stderr included so the root cause is visible in the log
       const detail = err.stderr ? `: ${err.stderr.trim()}` : '';
-      throw new Error(`${err.message}${detail}`);
+      throw new Error(`${err.message}${detail}`, { cause: err });
     } finally {
       await fsPromises.unlink(tmpFile).catch(() => {});
     }
