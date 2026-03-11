@@ -954,11 +954,7 @@ describe('AiHelper class methods', () => {
       };
       const onChunk = jest.fn();
       const result = await helper.executeRequest('stream me', { stream: true }, onChunk);
-      expect(sendStream).toHaveBeenCalledWith(
-        'stream me',
-        onChunk,
-        expect.any(Number)
-      );
+      expect(sendStream).toHaveBeenCalledWith('stream me', onChunk, expect.any(Number));
       expect(helper._wrapper.send).not.toHaveBeenCalled();
       expect(result).toHaveProperty('success', true);
     });
@@ -1127,7 +1123,15 @@ describe('validateAiHelperState - additional edge cases', () => {
 
   test('flags timeout that is unreasonably high', () => {
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 999999999, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 999999999,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: null,
+      },
       goodState()
     );
     expect(result.consistent).toBe(false);
@@ -1136,7 +1140,15 @@ describe('validateAiHelperState - additional edge cases', () => {
 
   test('flags negative baseDelay', () => {
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: -1, maxDelay: 5000, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: -1,
+        maxDelay: 5000,
+        promptsDir: null,
+      },
       goodState()
     );
     expect(result.consistent).toBe(false);
@@ -1145,7 +1157,15 @@ describe('validateAiHelperState - additional edge cases', () => {
 
   test('flags maxDelay less than baseDelay', () => {
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 5000, maxDelay: 100, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 5000,
+        maxDelay: 100,
+        promptsDir: null,
+      },
       goodState()
     );
     expect(result.consistent).toBe(false);
@@ -1154,7 +1174,15 @@ describe('validateAiHelperState - additional edge cases', () => {
 
   test('flags non-string promptsDir that is not null', () => {
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: 42 },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: 42,
+      },
       goodState()
     );
     expect(result.consistent).toBe(false);
@@ -1163,7 +1191,15 @@ describe('validateAiHelperState - additional edge cases', () => {
 
   test('flags empty string promptsDir', () => {
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: '   ' },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: '   ',
+      },
       goodState()
     );
     expect(result.consistent).toBe(false);
@@ -1173,7 +1209,15 @@ describe('validateAiHelperState - additional edge cases', () => {
   test('flags non-boolean state.initialized', () => {
     const state = { ...goodState(), initialized: 'yes' };
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: null,
+      },
       state
     );
     expect(result.state.issues.some((i) => i.includes('initialized'))).toBe(true);
@@ -1182,7 +1226,15 @@ describe('validateAiHelperState - additional edge cases', () => {
   test('flags non-boolean state.available', () => {
     const state = { ...goodState(), available: 1 };
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: null,
+      },
       state
     );
     expect(result.state.issues.some((i) => i.includes('available'))).toBe(true);
@@ -1191,7 +1243,15 @@ describe('validateAiHelperState - additional edge cases', () => {
   test('flags non-boolean state.authenticated', () => {
     const state = { ...goodState(), authenticated: 'true' };
     const result = validateAiHelperState(
-      { model: 'gpt-4.1', maxRetries: 3, cache: true, timeout: 60000, baseDelay: 100, maxDelay: 5000, promptsDir: null },
+      {
+        model: 'gpt-4.1',
+        maxRetries: 3,
+        cache: true,
+        timeout: 60000,
+        baseDelay: 100,
+        maxDelay: 5000,
+        promptsDir: null,
+      },
       state
     );
     expect(result.state.issues.some((i) => i.includes('authenticated'))).toBe(true);
@@ -1242,7 +1302,10 @@ describe('AiHelper class - additional method coverage', () => {
       .spyOn(helper, 'executeRequest')
       .mockRejectedValueOnce(new Error('request failed'))
       .mockResolvedValueOnce({ success: true, content: 'ok' });
-    const results = await helper.executeBatch([{ prompt: 'bad prompt' }, { prompt: 'good prompt' }]);
+    const results = await helper.executeBatch([
+      { prompt: 'bad prompt' },
+      { prompt: 'good prompt' },
+    ]);
     expect(results).toHaveLength(2);
     expect(results[0].success).toBe(false);
     expect(results[1].success).toBe(true);
@@ -1275,7 +1338,9 @@ describe('AiHelper class - additional method coverage', () => {
 
 describe('readFileHandler', () => {
   let dir;
-  beforeEach(async () => { dir = await mkdtemp(path.join(tmpdir(), 'ai-tools-')); });
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ai-tools-'));
+  });
 
   test('reads file content and returns metadata', async () => {
     const filePath = path.join(dir, 'hello.txt');
@@ -1333,5 +1398,42 @@ describe('buildWorkflowTools', () => {
     const tools = buildWorkflowTools('/tmp');
     expect(tools).toHaveLength(3);
     tools.forEach((t) => expect(t).toBeDefined());
+  });
+});
+
+describe('AiHelper._logPrompt - Project Version header', () => {
+  let promptsDir;
+
+  beforeEach(async () => {
+    promptsDir = await mkdtemp(path.join(tmpdir(), 'ai-log-version-'));
+  });
+
+  test('includes Project Version in log header when projectVersion is set', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir, projectVersion: '1.2.3' });
+    // Directly invoke the private log method via executeRequest mock path:
+    // call the internal method directly to avoid needing a live AI SDK.
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    expect(files).toHaveLength(1);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('**Project Version:** 1.2.3');
+  });
+
+  test('omits Project Version line when projectVersion is null', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir, projectVersion: null });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).not.toContain('**Project Version:**');
   });
 });

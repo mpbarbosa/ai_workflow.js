@@ -604,6 +604,7 @@ export class AiHelper {
       maxDelay: config.maxDelay || DEFAULT_REQUEST.MAX_DELAY_MS,
       promptsDir: config.promptsDir || null,
       workingDirectory: config.workingDirectory || null,
+      projectVersion: config.projectVersion || null,
       // When set, every executeRequest call automatically streams via this callback.
       // The callback receives (delta: string, meta: {persona, model}) per token chunk.
       streamingCallback: config.streamingCallback ?? null,
@@ -866,10 +867,7 @@ export class AiHelper {
               effectiveOnChunk,
               requestOptions.timeout || this.config.timeout
             )
-          : await this._wrapper.send(
-              prompt,
-              requestOptions.timeout || this.config.timeout
-            );
+          : await this._wrapper.send(prompt, requestOptions.timeout || this.config.timeout);
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);
@@ -959,6 +957,9 @@ export class AiHelper {
         `**Timestamp:** ${new Date().toISOString()}`,
         `**Persona:** ${persona}`,
         `**Model:** ${options.model || this.config.model}`,
+        ...(this.config.projectVersion
+          ? [`**Project Version:** ${this.config.projectVersion}`]
+          : []),
         ``,
         `## Prompt`,
         ``,
