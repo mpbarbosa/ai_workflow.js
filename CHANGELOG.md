@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9`. That package's devDependency `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry (latest available is `0.3.31`), causing `npm install` to fail with `ETARGET`. The override pins the package to an existing version until `olinda_shell_interface.js` fixes its `typedoc` dependency.
 
-## [1.6.1] - 2026-02-25
+## [1.6.2] - 2026-02-25
 
 ### Fixed
 
@@ -202,7 +202,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 
 ---
 
-## [1.6.1] - 2026-02-10 (Pre-Release)
+## [1.6.2] - 2026-02-10 (Pre-Release)
 
 ### Added
 
@@ -228,7 +228,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - All 20 workflow steps now complete (~11,025 total lines of step code)
 - Migration plan updated to Phase 9 COMPLETE status
 - README updated with Phase 9 completion milestone
-- Project version bumped to 1.6.1
+- Project version bumped to 1.6.2
 
 ### Status
 
@@ -236,7 +236,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Phase 10**: Main Orchestrator - NEXT
 - **Test Coverage**: 99.5% pass rate (18 skipped tests)
 
-## [1.6.1] - 2026-02-09
+## [1.6.2] - 2026-02-09
 
 ### Completed
 
@@ -467,7 +467,7 @@ This project is a complete JavaScript reimplementation of [ai_workflow](https://
 - **Test Count**: Updated from 695 to 942 total tests (28 error module tests + 219 Phase 5 git integration tests)
 - **Phase Status**: Phase 5 (Git Integration) now complete with 4 new modules
 
-## [1.6.1] - 2026-02-01
+## [1.6.2] - 2026-02-01
 
 ### Added - Phase 4 (COMPLETE)
 

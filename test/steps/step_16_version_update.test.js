@@ -431,7 +431,7 @@ Confidence: high`;
     test('formats complete report', () => {
       const data = {
         oldVersion: '1.2.3',
-        newVersion: '1.6.1',
+        newVersion: '1.6.2',
         bumpType: 'minor',
         stats: { updated: 2, skipped: 1, failed: 0 },
         updates: [
@@ -445,7 +445,7 @@ Confidence: high`;
       const report = formatVersionUpdateReport(data);
       expect(report).toContain('Step 16: Semantic Version Update Report');
       expect(report).toContain('Previous Version**: 1.2.3');
-      expect(report).toContain('New Version**: 1.6.1');
+      expect(report).toContain('New Version**: 1.6.2');
       expect(report).toContain('Bump Type**: minor');
       expect(report).toContain('Files Updated**: 2');
       expect(report).toContain('package.json');
@@ -939,10 +939,7 @@ Confidence: high`;
     });
 
     test('parses "Outdated: <ver>" pattern with preceding file name', () => {
-      const output = [
-        'Checking README.md',
-        '  Outdated: 1.2.3',
-      ].join('\n');
+      const output = ['Checking README.md', '  Outdated: 1.2.3'].join('\n');
       const result = parseConsistencyCheckOutput(output);
       const entry = result.find((r) => r.file === 'README.md');
       expect(entry).toBeDefined();
