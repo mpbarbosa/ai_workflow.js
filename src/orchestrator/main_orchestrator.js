@@ -23,6 +23,7 @@ import { StepRegistry } from './step_registry.js';
 import { CheckpointManager } from './checkpoint_manager.js';
 import { Config } from '../lib/config.js';
 import path from 'path';
+import fs from 'fs/promises';
 import { Metrics } from '../lib/metrics.js';
 import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
@@ -964,8 +965,21 @@ export class MainOrchestrator {
           promptsDir: this.logsRunDir ? path.join(this.logsRunDir, 'prompts', stepId) : null,
         };
 
-        // When streaming is enabled, inject a pre-configured AiHelper that forwards
-        // every token delta to workflowEngine as an 'ai:stream:chunk' event.
+        // Read project version from target project's package.json (non-fatal).
+        // Stamped into every prompt log header so validators can tell which
+        // project version the AI findings apply to.
+        let projectVersion = null;
+        try {
+          const pkgRaw = await fs.readFile(path.join(this.projectRoot, 'package.json'), 'utf8');
+          projectVersion = JSON.parse(pkgRaw).version || null;
+        } catch {
+          // package.json absent or unreadable — leave projectVersion null
+        }
+        commonDeps.projectVersion = projectVersion;
+
+        // Always inject a pre-configured AiHelper so that:
+        // (a) project version is stamped into every prompt log header, and
+        // (b) when streaming is enabled, token deltas are forwarded to the TUI.
         // Steps use 'options.aiHelper || new AiHelper(...)' so they pick this up for free.
         if (this.streamingEnabled) {
           const engine = this.workflowEngine;
@@ -974,6 +988,7 @@ export class MainOrchestrator {
           const streamStart = Date.now();
           commonDeps.aiHelper = new AiHelper({
             promptsDir: commonDeps.promptsDir,
+            projectVersion,
             streamingCallback: (delta, meta = {}) => {
               engine.emit('ai:stream:chunk', {
                 stepId,
@@ -1001,6 +1016,13 @@ export class MainOrchestrator {
           };
           engine.on('step:complete', onStepComplete);
           engine.on('step:error', onStepComplete);
+        } else {
+          // Non-streaming: inject a plain AiHelper with projectVersion so that
+          // the version is still stamped into prompt log headers.
+          commonDeps.aiHelper = new AiHelper({
+            promptsDir: commonDeps.promptsDir,
+            projectVersion,
+          });
         }
 
         // Create executor instance with dependencies
