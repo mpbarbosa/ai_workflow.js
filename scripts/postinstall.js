@@ -12,7 +12,7 @@
  *     We add a minimal exports map so the extensionless subpath resolves to node.js.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -51,7 +51,9 @@ function writePkg(pkgPath, pkg) {
     if (changed) {
       pkg.exports = exports_;
       writePkg(pkgPath, pkg);
-      console.log('postinstall: patched olinda_shell_interface.js exports map (dist/esm → dist/src)');
+      console.log(
+        'postinstall: patched olinda_shell_interface.js exports map (dist/esm → dist/src)'
+      );
     }
   }
 }

@@ -921,6 +921,454 @@ describe('Step 12: Git Finalization', () => {
   });
 
   // ==========================================================================
+  // BUG FIX TESTS
+  // Fix 1 (920796e): scope git add -f to specific artifacts, exclude logs/
+  // Fix 2 (774e26c): remove --no-verify to enforce quality gates
+  // ==========================================================================
+
+  describe('[BUG FIX 920796e] scoped force-add: only .step_cache/ and commit_history.json', () => {
+    let mockExecutor;
+    let mockBacklog;
+    let mockLogger;
+
+    beforeEach(() => {
+      mockExecutor = { executeCommand: jest.fn() };
+      mockBacklog = { saveStepSummary: jest.fn(), saveStepIssues: jest.fn() };
+      mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), step: jest.fn() };
+    });
+
+    // ── Unit: exact force-add targets ────────────────────────────────────────
+
+    test('[unit] force-adds exactly .ai_workflow/.step_cache/ and .ai_workflow/commit_history.json', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' }) // branch
+        .mockResolvedValueOnce({ stdout: '0' }) // ahead
+        .mockResolvedValueOnce({ stdout: '0' }) // behind
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' }) // status
+        .mockRejectedValueOnce(new Error('no submodules')) // submodules
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f commit_history.json
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // stash
+        .mockResolvedValueOnce({ stdout: '' }) // pull
+        .mockResolvedValueOnce({ stdout: '' }); // push
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+      await step.execute();
+
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      const forceAdds = calls.filter((cmd) => cmd.includes('git add -f'));
+
+      expect(forceAdds).toHaveLength(2);
+      expect(forceAdds[0]).toBe('git add -f .ai_workflow/.step_cache/');
+      expect(forceAdds[1]).toBe('git add -f .ai_workflow/commit_history.json');
+    });
+
+    test('[unit] does NOT force-add the broad .ai_workflow/ directory', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f .step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // git add -f commit_history.json
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+      await step.execute();
+
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      const broadForceAdd = calls.find((cmd) => /git add -f \.ai_workflow\/$/.test(cmd));
+      expect(broadForceAdd).toBeUndefined();
+    });
+
+    test('[unit] does NOT force-add logs/, checkpoints/, or other subdirectories', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+      await step.execute();
+
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      const forbiddenForceAdds = calls.filter(
+        (cmd) =>
+          cmd.includes('git add -f') &&
+          (cmd.includes('logs/') ||
+            cmd.includes('checkpoints/') ||
+            cmd.includes('summaries/') ||
+            cmd.includes('metrics/'))
+      );
+      expect(forbiddenForceAdds).toHaveLength(0);
+    });
+
+    // ── Integration: partial failure of force-add targets ────────────────────
+
+    test('[integration] continues when .step_cache/ does not exist (force-add throws)', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockRejectedValueOnce(new Error('pathspec .ai_workflow/.step_cache/ did not match')) // .step_cache/ missing
+        .mockResolvedValueOnce({ stdout: '' }) // commit_history.json succeeds
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      // commit_history.json force-add must still have been attempted
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.includes('commit_history.json'))).toBe(true);
+    });
+
+    test('[integration] continues when commit_history.json does not exist (force-add throws)', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // .step_cache/ succeeds
+        .mockRejectedValueOnce(new Error('pathspec .ai_workflow/commit_history.json did not match')) // missing
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+    });
+
+    test('[integration] succeeds when both force-add targets are absent', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockRejectedValueOnce(new Error('pathspec did not match')) // .step_cache/ missing
+        .mockRejectedValueOnce(new Error('pathspec did not match')) // commit_history.json missing
+        .mockResolvedValueOnce({ stdout: '' }) // git commit still runs
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      const result = await step.execute();
+
+      expect(result.success).toBe(true);
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      expect(calls.some((cmd) => cmd.includes('git commit'))).toBe(true);
+    });
+
+    // ── Functional: regression guard against broad force-add ─────────────────
+
+    test('[functional] never issues git add -f with a path covering logs/', async () => {
+      // This test is the regression guard: if .ai_workflow/ ever re-appears as
+      // a broad force-add target it would capture logs/ (gitignored), which
+      // must never happen.
+      const seenForceAdds = [];
+      mockExecutor.executeCommand = jest.fn().mockImplementation((cmd) => {
+        if (cmd.includes('git add -f')) seenForceAdds.push(cmd);
+        return Promise.resolve({ stdout: '' });
+      });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      // inject a minimal git state to reach _stageChanges
+      mockExecutor.executeCommand = jest.fn().mockImplementation((cmd) => {
+        if (cmd.includes('git add -f')) seenForceAdds.push(cmd);
+        if (cmd.includes('rev-parse') || cmd.includes('branch'))
+          return Promise.resolve({ stdout: 'main' });
+        if (cmd.includes('rev-list') && cmd.includes('HEAD..'))
+          return Promise.resolve({ stdout: '0' });
+        if (cmd.includes('rev-list') && cmd.includes('..HEAD'))
+          return Promise.resolve({ stdout: '0' });
+        if (cmd.includes('status')) return Promise.resolve({ stdout: 'M src/foo.js' });
+        if (cmd.includes('submodule')) return Promise.reject(new Error('no submodules'));
+        return Promise.resolve({ stdout: '' });
+      });
+
+      await step.execute();
+
+      const logsViolation = seenForceAdds.find(
+        (cmd) =>
+          // broad .ai_workflow/ would match .ai_workflow/logs/ among others
+          /git add -f \.ai_workflow\/$/.test(cmd) || /git add -f \.ai_workflow\/logs/.test(cmd)
+      );
+      expect(logsViolation).toBeUndefined();
+    });
+  });
+
+  describe('[BUG FIX 774e26c] git commit must not use --no-verify', () => {
+    let mockExecutor;
+    let mockBacklog;
+    let mockLogger;
+
+    beforeEach(() => {
+      mockExecutor = { executeCommand: jest.fn() };
+      mockBacklog = { saveStepSummary: jest.fn(), saveStepIssues: jest.fn() };
+      mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), step: jest.fn() };
+    });
+
+    // ── Unit: commit command format ───────────────────────────────────────────
+
+    test('[unit] commit command uses -F <tmpfile> without --no-verify', async () => {
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // force-add .step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // force-add commit_history.json
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
+        .mockResolvedValueOnce({ stdout: 'No local changes to save' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      await step.execute();
+
+      const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
+      const commitCmd = calls.find((cmd) => /^git commit/.test(cmd));
+      expect(commitCmd).toBeDefined();
+      expect(commitCmd).toContain('-F ');
+      expect(commitCmd).not.toContain('--no-verify');
+    });
+
+    // ── Integration: pre-commit hook failure propagates ───────────────────────
+
+    test('[integration] pre-commit hook failure is NOT swallowed (propagates as thrown error)', async () => {
+      const hookError = Object.assign(new Error('Command failed: git commit -F ...'), {
+        stderr: 'pre-commit hook failed with exit code 1',
+        exitCode: 1,
+      });
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' }) // git add -A
+        .mockResolvedValueOnce({ stdout: '' }) // force-add .step_cache/
+        .mockResolvedValueOnce({ stdout: '' }) // force-add commit_history.json
+        .mockRejectedValueOnce(hookError); // pre-commit hook blocks commit
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      // execute() re-throws non-"nothing to commit" errors — the step fails
+      await expect(step.execute()).rejects.toThrow('pre-commit hook failed');
+    });
+
+    test('[integration] "nothing to commit" error is still treated as success', async () => {
+      // Regression: "nothing to commit" must remain a soft success even when
+      // pre-commit hooks are not bypassed.
+      const nothingToCommit = Object.assign(new Error('Command failed: git commit -F ...'), {
+        stderr: 'nothing to commit, working tree clean',
+        exitCode: 1,
+      });
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockRejectedValueOnce(nothingToCommit);
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      const result = await step.execute();
+      expect(result.success).toBe(true);
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+
+    test('[integration] "nothing added to commit" variant is treated as success', async () => {
+      const nothingAdded = Object.assign(new Error('Command failed: git commit -F ...'), {
+        stderr: 'nothing added to commit but untracked files present',
+        exitCode: 1,
+      });
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockRejectedValueOnce(nothingAdded);
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      const result = await step.execute();
+      expect(result.success).toBe(true);
+    });
+
+    test('[integration] rethrown commit errors carry stderr detail in the message', async () => {
+      const rootCause = Object.assign(new Error('Command failed: git commit -F ...'), {
+        stderr: 'fatal: unable to write new index file',
+        exitCode: 128,
+      });
+
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: 'main' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: '0' })
+        .mockResolvedValueOnce({ stdout: 'M src/foo.js' })
+        .mockRejectedValueOnce(new Error('no submodules'))
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockResolvedValueOnce({ stdout: '' })
+        .mockRejectedValueOnce(rootCause);
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      // The rethrown error must include the stderr detail so the root cause
+      // is visible in logs. execute() propagates it further.
+      await expect(step.execute()).rejects.toThrow('unable to write new index file');
+    });
+
+    // ── Functional: quality gate enforcement contract ─────────────────────────
+
+    test('[functional] ALL git commit calls in a full workflow run omit --no-verify', async () => {
+      // Collect every git commit invocation across a complete execute() cycle
+      // and assert none use --no-verify.
+      const commitCalls = [];
+      mockExecutor.executeCommand = jest.fn().mockImplementation((cmd) => {
+        if (/^git commit/.test(cmd)) commitCalls.push(cmd);
+        if (cmd.includes('submodule') && !cmd.includes('foreach') && !cmd.includes('update')) {
+          return Promise.reject(new Error('no submodules'));
+        }
+        return Promise.resolve({ stdout: cmd.includes('status') ? 'M src/foo.js' : '' });
+      });
+
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+        aiHelper: { initialize: jest.fn().mockResolvedValue(false) },
+      });
+
+      await step.execute();
+
+      expect(commitCalls.length).toBeGreaterThan(0);
+      commitCalls.forEach((cmd) => {
+        expect(cmd).not.toContain('--no-verify');
+      });
+    });
+  });
+
+  // ==========================================================================
   // PURE FUNCTIONS - Tagging
   // ==========================================================================
 

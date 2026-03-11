@@ -42,7 +42,7 @@ import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
  *   onExit?: () => void,
  * }} props
  */
-export function App({ orchestrator, stage, version = '1.8.0', verbose = false, onExit }) {
+export function App({ orchestrator, stage, version = '1.6.2', verbose = false, onExit }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const { steps, logs, progress, currentStepId, isComplete, lastError, streamChunks } =
@@ -194,9 +194,7 @@ export function App({ orchestrator, stage, version = '1.8.0', verbose = false, o
   const contentHeight = Math.max(5, rows - 9);
   // When the stream viewer is shown, split the right panel vertically.
   // LogPanel gets 60%, StreamViewer gets 40% (min 8 lines each).
-  const logHeight = showStream
-    ? Math.max(8, Math.floor(contentHeight * 0.6))
-    : contentHeight;
+  const logHeight = showStream ? Math.max(8, Math.floor(contentHeight * 0.6)) : contentHeight;
   const streamHeight = showStream ? Math.max(8, contentHeight - logHeight) : 0;
 
   const completedCount = Object.values(steps).filter(

@@ -109,7 +109,7 @@ ${aiContent || '_No AI analysis available._'}
  * @param {Object} fileOps - FileOperations instance used for reading files.
  * @returns {Promise<string|null>} File content, or `null` when the file is absent.
  *
- * @since 1.6.1
+ * @since 1.6.2
  *
  * @example
  * const ctx = await readProjectContextFile('/path/to/project', fileOps);

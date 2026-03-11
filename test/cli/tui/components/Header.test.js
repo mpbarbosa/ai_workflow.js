@@ -22,7 +22,7 @@ describe('Header Component', () => {
     const { lastFrame } = render(
       React.createElement(Header, { stage: 'init', completed: 0, total: 10 })
     );
-    expect(lastFrame()).toContain('v1.8.0');
+    expect(lastFrame()).toContain('v1.6.2');
     expect(lastFrame()).toContain('stage: init');
     expect(lastFrame()).toContain('Step 0/10');
   });

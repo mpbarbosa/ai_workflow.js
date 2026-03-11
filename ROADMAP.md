@@ -1,43 +1,17 @@
 # ai_workflow.js — Project Roadmap
 
-> **Current version:** 1.8.0 · **Status:** Production Ready ✅
-> **Tests:** 6,209 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
+> **Current version:** 1.6.2 · **Status:** Production Ready ✅
+> **Tests:** 5,837 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
 
 This roadmap tracks the evolution of **ai_workflow.js** from its initial architecture through
-upcoming feature work and long-term vision. Phases 1–12 are complete and shipped through v1.6.0.
+upcoming feature work and long-term vision. Phases 1–11 are complete and shipped as v1.0.0.
 Active development continues on TUI enhancements, streaming, and the next release milestone.
-
----
-
-## Agentic AI Vision
-
-> **From text prompts to programmable execution.**
-
-The AI landscape is shifting decisively from prompt-response interfaces toward **agent-driven,
-programmable execution**—AI that autonomously plans, executes multi-step tasks, invokes real
-tools, adapts to context, and recovers from failure. This is the paradigm described in
-[*The era of AI as text is over. Execution is the new interface.*](https://github.blog/ai-and-ml/github-copilot/the-era-of-ai-as-text-is-over-execution-is-the-new-interface/)
-
-**ai_workflow.js** is built to lead this transition. Our vision:
-
-- **Delegate goals, not steps.** Users specify intent; intelligent agents plan and execute
-  the workflow, selecting steps, invoking tools, and adapting to outcomes—without brittle
-  prompt-chaining or hand-authored scripts.
-- **Structured runtime context, not raw prompts.** Agents operate on structured toolsets,
-  typed contexts, and well-defined protocols—making automation testable, observable, and safe.
-- **Safety and oversight built in.** Guardrails, approval gates, and runtime monitoring ensure
-  agents operate within user-defined boundaries, with full visibility into every decision.
-- **"AI that does," not "AI that chats."** Each workflow step becomes an opportunity for
-  real agentic execution: planning, tool invocation, error recovery, and self-improvement.
-
-This vision shapes every upcoming phase and long-term investment described below.
 
 ---
 
 ## Table of Contents
 
-- [Agentic AI Vision](#agentic-ai-vision)
-- [Completed Work (Phases 1–12)](#completed-work-phases-112)
+- [Completed Work (Phases 1–11)](#completed-work-phases-111)
 - [In Progress](#in-progress)
 - [Phase 12 — Testing & Documentation](#phase-12--testing--documentation)
 - [Phase 13 — Packaging & Release](#phase-13--packaging--release)
@@ -47,30 +21,29 @@ This vision shapes every upcoming phase and long-term investment described below
 
 ---
 
-## Completed Work (Phases 1–12)
+## Completed Work (Phases 1–11)
 
 All phases below shipped as part of the **v1.0.0 stable release** (2026-02-17), with subsequent
-releases through v1.6.0 completing Phase 12.
+bug-fix releases up to v1.6.2.
 
-| Phase                          | Scope                                                                                                                                                                                 | Modules  | Tests  | Version |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ------- |
-| **1** Core Foundation          | Colors, logger, system, version, executor, errors                                                                                                                                     | 7        | 113    | v1.0.0  |
-| **2** Configuration & State    | Config, backlog, session manager, metrics                                                                                                                                             | 4        | 174    | v2.0.0  |
-| **3** File Operations          | File ops, edit ops, utils, arg parser, cleanup                                                                                                                                        | 5        | 354    | v2.0.0  |
-| **4** Project Detection        | Kind detection, kind config, tech stack, 3rd-party exclusion                                                                                                                          | 4        | 167    | v1.0.0  |
-| **5** Git Integration          | Git automation, git cache, auto-commit, change detection                                                                                                                              | 4        | 219    | v2.0.0  |
-| **6** AI Integration           | jq wrapper, personas, validation, AI cache, prompt builder, helpers — foundational layer for embedding Copilot agents with structured context, tool invocation, and response validation | 6        | 424    | v2.0.0  |
-|                                | _Prompt patterns already implemented: Template (#2), Persona (#3), Recipe (#5), Context Manager (#16)_                                                                                |          |        |         |
-| **7** Workflow Orchestration   | Engine, step registry, dependency resolver, step/conditional executors, checkpoints — composable execution loop designed to host agent-driven step planning and recovery               | 6        | 329    | v2.0.0  |
-| **8** Performance Optimization | Performance tracking, monitoring, profiles, caching, incremental & parallel analysis, ML skip prediction                                                                              | 13       | ~800   | v2.0.0  |
-| **9** Step Implementations     | 20 workflow steps (step_00 → step_17)                                                                                                                                                 | 20       | ~1,047 | v2.0.0  |
-| **10** Main Orchestrator       | `main_orchestrator.js` — coordinates all phases                                                                                                                                       | 1        | 38     | v2.0.0  |
-| **11** CLI & Configuration     | Entry point, commands (run/resume/config/init/status/clean), TUI baseline                                                                                                             | 11 + TUI | 133    | v2.0.0  |
-| **12** Testing & Documentation | Integration/e2e tests, `CopilotSdkWrapper` streaming, TypeScript declarations (`public-api.d.ts`), typedoc HTML docs, user guides, automation scripts                                 | 1 + types | 452   | v1.6.0  |
+| Phase                          | Scope                                                                                                    | Modules  | Tests  | Version |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------- | -------- | ------ | ------- |
+| **1** Core Foundation          | Colors, logger, system, version, executor, errors                                                        | 7        | 113    | v1.0.0  |
+| **2** Configuration & State    | Config, backlog, session manager, metrics                                                                | 4        | 174    | v2.0.0  |
+| **3** File Operations          | File ops, edit ops, utils, arg parser, cleanup                                                           | 5        | 354    | v2.0.0  |
+| **4** Project Detection        | Kind detection, kind config, tech stack, 3rd-party exclusion                                             | 4        | 167    | v1.0.0  |
+| **5** Git Integration          | Git automation, git cache, auto-commit, change detection                                                 | 4        | 219    | v2.0.0  |
+| **6** AI Integration           | jq wrapper, personas, validation, AI cache, prompt builder, helpers                                      | 6        | 424    | v2.0.0  |
+|                                | _Prompt patterns already implemented: Template (#2), Persona (#3), Recipe (#5), Context Manager (#16)_   |          |        |         |
+| **7** Workflow Orchestration   | Engine, step registry, dependency resolver, step/conditional executors, checkpoints                      | 6        | 329    | v2.0.0  |
+| **8** Performance Optimization | Performance tracking, monitoring, profiles, caching, incremental & parallel analysis, ML skip prediction | 13       | ~800   | v2.0.0  |
+| **9** Step Implementations     | 20 workflow steps (step_00 → step_17)                                                                    | 20       | ~1,047 | v2.0.0  |
+| **10** Main Orchestrator       | `main_orchestrator.js` — coordinates all phases                                                          | 1        | 38     | v2.0.0  |
+| **11** CLI & Configuration     | Entry point, commands (run/resume/config/init/status/clean), TUI baseline                                | 11 + TUI | 133    | v2.0.0  |
 
 ### Notable v1.x Bug Fixes
 
-- **v1.8.0** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
+- **v1.6.2** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
   fallback; `modifiedFiles` propagation from commit history; step_02_5 absolute paths;
   tsconfig JSONC false-positive; step_07 soft-block on step_12 push; step_15 fallback for
   non-UI project kinds; step_10 full-scan on large change sets; C4 compliance for `promptsDir`
@@ -82,19 +55,13 @@ releases through v1.6.0 completing Phase 12.
 
 ### Streaming Copilot Responses _(Implemented — pending release)_
 
-Token-by-token streaming for AI prompts via `CopilotSdkWrapper` and `AiHelper`. This is the
-foundational building block for **agentic execution**: rather than waiting for a complete
-response, agents stream output in real time, enabling mid-flight monitoring, adaptive
-intervention, and live progress display.
+Token-by-token streaming for AI prompts via `CopilotSdkWrapper` and `AiHelper`.
 
 - `CopilotSdkWrapper` accepts `streaming: true` at construction time
 - `AiHelper.executeRequest(prompt, { stream: true }, onChunk)` — `onChunk(delta)` receives
   each content fragment as it arrives
 - Non-streaming callers are entirely unaffected
 - Enables real-time display in the TUI Stream Viewer (see Phase T3.5)
-- **Planned:** Real-time error recovery and adaptive response powered by embedded Copilot
-  agents — agents stream partial plans, detect failure signals, and re-route execution
-  without full restarts.
 
 ### Verbose & Streaming Propagation _(Implemented — pending release)_
 
@@ -121,7 +88,7 @@ auto-generated HTML docs.
 
 | Sub-phase | Item                                           | Status                                                                                                         |
 | --------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **12.1**  | 500+ integration / e2e tests                   | ✅ Done (452 integration/e2e tests; 6,232 total)                                                               |
+| **12.1**  | 500+ integration / e2e tests                   | ✅ Done (452 integration/e2e tests; 6,234 total)                                                               |
 | **12.1**  | Workflow smoke test against fixture project    | ✅ Done (`test/e2e/workflow-smoke.e2e.test.js`)                                                                |
 | **12.1**  | Cross-step data-flow tests                     | ✅ Done (3 files in `test/integration/cross-step/`)                                                            |
 | **12.1**  | `npm run test:ci` pipeline                     | ✅ Done (`test:fast` + `test:slow` + `test:e2e`)                                                               |
@@ -241,21 +208,6 @@ the CLI → orchestrator → step injection chain.
 - [x] `resume.js` `resumeCommand()` carries the same derivation for checkpoint-resume runs
 - [x] `MainOrchestrator` injects a streaming `AiHelper` into every step when enabled
 - [x] Tests: `test/cli/commands/run.test.js` covers `verbose`/`streamingEnabled` cases
-
-### 12.5 Agent Guardrails & Observability
-
-> **Goal:** Ensure agentic workflow execution is safe, transparent, and auditable.
-
-- [ ] Define and enforce agent safety constraints (e.g. file-write scope, network access
-  limits, maximum retry depth) within `step_executor.js` and `conditional_executor.js`
-- [ ] Build a runtime agent monitoring panel in the TUI (see T3.6) — live execution graph,
-  per-agent status, and alert indicators
-- [ ] Implement **user intent approval gates**: when an agent proposes a high-impact action
-  (e.g. destructive file change, external API call), pause and prompt the user for
-  explicit confirmation before proceeding
-- [ ] Emit structured observability events (step start/end, tool invocations, retries, errors)
-  to `.ai_workflow/logs/` for post-run audit
-- [ ] Document guardrail configuration options in `.workflow-config.yaml` schema
 
 ---
 
@@ -386,7 +338,7 @@ for detailed specifications of each item.
 
 ### Phase T2 — Workflow Control
 
-> Pause, skip, retry, abort, approval gates, step-selection mode, intent delegation.
+> Pause, skip, retry, abort, approval gates, step-selection mode.
 
 | Item | Description                                                        | Status     |
 | ---- | ------------------------------------------------------------------ | ---------- |
@@ -396,11 +348,10 @@ for detailed specifications of each item.
 | T2.4 | Abort with cleanup choice overlay                                  | 🔲 Planned |
 | T2.5 | Approval gates for steps with `requiresApproval: true`             | 🔲 Planned |
 | T2.6 | Step selection mode (`--select` / `S`) with dependency enforcement | 🔲 Planned |
-| T2.7 | **Intent Delegation Interface** — allow users to specify a high-level goal (e.g. "improve test coverage") and have agents select, order, and execute the appropriate steps autonomously | 🔲 Planned |
 
 ### Phase T3 — Rich Visualizations
 
-> Metrics panel, dependency DAG, Gantt strip, change summary, streaming viewer, agent monitoring.
+> Metrics panel, dependency DAG, Gantt strip, change summary, streaming viewer.
 
 | Item | Description                                                                                                           | Status     |
 | ---- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -409,10 +360,8 @@ for detailed specifications of each item.
 | T3.3 | Timeline / Gantt strip at the bottom of the TUI                                                                       | 🔲 Planned |
 | T3.4 | Change summary panel (`c`) — groups by docs/tests/code/config                                                         | 🔲 Planned |
 | T3.5 | Verbose stream viewer — real-time token stream (`v`, requires `--verbose`)                                            | 🔲 Planned |
-| T3.6 | **Agent Monitoring Panel** (`a`) — live per-agent execution status, tool-call trace, error alerts, and supervised task adaptation; integrates with 12.5 observability events | 🔲 Planned |
 
 _T3.5 requires the streaming Copilot integration (currently In Progress)._
-_T3.6 requires Phase 12.5 Agent Guardrails & Observability._
 
 ### Phase T4 — TUI-First Workflows
 
@@ -441,18 +390,16 @@ _T3.6 requires Phase 12.5 Agent Guardrails & Observability._
 
 ### TUI Priority Order
 
-| Phase                  | Value      | Effort     | Suggested Order  |
-| ---------------------- | ---------- | ---------- | ---------------- |
-| T1 Navigation          | High       | Low        | **First**        |
-| T5.6 TUI Tests         | High       | Low        | **Alongside T1** |
-| T2 Workflow Control    | High       | Medium     | **Second**       |
-| T2.6 Step Selection    | High       | Medium     | **Alongside T2** |
-| T2.7 Intent Delegation | High       | High       | **Alongside T2** |
-| T3 Visualizations      | Medium     | Medium     | Third            |
-| T3.5 Stream Viewer     | Medium     | Medium     | **Alongside T3** |
-| T3.6 Agent Monitoring  | High       | Medium     | **Alongside T3** |
-| T4 TUI Workflows       | Medium     | High       | Fourth           |
-| T5 Polish              | Low–Medium | Low–Medium | Ongoing          |
+| Phase               | Value      | Effort     | Suggested Order  |
+| ------------------- | ---------- | ---------- | ---------------- |
+| T1 Navigation       | High       | Low        | **First**        |
+| T5.6 TUI Tests      | High       | Low        | **Alongside T1** |
+| T2 Workflow Control | High       | Medium     | **Second**       |
+| T2.6 Step Selection | High       | Medium     | **Alongside T2** |
+| T3 Visualizations   | Medium     | Medium     | Third            |
+| T3.5 Stream Viewer  | Medium     | Medium     | **Alongside T3** |
+| T4 TUI Workflows    | Medium     | High       | Fourth           |
+| T5 Polish           | Low–Medium | Low–Medium | Ongoing          |
 
 ---
 
@@ -461,47 +408,26 @@ _T3.6 requires Phase 12.5 Agent Guardrails & Observability._
 These items are not yet scoped into a specific phase but represent the intended direction
 of the project beyond v2.0.0.
 
-We commit to evolving **ai_workflow.js** into a platform for **programmable, agent-driven
-execution**—"AI that does," not "AI that chats"—with scalable, safe, and adaptable workflows
-ready for complex modern development environments. Every investment below is guided by this
-principle: agents that plan, act, adapt, and improve, operating transparently within
-guardrails that keep developers in control.
-
 ### Plugin System
 
 Allow third-party workflow steps to be registered via npm packages. A step plugin would
 export a `StepDefinition` object compatible with `step_registry.js`. Configuration would
 list plugins under `workflow.plugins` in `.workflow-config.yaml`.
 
-Beyond static step definitions, the plugin API will support **agentic step plugins**: modules
-that export a planning function, a tool registry, and an execution loop—enabling third-party
-agents to integrate natively with the orchestrator. Agentic plugins can perform multi-step
-planning, invoke external tools, recover from errors, and report structured observability
-events just like built-in steps.
-
 ### Multi-Repository Workflows
 
 Support running a coordinated workflow across multiple git repositories (e.g. a monorepo
 or a set of microservices), with cross-repo dependency graphs and a unified progress view.
-Agentic orchestration is central here: a coordinating agent assigns sub-workflows to
-per-repo agents, monitors their progress, reconciles cross-repo dependencies, and
-aggregates results—replacing brittle sequential scripting with dynamic, adaptive execution.
 
 ### Remote Execution / Offloading
 
 Run computationally expensive steps (AI prompts, large test suites) on a remote agent or
-GitHub Codespace, with the local TUI acting as a thin observer. Remote runners will expose
-an agent execution interface, allowing the local orchestrator to delegate goals (not just
-shell commands) to remote agents, receive structured progress events, and trigger adaptive
-re-routing if a remote step fails or times out.
+GitHub Codespace, with the local TUI acting as a thin observer.
 
 ### Workflow Marketplace
 
 A registry of shareable workflow configurations and step compositions. Teams could publish
 and consume project-kind–specific workflow presets (e.g. `react-spa-strict`, `python-api-fast`).
-The marketplace will extend to **agentic step definitions**: reusable agent modules with
-declared tool requirements, safety constraints, and intent interfaces, allowing teams to
-share and compose agent-powered automation as easily as npm packages.
 
 ### Native Windows Support
 
@@ -509,13 +435,9 @@ Full parity on Windows (PowerShell / WSL2), including the TUI (Ink already suppo
 terminals with color support).
 
 ### Self-Improving Workflows via ML
-Expand `src/lib/ml_optimization.js` with a full agentic feedback loop: workflow agents
-automatically log outcomes, errors, retries, and tool-call traces for every completed run.
-This structured telemetry feeds the ML skip-prediction model, enabling agents to learn
-which steps to accelerate, skip, or prioritize based on project context and historical
-patterns—without requiring manual tuning. Over time, agents will propose workflow
-optimizations (e.g. "step_07 consistently fails before step_05; reorder?") and surface
-them as actionable suggestions in the TUI.
+
+Expand `src/lib/ml_optimization.js` with a feedback loop: completed workflow runs contribute
+anonymized timing/skip data to refine the ML skip-prediction model over time.
 
 ### Workflow DSL — Compact Step Notation
 
@@ -541,16 +463,15 @@ This project follows [Semantic Versioning](https://semver.org/):
 - **Minor** (x.**Y**.0) — new features, backwards-compatible API additions
 - **Major** (**X**.0.0) — breaking API changes, major architectural shifts
 
-| Milestone                     | Target Version | Key Deliverables                                                                            |
-| ----------------------------- | -------------- | ------------------------------------------------------------------------------------------- |
-| Phase 12 complete             | 1.8.0          | Integration tests, full API docs                                                            |
-| Phase 13 complete             | 1.8.0          | npm public, CI/CD, release automation                                                       |
-| TUI Phase T1+T2 complete      | 1.9.0          | Interactive TUI, intent delegation                                                          |
-| TUI Phase T3+T4 complete      | 1.10.0         | Rich visualizations, agent monitoring panel, TUI-first workflows                            |
-| Phase 14 complete             | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater                    |
-| Full TUI + npm public stable  | **2.0.0**      | Public API freeze, accessibility, themes                                                    |
-| Agentic execution integration | **2.1.0**      | Full agent orchestration, intent delegation, plugin agentic API, guardrails & observability |
+| Milestone                    | Target Version | Key Deliverables                                                         |
+| ---------------------------- | -------------- | ------------------------------------------------------------------------ |
+| Phase 12 complete            | 1.7.0          | Integration tests, full API docs                                         |
+| Phase 13 complete            | 1.8.0          | npm public, CI/CD, release automation                                    |
+| TUI Phase T1+T2 complete     | 1.9.0          | Interactive TUI                                                          |
+| TUI Phase T3+T4 complete     | 1.10.0         | Rich visualizations, TUI-first workflows                                 |
+| Phase 14 complete            | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater |
+| Full TUI + npm public stable | **2.0.0**      | Public API freeze, accessibility, themes                                 |
 
 ---
 
-*Last updated: 2026-03-11 · See [CHANGELOG.md](CHANGELOG.md) for release history.*
+_Last updated: 2026-03-10 · See [CHANGELOG.md](CHANGELOG.md) for release history._

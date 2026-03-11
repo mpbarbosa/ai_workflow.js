@@ -146,7 +146,7 @@ export async function runCommand(options) {
       const { startTui } = await import('../tui/index.js');
       const result = await startTui(orchestrator, {
         stage: orchestratorOptions.stage,
-        version: '1.8.0',
+        version: '1.6.2',
         verbose: !!options.verbose,
       });
       process.exit(result.aborted ? 130 : result.success ? 0 : 1);
