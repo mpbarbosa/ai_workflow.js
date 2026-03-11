@@ -289,7 +289,7 @@ export class Step18Debugging {
    */
   async _discoverSourceFiles(projectRoot) {
     const patterns = ['**/*.js', '**/*.ts', '**/*.py', '**/*.java', '**/*.go'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__'];
+    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__', 'docs'];
     const found = [];
     for (const pattern of patterns) {
       try {

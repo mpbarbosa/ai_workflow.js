@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -99,7 +99,7 @@
     "inquirer": "^13.2.2",
     "js-yaml": "^4.1.1",
     "minimatch": "^9.0.9",
-    "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.1.tar.gz",
+    "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.9.tar.gz",
     "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9",
     "ora": "^9.3.0",
     "react": "^19.2.4"

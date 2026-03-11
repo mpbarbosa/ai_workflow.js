@@ -229,39 +229,39 @@ npm run test:coverage
    ```
 
 2. **Test error paths**
-   - File I/O failures
-   - Invalid inputs
-   - Edge cases
+  - File I/O failures
+  - Invalid inputs
+  - Edge cases
 
 3. **Test edge cases**
-   - Empty arrays
-   - Null/undefined
-   - Boundary conditions
+  - Empty arrays
+  - Null/undefined
+  - Boundary conditions
 
 4. **Document untestable code** (rare)
-   - Add `/* istanbul ignore next */` comment
-   - Explain why in PR description
+  - Add `/* istanbul ignore next */` comment
+  - Explain why in PR description
 
 ### Coverage Exceptions
 
 **When is low coverage acceptable?**
 
 1. **External dependencies** (requires real I/O)
-   - Subprocess execution
-   - Network calls
-   - File system operations
+  - Subprocess execution
+  - Network calls
+  - File system operations
 
    **Solution:** Mock dependencies or mark as integration tests
 
 2. **Error handling** (hard to trigger)
-   - System-level errors (ENOMEM, etc.)
-   - Race conditions
+  - System-level errors (ENOMEM, etc.)
+  - Race conditions
 
    **Solution:** Use Jest mocks to force error paths
 
 3. **Defensive programming** (should-never-happen cases)
-   - Fallback error handlers
-   - Sanity checks
+  - Fallback error handlers
+  - Sanity checks
 
    **Solution:** Document with comments, consider `/* istanbul ignore */`
 
@@ -276,21 +276,21 @@ npm run test:coverage
 **Planned Improvements:**
 
 1. **Add core module tests**
-   - `test/core/executor.test.js` (HIGH priority)
-   - `test/core/system.test.js` (MEDIUM priority)
-   - `test/core/version.test.js` (LOW priority)
-   - **Impact:** +349 lines covered, global coverage → ~88%
+  - `test/core/executor.test.js` (HIGH priority)
+  - `test/core/system.test.js` (MEDIUM priority)
+  - `test/core/version.test.js` (LOW priority)
+  - **Impact:** +349 lines covered, global coverage → ~88%
 
 2. **Test wrapper classes**
-   - `ai_helpers.js` AiHelper class (lines 313-683)
-   - `git_automation.js` GitAutomation class (lines 508-690)
-   - **Impact:** +555 lines covered, global coverage → ~93%
+  - `ai_helpers.js` AiHelper class (lines 313-683)
+  - `git_automation.js` GitAutomation class (lines 508-690)
+  - **Impact:** +555 lines covered, global coverage → ~93%
 
 3. **Improve error path coverage**
-   - File I/O errors in `file_operations.js`
-   - Command execution errors in `jq_wrapper.js`
-   - YAML parsing errors in `project_kind_config.js`
-   - **Impact:** +150 lines covered, global coverage → ~95%
+  - File I/O errors in `file_operations.js`
+  - Command execution errors in `jq_wrapper.js`
+  - YAML parsing errors in `project_kind_config.js`
+  - **Impact:** +150 lines covered, global coverage → ~95%
 
 **Expected Outcome:** 95%+ global coverage by end of Phase 8
 
@@ -343,9 +343,9 @@ Jest: "global" coverage threshold for statements (83%) not met: 80.5%
    ```
 
 4. **Add tests for uncovered code:**
-   - Red lines in HTML report = not executed
-   - Yellow lines = only one branch executed
-   - Green lines = fully tested
+  - Red lines in HTML report = not executed
+  - Yellow lines = only one branch executed
+  - Green lines = fully tested
 
 ---
 

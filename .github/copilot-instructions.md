@@ -45,11 +45,11 @@
 ### Core Architectural Patterns
 
 1. **Referential Transparency (v2.0.0)**
-   - Pure functions for core logic (deterministic, no side effects)
-   - Impure wrapper classes for I/O and state management
-   - Time and random dependencies injected as parameters
-   - Immutable data transformations throughout
-   - Isolated side effects at system boundaries
+  - Pure functions for core logic (deterministic, no side effects)
+  - Impure wrapper classes for I/O and state management
+  - Time and random dependencies injected as parameters
+  - Immutable data transformations throughout
+  - Isolated side effects at system boundaries
 
 2. **Layered Architecture**
 
@@ -74,22 +74,22 @@
    ```
 
 3. **Module Organization**
-   - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
-   - **src/utils/**: Helper functions (errors)
-   - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers, project_kind_detection, project_kind_config, tech_stack, third_party_exclusion, git_automation, git_cache, auto_commit, change_detection, jq_wrapper, ai_personas, ai_validation, ai_cache, ai_prompt_builder, ai_helpers)
-   - **src/orchestrator/**: Workflow orchestration (workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager)
-   - **test/**: Comprehensive test suite mirroring src/ structure
-   - **docs/**: Architecture, requirements, and migration documentation
+  - **src/core/**: Foundation utilities (colors, logger, system, version, executor)
+  - **src/utils/**: Helper functions (errors)
+  - **src/lib/**: Core libraries (config, backlog, session_manager, metrics, file_operations, edit_operations, utils, argument_parser, cleanup_handlers, project_kind_detection, project_kind_config, tech_stack, third_party_exclusion, git_automation, git_cache, auto_commit, change_detection, jq_wrapper, ai_personas, ai_validation, ai_cache, ai_prompt_builder, ai_helpers)
+  - **src/orchestrator/**: Workflow orchestration (workflow_engine, step_registry, dependency_resolver, step_executor, conditional_executor, checkpoint_manager)
+  - **test/**: Comprehensive test suite mirroring src/ structure
+  - **docs/**: Architecture, requirements, and migration documentation
 
 4. **Dependency Management**
-   - Minimal external dependencies (@github/copilot-sdk only for production)
-   - No heavy frameworks - lightweight and focused
-   - Dev dependencies for testing (jest) and code quality (eslint, prettier)
+  - Minimal external dependencies (@github/copilot-sdk only for production)
+  - No heavy frameworks - lightweight and focused
+  - Dev dependencies for testing (jest) and code quality (eslint, prettier)
 
 5. **Configuration Management**
-   - Uses `.workflow_core/` submodule for shared configuration templates
-   - Project-specific config in `.workflow-config.yaml`
-   - Workflow artifacts in `.ai_workflow/` directory (logs, metrics, backlog, summaries)
+  - Uses `.workflow_core/` submodule for shared configuration templates
+  - Project-specific config in `.workflow-config.yaml`
+  - Workflow artifacts in `.ai_workflow/` directory (logs, metrics, backlog, summaries)
 
 ---
 
@@ -640,25 +640,25 @@ export class SessionManager {
 ### Design Principles
 
 1. **Pure Functions (Referentially Transparent)**
-   - Always produce same output for same input (deterministic)
-   - No observable side effects (no mutation, I/O, global state)
-   - Time/random dependencies passed as parameters
-   - Immutable data transformations
-   - Easy to test (no mocks needed)
+  - Always produce same output for same input (deterministic)
+  - No observable side effects (no mutation, I/O, global state)
+  - Time/random dependencies passed as parameters
+  - Immutable data transformations
+  - Easy to test (no mocks needed)
 
 2. **Impure Wrappers (Side Effect Boundaries)**
-   - Handle I/O operations (file system, console, network)
-   - Manage mutable state (in-memory caches, sessions)
-   - Inject time (`Date.now()`) and randomness (`crypto.randomBytes()`)
-   - Call pure functions for business logic
-   - Isolate side effects at system boundaries
+  - Handle I/O operations (file system, console, network)
+  - Manage mutable state (in-memory caches, sessions)
+  - Inject time (`Date.now()`) and randomness (`crypto.randomBytes()`)
+  - Call pure functions for business logic
+  - Isolate side effects at system boundaries
 
 3. **Benefits**
-   - **Testability**: Pure functions have deterministic tests, no setup/teardown
-   - **Predictability**: Same inputs always produce same outputs
-   - **Composability**: Pure functions can be freely combined
-   - **Maintainability**: Clear separation of concerns
-   - **Debugging**: Side effects are obvious and isolated
+  - **Testability**: Pure functions have deterministic tests, no setup/teardown
+  - **Predictability**: Same inputs always produce same outputs
+  - **Composability**: Pure functions can be freely combined
+  - **Maintainability**: Clear separation of concerns
+  - **Debugging**: Side effects are obvious and isolated
 
 ### Architecture Pattern
 

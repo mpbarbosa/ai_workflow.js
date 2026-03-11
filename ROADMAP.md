@@ -1,10 +1,10 @@
 # ai_workflow.js — Project Roadmap
 
-> **Current version:** 1.7.0 · **Status:** Production Ready ✅
-> **Tests:** 5,837 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
+> **Current version:** 1.8.0 · **Status:** Production Ready ✅
+> **Tests:** 6,209 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
 
 This roadmap tracks the evolution of **ai_workflow.js** from its initial architecture through
-upcoming feature work and long-term vision. Phases 1–11 are complete and shipped as v1.0.0.
+upcoming feature work and long-term vision. Phases 1–12 are complete and shipped through v1.6.0.
 Active development continues on TUI enhancements, streaming, and the next release milestone.
 
 ---
@@ -37,7 +37,7 @@ This vision shapes every upcoming phase and long-term investment described below
 ## Table of Contents
 
 - [Agentic AI Vision](#agentic-ai-vision)
-- [Completed Work (Phases 1–11)](#completed-work-phases-111)
+- [Completed Work (Phases 1–12)](#completed-work-phases-112)
 - [In Progress](#in-progress)
 - [Phase 12 — Testing & Documentation](#phase-12--testing--documentation)
 - [Phase 13 — Packaging & Release](#phase-13--packaging--release)
@@ -47,45 +47,30 @@ This vision shapes every upcoming phase and long-term investment described below
 
 ---
 
-## Completed Work (Phases 1–11)
+## Completed Work (Phases 1–12)
 
 All phases below shipped as part of the **v1.0.0 stable release** (2026-02-17), with subsequent
-bug-fix releases up to v1.7.0.
+releases through v1.6.0 completing Phase 12.
 
-<<<<<<< HEAD
-| Phase | Scope | Modules | Tests | Version |
-|-------|-------|---------|-------|---------|
-| **1** Core Foundation | Colors, logger, system, version, executor, errors | 7 | 113 | v1.0.0 |
-| **2** Configuration & State | Config, backlog, session manager, metrics | 4 | 174 | v2.0.0 |
-| **3** File Operations | File ops, edit ops, utils, arg parser, cleanup | 5 | 354 | v2.0.0 |
-| **4** Project Detection | Kind detection, kind config, tech stack, 3rd-party exclusion | 4 | 167 | v1.0.0 |
-| **5** Git Integration | Git automation, git cache, auto-commit, change detection | 4 | 219 | v2.0.0 |
-| **6** AI Integration | jq wrapper, personas, validation, AI cache, prompt builder, helpers — foundational layer for embedding Copilot agents with structured context, tool invocation, and response validation | 6 | 424 | v2.0.0 |
-| **7** Workflow Orchestration | Engine, step registry, dependency resolver, step/conditional executors, checkpoints — composable execution loop designed to host agent-driven step planning and recovery | 6 | 329 | v2.0.0 |
-| **8** Performance Optimization | Performance tracking, monitoring, profiles, caching, incremental & parallel analysis, ML skip prediction | 13 | ~800 | v2.0.0 |
-| **9** Step Implementations | 20 workflow steps (step_00 → step_17) | 20 | ~1,047 | v2.0.0 |
-| **10** Main Orchestrator | `main_orchestrator.js` — coordinates all phases | 1 | 38 | v2.0.0 |
-| **11** CLI & Configuration | Entry point, commands (run/resume/config/init/status/clean), TUI baseline | 11 + TUI | 133 | v2.0.0 |
-=======
-| Phase                          | Scope                                                                                                    | Modules  | Tests  | Version |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------- | -------- | ------ | ------- |
-| **1** Core Foundation          | Colors, logger, system, version, executor, errors                                                        | 7        | 113    | v1.0.0  |
-| **2** Configuration & State    | Config, backlog, session manager, metrics                                                                | 4        | 174    | v2.0.0  |
-| **3** File Operations          | File ops, edit ops, utils, arg parser, cleanup                                                           | 5        | 354    | v2.0.0  |
-| **4** Project Detection        | Kind detection, kind config, tech stack, 3rd-party exclusion                                             | 4        | 167    | v1.0.0  |
-| **5** Git Integration          | Git automation, git cache, auto-commit, change detection                                                 | 4        | 219    | v2.0.0  |
-| **6** AI Integration           | jq wrapper, personas, validation, AI cache, prompt builder, helpers                                      | 6        | 424    | v2.0.0  |
-|                                | _Prompt patterns already implemented: Template (#2), Persona (#3), Recipe (#5), Context Manager (#16)_   |          |        |         |
-| **7** Workflow Orchestration   | Engine, step registry, dependency resolver, step/conditional executors, checkpoints                      | 6        | 329    | v2.0.0  |
-| **8** Performance Optimization | Performance tracking, monitoring, profiles, caching, incremental & parallel analysis, ML skip prediction | 13       | ~800   | v2.0.0  |
-| **9** Step Implementations     | 20 workflow steps (step_00 → step_17)                                                                    | 20       | ~1,047 | v2.0.0  |
-| **10** Main Orchestrator       | `main_orchestrator.js` — coordinates all phases                                                          | 1        | 38     | v2.0.0  |
-| **11** CLI & Configuration     | Entry point, commands (run/resume/config/init/status/clean), TUI baseline                                | 11 + TUI | 133    | v2.0.0  |
->>>>>>> 3752135 (feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc)
+| Phase                          | Scope                                                                                                                                                                                 | Modules  | Tests  | Version |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ------- |
+| **1** Core Foundation          | Colors, logger, system, version, executor, errors                                                                                                                                     | 7        | 113    | v1.0.0  |
+| **2** Configuration & State    | Config, backlog, session manager, metrics                                                                                                                                             | 4        | 174    | v2.0.0  |
+| **3** File Operations          | File ops, edit ops, utils, arg parser, cleanup                                                                                                                                        | 5        | 354    | v2.0.0  |
+| **4** Project Detection        | Kind detection, kind config, tech stack, 3rd-party exclusion                                                                                                                          | 4        | 167    | v1.0.0  |
+| **5** Git Integration          | Git automation, git cache, auto-commit, change detection                                                                                                                              | 4        | 219    | v2.0.0  |
+| **6** AI Integration           | jq wrapper, personas, validation, AI cache, prompt builder, helpers — foundational layer for embedding Copilot agents with structured context, tool invocation, and response validation | 6        | 424    | v2.0.0  |
+|                                | _Prompt patterns already implemented: Template (#2), Persona (#3), Recipe (#5), Context Manager (#16)_                                                                                |          |        |         |
+| **7** Workflow Orchestration   | Engine, step registry, dependency resolver, step/conditional executors, checkpoints — composable execution loop designed to host agent-driven step planning and recovery               | 6        | 329    | v2.0.0  |
+| **8** Performance Optimization | Performance tracking, monitoring, profiles, caching, incremental & parallel analysis, ML skip prediction                                                                              | 13       | ~800   | v2.0.0  |
+| **9** Step Implementations     | 20 workflow steps (step_00 → step_17)                                                                                                                                                 | 20       | ~1,047 | v2.0.0  |
+| **10** Main Orchestrator       | `main_orchestrator.js` — coordinates all phases                                                                                                                                       | 1        | 38     | v2.0.0  |
+| **11** CLI & Configuration     | Entry point, commands (run/resume/config/init/status/clean), TUI baseline                                                                                                             | 11 + TUI | 133    | v2.0.0  |
+| **12** Testing & Documentation | Integration/e2e tests, `CopilotSdkWrapper` streaming, TypeScript declarations (`public-api.d.ts`), typedoc HTML docs, user guides, automation scripts                                 | 1 + types | 452   | v1.6.0  |
 
 ### Notable v1.x Bug Fixes
 
-- **v1.7.0** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
+- **v1.8.0** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
   fallback; `modifiedFiles` propagation from commit history; step_02_5 absolute paths;
   tsconfig JSONC false-positive; step_07 soft-block on step_12 push; step_15 fallback for
   non-UI project kinds; step_10 full-scan on large change sets; C4 compliance for `promptsDir`
@@ -136,7 +121,7 @@ auto-generated HTML docs.
 
 | Sub-phase | Item                                           | Status                                                                                                         |
 | --------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **12.1**  | 500+ integration / e2e tests                   | ✅ Done (452 integration/e2e tests; 6,234 total)                                                               |
+| **12.1**  | 500+ integration / e2e tests                   | ✅ Done (452 integration/e2e tests; 6,232 total)                                                               |
 | **12.1**  | Workflow smoke test against fixture project    | ✅ Done (`test/e2e/workflow-smoke.e2e.test.js`)                                                                |
 | **12.1**  | Cross-step data-flow tests                     | ✅ Done (3 files in `test/integration/cross-step/`)                                                            |
 | **12.1**  | `npm run test:ci` pipeline                     | ✅ Done (`test:fast` + `test:slow` + `test:e2e`)                                                               |
@@ -417,19 +402,6 @@ for detailed specifications of each item.
 
 > Metrics panel, dependency DAG, Gantt strip, change summary, streaming viewer, agent monitoring.
 
-<<<<<<< HEAD
-| Item | Description | Status |
-|------|-------------|--------|
-| T3.1 | Metrics panel (`m`) — ASCII bar chart of step timings | 🔲 Planned |
-| T3.2 | Dependency graph view (`d`) — box-drawing ASCII DAG | 🔲 Planned |
-| T3.3 | Timeline / Gantt strip at the bottom of the TUI | 🔲 Planned |
-| T3.4 | Change summary panel (`c`) — groups by docs/tests/code/config | 🔲 Planned |
-| T3.5 | Verbose stream viewer — real-time token stream (`v`, requires `--verbose`) | 🔲 Planned |
-| T3.6 | **Agent Monitoring Panel** (`a`) — live per-agent execution status, tool-call trace, error alerts, and supervised task adaptation; integrates with 12.5 observability events | 🔲 Planned |
-
-*T3.5 requires the streaming Copilot integration (currently In Progress).*
-*T3.6 requires Phase 12.5 Agent Guardrails & Observability.*
-=======
 | Item | Description                                                                                                           | Status     |
 | ---- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
 | T3.1 | Metrics panel (`m`) — ASCII bar chart of step timings                                                                 | 🔲 Planned |
@@ -437,9 +409,10 @@ for detailed specifications of each item.
 | T3.3 | Timeline / Gantt strip at the bottom of the TUI                                                                       | 🔲 Planned |
 | T3.4 | Change summary panel (`c`) — groups by docs/tests/code/config                                                         | 🔲 Planned |
 | T3.5 | Verbose stream viewer — real-time token stream (`v`, requires `--verbose`)                                            | 🔲 Planned |
+| T3.6 | **Agent Monitoring Panel** (`a`) — live per-agent execution status, tool-call trace, error alerts, and supervised task adaptation; integrates with 12.5 observability events | 🔲 Planned |
 
 _T3.5 requires the streaming Copilot integration (currently In Progress)._
->>>>>>> 3752135 (feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc)
+_T3.6 requires Phase 12.5 Agent Guardrails & Observability._
 
 ### Phase T4 — TUI-First Workflows
 
@@ -468,31 +441,18 @@ _T3.5 requires the streaming Copilot integration (currently In Progress)._
 
 ### TUI Priority Order
 
-<<<<<<< HEAD
-| Phase | Value | Effort | Suggested Order |
-|-------|-------|--------|-----------------|
-| T1 Navigation | High | Low | **First** |
-| T5.6 TUI Tests | High | Low | **Alongside T1** |
-| T2 Workflow Control | High | Medium | **Second** |
-| T2.6 Step Selection | High | Medium | **Alongside T2** |
-| T2.7 Intent Delegation | High | High | **Alongside T2** |
-| T3 Visualizations | Medium | Medium | Third |
-| T3.5 Stream Viewer | Medium | Medium | **Alongside T3** |
-| T3.6 Agent Monitoring | High | Medium | **Alongside T3** |
-| T4 TUI Workflows | Medium | High | Fourth |
-| T5 Polish | Low–Medium | Low–Medium | Ongoing |
-=======
-| Phase               | Value      | Effort     | Suggested Order  |
-| ------------------- | ---------- | ---------- | ---------------- |
-| T1 Navigation       | High       | Low        | **First**        |
-| T5.6 TUI Tests      | High       | Low        | **Alongside T1** |
-| T2 Workflow Control | High       | Medium     | **Second**       |
-| T2.6 Step Selection | High       | Medium     | **Alongside T2** |
-| T3 Visualizations   | Medium     | Medium     | Third            |
-| T3.5 Stream Viewer  | Medium     | Medium     | **Alongside T3** |
-| T4 TUI Workflows    | Medium     | High       | Fourth           |
-| T5 Polish           | Low–Medium | Low–Medium | Ongoing          |
->>>>>>> 3752135 (feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc)
+| Phase                  | Value      | Effort     | Suggested Order  |
+| ---------------------- | ---------- | ---------- | ---------------- |
+| T1 Navigation          | High       | Low        | **First**        |
+| T5.6 TUI Tests         | High       | Low        | **Alongside T1** |
+| T2 Workflow Control    | High       | Medium     | **Second**       |
+| T2.6 Step Selection    | High       | Medium     | **Alongside T2** |
+| T2.7 Intent Delegation | High       | High       | **Alongside T2** |
+| T3 Visualizations      | Medium     | Medium     | Third            |
+| T3.5 Stream Viewer     | Medium     | Medium     | **Alongside T3** |
+| T3.6 Agent Monitoring  | High       | Medium     | **Alongside T3** |
+| T4 TUI Workflows       | Medium     | High       | Fourth           |
+| T5 Polish              | Low–Medium | Low–Medium | Ongoing          |
 
 ---
 
@@ -549,7 +509,6 @@ Full parity on Windows (PowerShell / WSL2), including the TUI (Ink already suppo
 terminals with color support).
 
 ### Self-Improving Workflows via ML
-<<<<<<< HEAD
 Expand `src/lib/ml_optimization.js` with a full agentic feedback loop: workflow agents
 automatically log outcomes, errors, retries, and tool-call traces for every completed run.
 This structured telemetry feeds the ML skip-prediction model, enabling agents to learn
@@ -557,11 +516,6 @@ which steps to accelerate, skip, or prioritize based on project context and hist
 patterns—without requiring manual tuning. Over time, agents will propose workflow
 optimizations (e.g. "step_07 consistently fails before step_05; reorder?") and surface
 them as actionable suggestions in the TUI.
-=======
-
-Expand `src/lib/ml_optimization.js` with a feedback loop: completed workflow runs contribute
-anonymized timing/skip data to refine the ML skip-prediction model over time.
->>>>>>> 3752135 (feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc)
 
 ### Workflow DSL — Compact Step Notation
 
@@ -587,30 +541,16 @@ This project follows [Semantic Versioning](https://semver.org/):
 - **Minor** (x.**Y**.0) — new features, backwards-compatible API additions
 - **Major** (**X**.0.0) — breaking API changes, major architectural shifts
 
-<<<<<<< HEAD
-| Milestone | Target Version | Key Deliverables |
-|-----------|---------------|------------------|
-| Phase 12 complete | 1.7.0 | Integration tests, full API docs |
-| Phase 13 complete | 1.7.0 | npm public, CI/CD, release automation |
-| TUI Phase T1+T2 complete | 1.8.0 | Interactive TUI, intent delegation |
-| TUI Phase T3+T4 complete | 1.9.0 | Rich visualizations, agent monitoring panel, TUI-first workflows |
-| Full TUI + npm public stable | **2.0.0** | Public API freeze, accessibility, themes |
-| Agentic execution integration | **2.1.0** | Full agent orchestration, intent delegation, plugin agentic API, guardrails & observability |
+| Milestone                     | Target Version | Key Deliverables                                                                            |
+| ----------------------------- | -------------- | ------------------------------------------------------------------------------------------- |
+| Phase 12 complete             | 1.8.0          | Integration tests, full API docs                                                            |
+| Phase 13 complete             | 1.8.0          | npm public, CI/CD, release automation                                                       |
+| TUI Phase T1+T2 complete      | 1.9.0          | Interactive TUI, intent delegation                                                          |
+| TUI Phase T3+T4 complete      | 1.10.0         | Rich visualizations, agent monitoring panel, TUI-first workflows                            |
+| Phase 14 complete             | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater                    |
+| Full TUI + npm public stable  | **2.0.0**      | Public API freeze, accessibility, themes                                                    |
+| Agentic execution integration | **2.1.0**      | Full agent orchestration, intent delegation, plugin agentic API, guardrails & observability |
 
 ---
 
 *Last updated: 2026-03-11 · See [CHANGELOG.md](CHANGELOG.md) for release history.*
-=======
-| Milestone                    | Target Version | Key Deliverables                                                         |
-| ---------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Phase 12 complete            | 1.7.0          | Integration tests, full API docs                                         |
-| Phase 13 complete            | 1.8.0          | npm public, CI/CD, release automation                                    |
-| TUI Phase T1+T2 complete     | 1.9.0          | Interactive TUI                                                          |
-| TUI Phase T3+T4 complete     | 1.10.0         | Rich visualizations, TUI-first workflows                                 |
-| Phase 14 complete            | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater |
-| Full TUI + npm public stable | **2.0.0**      | Public API freeze, accessibility, themes                                 |
-
----
-
-_Last updated: 2026-03-10 · See [CHANGELOG.md](CHANGELOG.md) for release history._
->>>>>>> 3752135 (feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc)

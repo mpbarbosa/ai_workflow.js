@@ -460,14 +460,32 @@ export class Step2ConsistencyAnalyzer {
     try {
       logger.step('Step 2: Documentation Consistency Analysis');
 
-      // Phase 1: Discover documentation files
-      const docFiles = await this.discoverDocumentationFiles(projectRoot);
+      // Phase 1: Discover documentation files (archive is excluded from analysis)
+      const [docFiles, archiveFiles] = await Promise.all([
+        this.discoverDocumentationFiles(projectRoot),
+        this.discoverArchiveFiles(projectRoot),
+      ]);
       if (docFiles.length === 0) {
         logger.info('No documentation files found - skipping consistency check');
         return { success: true, skipped: true, reason: 'no_docs' };
       }
 
       logger.info(`Found ${docFiles.length} documentation files`);
+      if (archiveFiles.length > 0) {
+        logger.info(`Found ${archiveFiles.length} archive file(s) — injected as context, not analyzed`);
+      }
+
+      // Build archive context block injected into every AI prompt partition.
+      // The AI must NOT treat broken links or stale references inside archive files
+      // as actionable issues — they are expected side-effects of historical snapshots.
+      const archiveContext =
+        archiveFiles.length > 0
+          ? `**Archive (read-only context — do NOT analyze or recommend fixes for these paths):**\n` +
+            `The following paths are historical snapshots stored in \`.ai_workflow/archive/\`.\n` +
+            `Broken links within archived files are expected (their targets may have been renamed\n` +
+            `or reorganized since the snapshot was taken) and must NOT be flagged as actionable issues.\n\n` +
+            archiveFiles.map((f) => `- ${f}`).join('\n')
+          : '';
 
       // Phase 2: Load expected version
       const expectedVersion = await this.getExpectedVersion(projectRoot);
@@ -559,6 +577,11 @@ export class Step2ConsistencyAnalyzer {
               if (prompt && header) {
                 prompt = `${header}\n\n${prompt}`;
               }
+              // Append archive context after the main prompt body so the AI
+              // knows these paths are historical and must not be flagged.
+              if (prompt && archiveContext) {
+                prompt = `${prompt}\n\n${archiveContext}`;
+              }
             } catch {
               prompt = null;
             }
@@ -572,6 +595,7 @@ export class Step2ConsistencyAnalyzer {
               projectInfo: { project_name: projectRoot },
             });
             if (header) prompt = `${header}\n\n${prompt}`;
+            if (archiveContext) prompt = `${prompt}\n\n${archiveContext}`;
           }
 
           // Safety cap: hard-truncate if still over limit
@@ -671,6 +695,7 @@ export class Step2ConsistencyAnalyzer {
       '.workflow_core',
       '.workflow_fspec',
       '.ai_workflow/logs',
+      '.ai_workflow/archive',
     ];
 
     const files = [];
@@ -688,6 +713,28 @@ export class Step2ConsistencyAnalyzer {
     }
 
     return [...new Set(files)]; // Remove duplicates
+  }
+
+  /**
+   * Discover archived documentation files under `.ai_workflow/archive/`.
+   * These are historical snapshots — they are NOT analyzed but ARE injected into
+   * the prompt as read-only context so the AI knows they exist and are intentionally
+   * outdated (broken links within them should not be treated as actionable issues).
+   *
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<string[]>} Relative paths of archive markdown files (capped)
+   */
+  async discoverArchiveFiles(projectRoot) {
+    const MAX_ARCHIVE_FILES = 100; // cap to avoid bloating the prompt
+    try {
+      const found = await this.fileOps.glob('.ai_workflow/archive/**/*.md', {
+        cwd: projectRoot,
+        absolute: false,
+      });
+      return found.slice(0, MAX_ARCHIVE_FILES);
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -767,6 +814,8 @@ export class Step2ConsistencyAnalyzer {
       'env',
       '.workflow_core',
       '.workflow_fspec',
+      '.ai_workflow/logs',
+      '.ai_workflow/archive',
     ];
     const ignoreList = exclude.map((dir) => `**/${dir}/**`);
 

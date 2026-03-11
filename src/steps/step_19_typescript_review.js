@@ -368,7 +368,7 @@ export class Step19TypescriptReview {
    */
   async _discoverTypeScriptFiles(projectRoot) {
     const patterns = ['**/*.ts', '**/*.tsx'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__'];
+    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__', 'docs'];
     const found = [];
     for (const pattern of patterns) {
       try {

@@ -211,7 +211,7 @@ export async function resumeCommand(checkpointId, options) {
       const { startTui } = await import('../tui/index.js');
       const result = await startTui(orchestrator, {
         stage: options.stage || 'full',
-        version: '1.7.0',
+        version: '1.8.0',
         verbose: !!options.verbose,
       });
       process.exit(result.aborted ? 130 : result.success ? 0 : 1);

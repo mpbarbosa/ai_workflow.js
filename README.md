@@ -5,12 +5,12 @@ AI-Powered Workflow Automation for Software Development
 [![npm version](https://img.shields.io/npm/v/ai-workflow.svg)](https://www.npmjs.com/package/ai-workflow)
 [![Node.js Version](https://img.shields.io/node/v/ai-workflow.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-4412%20passing-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/tests-6209%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.79%25-green)](coverage/)
 
-**Version:** 1.2.0 🎉 **STABLE RELEASE**
+**Version:** 1.8.0 🎉 **STABLE RELEASE**
 **Status:** Production Ready ✅
-**Last Updated:** February 17, 2026
+**Last Updated:** March 11, 2026
 
 ---
 
@@ -43,7 +43,7 @@ This is a complete JavaScript/Node.js reimplementation of [ai_workflow](https://
 - **⚡ Fast**: Parallel execution, smart caching, incremental processing
 - **🔧 Configurable**: Project-specific workflows via YAML config
 - **📊 Observable**: Progress tracking, metrics, and checkpoints
-- **🧪 Tested**: 3,708 tests (99.5% pass rate), 86.79% coverage
+- **🧪 Tested**: 6,209 tests passing, 86.79% coverage
 - **🔒 Secure**: 0 vulnerabilities, automated security scanning
 - **📦 Production-Ready**: npm package with CI/CD automation
 
@@ -74,8 +74,8 @@ npm install --save-dev ai-workflow
 
 ## Current Implementation Status
 
-**Version:** 1.2.0 (Stable Release)
-**Tests:** 4,412 passing (99.4% pass rate, 6 failures, 19 skipped)
+**Version:** 1.8.0 (Stable Release)
+**Tests:** 6,209 passing (3 skipped)
 **Coverage:** 86.79% overall, 95.43% orchestrator
 **Security:** 0 vulnerabilities
 **Phases Complete:** 13 of 13 ✅
@@ -173,53 +173,40 @@ The JavaScript implementation will maintain feature parity with the original she
 - ✅ npm package distribution
 - ✅ **Copilot SDK integration** for AI-enhanced development
 
-## Planned Architecture
+## Project Structure
 
 ```
 ai_workflow.js/
 ├── src/
+│   ├── core/             # Foundation utilities (colors, logger, system, version, executor)
+│   ├── utils/            # Helper utilities (errors)
+│   ├── lib/              # Core libraries (config, session, metrics, file ops, git, AI)
+│   ├── steps/            # Workflow step implementations (step_00–step_17)
+│   │   └── step_02_5_lib/ # Helper modules for step_02_5 (doc optimization)
+│   ├── orchestrator/     # Workflow orchestration engine
 │   ├── cli/              # Command-line interface
-│   ├── orchestrator/     # Workflow orchestration
-│   ├── managers/         # Package and app managers
-│   ├── core/             # Core utilities
-│   ├── utils/            # Helper utilities
-│   └── config/           # Configuration
-├── test/                 # Test suite
+│   │   ├── commands/     # CLI command implementations (run, init, status, etc.)
+│   │   └── tui/          # Terminal UI components (Ink/React)
+│   │       └── components/ # TUI React components (panels, overlays, progress bars)
+│   └── index.js          # Public API exports
+├── test/                 # Test suite (mirrors src/ structure)
 ├── docs/                 # Documentation
+│   ├── api/              # API reference (Markdown + auto-generated HTML in docs/api/html/)
+│   ├── architecture/     # Architecture documentation and dependency graphs
+│   ├── guides/           # Developer and user guides
+│   ├── reference/        # Error codes, CLI reference, configuration schema
+│   ├── examples/         # Usage examples (basic, advanced, integration)
+│   ├── tutorials/        # Step-by-step tutorials
+│   ├── reports/          # Bug fix reports and analysis
+│   └── workflow-automation/ # Workflow automation documentation
+├── scripts/              # Automation scripts (setup, validate, release)
+├── bin/                  # CLI entry point (ai-workflow)
 ├── .husky/               # Git hooks (pre-commit validation)
 ├── .workflow_core/       # Configuration templates (submodule)
 └── .workflow_fspec/      # Functional specification (submodule)
 ```
 
-## Installation (Future)
-
-Once development is complete, the package will be available via npm:
-
-```bash
-npm install -g ai-workflow
-```
-
-## Usage (Planned)
-
-```bash
-# Update system packages
-ai-workflow update
-
-# Update with all options
-ai-workflow update --full
-
-# Run in quiet mode
-ai-workflow update --quiet
-
-# Display system summary
-ai-workflow summary
-
-# List all packages
-ai-workflow list
-
-# Cleanup packages
-ai-workflow cleanup
-```
+See [docs/architecture/MODULE_STRUCTURE.md](./docs/architecture/MODULE_STRUCTURE.md) for the full module-level breakdown.
 
 ## Development Setup
 
@@ -316,7 +303,7 @@ ai-workflow run
 
 ## Development Commands
 
-- `npm test` - Run Jest test suite (4437 tests, 4412 passing ✅, 6 failures, 19 skipped)
+- `npm test` - Run Jest test suite (6,232 tests, 6,209 passing ✅, 20 failures, 3 skipped)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
