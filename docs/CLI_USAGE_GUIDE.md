@@ -354,5 +354,5 @@ cat .ai_workflow/checkpoints/checkpoint_*.json
 ---
 
 **Last Updated:** 2026-02-20
-**Version:** 1.6.0
-**For:** ai_workflow.js v1.6.0+
+**Version:** 1.6.1
+**For:** ai_workflow.js v1.6.1+
