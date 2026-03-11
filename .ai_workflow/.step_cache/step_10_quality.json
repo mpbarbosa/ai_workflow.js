@@ -175,6 +175,16 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-11T22:53:07.387Z"
+    },
+    ".ai_workflow/metrics/current_run.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T23:07:53.670Z"
+    },
+    "bin/ai-workflow.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T23:07:53.670Z"
     }
   }
 }
