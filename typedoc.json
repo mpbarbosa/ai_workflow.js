@@ -1,0 +1,16 @@
+{
+  "entryPoints": ["src/types/public-api.d.ts"],
+  "out": "docs/api/html",
+  "name": "ai_workflow.js API",
+  "readme": "README.md",
+  "includeVersion": true,
+  "skipErrorChecking": true,
+  "exclude": ["**/node_modules/**", "**/test/**", "**/*.test.js", "**/coverage/**"],
+  "githubPages": false,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"]
+}

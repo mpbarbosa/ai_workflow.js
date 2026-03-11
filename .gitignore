@@ -219,3 +219,6 @@ playwright-report/
 .test-cache/
 .test-e2e/
 .test-step-11-5/
+
+# Generated API docs
+docs/api/html/

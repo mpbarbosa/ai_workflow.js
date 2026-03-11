@@ -1,0 +1,9 @@
+{
+  "testEnvironment": "node",
+  "testMatch": ["**/test/integration/**/*.test.js", "**/test/e2e/**/*.e2e.test.js"],
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/"],
+  "transform": {},
+  "testTimeout": 30000,
+  "maxWorkers": 2,
+  "verbose": true
+}
