@@ -17,6 +17,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
+  buildAlternativesDirective,
+  parseAlternatives,
   AI_HELPERS_PATH,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
@@ -385,7 +387,13 @@ export class Step3ScriptAnalyzer {
       const scripts = await this.findScripts(projectRoot, directories, patterns);
       if (scripts.length === 0) {
         logger.info('No scripts found - skipping validation');
-        return { success: true, skipped: true, reason: 'no_scripts' };
+        return {
+          success: true,
+          skipped: true,
+          reason: 'no_scripts',
+          alternatives: [],
+          recommendedAlternative: null,
+        };
       }
 
       logger.info(`Found ${scripts.length} script(s)`);
@@ -433,6 +441,7 @@ export class Step3ScriptAnalyzer {
       await this.backlog.saveStepSummary(3, 'Script Reference Validation', report);
 
       // Phase AI: AI-powered script reference analysis
+      let parsedAlternatives = { alternatives: [], recommended: null };
       const aiAvailable = await this.aiHelper.initialize();
       if (aiAvailable) {
         await this.aiCache.init();
@@ -482,6 +491,10 @@ export class Step3ScriptAnalyzer {
           const approach = `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
+        if (options.alternatives) {
+          const n = options.alternatives === true ? 2 : options.alternatives;
+          prompt += buildAlternativesDirective(n);
+        }
         // Build file-content hash entries from doc files (already read) + script paths.
         const fileHashEntries = [
           ...allDocFiles.map(({ path: p, content }) => `${p}:${content}`),
@@ -491,6 +504,9 @@ export class Step3ScriptAnalyzer {
           this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
         );
         const aiContent = aiResult?.content ?? '';
+        parsedAlternatives = options.alternatives
+          ? parseAlternatives(aiContent)
+          : { alternatives: [], recommended: null };
         if (aiContent) {
           const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
           await this.backlog.saveStepSummary(3, 'Script Reference Validation', enrichedReport);
@@ -508,6 +524,8 @@ export class Step3ScriptAnalyzer {
       return {
         success: true,
         ...results,
+        alternatives: parsedAlternatives.alternatives,
+        recommendedAlternative: parsedAlternatives.recommended,
       };
     } catch (error) {
       logger.error(`Step 3 failed: ${error.message}`);

@@ -23,6 +23,8 @@ import {
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
+  buildAlternativesDirective,
+  parseAlternatives,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
@@ -661,7 +663,14 @@ export class Step10CodeQualityAnalyzer {
         });
         await this.backlog.saveStepSummary(10, 'Code Quality', report);
 
-        return { success: true, language: primaryLanguage, sourceFileCount, skipped: true };
+        return {
+          success: true,
+          language: primaryLanguage,
+          sourceFileCount,
+          skipped: true,
+          alternatives: [],
+          recommendedAlternative: null,
+        };
       }
 
       // Phase 4: Run each linter and collect per-language results
@@ -723,7 +732,14 @@ export class Step10CodeQualityAnalyzer {
           skipped: true,
         });
         await this.backlog.saveStepSummary(10, 'Code Quality', report);
-        return { success: true, language: primaryLanguage, sourceFileCount: 0, skipped: true };
+        return {
+          success: true,
+          language: primaryLanguage,
+          sourceFileCount: 0,
+          skipped: true,
+          alternatives: [],
+          recommendedAlternative: null,
+        };
       }
 
       // Phase 6: Compute aggregate totals
@@ -749,6 +765,7 @@ export class Step10CodeQualityAnalyzer {
       // Phase 8: AI-powered code quality review (partition + rotate strategy)
       const primaryLanguage =
         techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+      let stepAlternatives = { alternatives: [], recommended: null };
       try {
         const aiAvailable = await this.aiHelper.initialize();
         if (aiAvailable) {
@@ -919,6 +936,11 @@ export class Step10CodeQualityAnalyzer {
                 });
               }
 
+              if (options.alternatives) {
+                const n = options.alternatives === true ? 2 : options.alternatives;
+                prompt += buildAlternativesDirective(n);
+              }
+
               const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
               // Use 'code_quality_analyst' persona: Step 10 performs code quality review
               // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
@@ -941,6 +963,10 @@ export class Step10CodeQualityAnalyzer {
           const aiSections = aiSectionResults.filter((c) => c);
 
           const aiContent = aiSections.join('\n\n---\n\n');
+          const parsedAlternatives = options.alternatives
+            ? parseAlternatives(aiContent)
+            : { alternatives: [], recommended: null };
+          stepAlternatives = parsedAlternatives;
           if (aiContent) {
             const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
             const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
@@ -972,6 +998,8 @@ export class Step10CodeQualityAnalyzer {
         // backward-compat aliases for single-language consumers
         language: primaryLanguage,
         sourceFileCount: aggregateTotals.fileCount,
+        alternatives: stepAlternatives.alternatives,
+        recommendedAlternative: stepAlternatives.recommended,
       };
     } catch (error) {
       logger.error(`Step 10 failed: ${error.message}`);

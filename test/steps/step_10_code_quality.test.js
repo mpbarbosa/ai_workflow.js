@@ -882,4 +882,77 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       }
     });
   });
+
+  describe('Step10CodeQualityAnalyzer - alternatives directive', () => {
+    let tmpDir;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'step10-alt-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    test('returns empty alternatives when flag is false', async () => {
+      const analyzer = new Step10CodeQualityAnalyzer({
+        executor: { execute: async () => ({ stdout: '', stderr: '', exitCode: 0 }) },
+        fileOps: {
+          readFile: async () => {
+            throw new Error('not found');
+          },
+          glob: async () => [],
+        },
+        backlog: { saveStepSummary: async () => {} },
+        techStack: {
+          detectAll: async () => ({ languages: ['javascript'], primary_language: 'javascript' }),
+        },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+      const result = await analyzer.execute('/project');
+      expect(result.alternatives).toEqual([]);
+      expect(result.recommendedAlternative).toBeNull();
+    });
+
+    test('appends alternatives directive to prompt when flag is set', async () => {
+      let capturedPrompt = '';
+      const structuredResponse = [
+        'ALTERNATIVE 1: ESLint strict\n  Description: Strict ruleset\n  Trade-offs: More false positives',
+        'ALTERNATIVE 2: ESLint recommended\n  Description: Standard ruleset\n  Trade-offs: Fewer flags',
+        'RECOMMENDED: 2 — Recommended rules balance quality and noise',
+      ].join('\n');
+      const mockAiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          capturedPrompt = prompt;
+          return Promise.resolve({ content: structuredResponse });
+        },
+      };
+      const mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_key, _files, fn) => fn(),
+      };
+      const analyzer = new Step10CodeQualityAnalyzer({
+        executor: { execute: async () => ({ stdout: '', stderr: '', exitCode: 0 }) },
+        fileOps: {
+          readFile: async () => {
+            throw new Error('not found');
+          },
+          glob: async (pattern) => (pattern.includes('js') ? ['src/index.js'] : []),
+        },
+        backlog: { saveStepSummary: async () => {} },
+        techStack: {
+          detectAll: async () => ({ languages: ['javascript'], primary_language: 'javascript' }),
+        },
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+        cacheDir: tmpDir,
+      });
+      // Use tmpDir as projectRoot so Step10PartitionCache can write its cache files
+      const result = await analyzer.execute(tmpDir, { alternatives: 2 });
+      expect(capturedPrompt).toMatch(/ALTERNATIVE/i);
+      expect(result.alternatives).toHaveLength(2);
+      expect(result.recommendedAlternative).toBeTruthy();
+    });
+  });
 });
