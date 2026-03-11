@@ -439,6 +439,9 @@ describe('Step19TypescriptReview', () => {
       .mockResolvedValueOnce(
         'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
       ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
       .mockResolvedValueOnce(profileContent); // typescript_profile.md
 
     mockAiHelper.initialize.mockResolvedValue(true);
@@ -468,6 +471,9 @@ describe('Step19TypescriptReview', () => {
       .mockResolvedValueOnce(
         'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
       ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
       .mockRejectedValueOnce(new Error('ENOENT: no such file')); // typescript_profile.md absent
 
     mockAiHelper.initialize.mockResolvedValue(true);
@@ -487,5 +493,110 @@ describe('Step19TypescriptReview', () => {
     expect(result.success).toBe(true);
     expect(result.aiContent).toBe('ok');
     expect(capturedPrompt).not.toContain('Codebase Profile');
+  });
+
+  // ============================================================================
+  // _discoverTsConfigFiles
+  // ============================================================================
+
+  describe('_discoverTsConfigFiles', () => {
+    it('returns found tsconfig files with content', async () => {
+      mockFileOps.readFile
+        .mockResolvedValueOnce('{"compilerOptions":{"strict":true}}') // tsconfig.json
+        .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+        .mockRejectedValueOnce(new Error('ENOENT')); // tsconfig.base.json
+
+      const result = await step._discoverTsConfigFiles('/project/root');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].filename).toBe('tsconfig.json');
+      expect(result[0].content).toBe('{"compilerOptions":{"strict":true}}');
+    });
+
+    it('returns multiple tsconfig files when present', async () => {
+      mockFileOps.readFile
+        .mockResolvedValueOnce('{"compilerOptions":{"strict":true}}') // tsconfig.json
+        .mockResolvedValueOnce('{"extends":"./tsconfig.json","module":"ESNext"}') // tsconfig.esm.json
+        .mockRejectedValueOnce(new Error('ENOENT')); // tsconfig.base.json
+
+      const result = await step._discoverTsConfigFiles('/project/root');
+
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.filename)).toEqual(['tsconfig.json', 'tsconfig.esm.json']);
+    });
+
+    it('returns empty array when no tsconfig files found', async () => {
+      mockFileOps.readFile
+        .mockRejectedValueOnce(new Error('ENOENT'))
+        .mockRejectedValueOnce(new Error('ENOENT'))
+        .mockRejectedValueOnce(new Error('ENOENT'));
+
+      const result = await step._discoverTsConfigFiles('/project/root');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  it('includes tsconfig content in AI prompt when tsconfig.json exists', async () => {
+    const tsConfigContent = '{"compilerOptions":{"strict":true,"target":"ES2020"}}';
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const x: string = "hi";') // index.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
+      ) // ai_helpers.yaml
+      .mockResolvedValueOnce(tsConfigContent) // tsconfig.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+      .mockRejectedValueOnce(new Error('ENOENT')); // tsconfig.base.json
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain('tsconfig.json');
+    expect(capturedPrompt).toContain(tsConfigContent);
+    expect(capturedPrompt).toContain('**Configuration Files included**: tsconfig.json');
+  });
+
+  it('injects PROJECT_CONTEXT.md runtime constraints into prompt when present', async () => {
+    const projectCtxContent = '## Runtime\n- Node.js only\n- No CORS';
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const x: string = "hi";') // index.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
+      ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // typescript_profile.md
+      .mockResolvedValueOnce(projectCtxContent); // PROJECT_CONTEXT.md
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain('Runtime Constraints (from PROJECT_CONTEXT.md)');
+    expect(capturedPrompt).toContain(projectCtxContent);
   });
 });

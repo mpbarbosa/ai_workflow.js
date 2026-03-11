@@ -25,6 +25,7 @@ import {
   AI_HELPERS_PATH,
   buildYamlStepPrompt,
   buildFileContentBlock,
+  formatProjectContextSection,
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
@@ -219,15 +220,27 @@ export class Step19TypescriptReview {
         await this.aiCache.init();
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const tsconfigs = await this._discoverTsConfigFiles(projectRoot);
           const contextProfile = await this._loadContextProfile(projectRoot);
+          const projectContextContent = await this._readProjectContextFile(projectRoot);
           const parsedYaml = yaml.load(yamlContent);
 
           const cfg = parsedYaml['typescript_developer_prompt'];
           let tsPrompt = null;
 
-          // Build file-contents section (same budget as code-quality step)
+          // Build file-contents section: tsconfig files first, then source files
           const fileContentBlocks = [];
           let totalChars = 0;
+
+          // Prepend tsconfig files so the AI can verify strict-mode settings
+          for (const { filename, content } of tsconfigs) {
+            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
+            if (totalChars + contribution <= MAX_CHARS_TOTAL_CONTENTS) {
+              fileContentBlocks.push(buildFileContentBlock(filename, content));
+              totalChars += contribution;
+            }
+          }
+
           for (let i = 0; i < sampleFiles.length; i++) {
             const content = sampleContents[i] ?? '';
             if (!content) continue;
@@ -245,6 +258,8 @@ export class Step19TypescriptReview {
             const parts = [];
             const role = (cfg.role_prefix || cfg.role || '').trim();
             if (role) parts.push(`**Role**: ${role}`);
+            const projectCtxSection = formatProjectContextSection(projectContextContent);
+            if (projectCtxSection) parts.push(projectCtxSection);
             if (cfg.behavioral_guidelines) parts.push(String(cfg.behavioral_guidelines).trim());
             if (contextProfile) {
               parts.push(
@@ -265,6 +280,11 @@ export class Step19TypescriptReview {
                 .replace('{modified_count}', String(tsFiles.length));
               parts.push(task.trim());
             }
+            if (tsconfigs.length > 0) {
+              parts.push(
+                `**Configuration Files included**: ${tsconfigs.map((t) => t.filename).join(', ')}`
+              );
+            }
             parts.push(
               `**TypeScript Files to Review** (${tsFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
             );
@@ -284,6 +304,10 @@ export class Step19TypescriptReview {
                 : builtPrompt;
               if (contextProfile) {
                 combined += `\n\n**Codebase Profile — Verified Ground Truth**:\n\nThe following facts about this codebase have been verified against the live code. Treat them as authoritative. Do NOT flag items documented here as issues.\n\n${contextProfile}`;
+              }
+              const projectCtxSectionFallback = formatProjectContextSection(projectContextContent);
+              if (projectCtxSectionFallback) {
+                combined = `${builtPrompt}\n\n${projectCtxSectionFallback}${combined.slice(builtPrompt.length)}`;
               }
               tsPrompt = combined;
             }
@@ -334,6 +358,50 @@ export class Step19TypescriptReview {
     } catch (error) {
       logger.error(`Step 19 failed: ${error.message}`);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Discover tsconfig*.json files at the project root and read their contents.
+   *
+   * Checks a fixed set of well-known tsconfig filenames. Files that are absent or
+   * unreadable are silently skipped. The returned entries are prepended to the AI
+   * prompt so the reviewer can verify strict-mode and compiler settings directly,
+   * rather than falling back to a generic "cannot verify" recommendation.
+   *
+   * @param {string} projectRoot
+   * @returns {Promise<Array<{filename: string, content: string}>>}
+   */
+  async _discoverTsConfigFiles(projectRoot) {
+    const candidates = ['tsconfig.json', 'tsconfig.esm.json', 'tsconfig.base.json'];
+    const results = [];
+    for (const candidate of candidates) {
+      try {
+        const content = await this.fileOps.readFile(path.join(projectRoot, candidate));
+        if (content) results.push({ filename: candidate, content });
+      } catch {
+        // Not present — skip
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Read PROJECT_CONTEXT.md from the project root.
+   *
+   * Returns the file content if present, or null if absent or unreadable.
+   * Used to inject runtime constraints (e.g. Node.js-only, no browser APIs) into
+   * the AI prompt so the reviewer's scope matches the actual deployment target.
+   *
+   * @param {string} projectRoot
+   * @returns {Promise<string|null>}
+   */
+  async _readProjectContextFile(projectRoot) {
+    try {
+      const content = await this.fileOps.readFile(path.join(projectRoot, 'PROJECT_CONTEXT.md'));
+      return content || null;
+    } catch {
+      return null;
     }
   }
 
