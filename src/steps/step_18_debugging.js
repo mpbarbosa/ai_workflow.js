@@ -25,6 +25,7 @@ import {
   buildYamlStepPrompt,
   buildProjectKindPrompt,
   buildFileContentBlock,
+  formatProjectContextSection,
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
@@ -97,6 +98,31 @@ ${aiContent || '_No AI analysis available._'}
 `;
 }
 
+/**
+ * Read the `PROJECT_CONTEXT.md` file from the project root, if present.
+ *
+ * Returns the file content so it can be injected into AI prompts to constrain
+ * analysis to the project's actual runtime (e.g. preventing CORS suggestions
+ * for a Node.js-only library).
+ *
+ * @param {string} projectRoot - Absolute path to the target project root.
+ * @param {Object} fileOps - FileOperations instance used for reading files.
+ * @returns {Promise<string|null>} File content, or `null` when the file is absent.
+ *
+ * @since 1.6.1
+ *
+ * @example
+ * const ctx = await readProjectContextFile('/path/to/project', fileOps);
+ * if (ctx) parts.push(formatProjectContextSection(ctx));
+ */
+export async function readProjectContextFile(projectRoot, fileOps) {
+  try {
+    return await fileOps.readFile(path.join(projectRoot, 'PROJECT_CONTEXT.md'));
+  } catch {
+    return null;
+  }
+}
+
 // ============================================================================
 // STEP CONTRACT
 // ============================================================================
@@ -147,6 +173,9 @@ export class Step18Debugging {
       // Discover source files
       const sourceFiles = options.sourceFiles ?? (await this._discoverSourceFiles(projectRoot));
       logger.info(`Analyzing ${sourceFiles.length} source file(s) for debugging patterns`);
+
+      // Load PROJECT_CONTEXT.md from target project (if present) to constrain AI analysis
+      const projectContextContent = await readProjectContextFile(projectRoot, this.fileOps);
 
       // Read file contents for persona detection (sample up to 20 files)
       const sampleFiles = sourceFiles.slice(0, 20);
@@ -215,6 +244,8 @@ export class Step18Debugging {
             const role = (cfg.role_prefix || cfg.role || '').trim();
             if (roleOverride) parts.push(`[Project-Kind Role: ${roleOverride}]`);
             if (role) parts.push(`**Role**: ${role}`);
+            const ctxSection = formatProjectContextSection(projectContextContent);
+            if (ctxSection) parts.push(ctxSection);
             if (cfg.specific_expertise) parts.push(cfg.specific_expertise.trim());
             parts.push(
               `**Source Files to Analyze** (${sourceFiles.length} total): ${sampleFiles.join(', ')}`
@@ -231,10 +262,12 @@ export class Step18Debugging {
               file_count: String(sourceFiles.length),
             });
             if (builtPrompt) {
+              const ctxSection = formatProjectContextSection(projectContextContent);
               const base = roleOverride
                 ? `[Project-Kind Role: ${roleOverride}]\n\n${builtPrompt}`
                 : builtPrompt;
-              debugPrompt = fileContentsSection ? `${base}\n\n${fileContentsSection}` : base;
+              const withCtx = ctxSection ? `${base}\n\n${ctxSection}` : base;
+              debugPrompt = fileContentsSection ? `${withCtx}\n\n${fileContentsSection}` : withCtx;
             }
           }
           if (debugPrompt) {
