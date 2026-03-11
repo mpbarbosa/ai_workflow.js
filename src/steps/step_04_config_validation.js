@@ -19,6 +19,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
+  buildAlternativesDirective,
+  parseAlternatives,
   AI_HELPERS_PATH,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
@@ -599,6 +601,7 @@ export class Step4ConfigAnalyzer {
       await this.backlog.saveStepSummary(4, 'Configuration Validation', report);
 
       // Phase AI: AI-powered configuration analysis
+      let parsedAlternatives = { alternatives: [], recommended: null };
       const aiAvailable = await this.aiHelper.initialize();
       const totalIssues = syntaxErrors.length + securityFindings.length;
       if (aiAvailable) {
@@ -661,6 +664,10 @@ ${filesContentBlock}`;
           const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
+        if (options.alternatives) {
+          const n = options.alternatives === true ? 2 : options.alternatives;
+          prompt += buildAlternativesDirective(n);
+        }
         // Build the file-content strings for the hash guard (same files that feed the prompt).
         const fileHashEntries = fileEntries.map((e) => `${e.relativePath}:${e.content}`);
         // Use 'devops_engineer' persona: the configuration_specialist_prompt YAML template
@@ -676,6 +683,9 @@ ${filesContentBlock}`;
           })
         );
         const aiContent = aiResult?.content ?? '';
+        parsedAlternatives = options.alternatives
+          ? parseAlternatives(aiContent)
+          : { alternatives: [], recommended: null };
 
         // Validate response quality: AI must mention at least MIN_FILE_MENTION_RATIO of files
         const quality = validateAiResponseQuality(aiContent, relPaths);
@@ -730,6 +740,8 @@ ${filesContentBlock}`;
       return {
         success: true,
         ...results,
+        alternatives: parsedAlternatives.alternatives,
+        recommendedAlternative: parsedAlternatives.recommended,
       };
     } catch (error) {
       logger.error(`Step 4 failed: ${error.message}`);

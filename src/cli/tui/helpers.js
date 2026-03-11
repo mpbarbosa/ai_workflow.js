@@ -335,6 +335,18 @@ export function formatStepDetail(step) {
   const hasError = !!(step.exitCode != null || step.errorMessage);
   if (step.exitCode != null) lines.push(`Exit code:  ${step.exitCode}`);
   if (step.errorMessage) lines.push(`Error:      ${step.errorMessage}`);
+  if (Array.isArray(step.alternatives) && step.alternatives.length > 0) {
+    lines.push('');
+    lines.push('Alternatives:');
+    step.alternatives.forEach((alt) => {
+      lines.push(`  [${alt.number ?? '?'}] ${alt.title ?? ''}`);
+      if (alt.description) lines.push(`       ${alt.description.slice(0, 80)}`);
+      if (alt.tradeoffs) lines.push(`       Trade-offs: ${alt.tradeoffs.slice(0, 80)}`);
+    });
+    if (step.recommendedAlternative) {
+      lines.push(`  → Recommended: ${step.recommendedAlternative}`);
+    }
+  }
   const logLines = Array.isArray(step.stepLogs) ? step.stepLogs.slice(-10) : [];
   return { lines, hasError, logLines };
 }

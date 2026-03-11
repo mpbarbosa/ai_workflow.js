@@ -660,4 +660,62 @@ describe('formatStepDetail', () => {
     const { logLines } = formatStepDetail({ ...baseStep, stepLogs: null });
     expect(logLines).toEqual([]);
   });
+
+  test('renders alternatives section when step has alternatives', () => {
+    const step = {
+      ...baseStep,
+      alternatives: [
+        {
+          number: 1,
+          title: 'Use Redis',
+          description: 'Fast in-memory cache',
+          tradeoffs: 'Requires extra infra',
+        },
+        {
+          number: 2,
+          title: 'Use in-memory Map',
+          description: 'Simpler approach',
+          tradeoffs: 'Not persistent',
+        },
+      ],
+      recommendedAlternative: '1 — Redis is faster for this workload',
+    };
+    const { lines } = formatStepDetail(step);
+    expect(lines.some((l) => l.includes('Alternatives:'))).toBe(true);
+    expect(lines.some((l) => l.includes('[1]') && l.includes('Use Redis'))).toBe(true);
+    expect(lines.some((l) => l.includes('[2]') && l.includes('Use in-memory Map'))).toBe(true);
+    expect(lines.some((l) => l.includes('Recommended:'))).toBe(true);
+  });
+
+  test('skips alternatives section when array is empty', () => {
+    const step = { ...baseStep, alternatives: [] };
+    const { lines } = formatStepDetail(step);
+    expect(lines.some((l) => l.includes('Alternatives:'))).toBe(false);
+  });
+
+  test('skips alternatives section when field is absent', () => {
+    const { lines } = formatStepDetail(baseStep);
+    expect(lines.some((l) => l.includes('Alternatives:'))).toBe(false);
+  });
+
+  test('truncates long description and tradeoffs to 80 chars', () => {
+    const longText = 'A'.repeat(100);
+    const step = {
+      ...baseStep,
+      alternatives: [{ number: 1, title: 'Alt', description: longText, tradeoffs: longText }],
+    };
+    const { lines } = formatStepDetail(step);
+    const descLine = lines.find((l) => l.includes('A'.repeat(10)));
+    expect(descLine).toBeDefined();
+    expect(descLine.length).toBeLessThanOrEqual(90); // 6-char indent + up to 80 chars content
+  });
+
+  test('skips recommendedAlternative line when absent', () => {
+    const step = {
+      ...baseStep,
+      alternatives: [{ number: 1, title: 'Use Redis', description: '', tradeoffs: '' }],
+    };
+    const { lines } = formatStepDetail(step);
+    expect(lines.some((l) => l.includes('Recommended:'))).toBe(false);
+  });
 });

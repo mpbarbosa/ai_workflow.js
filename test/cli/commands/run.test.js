@@ -200,4 +200,49 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(formatted).toContain('0/0');
     });
   });
+
+  describe('validateRunOptions - alternatives', () => {
+    test('accepts --alternatives absent (false)', () => {
+      const result = validateRunOptions({ alternatives: false });
+      expect(result.isValid).toBe(true);
+    });
+
+    test('accepts --alternatives bare flag (true)', () => {
+      const result = validateRunOptions({ alternatives: true });
+      expect(result.isValid).toBe(true);
+    });
+
+    test('accepts --alternatives with numeric string', () => {
+      const result = validateRunOptions({ alternatives: '3' });
+      expect(result.isValid).toBe(true);
+    });
+
+    test('rejects --alternatives with value less than 2', () => {
+      const result = validateRunOptions({ alternatives: '1' });
+      expect(result.isValid).toBe(false);
+      expect(result.errors[0]).toMatch(/at least 2/);
+    });
+  });
+
+  describe('createOrchestratorOptions - alternatives', () => {
+    test('alternatives is false when flag absent', () => {
+      const result = createOrchestratorOptions({});
+      expect(result.alternatives).toBe(false);
+    });
+
+    test('alternatives defaults to 2 when bare flag passed', () => {
+      const result = createOrchestratorOptions({ alternatives: true });
+      expect(result.alternatives).toBe(2);
+    });
+
+    test('alternatives coerced to integer from string', () => {
+      const result = createOrchestratorOptions({ alternatives: '4' });
+      expect(result.alternatives).toBe(4);
+    });
+
+    test('alternatives clamped to minimum 2 for values below threshold', () => {
+      const result = createOrchestratorOptions({ alternatives: '1' });
+      expect(result.alternatives).toBe(2);
+    });
+  });
 });

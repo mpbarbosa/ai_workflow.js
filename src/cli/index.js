@@ -126,6 +126,11 @@ export function createProgram() {
     .option('--no-parallel', 'Disable parallel step execution')
     .option('--sdk-smoke-test', 'Run a Copilot API smoke test before starting the workflow', false)
     .option('--tui', 'Display interactive TUI dashboard', false)
+    .option(
+      '--alternatives [n]',
+      'Request N alternative approaches from AI steps (default: 2)',
+      false
+    )
     .action((options) => {
       const globalOpts = program.opts();
       runCommand({ ...options, ...globalOpts });

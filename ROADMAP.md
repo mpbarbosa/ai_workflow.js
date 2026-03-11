@@ -335,10 +335,10 @@ step_10 code quality) offer two or more solution options with explicit trade-off
 of a single prescription. Developers choose; the workflow logs their selection for ML
 skip-prediction feedback.
 
-- [ ] Add `alternativesDirective` option to step prompt templates in `ai_prompt_builder.js`
-- [ ] Update step_03, step_04, step_10 to request and surface multiple alternatives
-- [ ] Persist selected alternative in `executionContext` for downstream use
-- [ ] Surface alternatives in the TUI step detail overlay (T1.2)
+- [x] Add `alternativesDirective` option to step prompt templates in `ai_prompt_builder.js`
+- [x] Update step_03, step_04, step_10 to request and surface multiple alternatives
+- [x] Persist selected alternative in `executionContext` for downstream use
+- [x] Surface alternatives in the TUI step detail overlay (T1.2)
 
 ### 14.4 Output Automater _(Output Customization — Pattern #6, enhanced)_
 

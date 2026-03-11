@@ -1171,4 +1171,57 @@ describe('Step 4: Configuration Validation', () => {
       expect(aiCallCount).toBeGreaterThan(countAfterFirst);
     });
   });
+
+  describe('Step4ConfigAnalyzer - alternatives directive', () => {
+    test('returns empty alternatives when flag is false', async () => {
+      const analyzer = new Step4ConfigAnalyzer({
+        fileOps: {
+          glob: () => Promise.resolve([]),
+          readFile: () => Promise.reject(new Error('not found')),
+        },
+        backlog: { saveStepSummary: () => Promise.resolve() },
+        techStack: { detectTechStack: () => Promise.resolve({ primaryLanguage: 'javascript' }) },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+      const result = await analyzer.execute('/project');
+      expect(result.alternatives).toEqual([]);
+      expect(result.recommendedAlternative).toBeNull();
+    });
+
+    test('appends alternatives directive to prompt and parses result', async () => {
+      let capturedPrompt = '';
+      const structuredResponse = [
+        'ALTERNATIVE 1: Strict JSON validation\n  Description: Reject all comments\n  Trade-offs: Clean but verbose',
+        'ALTERNATIVE 2: Lenient JSON validation\n  Description: Allow comments\n  Trade-offs: Easier to maintain',
+        'RECOMMENDED: 1 — strict is safer in CI',
+      ].join('\n');
+      const mockAiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          capturedPrompt = prompt;
+          return Promise.resolve({ content: structuredResponse });
+        },
+      };
+      const mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_key, _files, fn) => fn(),
+      };
+      const analyzer = new Step4ConfigAnalyzer({
+        fileOps: {
+          glob: (pattern) =>
+            pattern.includes('json') ? Promise.resolve(['package.json']) : Promise.resolve([]),
+          readFile: () => Promise.resolve('{"name":"test"}'),
+          stat: () => Promise.resolve({}),
+        },
+        backlog: { saveStepSummary: () => Promise.resolve() },
+        techStack: { detectTechStack: () => Promise.resolve({ primaryLanguage: 'javascript' }) },
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+      const result = await analyzer.execute('/project', { alternatives: 2 });
+      expect(capturedPrompt).toMatch(/ALTERNATIVE/i);
+      expect(result.alternatives).toHaveLength(2);
+      expect(result.recommendedAlternative).toBeTruthy();
+    });
+  });
 });

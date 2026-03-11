@@ -577,4 +577,60 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.skipped).toBe(true); // No scripts found
     });
   });
+
+  describe('Step3ScriptAnalyzer - alternatives directive', () => {
+    test('returns empty alternatives when flag is false', async () => {
+      const mockFileOps = {
+        glob: () => Promise.resolve([]),
+        readFile: () => Promise.resolve(''),
+        stat: () => Promise.resolve({ mode: 0o755 }),
+      };
+      const analyzer = new Step3ScriptAnalyzer({
+        fileOps: mockFileOps,
+        backlog: { saveStepSummary: () => Promise.resolve() },
+        techStack: { detectTechStack: () => Promise.resolve({ primaryLanguage: 'bash' }) },
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+      const result = await analyzer.execute('/project');
+      expect(result.alternatives).toEqual([]);
+      expect(result.recommendedAlternative).toBeNull();
+    });
+
+    test('appends alternatives directive to prompt and parses result', async () => {
+      let capturedPrompt = '';
+      const structuredResponse = [
+        'ALTERNATIVE 1: Use shell scripts\n  Description: Simple bash approach\n  Trade-offs: Fast but brittle',
+        'ALTERNATIVE 2: Use Node.js\n  Description: More robust\n  Trade-offs: Requires Node runtime',
+        'RECOMMENDED: 2 — Node.js is more maintainable',
+      ].join('\n');
+      const mockAiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          capturedPrompt = prompt;
+          return Promise.resolve({ content: structuredResponse });
+        },
+      };
+      const mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_key, _files, fn) => fn(),
+      };
+      const analyzer = new Step3ScriptAnalyzer({
+        fileOps: {
+          // Return a script file so the step doesn't short-circuit
+          glob: () => Promise.resolve(['scripts/build.sh']),
+          readFile: () => Promise.resolve(''),
+          stat: () => Promise.resolve({ mode: 0o755 }),
+        },
+        backlog: { saveStepSummary: () => Promise.resolve() },
+        techStack: { detectTechStack: () => Promise.resolve({ primaryLanguage: 'bash' }) },
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+      const result = await analyzer.execute('/project', { alternatives: 2 });
+      expect(capturedPrompt).toMatch(/ALTERNATIVE/i);
+      expect(result.alternatives).toHaveLength(2);
+      expect(result.alternatives[0].title).toBeTruthy();
+      expect(result.recommendedAlternative).toBeTruthy();
+    });
+  });
 });

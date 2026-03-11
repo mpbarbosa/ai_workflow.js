@@ -42,6 +42,14 @@ export function validateRunOptions(options) {
     errors.push('Config path must be a string');
   }
 
+  // Validate alternatives
+  if (options.alternatives !== false && options.alternatives !== undefined) {
+    const n = parseInt(options.alternatives, 10);
+    if (!isNaN(n) && n < 2) {
+      errors.push('--alternatives must be at least 2');
+    }
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -55,6 +63,9 @@ export function validateRunOptions(options) {
  * @returns {Object} Orchestrator options
  */
 export function createOrchestratorOptions(cliOptions) {
+  const rawAlt = cliOptions.alternatives;
+  const alternatives =
+    rawAlt === false || rawAlt === undefined ? false : Math.max(2, parseInt(rawAlt, 10) || 2);
   return {
     workflowDir: cliOptions.workflowDir || '.ai_workflow',
     projectRoot: cliOptions.projectRoot || process.cwd(),
@@ -63,6 +74,7 @@ export function createOrchestratorOptions(cliOptions) {
     dryRun: cliOptions.dryRun || false,
     noParallel: cliOptions.parallel === false,
     sdkSmokeTest: cliOptions.sdkSmokeTest || false,
+    alternatives,
   };
 }
 

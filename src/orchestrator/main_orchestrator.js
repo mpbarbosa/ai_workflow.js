@@ -288,6 +288,7 @@ export class MainOrchestrator {
     this.noParallel = options.noParallel || false;
     this.resumeFromCheckpoint = options.resumeFromCheckpoint || null;
     this.sdkSmokeTest = options.sdkSmokeTest || false;
+    this.alternatives = options.alternatives || false;
     // When true, each step receives a streaming AiHelper whose token deltas are
     // forwarded to workflowEngine as 'ai:stream:chunk' events for TUI display.
     this.streamingEnabled = !!(options.verbose || options.streamingEnabled);
@@ -763,6 +764,7 @@ export class MainOrchestrator {
           this.configManager?.getConfig?.()?.project_description ||
           this.configManager?.getConfig?.()?.project?.description ||
           path.basename(this.projectRoot),
+        alternatives: this.alternatives,
       };
 
       // Setup event listeners for progress tracking
