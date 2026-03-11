@@ -263,10 +263,10 @@ npm run validate:versions
 
 1. Parse src/index.js for re-export statements
 2. For each re-export:
-   - Resolve module path
-   - Extract actual exports from source module using regex
-   - Compare export name against available exports
-   - Report mismatches
+  - Resolve module path
+  - Extract actual exports from source module using regex
+  - Compare export name against available exports
+  - Report mismatches
 
 **Supported Export Patterns**:
 
@@ -284,9 +284,9 @@ export default ClassName;
 1. Read version from package.json
 2. Find all .md files recursively
 3. For each file:
-   - Extract version references using multiple regex patterns
-   - Compare against package.json version
-   - Classify by priority (README.md, CHANGELOG.md)
+  - Extract version references using multiple regex patterns
+  - Compare against package.json version
+  - Classify by priority (README.md, CHANGELOG.md)
 4. Report inconsistencies
 
 **Detected Version Patterns**:
@@ -316,21 +316,21 @@ version: v1.2.0
 ### Potential Improvements
 
 1. **Export Validation**
-   - Support TypeScript (.ts files)
-   - Validate default exports more thoroughly
-   - Check for duplicate exports
-   - Validate import statements match exports
+  - Support TypeScript (.ts files)
+  - Validate default exports more thoroughly
+  - Check for duplicate exports
+  - Validate import statements match exports
 
 2. **Version Consistency**
-   - Exclude CHANGELOG.md from strict checks
-   - Allow version ranges (e.g., ^1.2.0)
-   - Check package-lock.json consistency
-   - Validate dependency versions
+  - Exclude CHANGELOG.md from strict checks
+  - Allow version ranges (e.g., ^1.2.0)
+  - Check package-lock.json consistency
+  - Validate dependency versions
 
 3. **New Validators**
-   - Link validation (check for broken links)
-   - API consistency (ensure docs match implementation)
-   - Example code validation (run examples as tests)
+  - Link validation (check for broken links)
+  - API consistency (ensure docs match implementation)
+  - Example code validation (run examples as tests)
 
 ---
 

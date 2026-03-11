@@ -1,39 +1,0 @@
-[2026-03-11T20:57:54.137Z] 
-→ Starting: Git Finalization
-[2026-03-11T20:57:54.170Z] ════════════════════════════════════════════════════════════
-[2026-03-11T20:57:54.170Z] 🔷  Step 12: Git Finalization
-[2026-03-11T20:57:54.170Z] ════════════════════════════════════════════════════════════
-[2026-03-11T20:57:54.170Z] Analyzing git repository state...
-[2026-03-11T20:57:54.250Z] Branch: main (ahead: 14, behind: 3)
-[2026-03-11T20:57:54.250Z] Changes: 20 files
-[2026-03-11T20:57:54.250Z] Inferred commit type: feat(implementation+tests)
-[2026-03-11T20:57:54.250Z] Processing submodules...
-[2026-03-11T20:57:54.331Z] Submodules (2 total):
-  ✅ .workflow_core (heads/main) @ 8d57cb3
-  ✅ .workflow_fspec (heads/main) @ 025acc2
-  Summary: 2 initialized
-[2026-03-11T20:57:54.331Z] Staging all changes...
-[2026-03-11T20:57:54.463Z] [DEBUG] Submodule changes committed
-[2026-03-11T20:57:54.547Z] Changes staged successfully
-[2026-03-11T20:57:54.547Z] Generating commit message...
-[2026-03-11T20:57:57.234Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
-[2026-03-11T20:57:57.234Z] Commit message generated (heuristic)
-[2026-03-11T20:57:57.235Z] Creating commit...
-[2026-03-11T20:57:59.631Z] Changes committed successfully
-[2026-03-11T20:57:59.646Z] Tagged release: v1.6.2
-[2026-03-11T20:58:02.569Z] Pushed tag v1.6.2 to remote
-[2026-03-11T20:58:02.569Z] Pushing to origin/main...
-[2026-03-11T20:58:05.437Z] ✗ Push failed: ExecutionError: git pull --rebase origin main: From github.com:mpbarbosa/ai_workflow.js
- * branch            main       -> FETCH_HEAD
-Rebasing (1/15)Rebasing (2/15)Rebasing (3/15)Rebasing (4/15)Rebasing (5/15)Rebasing (6/15)error: could not apply 3752135... feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc
-hint: Resolve all conflicts manually, mark them as resolved with
-hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
-hint: You can instead skip this commit: run "git rebase --skip".
-hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
-hint: Disable this message with "git config set advice.mergeConflict false"
-Could not apply 3752135... # feat(phase-12): Testing & Documentation — 452 integration/e2e tests, Migration Guide, TypeScript types, typedoc
-[2026-03-11T20:58:05.439Z] ✓ Step step_12 completed in 11303ms
-[2026-03-11T20:58:05.439Z] [DEBUG] [Performance] step_12: 11.3s
-[2026-03-11T20:58:05.439Z] ⚠ [WARNING] Operation 'step_12' took 11.3s (memory: 75.07MB)
-[2026-03-11T20:58:05.439Z] [DEBUG] Recorded outcome for step_12: success
-[2026-03-11T20:58:05.439Z] ✓ Completed: Git Finalization (11s)

@@ -346,33 +346,33 @@ When reviewing a prompt-response log file (`.ai_workflow/logs/.../prompts/<step>
 ### Phase 7 Milestones
 
 1. **M1: Basic Step Execution** (Week 1)
-   - Sequential step orchestration
-   - Command execution via `Executor` (already implemented)
-   - Basic logging and progress tracking
+  - Sequential step orchestration
+  - Command execution via `Executor` (already implemented)
+  - Basic logging and progress tracking
 
 2. **M2: Validation Framework** (Week 2)
-   - Pre/post-condition checking
-   - Exit code validation
-   - Output pattern matching
-   - Test regression detection
+  - Pre/post-condition checking
+  - Exit code validation
+  - Output pattern matching
+  - Test regression detection
 
 3. **M3: Error Handling** (Week 3)
-   - Retry logic
-   - Checkpoint/recovery system
-   - Graceful degradation
-   - Error classification
+  - Retry logic
+  - Checkpoint/recovery system
+  - Graceful degradation
+  - Error classification
 
 4. **M4: AI Integration** (Week 4)
-   - Depends on Phase 6 (AI Integration)
-   - Copilot SDK workflow integration
-   - AI-powered code review
-   - Automated test generation
+  - Depends on Phase 6 (AI Integration)
+  - Copilot SDK workflow integration
+  - AI-powered code review
+  - Automated test generation
 
 5. **M5: Metrics & Reporting** (Week 5)
-   - Performance metrics collection
-   - Workflow summaries
-   - Historical tracking
-   - Trend analysis
+  - Performance metrics collection
+  - Workflow summaries
+  - Historical tracking
+  - Trend analysis
 
 ---
 

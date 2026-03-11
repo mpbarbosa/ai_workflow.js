@@ -92,7 +92,13 @@ src/
 │   ├── output.js           # Output formatting
 │   ├── progress.js         # Progress display
 │   ├── prompts.js          # Interactive prompts
-│   └── commands/           # CLI command implementations
+│   ├── commands/           # CLI command implementations (run, resume, config, init, status, clean)
+│   └── tui/                # Terminal UI (Ink/React components)
+│       ├── index.js        # TUI entry point
+│       ├── App.js          # Main TUI application component
+│       ├── helpers.js      # TUI helper utilities
+│       ├── hooks/          # React hooks (useOrchestrator)
+│       └── components/     # TUI React components (panels, overlays, progress bars)
 │
 └── index.js                 # Public API exports
 ```
@@ -186,7 +192,7 @@ if (isWindows()) {
 ```javascript
 import { compareVersions, isCompatible } from './core/version.js';
 
-if (compareVersions('2.0.0', '1.7.0') > 0) {
+if (compareVersions('2.0.0', '1.8.0') > 0) {
   console.log('Newer version available');
 }
 

@@ -182,10 +182,10 @@ Evaluates a condition against context. Supports multiple condition types.
 1. **Boolean**: Returns directly
 2. **Function**: Calls function with context, returns true if result is true
 3. **Object**: Evaluates based on `type` field:
-   - `impact`: Match context.impact === value
-   - `filePattern`: Match files against regex
-   - `phase`: Match context.step.phase === value
-   - `projectKind`: Match context.projectKind === value
+  - `impact`: Match context.impact === value
+  - `filePattern`: Match files against regex
+  - `phase`: Match context.step.phase === value
+  - `projectKind`: Match context.projectKind === value
 
 **Example:**
 

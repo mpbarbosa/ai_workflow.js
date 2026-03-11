@@ -1,7 +1,7 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v1.0.0**
-**Last Updated:** 2026-02-01
+**AI Workflow Automation v1.6.0**
+**Last Updated:** 2026-03-11
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 
 ---
@@ -658,15 +658,21 @@ when `ai_workflow.js` is installed as a dependency:
 
 ```typescript
 // my-automation.ts
-import type { WorkflowResult, StepContext, ConfigSchema } from 'ai_workflow.js';
+import type { WorkflowConfig, StepResult } from 'ai_workflow.js';
 import { WorkflowEngine } from 'ai_workflow.js';
 
-const engine = new WorkflowEngine();
-const result: WorkflowResult = await engine.run();
+const config: WorkflowConfig = {
+  steps: [],          // populate with StepDefinition objects
+  parallel: true,
+  streamingEnabled: false,
+};
 
-if (!result.success) {
-  const err: Error = result.error!;
-  console.error(err.message);
+const engine = new WorkflowEngine(config);
+const results: Record<string, StepResult> = await engine.run();
+
+const failed = Object.values(results).filter(r => !r.success);
+if (failed.length > 0) {
+  console.error('Failed steps:', failed.map(r => r.error));
 }
 ```
 
@@ -1013,4 +1019,4 @@ issue and include:
 
 ---
 
-_Last Updated: 2026-02-01 · `ai_workflow.js` v1.0.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
+_Last Updated: 2026-03-11 · `ai_workflow.js` v1.6.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_

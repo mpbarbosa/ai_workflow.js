@@ -214,16 +214,16 @@ The regression tests cover:
 **When to Update These Tests:**
 
 1. **If step registration changes:**
-   - Update test #1 and #4 to reflect new registration format
-   - Ensure field names remain consistent
+  - Update test #1 and #4 to reflect new registration format
+  - Ensure field names remain consistent
 
 2. **If checkpoint structure changes:**
-   - Update tests #5, #6, #7 to match new structure
-   - Update validation expectations
+  - Update tests #5, #6, #7 to match new structure
+  - Update validation expectations
 
 3. **If new workflow steps are added:**
-   - Update test #4 with new step count
-   - Add new step IDs to expected list
+  - Update test #4 with new step count
+  - Add new step IDs to expected list
 
 **Test Maintenance:**
 - These tests should be considered **critical regression tests**

@@ -1,6 +1,6 @@
 # Conditional Execution Strategy
 
-**Version:** 1.7.0
+**Version:** 1.8.0
 **Status:** ✅ Implemented
 **Impact:** 40-60% reduction in CI/CD time for low-impact changes
 
@@ -773,9 +773,9 @@ If troubleshooting doesn't resolve your issue:
    ```
 
 4. **Check related documentation:**
-   - [Validation Scripts](./VALIDATION_SCRIPTS.md)
-   - [Developer Guide](./DEVELOPER_GUIDE.md)
-   - [CI/CD Configuration](../../.github/workflows/ci.yml)
+  - [Validation Scripts](./VALIDATION_SCRIPTS.md)
+  - [Developer Guide](./DEVELOPER_GUIDE.md)
+  - [CI/CD Configuration](../../.github/workflows/ci.yml)
 
 5. **Report issue with context:**
    ```bash
@@ -856,7 +856,7 @@ Run only tests that cover changed code:
 
 ## Changelog
 
-### [1.7.0] - 2026-02-07
+### [1.8.0] - 2026-02-07
 
 - ✨ Initial implementation of conditional execution
 - ✨ Change impact analyzer script

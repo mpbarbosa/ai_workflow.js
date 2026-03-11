@@ -216,7 +216,7 @@ Lines 150-164 show planned architecture but doesn't reflect current structure:
 
 - **package.json:** version "1.0.0"
 - **README:** Project version "1.2.0"
-- **README Document version:** "1.7.0"
+- **README Document version:** "1.8.0"
 - Unclear which version scheme is authoritative
 
 #### 9. **Missing Module Details**
@@ -236,8 +236,8 @@ No explanation of what the 3 failing tests are or why they're acceptable
 1. **Update test counts throughout document:**
 
    ```markdown
-   - Line 229: Change "942 tests, all passing" → "1,429 tests (1,426 passing, 3 known failures)"
-   - Line 37: Keep accurate "(1426 passing tests, 3 failures)" ✓
+  - Line 229: Change "942 tests, all passing" → "1,429 tests (1,426 passing, 3 known failures)"
+  - Line 37: Keep accurate "(1426 passing tests, 3 failures)" ✓
    ```
 
 2. **Fix Phase status list (lines 243-258):**
@@ -250,9 +250,9 @@ No explanation of what the 3 failing tests are or why they're acceptable
 
 3. **Add missing Phase 5 clarification:**
    Since Phase 5 modules don't exist but Phase 6-7 are complete, either:
-   - **Option A:** Document that Phase 5 was skipped/merged into other phases
-   - **Option B:** Implement Phase 5 modules (git_automation, git_cache, auto_commit, change_detection)
-   - **Recommended:** Add note explaining Phase 5 modules may be in copilot-instructions but not yet in codebase
+  - **Option A:** Document that Phase 5 was skipped/merged into other phases
+  - **Option B:** Implement Phase 5 modules (git_automation, git_cache, auto_commit, change_detection)
+  - **Recommended:** Add note explaining Phase 5 modules may be in copilot-instructions but not yet in codebase
 
 4. **Update architecture diagram (lines 150-164):**
    ```markdown
@@ -275,20 +275,20 @@ No explanation of what the 3 failing tests are or why they're acceptable
 
    **Completed Phases:**
 
-   - ✅ Phase 1: Core Foundation (7 modules)
-   - ✅ Phase 2: Configuration & State Management (4 modules)
-   - ✅ Phase 3: File Operations & Utilities (5 modules)
-   - ✅ Phase 4: Project Detection & Analysis (4 modules)
-   - ✅ Phase 6: AI Integration (6 modules) - 3 test failures
-   - ✅ Phase 7: Workflow Orchestration (6 modules)
+  - ✅ Phase 1: Core Foundation (7 modules)
+  - ✅ Phase 2: Configuration & State Management (4 modules)
+  - ✅ Phase 3: File Operations & Utilities (5 modules)
+  - ✅ Phase 4: Project Detection & Analysis (4 modules)
+  - ✅ Phase 6: AI Integration (6 modules) - 3 test failures
+  - ✅ Phase 7: Workflow Orchestration (6 modules)
 
    **Skipped/Pending:**
 
-   - ⏭️ Phase 5: Git Integration (documented but not implemented)
+  - ⏭️ Phase 5: Git Integration (documented but not implemented)
 
    **In Progress:**
 
-   - 🚧 Phase 8: Performance Optimizations
+  - 🚧 Phase 8: Performance Optimizations
    ```
 
 6. **Add Known Issues section:**
@@ -296,13 +296,13 @@ No explanation of what the 3 failing tests are or why they're acceptable
    ```markdown
    ## Known Issues
 
-   - **Test Failures:** 3 tests failing in project_kind_detection (configuration_library detection)
-   - **Phase 5:** Git integration modules documented in copilot-instructions but not implemented
+  - **Test Failures:** 3 tests failing in project_kind_detection (configuration_library detection)
+  - **Phase 5:** Git integration modules documented in copilot-instructions but not implemented
    ```
 
 7. **Synchronize version numbers:**
-   - Decide on versioning scheme (project version vs document version)
-   - Update package.json to match README if 1.2.0 is correct project version
+  - Decide on versioning scheme (project version vs document version)
+  - Update package.json to match README if 1.2.0 is correct project version
 
 ### Low Priority
 
@@ -420,9 +420,9 @@ I've completed a comprehensive analysis of `.github/copilot-instructions.md`. He
 ### 🔴 Critical Issues (Fix Immediately)
 
 1. **Test Failure Misattribution** - Doc claims "3 failures in Phase 6" but actual test output shows:
-   - 2 failures in `project_kind_detection.test.js` (Phase 4)
-   - 1 failure in `ai_cache.test.js` (Phase 6)
-   - This error appears in 6 locations throughout the document
+  - 2 failures in `project_kind_detection.test.js` (Phase 4)
+  - 1 failure in `ai_cache.test.js` (Phase 6)
+  - This error appears in 6 locations throughout the document
 
 2. **Version Inconsistency** - `copilot-instructions.md` says v1.2.0, `package.json` says v1.0.0
 

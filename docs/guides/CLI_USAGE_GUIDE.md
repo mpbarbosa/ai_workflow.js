@@ -288,9 +288,9 @@ ai-workflow init --force --interactive
 
 1. Creates `.workflow-config.yaml` with project settings
 2. Creates `.ai_workflow/` directory structure:
-   - backlog/, summaries/, logs/
-   - metrics/, checkpoints/, prompts/
-   - ml_models/, .incremental_cache/
+  - backlog/, summaries/, logs/
+  - metrics/, checkpoints/, prompts/
+  - ml_models/, .incremental_cache/
 3. Validates configuration
 4. Displays next steps
 

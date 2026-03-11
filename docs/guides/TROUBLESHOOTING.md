@@ -635,7 +635,7 @@ ValidationError: AI response validation failed
 
    ```yaml
    # .github/workflows/test.yml
-   - uses: actions/setup-node@v3
+  - uses: actions/setup-node@v3
      with:
        node-version: '18.x'
    ```
@@ -713,11 +713,11 @@ process.env.DEBUG = 'ai-workflow:*';
 
 1. Search existing issues: https://github.com/mpbarbosa/ai_workflow.js/issues
 2. Create new issue with:
-   - Node.js version
-   - npm version
-   - Configuration file (sanitized)
-   - Full error message
-   - Steps to reproduce
+  - Node.js version
+  - npm version
+  - Configuration file (sanitized)
+  - Full error message
+  - Steps to reproduce
 
 ### Common Error Codes
 

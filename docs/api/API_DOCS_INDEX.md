@@ -185,14 +185,14 @@ export class Metrics {
 Modules are organized into two layers:
 
 1. **Pure Functions** (lines ~15-200)
-   - Core business logic
-   - No I/O operations
-   - 100% testable
+  - Core business logic
+  - No I/O operations
+  - 100% testable
 
 2. **Wrapper Classes** (lines ~200-end)
-   - Handle I/O operations
-   - Integrate with file system, logger, etc.
-   - Compose pure functions
+  - Handle I/O operations
+  - Integrate with file system, logger, etc.
+  - Compose pure functions
 
 ---
 
