@@ -135,6 +135,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+    },
+    "src/core/colors.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T21:17:52.459Z"
+    },
+    "src/core/executor.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T21:17:52.459Z"
+    },
+    "src/core/logger.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T21:17:52.459Z"
+    },
+    "src/core/system.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T21:17:52.459Z"
+    },
+    "src/core/version.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-11T21:17:52.459Z"
     }
   }
 }

@@ -1,0 +1,15 @@
+[2026-03-11T20:43:54.938Z] 
+→ Starting: Debugging Analysis
+[2026-03-11T20:43:54.965Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:43:54.965Z] 🔷  Step 18: Debugging Analysis
+[2026-03-11T20:43:54.965Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:43:57.401Z] Analyzing 100 source file(s) for debugging patterns
+[2026-03-11T20:43:57.441Z] Selected debugger persona: async_flow_debugger_prompt
+[2026-03-11T20:44:00.141Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
+[2026-03-11T20:44:00.141Z] ⚠ AI helper not available - skipping debugging analysis
+[2026-03-11T20:44:00.143Z] Step 18 completed - no AI content (AI unavailable or prompt missing)
+[2026-03-11T20:44:00.143Z] ✓ Step step_18 completed in 5205ms
+[2026-03-11T20:44:00.143Z] [DEBUG] [Performance] step_18: 5.2s
+[2026-03-11T20:44:00.143Z] ⚠ [WARNING] Operation 'step_18' took 5.2s (memory: 113.31MB)
+[2026-03-11T20:44:00.143Z] [DEBUG] Recorded outcome for step_18: success
+[2026-03-11T20:44:00.143Z] ✓ Completed: Debugging Analysis (5s)

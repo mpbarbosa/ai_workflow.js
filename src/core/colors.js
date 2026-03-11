@@ -6,5 +6,5 @@
  * Part of: AI Workflow Automation v1.0.0
  */
 
-export { colors, supportsColor, colorize } from 'olinda_shell_interface.js/core/colors';
+export { colors, supportsColor, colorize } from 'olinda_shell_interface.js';
 

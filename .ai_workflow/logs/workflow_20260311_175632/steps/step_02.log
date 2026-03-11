@@ -1,0 +1,17 @@
+[2026-03-11T20:56:39.313Z] 
+→ Starting: Consistency Analysis
+[2026-03-11T20:56:39.352Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:56:39.352Z] 🔷  Step 2: Documentation Consistency Analysis
+[2026-03-11T20:56:39.352Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:56:41.597Z] Found 560 documentation files
+[2026-03-11T20:56:41.599Z] Expected version: 1.6.1
+[2026-03-11T20:56:41.691Z] Version check: 2532 issue(s) found
+[2026-03-11T20:56:42.875Z] Link check: 1214 broken link(s) found
+[2026-03-11T20:56:45.866Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
+[2026-03-11T20:56:45.866Z] ⚠ AI helper not available - skipping AI consistency analysis
+[2026-03-11T20:56:45.866Z] ⚠ Step 2 completed - 3746 issue(s) found
+[2026-03-11T20:56:45.866Z] ✓ Step step_02 completed in 6554ms
+[2026-03-11T20:56:45.866Z] [DEBUG] [Performance] step_02: 6.6s
+[2026-03-11T20:56:45.867Z] ⚠ [WARNING] Operation 'step_02' took 6.6s (memory: 144.72MB)
+[2026-03-11T20:56:45.867Z] [DEBUG] Recorded outcome for step_02: success
+[2026-03-11T20:56:45.867Z] ✓ Completed: Consistency Analysis (7s)

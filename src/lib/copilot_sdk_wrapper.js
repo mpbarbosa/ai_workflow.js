@@ -13,7 +13,7 @@
  * @module lib/copilot_sdk_wrapper
  * @version 2.0.0
  */
-import { CopilotClient } from '@github/copilot-sdk';
+import { CopilotClient, approveAll } from '@github/copilot-sdk';
 import { logger } from '../core/logger.js';
 import { SystemError } from '../utils/errors.js';
 // ms to wait for client.stop() before calling forceStop()
@@ -111,7 +111,7 @@ export class CopilotSdkWrapper {
         } catch (modelErr) {
           logger.debug(`Could not fetch available models: ${modelErr.message}`);
         }
-        const sessionConfig = { model: this._model };
+        const sessionConfig = { model: this._model, onPermissionRequest: approveAll };
         if (this._workingDirectory) {
           sessionConfig.workingDirectory = this._workingDirectory;
         }
@@ -177,6 +177,7 @@ export class CopilotSdkWrapper {
     }
     this._session = await this._client.createSession({
       model: this._model,
+      onPermissionRequest: approveAll,
       ...(this._workingDirectory ? { workingDirectory: this._workingDirectory } : {}),
       ...(this._streaming ? { streaming: true } : {}),
       ...(this._tools.length > 0 ? { tools: this._tools } : {}),

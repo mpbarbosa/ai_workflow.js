@@ -186,7 +186,7 @@ if (isWindows()) {
 ```javascript
 import { compareVersions, isCompatible } from './core/version.js';
 
-if (compareVersions('2.0.0', '1.6.0') > 0) {
+if (compareVersions('2.0.0', '1.7.0') > 0) {
   console.log('Newer version available');
 }
 

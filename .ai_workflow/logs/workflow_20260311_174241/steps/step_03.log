@@ -1,0 +1,18 @@
+[2026-03-11T20:43:03.506Z] 
+→ Starting: Script References
+[2026-03-11T20:43:03.539Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:43:03.539Z] 🔷  Step 3: Script Reference Validation
+[2026-03-11T20:43:03.539Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:43:03.584Z] Language: bash, patterns: *.sh
+[2026-03-11T20:43:07.912Z] Found 6 script(s)
+[2026-03-11T20:43:07.918Z] References: 5, missing: 0
+[2026-03-11T20:43:07.918Z] Non-executable: 0
+[2026-03-11T20:43:07.919Z] Undocumented: 1
+[2026-03-11T20:43:10.066Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
+[2026-03-11T20:43:10.066Z] ⚠ AI helper not available - skipping AI analysis
+[2026-03-11T20:43:10.066Z] ⚠ Step 3 completed - 1 issue(s) found
+[2026-03-11T20:43:10.067Z] ✓ Step step_03 completed in 6561ms
+[2026-03-11T20:43:10.067Z] [DEBUG] [Performance] step_03: 6.6s
+[2026-03-11T20:43:10.067Z] ⚠ [WARNING] Operation 'step_03' took 6.6s (memory: 34.65MB)
+[2026-03-11T20:43:10.067Z] [DEBUG] Recorded outcome for step_03: success
+[2026-03-11T20:43:10.067Z] ✓ Completed: Script References (7s)

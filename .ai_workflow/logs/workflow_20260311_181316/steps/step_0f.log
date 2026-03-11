@@ -1,0 +1,51 @@
+[2026-03-11T21:19:34.098Z] 
+→ Starting: Commit Artifacts
+[2026-03-11T21:19:34.117Z] ════════════════════════════════════════════════════════════
+[2026-03-11T21:19:34.117Z] 🔷  Step 0f: Commit Workflow Artifacts
+[2026-03-11T21:19:34.117Z] ════════════════════════════════════════════════════════════
+[2026-03-11T21:19:34.233Z] Found 100 artifact file(s) to commit
+[2026-03-11T21:19:34.281Z] [DEBUG] Staged 100 file(s) (forced)
+[2026-03-11T21:19:34.309Z] ✗ Failed to auto-commit: Git command failed: git commit -m "chore(workflow): update docs and metrics [skip ci]
+
+Files updated:
+- docs/guides/MIGRATION_GUIDE.md
+- .ai_workflow/.ai_cache/15b791f5d7d12c03733d2bedd13e2fd2dda85d9c81c375edfb30d69cbae4045a.meta
+- .ai_workflow/.ai_cache/15b791f5d7d12c03733d2bedd13e2fd2dda85d9c81c375edfb30d69cbae4045a.txt
+- .ai_workflow/.ai_cache/19831facf45130637182c6109be5588905ca3ad865420d6bdad3105b345d2ba6.meta
+- .ai_workflow/.ai_cache/19831facf45130637182c6109be5588905ca3ad865420d6bdad3105b345d2ba6.txt
+- .ai_workflow/.ai_cache/28de480355e9ee4ac45169684fbbca518e6bc041ccaa4c186131d0836b4a1e34.meta
+- .ai_workflow/.ai_cache/28de480355e9ee4ac45169684fbbca518e6bc041ccaa4c186131d0836b4a1e34.txt
+- .ai_workflow/.ai_cache/2d99142bedf9e705749cca9152502c6a87930223745f9b2b237c727ef4e30c25.meta
+- .ai_workflow/.ai_cache/2d99142bedf9e705749cca9152502c6a87930223745f9b2b237c727ef4e30c25.txt
+- .ai_workflow/.ai_cache/5037dd217d5c3193ed442feb62778e041e9e603395f519021a150d29f84265c4.meta
+... and 90 more
+
+Auto-committed by ai_workflow.js v2.0.0
+Files: 100 | Timestamp: 2026-03-11T21:19:34.234Z" --no-verify
+Command failed: git commit -m "chore(workflow): update docs and metrics [skip ci]
+
+Files updated:
+- docs/guides/MIGRATION_GUIDE.md
+- .ai_workflow/.ai_cache/15b791f5d7d12c03733d2bedd13e2fd2dda85d9c81c375edfb30d69cbae4045a.meta
+- .ai_workflow/.ai_cache/15b791f5d7d12c03733d2bedd13e2fd2dda85d9c81c375edfb30d69cbae4045a.txt
+- .ai_workflow/.ai_cache/19831facf45130637182c6109be5588905ca3ad865420d6bdad3105b345d2ba6.meta
+- .ai_workflow/.ai_cache/19831facf45130637182c6109be5588905ca3ad865420d6bdad3105b345d2ba6.txt
+- .ai_workflow/.ai_cache/28de480355e9ee4ac45169684fbbca518e6bc041ccaa4c186131d0836b4a1e34.meta
+- .ai_workflow/.ai_cache/28de480355e9ee4ac45169684fbbca518e6bc041ccaa4c186131d0836b4a1e34.txt
+- .ai_workflow/.ai_cache/2d99142bedf9e705749cca9152502c6a87930223745f9b2b237c727ef4e30c25.meta
+- .ai_workflow/.ai_cache/2d99142bedf9e705749cca9152502c6a87930223745f9b2b237c727ef4e30c25.txt
+- .ai_workflow/.ai_cache/5037dd217d5c3193ed442feb62778e041e9e603395f519021a150d29f84265c4.meta
+... and 90 more
+
+Auto-committed by ai_workflow.js v2.0.0
+Files: 100 | Timestamp: 2026-03-11T21:19:34.234Z" --no-verify
+error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'git add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+
+[2026-03-11T21:19:34.310Z] Skipped: error
+[2026-03-11T21:19:34.310Z] ✓ Step step_0f completed in 212ms
+[2026-03-11T21:19:34.310Z] [DEBUG] [Performance] step_0f: 212ms
+[2026-03-11T21:19:34.310Z] [DEBUG] Recorded outcome for step_0f: success
+[2026-03-11T21:19:34.310Z] ✓ Completed: Commit Artifacts (0s)

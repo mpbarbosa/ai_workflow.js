@@ -1,0 +1,128 @@
+[2026-03-11T21:13:52.191Z] 
+→ Starting: Consistency Analysis
+[2026-03-11T21:13:52.228Z] ════════════════════════════════════════════════════════════
+[2026-03-11T21:13:52.228Z] 🔷  Step 2: Documentation Consistency Analysis
+[2026-03-11T21:13:52.228Z] ════════════════════════════════════════════════════════════
+[2026-03-11T21:13:54.417Z] Found 512 documentation files
+[2026-03-11T21:13:54.418Z] Expected version: 1.6.0
+[2026-03-11T21:13:54.502Z] Version check: 2133 issue(s) found
+[2026-03-11T21:13:55.272Z] Link check: 978 broken link(s) found
+[2026-03-11T21:13:57.385Z] ✓ GitHub Copilot SDK initialized successfully
+[2026-03-11T21:13:57.386Z] Available Copilot models (18): claude-sonnet-4.6, claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.6, claude-opus-4.6-fast, claude-opus-4.5, claude-sonnet-4, gemini-3-pro-preview, gpt-5.4, gpt-5.3-codex, gpt-5.2-codex, gpt-5.2, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1, gpt-5.1-codex-mini, gpt-5-mini, gpt-4.1
+[2026-03-11T21:13:57.390Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-11T21:13:57.446Z] [step_02] Running AI analysis in 11 partition(s) of ≤50 files
+[2026-03-11T21:13:57.472Z] [DEBUG] [ai_cache] step_02_part0of11: file hash not found, calling AI
+[2026-03-11T21:13:57.472Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:13:57.472Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:13:57.472Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:13:57.472Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14602
+[2026-03-11T21:13:57.472Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:04.640Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1755, latency: 7168ms
+[2026-03-11T21:14:04.641Z] ✓ AI request completed successfully
+[2026-03-11T21:14:04.643Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-04-642Z_0001_documentation_expert.md
+[2026-03-11T21:14:04.648Z] ⚠ [step_02] Partition 1: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:04.664Z] [DEBUG] [ai_cache] step_02_part1of11: file hash not found, calling AI
+[2026-03-11T21:14:04.664Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:04.664Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:04.664Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:04.664Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14591
+[2026-03-11T21:14:04.664Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:09.927Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1677, latency: 5263ms
+[2026-03-11T21:14:09.928Z] ✓ AI request completed successfully
+[2026-03-11T21:14:09.928Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-09-928Z_0002_documentation_expert.md
+[2026-03-11T21:14:09.931Z] ⚠ [step_02] Partition 2: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:09.963Z] [DEBUG] [ai_cache] step_02_part2of11: file hash not found, calling AI
+[2026-03-11T21:14:09.963Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:09.963Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:09.963Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:09.963Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14583
+[2026-03-11T21:14:09.963Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:15.218Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1687, latency: 5255ms
+[2026-03-11T21:14:15.218Z] ✓ AI request completed successfully
+[2026-03-11T21:14:15.219Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-15-219Z_0003_documentation_expert.md
+[2026-03-11T21:14:15.223Z] ⚠ [step_02] Partition 3: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:15.244Z] [DEBUG] [ai_cache] step_02_part3of11: file hash not found, calling AI
+[2026-03-11T21:14:15.244Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:15.244Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:15.244Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:15.244Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14590
+[2026-03-11T21:14:15.244Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:20.485Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1700, latency: 5241ms
+[2026-03-11T21:14:20.485Z] ✓ AI request completed successfully
+[2026-03-11T21:14:20.487Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-20-486Z_0004_documentation_expert.md
+[2026-03-11T21:14:20.491Z] ⚠ [step_02] Partition 4: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:20.515Z] [DEBUG] [ai_cache] step_02_part4of11: file hash not found, calling AI
+[2026-03-11T21:14:20.515Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:20.515Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:20.515Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:20.515Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14582
+[2026-03-11T21:14:20.516Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:25.817Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1687, latency: 5301ms
+[2026-03-11T21:14:25.818Z] ✓ AI request completed successfully
+[2026-03-11T21:14:25.819Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-25-818Z_0005_documentation_expert.md
+[2026-03-11T21:14:25.823Z] ⚠ [step_02] Partition 5: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:25.844Z] [DEBUG] [ai_cache] step_02_part5of11: file hash not found, calling AI
+[2026-03-11T21:14:25.844Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:25.844Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:25.844Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:25.844Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 14253
+[2026-03-11T21:14:25.844Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:32.458Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1909, latency: 6614ms
+[2026-03-11T21:14:32.458Z] ✓ AI request completed successfully
+[2026-03-11T21:14:32.459Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-32-458Z_0006_documentation_expert.md
+[2026-03-11T21:14:32.464Z] ⚠ [step_02] Partition 6: AI response quality low (reason=low_coverage, coverage=30%). Consider re-running this partition.
+[2026-03-11T21:14:32.487Z] [DEBUG] [ai_cache] step_02_part6of11: file hash not found, calling AI
+[2026-03-11T21:14:32.488Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:32.488Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:32.488Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:32.488Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 13424
+[2026-03-11T21:14:32.488Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:39.245Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1800, latency: 6757ms
+[2026-03-11T21:14:39.246Z] ✓ AI request completed successfully
+[2026-03-11T21:14:39.247Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-39-246Z_0007_documentation_expert.md
+[2026-03-11T21:14:39.251Z] ⚠ [step_02] Partition 7: AI response quality low (reason=low_coverage, coverage=20%). Consider re-running this partition.
+[2026-03-11T21:14:39.279Z] [DEBUG] [ai_cache] step_02_part7of11: file hash not found, calling AI
+[2026-03-11T21:14:39.279Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:39.279Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:39.279Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:39.279Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 12841
+[2026-03-11T21:14:39.279Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:45.575Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1771, latency: 6296ms
+[2026-03-11T21:14:45.575Z] ✓ AI request completed successfully
+[2026-03-11T21:14:45.576Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-45-576Z_0008_documentation_expert.md
+[2026-03-11T21:14:45.579Z] ⚠ [step_02] Partition 8: AI response quality low (reason=low_coverage, coverage=13%). Consider re-running this partition.
+[2026-03-11T21:14:45.605Z] [DEBUG] [ai_cache] step_02_part8of11: file hash not found, calling AI
+[2026-03-11T21:14:45.605Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:45.605Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:45.605Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:45.605Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 12649
+[2026-03-11T21:14:45.605Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:52.874Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 2057, latency: 7268ms
+[2026-03-11T21:14:52.874Z] ✓ AI request completed successfully
+[2026-03-11T21:14:52.875Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-52-874Z_0009_documentation_expert.md
+[2026-03-11T21:14:52.879Z] ⚠ [step_02] Partition 9: AI response quality low (reason=low_coverage, coverage=43%). Consider re-running this partition.
+[2026-03-11T21:14:52.901Z] [DEBUG] [ai_cache] step_02_part9of11: file hash not found, calling AI
+[2026-03-11T21:14:52.902Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:52.902Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:52.902Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:52.902Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 12862
+[2026-03-11T21:14:52.902Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:14:59.382Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 2059, latency: 6480ms
+[2026-03-11T21:14:59.382Z] ✓ AI request completed successfully
+[2026-03-11T21:14:59.383Z] [DEBUG] Prompt logged to: 2026-03-11T21-14-59-382Z_0010_documentation_expert.md
+[2026-03-11T21:14:59.384Z] ⚠ [step_02] Partition 10: AI response quality low (reason=low_coverage, coverage=27%). Consider re-running this partition.
+[2026-03-11T21:14:59.387Z] [DEBUG] [ai_cache] step_02_part10of11: file hash not found, calling AI
+[2026-03-11T21:14:59.387Z] [DEBUG] Request Options: {"model":"gpt-4.1","temperature":0.7,"maxTokens":4000,"stream":false,"persona":"documentation_expert","cache":true}
+[2026-03-11T21:14:59.387Z] [DEBUG] Persona: documentation_expert
+[2026-03-11T21:14:59.387Z] [DEBUG] Model: gpt-4.1
+[2026-03-11T21:14:59.387Z] [AI] SDK call starting — persona: documentation_expert, model: gpt-4.1, prompt_chars: 11311
+[2026-03-11T21:14:59.387Z] [DEBUG] Executing AI request (attempt 1/3)
+[2026-03-11T21:15:04.305Z] [AI] SDK call completed — persona: documentation_expert, model: gpt-4.1, response_chars: 1797, latency: 4918ms
+[2026-03-11T21:15:04.305Z] ✓ AI request completed successfully
+[2026-03-11T21:15:04.306Z] [DEBUG] Prompt logged to: 2026-03-11T21-15-04-305Z_0011_documentation_expert.md
+[2026-03-11T21:15:04.311Z] ⚠ Step 2 completed - 3111 issue(s) found
+[2026-03-11T21:15:04.312Z] ✓ Step step_02 completed in 72121ms
+[2026-03-11T21:15:04.312Z] [DEBUG] [Performance] step_02: 1m 12s
+[2026-03-11T21:15:04.312Z] ✗ [CRITICAL] Operation 'step_02' took 1m 12s (memory: 62.77MB)
+[2026-03-11T21:15:04.312Z] [DEBUG] Recorded outcome for step_02: success
+[2026-03-11T21:15:04.312Z] ✓ Completed: Consistency Analysis (72s)

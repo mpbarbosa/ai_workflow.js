@@ -1,0 +1,33 @@
+[2026-03-11T20:57:17.200Z] 
+→ Starting: Test Execution
+[2026-03-11T20:57:17.231Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:57:17.231Z] 🔷  Step 8: Test Execution
+[2026-03-11T20:57:17.231Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:57:17.271Z] Detected language: javascript
+[2026-03-11T20:57:17.272Z] Test command: npm test
+[2026-03-11T20:57:17.272Z] [DEBUG] [step_08] Executing test command: npm test in /home/mpb/Documents/GitHub/ai_workflow.js
+[2026-03-11T20:57:17.272Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:57:17.272Z] 🔷  Executing tests...
+[2026-03-11T20:57:17.272Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:57:17.272Z] [DEBUG] [step_08] Running: npm test (cwd: /home/mpb/Documents/GitHub/ai_workflow.js, timeout: 300000ms)
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Test runner exited 1 — output length: 0 chars
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Output snippet: 
+[2026-03-11T20:57:17.273Z] ⚠ [step_08] Test runner produced no output (possible crash) — retrying with --ci flag
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Running: npm test -- --ci (cwd: /home/mpb/Documents/GitHub/ai_workflow.js, timeout: 300000ms)
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Test runner exited 1 — output length: 0 chars
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Output snippet: 
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Test command exited with code 1
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Raw output length: 0 chars
+[2026-03-11T20:57:17.273Z] Parsing test results...
+[2026-03-11T20:57:17.273Z] [DEBUG] [step_08] Parsed results — passed: 0, failed: 0, skipped: 0, total: 0, suitesFailed: 0
+[2026-03-11T20:57:17.273Z] Tests: 0 passed, 0 failed, 0 skipped
+[2026-03-11T20:57:17.274Z] Coverage: 86.11% statements
+[2026-03-11T20:57:17.275Z] ⚠ Coverage gaps: 38 module(s) below 80%
+[2026-03-11T20:57:17.275Z] [DEBUG] [step_08] noTestsMessageInOutput: false, runnerCrashed: true, noTestsFound: true, anyFailure: false, success: true, exitCode: 1
+[2026-03-11T20:57:20.090Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
+[2026-03-11T20:57:20.090Z] ⚠ AI helper not available - skipping AI analysis
+[2026-03-11T20:57:20.090Z] ⚠ Step 8 completed - test runner exited with code 1 but produced no output (possible OOM kill or crash before first write). Run `npm test` manually to investigate.
+[2026-03-11T20:57:20.091Z] ✓ Step step_08 completed in 2891ms
+[2026-03-11T20:57:20.092Z] [DEBUG] [Performance] step_08: 2.9s
+[2026-03-11T20:57:20.092Z] [DEBUG] Recorded outcome for step_08: success
+[2026-03-11T20:57:20.092Z] ✓ Completed: Test Execution (3s)

@@ -34,12 +34,15 @@ const mockClient = {
 jest.unstable_mockModule('@github/copilot-sdk', () => ({
   CopilotClient: jest.fn(() => mockClient),
   defineTool: jest.fn(),
+  approveAll: jest.fn(),
 }));
 
 // Import the wrapper AFTER mocking the SDK
 const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
 // Also import the mocked CopilotClient so we can override behaviour per-test
-const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
+const { CopilotClient: MockCopilotClient, approveAll: mockApproveAll } = await import(
+  '@github/copilot-sdk'
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,7 +121,10 @@ describe('CopilotSdkWrapper — initialize()', () => {
     expect(mockClient.start).toHaveBeenCalledTimes(1);
     expect(mockClient.getAuthStatus).toHaveBeenCalledTimes(1);
     expect(mockClient.listModels).toHaveBeenCalledTimes(1);
-    expect(mockClient.createSession).toHaveBeenCalledWith({ model: 'gpt-4' });
+    expect(mockClient.createSession).toHaveBeenCalledWith({
+      model: 'gpt-4',
+      onPermissionRequest: mockApproveAll,
+    });
     expect(result.authenticated).toBe(true);
     expect(result.availableModels).toEqual([{ id: 'gpt-4' }, { id: 'gpt-4o' }]);
     expect(wrapper.session).toBe(mockSession);
@@ -140,6 +146,7 @@ describe('CopilotSdkWrapper — initialize()', () => {
 
     expect(mockClient.createSession).toHaveBeenCalledWith({
       model: 'gpt-4',
+      onPermissionRequest: mockApproveAll,
       workingDirectory: '/tmp/project',
     });
   });
@@ -181,6 +188,14 @@ describe('CopilotSdkWrapper — initialize()', () => {
 
     expect(result.authenticated).toBe(true);
     expect(wrapper.session).toBe(mockSession);
+  });
+
+  test('onPermissionRequest: approveAll is always forwarded to createSession', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ onPermissionRequest: mockApproveAll })
+    );
   });
 
   test('nullish getAuthStatus response treated as unauthenticated', async () => {
@@ -339,6 +354,16 @@ describe('CopilotSdkWrapper — recreateSession()', () => {
 
     await expect(wrapper.recreateSession()).resolves.toBeUndefined();
     expect(mockClient.start).toHaveBeenCalledTimes(2); // once in initialize, once in recreate
+  });
+
+  test('onPermissionRequest: approveAll is forwarded to createSession when recreating', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ onPermissionRequest: mockApproveAll })
+    );
   });
 
   test('workingDirectory is forwarded to createSession when recreating', async () => {

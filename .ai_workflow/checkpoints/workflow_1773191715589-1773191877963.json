@@ -1,0 +1,2314 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1773191715589",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1773191877963,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 374,
+            "modifiedFilesList": [
+              ".ai_workflow/metrics/current_run.json",
+              "cdn-urls.txt"
+            ],
+            "changeScope": "configuration",
+            "fileCounts": {
+              "documentation": 0,
+              "test": 0,
+              "source": 0,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [],
+              "test": [],
+              "source": [],
+              "config": [
+                "cdn-urls.txt"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "nodejs_automation",
+              "confidence": 100,
+              "source": "config",
+              "description": "nodejs_automation"
+            },
+            "techStack": {
+              "primary_language": "typescript",
+              "languages": [
+                "typescript",
+                "markdown",
+                "json",
+                "html",
+                "javascript",
+                "bash",
+                "yaml",
+                "css"
+              ],
+              "frameworks": [
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^29.7.0",
+                  "package": "jest"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-03-11T01:15:15.651Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1773191715652
+          },
+          "contextUpdate": {
+            "projectType": "nodejs_automation",
+            "modifiedFiles": [
+              ".ai_workflow/metrics/current_run.json",
+              "cdn-urls.txt"
+            ],
+            "categorizedFiles": {
+              "documentation": [],
+              "test": [],
+              "source": [],
+              "config": [
+                "cdn-urls.txt"
+              ],
+              "workflow_artifact": []
+            },
+            "fileCounts": {
+              "documentation": 0,
+              "test": 0,
+              "source": 0,
+              "config": 1,
+              "workflow_artifact": 0
+            },
+            "changeScope": "configuration",
+            "commitsAhead": 0
+          }
+        },
+        "duration": 48
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "documentation coverage adequate"
+        },
+        "duration": 12
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "classification": {
+            "documentation": [],
+            "source": [],
+            "tests": [],
+            "config": [],
+            "counts": {
+              "documentation": 0,
+              "source": 0,
+              "tests": 0,
+              "config": 0,
+              "total": 2
+            }
+          },
+          "validation": {
+            "fileCount": {
+              "success": false,
+              "issues": [
+                "No documentation files found",
+                "No README file found in project root"
+              ],
+              "counts": {
+                "markdown": 0,
+                "readme": 0,
+                "docs": 0
+              }
+            },
+            "versionRefs": {
+              "success": true,
+              "issues": []
+            },
+            "sourceDoc": {
+              "success": true,
+              "issues": [],
+              "totalIssues": 0
+            },
+            "totalIssues": 2,
+            "success": false
+          },
+          "analysis": null,
+          "filesProcessed": 0
+        },
+        "duration": 2466
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 1,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": []
+        },
+        "duration": 13018
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 19,
+          "totalIssues": 20,
+          "brokenLinks": [],
+          "versionIssues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "1.1.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.3.9",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.3.14",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.5.4",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.4.9",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.3.1",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.2.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.2.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "v0.5.4",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "v1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "0.5.4",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "found": "0.2.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "found": "0.3.1",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "v1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "found": "0.5.4",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "found": "1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "found": "v1.0.0",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/system.md",
+              "found": "0.3.1",
+              "expected": "0.5.5",
+              "type": "invalid_version"
+            }
+          ]
+        },
+        "duration": 7018
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 10,
+          "misplacedDocs": 1,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".github",
+              "message": "Undocumented directory: .github"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".github/workflows",
+              "message": "Undocumented directory: .github/workflows"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 2,
+          "docMismatch": 0,
+          "existingDirs": [
+            ".github",
+            ".github/workflows",
+            "docs",
+            "scripts",
+            "src",
+            "src/core",
+            "src/utils",
+            "test",
+            "test/core",
+            "test/utils"
+          ]
+        },
+        "duration": 11628
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "totalFiles": 9,
+            "exactDuplicates": [],
+            "redundantPairs": [],
+            "outdatedFiles": [],
+            "edgeCases": [],
+            "filesOptimized": 0,
+            "errors": []
+          },
+          "optimizationResults": null,
+          "reportResult": null,
+          "executionTime": 0,
+          "errors": []
+        },
+        "duration": 100
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "scriptsFound": 3,
+          "referencesChecked": 3,
+          "totalIssues": 0,
+          "missingReferences": [],
+          "nonExecutable": [],
+          "undocumented": []
+        },
+        "duration": 15919
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [
+            "test/core/executor.test.ts",
+            "test/core/file_operations.test.ts",
+            "test/core/jq_wrapper.test.ts",
+            "test/core/system.test.ts",
+            "test/core/version.test.ts",
+            "test/index.test.ts",
+            "test/utils/errors.test.ts"
+          ],
+          "categories": {
+            "unit": [],
+            "integration": [],
+            "e2e": [],
+            "other": [
+              "test/core/executor.test.ts",
+              "test/core/file_operations.test.ts",
+              "test/core/jq_wrapper.test.ts",
+              "test/core/system.test.ts",
+              "test/core/version.test.ts",
+              "test/index.test.ts",
+              "test/utils/errors.test.ts"
+            ]
+          },
+          "statistics": {
+            "totalTests": 7,
+            "unitTests": 0,
+            "integrationTests": 0,
+            "e2eTests": 0,
+            "otherTests": 7,
+            "totalLines": 1987,
+            "averageLinesPerTest": 284
+          },
+          "coverage": {
+            "found": false,
+            "path": null,
+            "percentage": null
+          },
+          "issues": [
+            {
+              "type": "no_coverage_report",
+              "message": "No coverage reports found - consider generating coverage data"
+            },
+            {
+              "type": "missing_tests",
+              "message": "No unit tests found - consider adding unit tests"
+            }
+          ]
+        },
+        "duration": 19459
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 7,
+          "totalTestFiles": 7,
+          "untestedFiles": [],
+          "coveragePercentage": 100,
+          "categories": {},
+          "generatedFiles": []
+        },
+        "duration": 783
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": true,
+          "noTestsFound": true,
+          "language": "typescript",
+          "testResults": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "suitesFailed": 0,
+            "suitesTotal": 0
+          },
+          "coverage": {},
+          "duration": 12,
+          "exitCode": 1
+        },
+        "duration": 10788
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasSecurityIssues": false,
+          "language": "typescript",
+          "dependencyCounts": {
+            "total": 11,
+            "production": 1,
+            "development": 10,
+            "peer": 0,
+            "dependencies": {
+              "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#v0.3.14"
+            },
+            "devDependencies": {
+              "@types/jest": "^29.5.0",
+              "@types/node": "^20.0.0",
+              "@typescript-eslint/eslint-plugin": "^8.56.1",
+              "@typescript-eslint/parser": "^8.56.1",
+              "eslint": "^10.0.2",
+              "jest": "^29.7.0",
+              "markdownlint-cli": "^0.47.0",
+              "ts-jest": "^29.1.0",
+              "typedoc": "^0.28.17",
+              "typescript": "^5.4.0"
+            }
+          },
+          "vulnerabilities": {
+            "summary": {
+              "total": 0,
+              "critical": 0,
+              "high": 0,
+              "moderate": 0,
+              "low": 0,
+              "info": 0
+            },
+            "packages": []
+          },
+          "outdatedPackages": [],
+          "lockfileIssues": [
+            "node_modules/olinda_utils.js: non-HTTPS resolved URL \"git+ssh://git@github.com/mpbarbosa/olinda_utils.js.git#2f597036ad27ec06c61570e9ba8053141b717298\""
+          ],
+          "dryRunIssues": [
+            ""
+          ],
+          "skipped": false
+        },
+        "duration": 17803
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasLintErrors": false,
+          "perLanguageResults": [
+            {
+              "language": "typescript",
+              "sourceFileCount": 7,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "json",
+              "sourceFileCount": 12,
+              "linterCommand": "(native JSON.parse)",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "javascript",
+              "sourceFileCount": 2,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "bash",
+              "sourceFileCount": 3,
+              "linterCommand": "find . -name \"*.sh\" -not -path \"*/node_modules/*\" -not -path \"*/.git/*\" | xargs shellcheck",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "infos": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            }
+          ],
+          "aggregateTotals": {
+            "totalIssues": 0,
+            "errors": 0,
+            "warnings": 0,
+            "infos": 0,
+            "fileCount": 24
+          },
+          "language": "typescript",
+          "sourceFileCount": 24
+        },
+        "duration": 8685
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 100,
+          "completionStatus": "excellent",
+          "completedSteps": 13,
+          "totalSteps": 13,
+          "gitStatus": {
+            "isGitRepo": true,
+            "branch": "unknown",
+            "modifiedFiles": 0,
+            "untrackedFiles": 0,
+            "stagedFiles": 0,
+            "commitsAhead": 0
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 13
+          },
+          "duration": 108
+        },
+        "duration": 104
+      },
+      "step_11_5": {
+        "stepId": "step_11_5",
+        "stepName": "AWS LBS Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.5 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 16
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "status": "fail",
+          "stats": {
+            "totalIssues": 139,
+            "filesWithIssues": 14,
+            "filesChecked": 15,
+            "cleanFiles": 1,
+            "uniqueRules": 9,
+            "issuesPerFile": 9.266666666666667
+          },
+          "issues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 9,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 10,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 11,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 20,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 18,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 19,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 20,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 21,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 5,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 7,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 12,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 13,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 27,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 47,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 97,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 109,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 110,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 19,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 61,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 76,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 92,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 61,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 62,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 66,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 79,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 92,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 98,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 34,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 58,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 73,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 89,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 46,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 92,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 105,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 115,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 117,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 128,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 46,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 47,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 48,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 49,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 45,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 71,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 101,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 34,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 36,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 50,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 55,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 75,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 96,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 101,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 105,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 142,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 68,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 98,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 76,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 77,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 146,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 178,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 185,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 187,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 279,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 310,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 348,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 362,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 422,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 436,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 442,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 463,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 469,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 451,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 452,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 453,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 454,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 455,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 36,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 50,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 69,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 83,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 106,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 128,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 160,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 263,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 405,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 60,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 61,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 68,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 74,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 75,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 76,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 80,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 100,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 101,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 178,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 179,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 180,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 166,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 167,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 168,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 169,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 170,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 21,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 150,
+              "rule": "MD022",
+              "message": "Headers should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 151,
+              "rule": "MD022",
+              "message": "Headers should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 150,
+              "rule": "MD032",
+              "message": "Lists should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 55,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 45,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 201,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 211,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 212,
+              "rule": "MD031",
+              "message": "Fenced code blocks should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 3,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 31,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 79,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 87,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 216,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 217,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 218,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 18,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 24,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 34,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 277,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 279,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 278,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 279,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 197,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 250,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 394,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 434,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 486,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 451,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 463,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 474,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 475,
+              "rule": "MD031",
+              "message": "Fenced code blocks should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/system.md",
+              "line": 36,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 25,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 208,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 233,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            }
+          ],
+          "antiPatterns": [],
+          "report": "### Markdown Linting Report\n\n**Linter:** markdownlint (mdl) v0.13.0\n**Files Checked:** 15\n**Clean Files:** 1\n**Files with Issues:** 14\n**Total Issues:** 139\n\n### Issues by Rule\n\n- **MD013**: 83 occurrence(s)\n- **MD029**: 25 occurrence(s)\n- **MD036**: 9 occurrence(s)\n- **MD007**: 8 occurrence(s)\n- **MD024**: 6 occurrence(s)\n- **MD056**: 3 occurrence(s)\n- **MD022**: 2 occurrence(s)\n- **MD031**: 2 occurrence(s)\n- **MD032**: 1 occurrence(s)\n\n### Issues by File\n\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md: 29 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md: 17 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md: 14 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md: 14 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md: 10 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md: 10 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md: 9 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md: 8 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md: 8 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md: 7 issue(s)\n- ... and 4 more files\n\n**Overall Quality:** ❌ Poor"
+        },
+        "duration": 12068
+      },
+      "step_11_6": {
+        "stepId": "step_11_6",
+        "stepName": "AWS Serverless AI Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.6 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 15
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 8
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 918
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "oldVersion": "0.5.5",
+          "newVersion": "0.5.6",
+          "bumpType": "patch",
+          "stats": {
+            "updated": 5,
+            "skipped": 5,
+            "failed": 0
+          },
+          "updates": [
+            {
+              "file": "package.json",
+              "success": true
+            },
+            {
+              "file": "pyproject.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "setup.py",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "Cargo.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": ".workflow-config.yaml",
+              "success": true
+            },
+            {
+              "file": ".ai_workflow/metrics/current_run.json",
+              "skipped": true
+            },
+            {
+              "file": "cdn-urls.txt",
+              "skipped": true
+            },
+            {
+              "file": "CHANGELOG.md",
+              "success": true
+            },
+            {
+              "file": "docs/API.md",
+              "success": true
+            },
+            {
+              "file": "docs/utils.md",
+              "success": true
+            }
+          ],
+          "consistencyCheck": {
+            "ran": false
+          },
+          "duration": 6990
+        },
+        "duration": 7002
+      },
+      "step_18": {
+        "stepId": "step_18",
+        "stepName": "Debugging Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "personaKey": "async_flow_debugger_prompt",
+          "filesAnalyzed": [
+            "eslint.config.js",
+            "jest.config.js",
+            "src/core/executor.ts",
+            "src/core/file_operations.ts",
+            "src/core/jq_wrapper.ts",
+            "src/core/system.ts",
+            "src/core/version.ts",
+            "src/index.ts",
+            "src/utils/errors.ts"
+          ],
+          "totalSourceFiles": 9,
+          "aiContent": "**Async Flow Analysis**\n\nExecution Chain:\n1. [execute(command, options)] in src/core/executor.ts - [SUCCESS/FAILED] - [Async, awaits execAsync]\n2. [executeStream(command, options)] in src/core/executor.ts - [SUCCESS/FAILED] - [Promise, resolves/rejects on process exit]\n3. [executeSudo(command, options)] (not shown, likely similar) - [Not analyzed]\n4. [JqWrapper.execute()] in src/core/jq_wrapper.ts - [Depends on execute()] - [Async, awaits execute()]\n5. [FileOperations methods] in src/core/file_operations.ts - [Async, awaits fs/promises]\n6. [System functions] in src/core/system.ts - [Sync, uses execSync]\n7. [Version functions] in src/core/version.ts - [Sync, pure functions]\n8. [Error classes] in src/utils/errors.ts - [Sync, error propagation]\n\nError Path Diagram:\n```\n[Try Operation]\n    ↓\n[Success?]\n    ↓\n┌───┴───┐\n↓       ↓\n[Yes]   [No]\n↓       ↓\n[Return] [Catch] → [Throw ExecutionError/ShellError/FileSystemError]\n                     ↓\n                  [No retry logic] ← Issue\n```\n\n**Issue Identified**:\n- Type: Error propagation (missing retry/fallback), possible race condition in executeStream\n- Break Point: src/core/executor.ts: execute() catch block (throws ExecutionError), executeStream() Promise reject (throws ExecutionError)\n- Root Cause: Errors are caught and wrapped, but no retry/fallback logic; executeStream may have race if onStdout/onStderr are async (not awaited)\n\n**Recommended Fix**:\n- Add: Retry logic in execute() and executeStream() for transient errors (e.g., ENOENT, EAGAIN, CORS/network failures)\n- Location: src/core/executor.ts, inside catch blocks for execute() and executeStream()\n- Code:\n```ts\n// Inside execute()\ncatch (err: unknown) {\n    // ...existing code...\n    if (shouldRetry(exitCode, stderr)) {\n        // Retry up to N times with delay\n        for (let attempt = 1; attempt <= 3; attempt++) {\n            try {\n                await delay(1000 * attempt);\n                const { stdout, stderr } = await execAsync(command, { cwd, env, timeout, shell: execShell, maxBuffer });\n                return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };\n            } catch (retryErr) { /* continue */ }\n        }\n    }\n    throw new ExecutionError(...);\n}\n```\n\n**Validation**: \n- Test with commands that intermittently fail (simulate ENOENT, EAGAIN, CORS/network errors)\n- Confirm retries occur and fallback is triggered before final error is thrown\n- Use async test cases to verify no race conditions in executeStream callbacks",
+          "report": "# Step 18: Debugging Analysis — Async Flow Debugger\n\n## Files Analyzed\n- eslint.config.js\n- jest.config.js\n- src/core/executor.ts\n- src/core/file_operations.ts\n- src/core/jq_wrapper.ts\n- src/core/system.ts\n- src/core/version.ts\n- src/index.ts\n- src/utils/errors.ts\n\n## AI Analysis\n\n**Async Flow Analysis**\n\nExecution Chain:\n1. [execute(command, options)] in src/core/executor.ts - [SUCCESS/FAILED] - [Async, awaits execAsync]\n2. [executeStream(command, options)] in src/core/executor.ts - [SUCCESS/FAILED] - [Promise, resolves/rejects on process exit]\n3. [executeSudo(command, options)] (not shown, likely similar) - [Not analyzed]\n4. [JqWrapper.execute()] in src/core/jq_wrapper.ts - [Depends on execute()] - [Async, awaits execute()]\n5. [FileOperations methods] in src/core/file_operations.ts - [Async, awaits fs/promises]\n6. [System functions] in src/core/system.ts - [Sync, uses execSync]\n7. [Version functions] in src/core/version.ts - [Sync, pure functions]\n8. [Error classes] in src/utils/errors.ts - [Sync, error propagation]\n\nError Path Diagram:\n```\n[Try Operation]\n    ↓\n[Success?]\n    ↓\n┌───┴───┐\n↓       ↓\n[Yes]   [No]\n↓       ↓\n[Return] [Catch] → [Throw ExecutionError/ShellError/FileSystemError]\n                     ↓\n                  [No retry logic] ← Issue\n```\n\n**Issue Identified**:\n- Type: Error propagation (missing retry/fallback), possible race condition in executeStream\n- Break Point: src/core/executor.ts: execute() catch block (throws ExecutionError), executeStream() Promise reject (throws ExecutionError)\n- Root Cause: Errors are caught and wrapped, but no retry/fallback logic; executeStream may have race if onStdout/onStderr are async (not awaited)\n\n**Recommended Fix**:\n- Add: Retry logic in execute() and executeStream() for transient errors (e.g., ENOENT, EAGAIN, CORS/network failures)\n- Location: src/core/executor.ts, inside catch blocks for execute() and executeStream()\n- Code:\n```ts\n// Inside execute()\ncatch (err: unknown) {\n    // ...existing code...\n    if (shouldRetry(exitCode, stderr)) {\n        // Retry up to N times with delay\n        for (let attempt = 1; attempt <= 3; attempt++) {\n            try {\n                await delay(1000 * attempt);\n                const { stdout, stderr } = await execAsync(command, { cwd, env, timeout, shell: execShell, maxBuffer });\n                return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };\n            } catch (retryErr) { /* continue */ }\n        }\n    }\n    throw new ExecutionError(...);\n}\n```\n\n**Validation**: \n- Test with commands that intermittently fail (simulate ENOENT, EAGAIN, CORS/network errors)\n- Confirm retries occur and fallback is triggered before final error is thrown\n- Use async test cases to verify no race conditions in executeStream callbacks\n"
+        },
+        "duration": 10649
+      },
+      "step_19": {
+        "stepId": "step_19",
+        "stepName": "TypeScript Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesAnalyzed": [
+            "src/core/executor.ts",
+            "src/core/file_operations.ts",
+            "src/core/jq_wrapper.ts",
+            "src/core/system.ts",
+            "src/core/version.ts",
+            "src/index.ts",
+            "src/utils/errors.ts"
+          ],
+          "totalTsFiles": 7,
+          "issueScore": {
+            "anyCount": 0,
+            "tsIgnoreCount": 0,
+            "missingReturnTypeCount": 0,
+            "totalIssues": 0
+          },
+          "aiContent": "🔎 **TypeScript Review — olinda_shell_interface.js (7 files)**\n\n---\n\n## 🔴 Critical Issues\n\n### 1. `any` Usage and Implicit `any`\n- **No explicit `any` found** — all unknown shapes use `unknown` or concrete types.\n- **Catch blocks**: All errors are typed as `unknown` and narrowed before property access (e.g., `catch (err: unknown)` in `executor.ts`).\n\n### 2. Strict Mode Compliance\n- **All function parameters and return types are explicitly annotated.**\n- **No implicit `any` detected.**\n- **No `@ts-ignore` or unsafe suppression.**\n\n### 3. Type Design & Advanced Types\n- **Interfaces and types are well-structured and composable.**\n- **Utility types (`Omit`, `Partial`) are used where appropriate.**\n- **Literal objects use `as const` for union types (e.g., `OS`, `PackageManager`).**\n- **No structural duplication.**\n- **No enums in public APIs — string literal unions via `as const`.**\n\n### 4. Error Handling\n- **Errors are caught as `unknown` and narrowed with type guards.**\n- **Custom error classes extend `Error` and provide structured details.**\n- **No unsafe member access.**\n\n### 5. API & Integration\n- **All exported types/interfaces are explicit.**\n- **No API responses typed as `any`.**\n- **No runtime validation libraries (Zod/io-ts) present, but not required for current modules.**\n\n### 6. Linting\n- **No linting violations in code samples.**\n- **No floating promises or unsafe async usage.**\n- **No explicit `any`.**\n\n---\n\n## 🟡 Warnings / Best Practice Suggestions\n\n### 1. Utility Types\n- **Suggestion**: For `FileSystemErrorDetails`, consider using `Partial<Record<keyof FileMetadata, unknown>>` if more fields are added in future.\n\n### 2. Type Imports\n- **Suggestion**: Use `import type` for type-only imports (e.g., `import type { ExecException }`).\n\n### 3. Readonly Properties\n- **Suggestion**: Mark interfaces as `readonly` where mutation is not intended (e.g., `readonly path: string` in `FileMetadata`).\n\n### 4. Discriminated Unions\n- **Suggestion**: For error classes, consider discriminated unions for error handling in larger codebases.\n\n---\n\n## 🟢 Info\n\n- **No breaking changes required.**\n- **No runtime unsafety detected.**\n- **No test coverage issues in reviewed files.**\n\n---\n\n## **No Action Needed — Documentation and Code Are Current**\n\n- All reviewed files are fully type-safe, idiomatic, and performant.\n- No `any` or implicit `any` types.\n- All error handling, type design, and advanced type features are applied correctly.\n- Strict mode compliance is evident.\n- Utility types and best practices are followed.\n- No critical or breaking issues found.\n\n---\n\n**Summary:**  \nNo updates needed — documentation and code are current.  \nAll TypeScript best practices are followed; codebase is fully type-safe and strict.",
+          "report": "# Step 19: TypeScript Review — Strider\n\n## Files Analyzed\n- src/core/executor.ts\n- src/core/file_operations.ts\n- src/core/jq_wrapper.ts\n- src/core/system.ts\n- src/core/version.ts\n- src/index.ts\n- src/utils/errors.ts\n\n## Issue Score (Heuristic)\n\n| Metric | Count |\n|--------|-------|\n| Explicit `any` / `as any` | 0 |\n| `@ts-ignore` / `@ts-nocheck` | 0 |\n| Functions missing return type | 0 |\n| **Total** | **0** |\n\n## AI Analysis\n\n🔎 **TypeScript Review — olinda_shell_interface.js (7 files)**\n\n---\n\n## 🔴 Critical Issues\n\n### 1. `any` Usage and Implicit `any`\n- **No explicit `any` found** — all unknown shapes use `unknown` or concrete types.\n- **Catch blocks**: All errors are typed as `unknown` and narrowed before property access (e.g., `catch (err: unknown)` in `executor.ts`).\n\n### 2. Strict Mode Compliance\n- **All function parameters and return types are explicitly annotated.**\n- **No implicit `any` detected.**\n- **No `@ts-ignore` or unsafe suppression.**\n\n### 3. Type Design & Advanced Types\n- **Interfaces and types are well-structured and composable.**\n- **Utility types (`Omit`, `Partial`) are used where appropriate.**\n- **Literal objects use `as const` for union types (e.g., `OS`, `PackageManager`).**\n- **No structural duplication.**\n- **No enums in public APIs — string literal unions via `as const`.**\n\n### 4. Error Handling\n- **Errors are caught as `unknown` and narrowed with type guards.**\n- **Custom error classes extend `Error` and provide structured details.**\n- **No unsafe member access.**\n\n### 5. API & Integration\n- **All exported types/interfaces are explicit.**\n- **No API responses typed as `any`.**\n- **No runtime validation libraries (Zod/io-ts) present, but not required for current modules.**\n\n### 6. Linting\n- **No linting violations in code samples.**\n- **No floating promises or unsafe async usage.**\n- **No explicit `any`.**\n\n---\n\n## 🟡 Warnings / Best Practice Suggestions\n\n### 1. Utility Types\n- **Suggestion**: For `FileSystemErrorDetails`, consider using `Partial<Record<keyof FileMetadata, unknown>>` if more fields are added in future.\n\n### 2. Type Imports\n- **Suggestion**: Use `import type` for type-only imports (e.g., `import type { ExecException }`).\n\n### 3. Readonly Properties\n- **Suggestion**: Mark interfaces as `readonly` where mutation is not intended (e.g., `readonly path: string` in `FileMetadata`).\n\n### 4. Discriminated Unions\n- **Suggestion**: For error classes, consider discriminated unions for error handling in larger codebases.\n\n---\n\n## 🟢 Info\n\n- **No breaking changes required.**\n- **No runtime unsafety detected.**\n- **No test coverage issues in reviewed files.**\n\n---\n\n## **No Action Needed — Documentation and Code Are Current**\n\n- All reviewed files are fully type-safe, idiomatic, and performant.\n- No `any` or implicit `any` types.\n- All error handling, type design, and advanced type features are applied correctly.\n- Strict mode compliance is evident.\n- Utility types and best practices are followed.\n- No critical or breaking issues found.\n\n---\n\n**Summary:**  \nNo updates needed — documentation and code are current.  \nAll TypeScript best practices are followed; codebase is fully type-safe and strict.\n"
+        },
+        "duration": 11293
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 0,
+              "successfulSteps": 0,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 0,
+              "avgDuration": 0,
+              "successRate": 0,
+              "startTime": "2026-03-11T01:06:07.768Z",
+              "endTime": "2026-03-11T01:17:45.422Z",
+              "workflowRunId": "workflow_20260310_221515",
+              "version": "1.0.0",
+              "mode": "interactive"
+            },
+            "timeline": {
+              "steps": [],
+              "phases": {
+                "initialization": [],
+                "documentation": [],
+                "validation": [],
+                "testing": [],
+                "quality": [],
+                "finalization": []
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_20260310_221515\n**Version:** 1.0.0\n**Mode:** interactive\n**Start Time:** 2026-03-11T01:06:07.768Z\n**End Time:** 2026-03-11T01:17:45.422Z\n**Total Duration:** 0s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ⚠️ Completed\n**Success Rate:** 0.0%\n**Total Steps:** 0\n**Successful:** 0 ✅\n**Average Step Duration:** 0s\n\n---\n\n## Execution Timeline\n\n\n\n---\n\n## Phase Breakdown\n\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 0s |\n| Average Step Duration | 0s |\n| Total Steps | 0 |\n| Success Rate | 0.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n\n---\n\n*Generated by AI Workflow Automation v1.0.0*\n\n*Report generated at: 2026-03-11T01:17:45.423Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 13
+      },
+      "step_0f": {
+        "stepId": "step_0f",
+        "stepName": "Commit Artifacts",
+        "success": true,
+        "output": {
+          "success": true,
+          "committed": true,
+          "files": [
+            ".ai_workflow/.step_cache/step_06_partition.json",
+            ".ai_workflow/.step_cache/step_10_partition.json",
+            ".ai_workflow/.step_cache/step_10_quality.json",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_00.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_01.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_02.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_03.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_04.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_05.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_06.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_07.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_08.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_09.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_10.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_11.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_12.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_13.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_14.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_15.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_16.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_18.md",
+            ".ai_workflow/backlog/workflow_20260305_122508/step_19.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_00.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_01.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_02.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_03.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_04.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_05.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_06.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_07.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_08.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_09.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_10.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_11.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_12.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_13.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_14.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_15.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_16.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_18.md",
+            ".ai_workflow/backlog/workflow_20260305_142225/step_19.md",
+            ".ai_workflow/backlog/workflow_20260305_142521/step_00.md",
+            ".ai_workflow/backlog/workflow_20260305_142521/step_01.md",
+            ".ai_workflow/backlog/workflow_20260305_142521/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_00.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_01.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_02.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_03.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_04.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_05.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_06.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_07.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_08.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_09.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_10.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_11.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_12.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_13.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_14.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_15.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_16.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_18.md",
+            ".ai_workflow/backlog/workflow_20260305_222238/step_19.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_00.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_02.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_03.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_04.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_05.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_06.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_07.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_08.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_09.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_10.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_11.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_12.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_13.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_14.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_15.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_16.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_18.md",
+            ".ai_workflow/backlog/workflow_20260307_171222/step_19.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_00.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_01.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_02.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_03.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_04.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_05.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_06.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_07.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_08.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_09.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_10.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_11.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_12.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_13.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_14.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_15.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_16.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_18.md",
+            ".ai_workflow/backlog/workflow_20260307_191852/step_19.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_00.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_01.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_02.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_03.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_04.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_05.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_06.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_07.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_08.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_09.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_0b.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_10.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_11.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_12.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_13.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_14.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_15.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_16.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_18.md",
+            ".ai_workflow/backlog/workflow_20260307_193344/step_19.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_01/2026-03-05T15-25-30-104Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_01/2026-03-05T15-25-33-808Z_0002_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_01/2026-03-05T15-25-40-344Z_0003_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_01/2026-03-05T15-25-43-618Z_0004_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_03/2026-03-05T15-26-28-365Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_04/2026-03-05T15-25-54-576Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_04/2026-03-05T15-26-03-077Z_0002_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_06/2026-03-05T15-26-51-403Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_10/2026-03-05T15-27-22-835Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_12/2026-03-05T15-28-01-556Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_13/2026-03-05T15-27-39-936Z_0001_technical_writer.md",
+            ".ai_workflow/logs/workflow_20260305_122508/prompts/step_16/2026-03-05T15-27-46-851Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260305_122508/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260305_122508/workflow.log",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_02/2026-03-05T17-22-43-104Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_03/2026-03-05T17-23-10-649Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_04/2026-03-05T17-22-36-242Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_05/2026-03-05T17-22-56-627Z_0001_architecture_reviewer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_06/2026-03-05T17-23-31-542Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_08/2026-03-05T17-23-45-466Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_08/2026-03-05T17-23-59-592Z_0002_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_09/2026-03-05T17-24-20-590Z_0001_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_10/2026-03-05T17-24-31-952Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_12/2026-03-05T17-25-07-996Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_13/2026-03-05T17-24-48-544Z_0001_technical_writer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/prompts/step_16/2026-03-05T17-24-55-402Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260305_142225/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260305_142225/workflow.log",
+            ".ai_workflow/logs/workflow_20260305_142521/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260305_142521/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260305_142521/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260305_142521/workflow.log",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_02/2026-03-06T01-23-05-160Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_03/2026-03-06T01-23-50-522Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_04/2026-03-06T01-22-54-308Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_04/2026-03-06T01-22-58-500Z_0002_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_05/2026-03-06T01-23-27-334Z_0001_architecture_reviewer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_06/2026-03-06T01-24-10-188Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_08/2026-03-06T01-24-26-470Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_09/2026-03-06T01-24-40-907Z_0001_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_09/2026-03-06T01-24-51-657Z_0002_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_10/2026-03-06T01-25-03-126Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_12/2026-03-06T01-25-57-194Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_13/2026-03-06T01-25-17-569Z_0001_technical_writer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_16/2026-03-06T01-25-24-734Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/prompts/step_19/2026-03-06T01-25-49-721Z_0001_typescript_reviewer.md",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260305_222238/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260305_222238/workflow.log",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_02/2026-03-07T20-12-48-940Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_02/2026-03-07T20-12-55-858Z_0002_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_02/2026-03-07T20-12-59-546Z_0003_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_03/2026-03-07T20-13-17-676Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_04/2026-03-07T20-12-32-417Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_04/2026-03-07T20-12-38-043Z_0002_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_06/2026-03-07T20-13-38-486Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_08/2026-03-07T20-13-51-776Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_09/2026-03-07T20-14-03-447Z_0001_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_09/2026-03-07T20-14-10-304Z_0002_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_10/2026-03-07T20-14-23-312Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_12/2026-03-07T20-15-25-469Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_13/2026-03-07T20-14-38-372Z_0001_technical_writer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_16/2026-03-07T20-14-49-322Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_18/2026-03-07T20-15-01-815Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_171222/prompts/step_19/2026-03-07T20-15-16-057Z_0001_typescript_reviewer.md",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260307_171222/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260307_171222/workflow.log",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_02/2026-03-07T22-19-17-633Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_02/2026-03-07T22-19-24-273Z_0002_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_02/2026-03-07T22-19-27-149Z_0003_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_02/2026-03-07T22-19-30-734Z_0004_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_03/2026-03-07T22-19-56-236Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_04/2026-03-07T22-19-04-522Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_04/2026-03-07T22-19-08-002Z_0002_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_05/2026-03-07T22-19-42-719Z_0001_architecture_reviewer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_06/2026-03-07T22-20-13-796Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_08/2026-03-07T22-20-24-700Z_0001_test_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_09/2026-03-07T22-20-34-223Z_0001_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_09/2026-03-07T22-20-40-574Z_0002_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_10/2026-03-07T22-20-50-403Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_12/2026-03-07T22-21-24-502Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_16/2026-03-07T22-21-01-294Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/prompts/step_19/2026-03-07T22-21-17-541Z_0001_typescript_reviewer.md",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260307_191852/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260307_191852/workflow.log",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_02/2026-03-07T22-34-08-823Z_0001_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_02/2026-03-07T22-34-20-394Z_0002_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_02/2026-03-07T22-34-23-566Z_0003_documentation_expert.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_03/2026-03-07T22-34-48-763Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_04/2026-03-07T22-33-56-329Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_04/2026-03-07T22-34-01-731Z_0002_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_05/2026-03-07T22-34-35-139Z_0001_architecture_reviewer.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_09/2026-03-07T22-35-04-530Z_0001_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_09/2026-03-07T22-35-11-183Z_0002_dependency_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_10/2026-03-07T22-35-21-941Z_0001_code_quality_analyst.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_12/2026-03-07T22-35-54-809Z_0001_git_specialist.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_16/2026-03-07T22-35-33-112Z_0001_devops_engineer.md",
+            ".ai_workflow/logs/workflow_20260307_193344/prompts/step_19/2026-03-07T22-35-48-152Z_0001_typescript_reviewer.md",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_00.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_01.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_02.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_02_5.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_03.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_04.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_05.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_06.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_07.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_08.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_09.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_0b.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_0f.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_10.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_11.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_11_5.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_11_6.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_12.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_13.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_14.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_15.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_16.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_17.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_18.log",
+            ".ai_workflow/logs/workflow_20260307_193344/steps/step_19.log",
+            ".ai_workflow/logs/workflow_20260307_193344/workflow.log",
+            ".ai_workflow/metrics/current_run.json",
+            ".ai_workflow/summaries/workflow_20260305_122508/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260305_142225/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260305_142521/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260305_222238/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260307_171222/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260307_191852/workflow_summary.md",
+            ".ai_workflow/summaries/workflow_20260307_193344/workflow_summary.md",
+            "docs/API.md",
+            "docs/utils.md"
+          ],
+          "summary": "Committed 378 artifact file(s)"
+        },
+        "duration": 61
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": true,
+        "output": {
+          "success": true,
+          "branch": "main",
+          "commitMessage": "docs(documentation): update docs and config for workflow automation\n\nComprehensive documentation and configuration updates driven by workflow\nautomation v0.5.6. No code or test changes; version and CDN references\nsynced for release.\n\n- Update CHANGELOG.md for v0.5.6 release\n- Sync package.json version and metadata\n- Refresh cdn-urls.txt for new build\n- Revise workflow-config.yaml for latest automation\n- Improve documentation clarity and accuracy\n\nNo breaking changes; backward compatible.\n[workflow-automation v0.5.6]",
+          "pushed": true,
+          "report": "### Git Finalization Summary\n\n**Branch:** main\n**Commits Ahead:** 6\n**Commits Behind:** 0\n**Commit Type:** docs(documentation)\n**Modified Files:** 4\n**Total Changes:** 6\n\n### Change Breakdown\n\n- Documentation: 2 files\n- Tests: 0 files\n- Scripts: 0 files\n- Code: 0 files\n- Config: 2 files\n\n### Commit Message\n\n```\ndocs(documentation): update docs and config for workflow automation\n\nComprehensive documentation and configuration updates driven by workflow\nautomation v0.5.6. No code or test changes; version and CDN references\nsynced for release.\n\n- Update CHANGELOG.md for v0.5.6 release\n- Sync package.json version and metadata\n- Refresh cdn-urls.txt for new build\n- Revise workflow-config.yaml for latest automation\n- Improve documentation clarity and accuracy\n\nNo breaking changes; backward compatible.\n[workflow-automation v0.5.6]\n```\n\n**Push Status:** ✅ Pushed successfully"
+        },
+        "duration": 12477
+      }
+    },
+    "context": {
+      "workflowDir": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/olinda_shell_interface.js",
+      "auto": false,
+      "workflowRunId": "workflow_20260310_221515",
+      "modifiedFiles": [
+        ".github/README.md",
+        ".workflow-config.yaml",
+        "CHANGELOG.md",
+        "ROADMAP.md",
+        "cdn-urls.txt",
+        "dist/src/core/file_operations.js",
+        "dist/src/core/jq_wrapper.js",
+        "dist/src/utils/errors.js",
+        "dist/types/src/core/file_operations.d.ts",
+        "dist/types/src/core/jq_wrapper.d.ts",
+        "dist/types/src/utils/errors.d.ts",
+        "docs/API.md",
+        "docs/ARCHITECTURE.md",
+        "docs/jq_wrapper.md",
+        "docs/utils.md",
+        "package.json",
+        "src/core/executor.ts",
+        "src/core/file_operations.ts",
+        "src/core/jq_wrapper.ts",
+        "src/index.ts",
+        "src/utils/errors.ts",
+        "test/index.test.ts",
+        ".ai_workflow/metrics/current_run.json"
+      ],
+      "projectType": "nodejs_api",
+      "scope": "docs_only",
+      "projectDescription": "olinda_shell_interface.js"
+    }
+  },
+  "metadata": {
+    "totalSteps": 25,
+    "progress": 0
+  }
+}

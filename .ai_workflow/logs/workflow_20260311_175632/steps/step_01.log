@@ -1,0 +1,27 @@
+[2026-03-11T20:56:33.434Z] 
+→ Starting: Documentation Updates
+[2026-03-11T20:56:33.458Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:56:33.458Z] 🔷  Step 1: AI-Powered Documentation Updates
+[2026-03-11T20:56:33.458Z] ════════════════════════════════════════════════════════════
+[2026-03-11T20:56:33.458Z] Changed files detected: 99 files
+[2026-03-11T20:56:33.458Z] Classification: 2 docs, 14 source, 9 tests
+[2026-03-11T20:56:33.458Z] Checking documentation changes (incremental mode)...
+[2026-03-11T20:56:33.459Z] Step1: No cache found, starting fresh
+[2026-03-11T20:56:33.464Z] Step1: Detected 2 changed files, 0 unchanged
+[2026-03-11T20:56:33.464Z] Running documentation consistency validation...
+[2026-03-11T20:56:33.466Z] Checking JSDoc coverage in 14 source file(s)...
+[2026-03-11T20:56:33.466Z] ✓ Source JSDoc: all 14 file(s) properly documented
+[2026-03-11T20:56:36.175Z] ✗ SDK initialization failed: An onPermissionRequest handler is required when creating a session. For example, to allow all permissions, use { onPermissionRequest: approveAll }.
+[2026-03-11T20:56:36.183Z] [DEBUG] AI cache initialized: .ai_workflow/.ai_cache
+[2026-03-11T20:56:36.183Z] ⚠ AI helper not available - skipping AI analysis
+[2026-03-11T20:56:36.183Z] Running parallel documentation analysis...
+[2026-03-11T20:56:36.184Z] Step1Parallel: Validating 2 files across 2 categories (BALANCED)
+[2026-03-11T20:56:36.185Z] Step1Parallel: Validated changelog (1 files) in 0s
+[2026-03-11T20:56:36.186Z] Step1Parallel: Validated other (1 files) in 0s
+[2026-03-11T20:56:36.186Z] Step1Parallel: Completed validation in 0s (2/2 files)
+[2026-03-11T20:56:36.186Z] ✓ Parallel analysis completed: 2 docs in 0ms
+[2026-03-11T20:56:36.187Z] ✓ Step 1 completed successfully
+[2026-03-11T20:56:36.187Z] ✓ Step step_01 completed in 2754ms
+[2026-03-11T20:56:36.187Z] [DEBUG] [Performance] step_01: 2.8s
+[2026-03-11T20:56:36.188Z] [DEBUG] Recorded outcome for step_01: success
+[2026-03-11T20:56:36.188Z] ✓ Completed: Documentation Updates (3s)

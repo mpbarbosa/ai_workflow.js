@@ -1,0 +1,2167 @@
+{
+  "version": "1.0.0",
+  "workflowId": "workflow_1773235244876",
+  "workflowVersion": "2.0.0",
+  "timestamp": 1773235564618,
+  "state": {
+    "currentStep": null,
+    "completedSteps": [],
+    "failedSteps": [],
+    "skippedSteps": [],
+    "results": {
+      "step_00": {
+        "stepId": "step_00",
+        "stepName": "Pre-Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "analysis": {
+            "commitsAhead": 0,
+            "modifiedFiles": 7,
+            "modifiedFilesList": [
+              ".ai_workflow/metrics/current_run.json",
+              "cdn-urls.txt",
+              "package.json",
+              "src/index.ts",
+              "docs/edit_operations.md",
+              "src/core/edit_operations.ts",
+              "test/core/edit_operations.test.ts"
+            ],
+            "changeScope": "full-stack",
+            "fileCounts": {
+              "documentation": 1,
+              "test": 1,
+              "source": 2,
+              "config": 2,
+              "workflow_artifact": 0
+            },
+            "categorizedFiles": {
+              "documentation": [
+                "docs/edit_operations.md"
+              ],
+              "test": [
+                "test/core/edit_operations.test.ts"
+              ],
+              "source": [
+                "src/index.ts",
+                "src/core/edit_operations.ts"
+              ],
+              "config": [
+                "cdn-urls.txt",
+                "package.json"
+              ],
+              "workflow_artifact": []
+            },
+            "projectKind": {
+              "kind": "nodejs_automation",
+              "confidence": 100,
+              "source": "config",
+              "description": "nodejs_automation"
+            },
+            "techStack": {
+              "primary_language": "typescript",
+              "languages": [
+                "typescript",
+                "markdown",
+                "json",
+                "html",
+                "javascript",
+                "bash",
+                "yaml",
+                "css"
+              ],
+              "frameworks": [
+                {
+                  "name": "Jest",
+                  "type": "test-framework",
+                  "version": "^29.7.0",
+                  "package": "jest"
+                }
+              ],
+              "build_system": "npm",
+              "build_files": [
+                "package.json",
+                "package-lock.json"
+              ],
+              "test_framework": "jest",
+              "test_command": "npm test",
+              "linters": [
+                {
+                  "name": "eslint",
+                  "configFile": ".eslintrc.*"
+                },
+                {
+                  "name": "shellcheck",
+                  "configFile": null
+                }
+              ],
+              "detected_at": "2026-03-11T13:20:45.118Z"
+            },
+            "smokeTest": null,
+            "timestamp": 1773235245120
+          },
+          "contextUpdate": {
+            "projectType": "nodejs_automation",
+            "modifiedFiles": [
+              ".ai_workflow/metrics/current_run.json",
+              "cdn-urls.txt",
+              "package.json",
+              "src/index.ts",
+              "docs/edit_operations.md",
+              "src/core/edit_operations.ts",
+              "test/core/edit_operations.test.ts"
+            ],
+            "categorizedFiles": {
+              "documentation": [
+                "docs/edit_operations.md"
+              ],
+              "test": [
+                "test/core/edit_operations.test.ts"
+              ],
+              "source": [
+                "src/index.ts",
+                "src/core/edit_operations.ts"
+              ],
+              "config": [
+                "cdn-urls.txt",
+                "package.json"
+              ],
+              "workflow_artifact": []
+            },
+            "fileCounts": {
+              "documentation": 1,
+              "test": 1,
+              "source": 2,
+              "config": 2,
+              "workflow_artifact": 0
+            },
+            "changeScope": "full-stack",
+            "commitsAhead": 0
+          }
+        },
+        "duration": 136
+      },
+      "step_0b": {
+        "stepId": "step_0b",
+        "stepName": "Bootstrap Documentation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "documentation coverage adequate"
+        },
+        "duration": 43
+      },
+      "step_01": {
+        "stepId": "step_01",
+        "stepName": "Documentation Updates",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "docs_unchanged"
+        },
+        "duration": 27
+      },
+      "step_04": {
+        "stepId": "step_04",
+        "stepName": "Configuration Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 2,
+          "syntaxErrors": [],
+          "securityFindings": [],
+          "bestPracticeIssues": [
+            {
+              "type": "syntax_error",
+              "message": "JSON does not support comments"
+            }
+          ]
+        },
+        "duration": 26818
+      },
+      "step_02": {
+        "stepId": "step_02",
+        "stepName": "Consistency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesChecked": 40,
+          "totalIssues": 51,
+          "brokenLinks": [],
+          "versionIssues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "1.1.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "0.5.5",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "v0.3.9",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "v0.3.14",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "0.4.9",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "0.3.1",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "0.2.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "v0.2.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "v0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_02.md",
+              "found": "v1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "0.5.5",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "18.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "9.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "10.2.3",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "29.5.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "20.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "8.56.1",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "10.0.2",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "29.7.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "0.47.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "29.1.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "0.28.17",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "5.4.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "3.2.2",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_09.md",
+              "found": "v0.3.14",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_13.md",
+              "found": "v0.13.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_16.md",
+              "found": "0.5.5",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/backlog/workflow_20260310_221515/step_16.md",
+              "found": "2.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/summaries/workflow_20260310_221515/workflow_summary.md",
+              "found": "1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow/summaries/workflow_20260310_221515/workflow_summary.md",
+              "found": "v1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "1.1.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.3.9",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.3.14",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.4.9",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.3.1",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "0.2.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "found": "v0.2.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "v0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "v1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "found": "1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "found": "0.2.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "found": "0.3.1",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "found": "v1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "found": "0.5.4",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "found": "1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "found": "v1.0.0",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/system.md",
+              "found": "0.3.1",
+              "expected": "0.5.6",
+              "type": "invalid_version"
+            }
+          ]
+        },
+        "duration": 9673
+      },
+      "step_05": {
+        "stepId": "step_05",
+        "stepName": "Directory Structure",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalDirs": 10,
+          "misplacedDocs": 1,
+          "organizedDocs": 0,
+          "issues": [
+            {
+              "type": "undocumented",
+              "directory": ".github",
+              "message": "Undocumented directory: .github"
+            },
+            {
+              "type": "undocumented",
+              "directory": ".github/workflows",
+              "message": "Undocumented directory: .github/workflows"
+            }
+          ],
+          "missingCritical": 0,
+          "undocumented": 2,
+          "docMismatch": 0,
+          "existingDirs": [
+            ".github",
+            ".github/workflows",
+            "docs",
+            "scripts",
+            "src",
+            "src/core",
+            "src/utils",
+            "test",
+            "test/core",
+            "test/utils"
+          ]
+        },
+        "duration": 3405
+      },
+      "step_02_5": {
+        "stepId": "step_02_5",
+        "stepName": "Documentation Optimization",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "totalFiles": 10,
+            "exactDuplicates": [],
+            "redundantPairs": [],
+            "outdatedFiles": [],
+            "edgeCases": [],
+            "filesOptimized": 0,
+            "errors": []
+          },
+          "optimizationResults": null,
+          "reportResult": null,
+          "executionTime": 0,
+          "errors": []
+        },
+        "duration": 322
+      },
+      "step_03": {
+        "stepId": "step_03",
+        "stepName": "Script References",
+        "success": true,
+        "output": {
+          "success": true,
+          "scriptsFound": 3,
+          "referencesChecked": 3,
+          "totalIssues": 0,
+          "missingReferences": [],
+          "nonExecutable": [],
+          "undocumented": []
+        },
+        "duration": 27731
+      },
+      "step_06": {
+        "stepId": "step_06",
+        "stepName": "Test Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "testFiles": [
+            "test/core/edit_operations.test.ts",
+            "test/core/executor.test.ts",
+            "test/core/file_operations.test.ts",
+            "test/core/jq_wrapper.test.ts",
+            "test/core/system.test.ts",
+            "test/core/version.test.ts",
+            "test/index.test.ts",
+            "test/utils/errors.test.ts"
+          ],
+          "categories": {
+            "unit": [],
+            "integration": [],
+            "e2e": [],
+            "other": [
+              "test/core/edit_operations.test.ts",
+              "test/core/executor.test.ts",
+              "test/core/file_operations.test.ts",
+              "test/core/jq_wrapper.test.ts",
+              "test/core/system.test.ts",
+              "test/core/version.test.ts",
+              "test/index.test.ts",
+              "test/utils/errors.test.ts"
+            ]
+          },
+          "statistics": {
+            "totalTests": 8,
+            "unitTests": 0,
+            "integrationTests": 0,
+            "e2eTests": 0,
+            "otherTests": 8,
+            "totalLines": 2650,
+            "averageLinesPerTest": 331
+          },
+          "coverage": {
+            "found": false,
+            "path": null,
+            "percentage": null
+          },
+          "issues": [
+            {
+              "type": "no_coverage_report",
+              "message": "No coverage reports found - consider generating coverage data"
+            },
+            {
+              "type": "missing_tests",
+              "message": "No unit tests found - consider adding unit tests"
+            }
+          ]
+        },
+        "duration": 40669
+      },
+      "step_07": {
+        "stepId": "step_07",
+        "stepName": "Test Generation",
+        "success": true,
+        "output": {
+          "success": true,
+          "totalSourceFiles": 8,
+          "totalTestFiles": 8,
+          "untestedFiles": [],
+          "coveragePercentage": 100,
+          "categories": {},
+          "generatedFiles": []
+        },
+        "duration": 2092
+      },
+      "step_08": {
+        "stepId": "step_08",
+        "stepName": "Test Execution",
+        "success": true,
+        "output": {
+          "success": true,
+          "noTestsFound": true,
+          "language": "typescript",
+          "testResults": {
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "suitesFailed": 0,
+            "suitesTotal": 0
+          },
+          "coverage": {},
+          "duration": 23,
+          "exitCode": 1
+        },
+        "duration": 24425
+      },
+      "step_09": {
+        "stepId": "step_09",
+        "stepName": "Dependency Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasSecurityIssues": false,
+          "language": "typescript",
+          "dependencyCounts": {
+            "total": 11,
+            "production": 1,
+            "development": 10,
+            "peer": 0,
+            "dependencies": {
+              "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#v0.3.14"
+            },
+            "devDependencies": {
+              "@types/jest": "^29.5.0",
+              "@types/node": "^20.0.0",
+              "@typescript-eslint/eslint-plugin": "^8.56.1",
+              "@typescript-eslint/parser": "^8.56.1",
+              "eslint": "^10.0.2",
+              "jest": "^29.7.0",
+              "markdownlint-cli": "^0.47.0",
+              "ts-jest": "^29.1.0",
+              "typedoc": "^0.28.17",
+              "typescript": "^5.4.0"
+            }
+          },
+          "vulnerabilities": {
+            "summary": {
+              "total": 0,
+              "critical": 0,
+              "high": 0,
+              "moderate": 0,
+              "low": 0,
+              "info": 0
+            },
+            "packages": []
+          },
+          "outdatedPackages": [],
+          "lockfileIssues": [
+            "node_modules/olinda_utils.js: non-HTTPS resolved URL \"git+ssh://git@github.com/mpbarbosa/olinda_utils.js.git#2f597036ad27ec06c61570e9ba8053141b717298\""
+          ],
+          "dryRunIssues": [
+            ""
+          ],
+          "skipped": false
+        },
+        "duration": 36957
+      },
+      "step_10": {
+        "stepId": "step_10",
+        "stepName": "Code Quality",
+        "success": true,
+        "output": {
+          "success": true,
+          "hasLintErrors": false,
+          "perLanguageResults": [
+            {
+              "language": "typescript",
+              "sourceFileCount": 8,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "json",
+              "sourceFileCount": 12,
+              "linterCommand": "(native JSON.parse)",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "javascript",
+              "sourceFileCount": 2,
+              "linterCommand": "npm run lint",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "files": 0,
+                "fileIssues": {}
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            },
+            {
+              "language": "bash",
+              "sourceFileCount": 3,
+              "linterCommand": "find . -name \"*.sh\" -not -path \"*/node_modules/*\" -not -path \"*/.git/*\" | xargs shellcheck",
+              "linterResults": {
+                "totalIssues": 0,
+                "errors": 0,
+                "warnings": 0,
+                "infos": 0,
+                "files": 0
+              },
+              "issueRate": 0,
+              "qualityRating": "excellent",
+              "skipped": false
+            }
+          ],
+          "aggregateTotals": {
+            "totalIssues": 0,
+            "errors": 0,
+            "warnings": 0,
+            "infos": 0,
+            "fileCount": 25
+          },
+          "language": "typescript",
+          "sourceFileCount": 25
+        },
+        "duration": 23603
+      },
+      "step_11": {
+        "stepId": "step_11",
+        "stepName": "Context Management",
+        "success": true,
+        "output": {
+          "success": true,
+          "completionRate": 100,
+          "completionStatus": "excellent",
+          "completedSteps": 13,
+          "totalSteps": 13,
+          "gitStatus": {
+            "isGitRepo": true,
+            "branch": "unknown",
+            "modifiedFiles": 0,
+            "untrackedFiles": 2,
+            "stagedFiles": 0,
+            "commitsAhead": 0
+          },
+          "changeImpact": "low",
+          "impactScore": 0,
+          "issues": {
+            "total": 0,
+            "critical": 0,
+            "warnings": 0,
+            "passed": 13
+          },
+          "duration": 196
+        },
+        "duration": 191
+      },
+      "step_11_5": {
+        "stepId": "step_11_5",
+        "stepName": "AWS LBS Validation",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.5 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 39
+      },
+      "step_13": {
+        "stepId": "step_13",
+        "stepName": "Markdown Linting",
+        "success": true,
+        "output": {
+          "success": true,
+          "status": "fail",
+          "stats": {
+            "totalIssues": 144,
+            "filesWithIssues": 15,
+            "filesChecked": 16,
+            "cleanFiles": 1,
+            "uniqueRules": 9,
+            "issuesPerFile": 9
+          },
+          "issues": [
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 9,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 10,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 11,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 20,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 18,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 19,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 20,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md",
+              "line": 21,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 5,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 7,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 12,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 13,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 27,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 47,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 97,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 109,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md",
+              "line": 110,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 19,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 61,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 76,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 92,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 61,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 62,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 66,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 79,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 92,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 98,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 34,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 58,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 73,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md",
+              "line": 89,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 46,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 92,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 105,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 115,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 117,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 128,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 46,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 47,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 48,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md",
+              "line": 49,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 45,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 71,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 101,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 34,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 36,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 50,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 55,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 75,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 96,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 101,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 105,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 142,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 68,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md",
+              "line": 98,
+              "rule": "MD024",
+              "message": "Multiple headers with the same content",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 76,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 77,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 146,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 178,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 185,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 187,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 279,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 310,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 348,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 362,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 422,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 436,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 442,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 463,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 469,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 451,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 452,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 453,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 454,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 455,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 36,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 50,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 69,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 83,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 106,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 128,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 160,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 263,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md",
+              "line": 405,
+              "rule": "MD036",
+              "message": "Emphasis used instead of a header",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 60,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 61,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 68,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 74,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 75,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 76,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 80,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 100,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 101,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 178,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 179,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 180,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 166,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 167,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 168,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 169,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md",
+              "line": 170,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/edit_operations.md",
+              "line": 3,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/edit_operations.md",
+              "line": 103,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/edit_operations.md",
+              "line": 152,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/edit_operations.md",
+              "line": 216,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/edit_operations.md",
+              "line": 219,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 21,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 150,
+              "rule": "MD022",
+              "message": "Headers should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 151,
+              "rule": "MD022",
+              "message": "Headers should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/errors.md",
+              "line": 150,
+              "rule": "MD032",
+              "message": "Lists should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 55,
+              "rule": "MD007",
+              "message": "Unordered list indentation",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 45,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 201,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 211,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/executor.md",
+              "line": 212,
+              "rule": "MD031",
+              "message": "Fenced code blocks should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 3,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 31,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 79,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 87,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 216,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 217,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md",
+              "line": 218,
+              "rule": "MD056",
+              "message": "Table has inconsistent number of columns",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 18,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 24,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 34,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 277,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 279,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 278,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md",
+              "line": 279,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 30,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 197,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 250,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 394,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 434,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 486,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 451,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 463,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 474,
+              "rule": "MD029",
+              "message": "Ordered list item prefix",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md",
+              "line": 475,
+              "rule": "MD031",
+              "message": "Fenced code blocks should be surrounded by blank lines",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/system.md",
+              "line": 36,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 25,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 208,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            },
+            {
+              "file": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/utils.md",
+              "line": 233,
+              "rule": "MD013",
+              "message": "Line length",
+              "severity": "warning"
+            }
+          ],
+          "antiPatterns": [],
+          "report": "### Markdown Linting Report\n\n**Linter:** markdownlint (mdl) v0.13.0\n**Files Checked:** 16\n**Clean Files:** 1\n**Files with Issues:** 15\n**Total Issues:** 144\n\n### Issues by Rule\n\n- **MD013**: 88 occurrence(s)\n- **MD029**: 25 occurrence(s)\n- **MD036**: 9 occurrence(s)\n- **MD007**: 8 occurrence(s)\n- **MD024**: 6 occurrence(s)\n- **MD056**: 3 occurrence(s)\n- **MD022**: 2 occurrence(s)\n- **MD031**: 2 occurrence(s)\n- **MD032**: 1 occurrence(s)\n\n### Issues by File\n\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/API.md: 29 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/ARCHITECTURE.md: 17 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/CHANGELOG.md: 14 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/ROADMAP.md: 14 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/CONTRIBUTING.md: 10 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/logger.md: 10 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/copilot-instructions.md: 9 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/.github/README.md: 8 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/file_operations.md: 8 issue(s)\n- /home/mpb/Documents/GitHub/olinda_shell_interface.js/docs/jq_wrapper.md: 7 issue(s)\n- ... and 5 more files\n\n**Overall Quality:** ❌ Poor"
+        },
+        "duration": 29570
+      },
+      "step_11_6": {
+        "stepId": "step_11_6",
+        "stepName": "AWS Serverless AI Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "Step 11.6 skipped — project kind 'nodejs_automation' is not aws_lbs_backend_setup"
+        },
+        "duration": 22
+      },
+      "step_14": {
+        "stepId": "step_14",
+        "stepName": "Prompt Engineering",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 8
+      },
+      "step_15": {
+        "stepId": "step_15",
+        "stepName": "UX Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "skipped": true,
+          "reason": "project type not eligible"
+        },
+        "duration": 2901
+      },
+      "step_16": {
+        "stepId": "step_16",
+        "stepName": "Version Update",
+        "success": true,
+        "output": {
+          "success": true,
+          "oldVersion": "0.5.6",
+          "newVersion": "0.5.7",
+          "bumpType": "patch",
+          "stats": {
+            "updated": 6,
+            "skipped": 8,
+            "failed": 0
+          },
+          "updates": [
+            {
+              "file": "package.json",
+              "success": true
+            },
+            {
+              "file": "pyproject.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "setup.py",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": "Cargo.toml",
+              "skipped": true,
+              "reason": "file not found"
+            },
+            {
+              "file": ".workflow-config.yaml",
+              "success": true
+            },
+            {
+              "file": ".ai_workflow/metrics/current_run.json",
+              "skipped": true
+            },
+            {
+              "file": "cdn-urls.txt",
+              "success": true
+            },
+            {
+              "file": "src/index.ts",
+              "skipped": true
+            },
+            {
+              "file": "docs/edit_operations.md",
+              "skipped": true
+            },
+            {
+              "file": "src/core/edit_operations.ts",
+              "skipped": true
+            },
+            {
+              "file": "test/core/edit_operations.test.ts",
+              "skipped": true
+            },
+            {
+              "file": "CHANGELOG.md",
+              "success": true
+            },
+            {
+              "file": "docs/API.md",
+              "success": true
+            },
+            {
+              "file": "docs/utils.md",
+              "success": true
+            }
+          ],
+          "consistencyCheck": {
+            "ran": false
+          },
+          "duration": 8924
+        },
+        "duration": 8953
+      },
+      "step_18": {
+        "stepId": "step_18",
+        "stepName": "Debugging Analysis",
+        "success": true,
+        "output": {
+          "success": true,
+          "personaKey": "async_flow_debugger_prompt",
+          "filesAnalyzed": [
+            "eslint.config.js",
+            "jest.config.js",
+            "src/core/edit_operations.ts",
+            "src/core/executor.ts",
+            "src/core/file_operations.ts",
+            "src/core/jq_wrapper.ts",
+            "src/core/system.ts",
+            "src/core/version.ts",
+            "src/index.ts",
+            "src/utils/errors.ts"
+          ],
+          "totalSourceFiles": 10,
+          "aiContent": "**Async Flow Analysis**\n\n---\n\n**Execution Chain:**\n1. [Start] async function execute(command, options) in src/core/executor.ts - [SUCCESS/FAILED] - [Duration: depends on command]\n2. await execAsync(command, {...}) - [SUCCESS/FAILED] - [Duration: async, timeout respected]\n3. [Catch block] - [Handles error, throws ExecutionError] - [Duration: immediate]\n4. [Never reached if error thrown]\n\n---\n\n**Error Path Diagram:**\n```\n[Try execute()]\n    ↓\n[Success?]\n    ↓\n┌───┴───┐\n↓       ↓\n[Yes]   [No]\n↓       ↓\n[Return] [Catch] → [Throw ExecutionError]\n```\n\n---\n\n**Issue Identified**:\n- Type: Error propagation (async/await)\n- Break Point: src/core/executor.ts: execute() catch block\n- Root Cause: Errors are caught and rethrown as ExecutionError, but no retry/fallback logic exists; if execAsync fails (e.g., network/CORS), chain breaks and caller must handle.\n\n---\n\n**Recommended Fix**:\n- Add: Retry logic for transient errors (e.g., network/CORS failures), and optionally fallback command or proxy.\n- Location: src/core/executor.ts, inside execute() catch block.\n- Code:\n```ts\n// Add after catch block, before throw\nif (shouldRetry(execErr)) {\n    // Retry logic, e.g. for network/CORS errors\n    for (let attempt = 1; attempt <= 3; attempt++) {\n        try {\n            const { stdout, stderr } = await execAsync(command, { ...options });\n            return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };\n        } catch (retryErr) {\n            // Optionally log retryErr\n        }\n    }\n}\n// Existing throw ExecutionError...\n```\n(Implement shouldRetry() to check error type/message, e.g. \"Failed to fetch\", CORS, network timeout.)\n\n---\n\n**Validation**:\n- Test async behavior by simulating transient errors (mock execAsync to fail with network/CORS error).\n- Confirm retry attempts occur and fallback is used if available.\n- Verify ExecutionError is only thrown after all retries fail.",
+          "report": "# Step 18: Debugging Analysis — Async Flow Debugger\n\n## Files Analyzed\n- eslint.config.js\n- jest.config.js\n- src/core/edit_operations.ts\n- src/core/executor.ts\n- src/core/file_operations.ts\n- src/core/jq_wrapper.ts\n- src/core/system.ts\n- src/core/version.ts\n- src/index.ts\n- src/utils/errors.ts\n\n## AI Analysis\n\n**Async Flow Analysis**\n\n---\n\n**Execution Chain:**\n1. [Start] async function execute(command, options) in src/core/executor.ts - [SUCCESS/FAILED] - [Duration: depends on command]\n2. await execAsync(command, {...}) - [SUCCESS/FAILED] - [Duration: async, timeout respected]\n3. [Catch block] - [Handles error, throws ExecutionError] - [Duration: immediate]\n4. [Never reached if error thrown]\n\n---\n\n**Error Path Diagram:**\n```\n[Try execute()]\n    ↓\n[Success?]\n    ↓\n┌───┴───┐\n↓       ↓\n[Yes]   [No]\n↓       ↓\n[Return] [Catch] → [Throw ExecutionError]\n```\n\n---\n\n**Issue Identified**:\n- Type: Error propagation (async/await)\n- Break Point: src/core/executor.ts: execute() catch block\n- Root Cause: Errors are caught and rethrown as ExecutionError, but no retry/fallback logic exists; if execAsync fails (e.g., network/CORS), chain breaks and caller must handle.\n\n---\n\n**Recommended Fix**:\n- Add: Retry logic for transient errors (e.g., network/CORS failures), and optionally fallback command or proxy.\n- Location: src/core/executor.ts, inside execute() catch block.\n- Code:\n```ts\n// Add after catch block, before throw\nif (shouldRetry(execErr)) {\n    // Retry logic, e.g. for network/CORS errors\n    for (let attempt = 1; attempt <= 3; attempt++) {\n        try {\n            const { stdout, stderr } = await execAsync(command, { ...options });\n            return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };\n        } catch (retryErr) {\n            // Optionally log retryErr\n        }\n    }\n}\n// Existing throw ExecutionError...\n```\n(Implement shouldRetry() to check error type/message, e.g. \"Failed to fetch\", CORS, network timeout.)\n\n---\n\n**Validation**:\n- Test async behavior by simulating transient errors (mock execAsync to fail with network/CORS error).\n- Confirm retry attempts occur and fallback is used if available.\n- Verify ExecutionError is only thrown after all retries fail.\n"
+        },
+        "duration": 23795
+      },
+      "step_19": {
+        "stepId": "step_19",
+        "stepName": "TypeScript Review",
+        "success": true,
+        "output": {
+          "success": true,
+          "filesAnalyzed": [
+            "src/core/edit_operations.ts",
+            "src/core/executor.ts",
+            "src/core/file_operations.ts",
+            "src/core/jq_wrapper.ts",
+            "src/core/system.ts",
+            "src/core/version.ts",
+            "src/index.ts",
+            "src/utils/errors.ts"
+          ],
+          "totalTsFiles": 8,
+          "issueScore": {
+            "anyCount": 0,
+            "tsIgnoreCount": 0,
+            "missingReturnTypeCount": 0,
+            "totalIssues": 0
+          },
+          "aiContent": "🔎 **TypeScript Review — olinda_shell_interface.js (8 files)**\n\n---\n\n## 🔴 Critical Issues\n\n### 1. `any` Usage and Implicit `any`\n- **No explicit `any` found** in the sampled files. All function parameters and return types are annotated.\n- **Catch blocks**: All error variables are typed as `unknown` and narrowed before use (e.g., `catch (err: unknown)` in `executor.ts`).\n\n### 2. Strict Mode Compliance\n- **No tsconfig.json shown** — cannot verify `\"strict\": true\"` and related flags.  \n  **Action**: If not already set, add/verify:\n  ```json\n  {\n    \"compilerOptions\": {\n      \"strict\": true,\n      \"noImplicitAny\": true,\n      \"strictNullChecks\": true,\n      \"strictFunctionTypes\": true,\n      \"noUnusedLocals\": true,\n      \"noUnusedParameters\": true,\n      \"moduleResolution\": \"Node16\",\n      \"target\": \"ES2022\",\n      \"lib\": [\"ES2022\"],\n      \"outDir\": \"dist\",\n      \"rootDir\": \"src\"\n    }\n  }\n  ```\n  _Justification_: Ensures all strict type checks are active.\n\n---\n\n## 🟡 Warnings / Best Practice Improvements\n\n### 1. Utility Types & Advanced Patterns\n- **Utility types** (`Partial`, `Pick`, `Omit`, etc.) are used appropriately (e.g., `Omit<ExecuteOptions, 'timeout' | 'shell'>`).\n- **Discriminated unions**: Used for error classes and diff change types.\n- **Mapped types/conditional types**: Not needed in current code, but recommend for future extensibility.\n\n### 2. Type Imports\n- **Type imports**: Not using `import type` syntax.  \n  **Action**: Update imports for type-only usage:\n  ```typescript\n  import type { ExecException } from 'child_process';\n  ```\n  _Justification_: Reduces risk of circular dependencies and improves build performance.\n\n### 3. API Runtime Validation\n- **No runtime validation** (Zod/io-ts) for external data (e.g., file contents, shell output).  \n  **Action**: For API boundaries, validate external data before using in business logic.\n\n---\n\n## 🟢 Info / Current Patterns\n\n- **Error handling**: All custom errors extend `Error`, use `unknown` in catch blocks, and provide structured details.\n- **Interfaces vs. types**: Interfaces used for extensible object shapes; types for unions and aliases.\n- **Literal unions**: `as const` used for OS and PackageManager constants.\n- **No `any` or `@ts-ignore`**: Code is clean and type-safe.\n\n---\n\n## **No Breaking Changes Detected**\n\n- All exported types and functions are stable and well-typed.\n- No structural changes needed for downstream consumers.\n\n---\n\n## **Summary**\n\n- **No updates needed — documentation and code are current.**\n- Codebase is fully type-safe, idiomatic, and performant.\n- For completeness, verify `tsconfig.json` strict mode and update type-only imports to use `import type`.\n\n---\n\n**If you want a full tsconfig.json or ESLint config example, let me know!**",
+          "report": "# Step 19: TypeScript Review — Strider\n\n## Files Analyzed\n- src/core/edit_operations.ts\n- src/core/executor.ts\n- src/core/file_operations.ts\n- src/core/jq_wrapper.ts\n- src/core/system.ts\n- src/core/version.ts\n- src/index.ts\n- src/utils/errors.ts\n\n## Issue Score (Heuristic)\n\n| Metric | Count |\n|--------|-------|\n| Explicit `any` / `as any` | 0 |\n| `@ts-ignore` / `@ts-nocheck` | 0 |\n| Functions missing return type | 0 |\n| **Total** | **0** |\n\n## AI Analysis\n\n🔎 **TypeScript Review — olinda_shell_interface.js (8 files)**\n\n---\n\n## 🔴 Critical Issues\n\n### 1. `any` Usage and Implicit `any`\n- **No explicit `any` found** in the sampled files. All function parameters and return types are annotated.\n- **Catch blocks**: All error variables are typed as `unknown` and narrowed before use (e.g., `catch (err: unknown)` in `executor.ts`).\n\n### 2. Strict Mode Compliance\n- **No tsconfig.json shown** — cannot verify `\"strict\": true\"` and related flags.  \n  **Action**: If not already set, add/verify:\n  ```json\n  {\n    \"compilerOptions\": {\n      \"strict\": true,\n      \"noImplicitAny\": true,\n      \"strictNullChecks\": true,\n      \"strictFunctionTypes\": true,\n      \"noUnusedLocals\": true,\n      \"noUnusedParameters\": true,\n      \"moduleResolution\": \"Node16\",\n      \"target\": \"ES2022\",\n      \"lib\": [\"ES2022\"],\n      \"outDir\": \"dist\",\n      \"rootDir\": \"src\"\n    }\n  }\n  ```\n  _Justification_: Ensures all strict type checks are active.\n\n---\n\n## 🟡 Warnings / Best Practice Improvements\n\n### 1. Utility Types & Advanced Patterns\n- **Utility types** (`Partial`, `Pick`, `Omit`, etc.) are used appropriately (e.g., `Omit<ExecuteOptions, 'timeout' | 'shell'>`).\n- **Discriminated unions**: Used for error classes and diff change types.\n- **Mapped types/conditional types**: Not needed in current code, but recommend for future extensibility.\n\n### 2. Type Imports\n- **Type imports**: Not using `import type` syntax.  \n  **Action**: Update imports for type-only usage:\n  ```typescript\n  import type { ExecException } from 'child_process';\n  ```\n  _Justification_: Reduces risk of circular dependencies and improves build performance.\n\n### 3. API Runtime Validation\n- **No runtime validation** (Zod/io-ts) for external data (e.g., file contents, shell output).  \n  **Action**: For API boundaries, validate external data before using in business logic.\n\n---\n\n## 🟢 Info / Current Patterns\n\n- **Error handling**: All custom errors extend `Error`, use `unknown` in catch blocks, and provide structured details.\n- **Interfaces vs. types**: Interfaces used for extensible object shapes; types for unions and aliases.\n- **Literal unions**: `as const` used for OS and PackageManager constants.\n- **No `any` or `@ts-ignore`**: Code is clean and type-safe.\n\n---\n\n## **No Breaking Changes Detected**\n\n- All exported types and functions are stable and well-typed.\n- No structural changes needed for downstream consumers.\n\n---\n\n## **Summary**\n\n- **No updates needed — documentation and code are current.**\n- Codebase is fully type-safe, idiomatic, and performant.\n- For completeness, verify `tsconfig.json` strict mode and update type-only imports to use `import type`.\n\n---\n\n**If you want a full tsconfig.json or ESLint config example, let me know!**\n"
+        },
+        "duration": 40661
+      },
+      "step_17": {
+        "stepId": "step_17",
+        "stepName": "Workflow Summary",
+        "success": true,
+        "output": {
+          "success": true,
+          "summary": {
+            "metrics": {
+              "totalSteps": 0,
+              "successfulSteps": 0,
+              "failedSteps": 0,
+              "skippedSteps": 0,
+              "totalDuration": 0,
+              "avgDuration": 0,
+              "successRate": 0,
+              "startTime": "2026-03-11T13:12:35.806Z",
+              "endTime": "2026-03-11T13:25:47.070Z",
+              "workflowRunId": "workflow_20260311_102044",
+              "version": "1.0.0",
+              "mode": "interactive"
+            },
+            "timeline": {
+              "steps": [],
+              "phases": {
+                "initialization": [],
+                "documentation": [],
+                "validation": [],
+                "testing": [],
+                "quality": [],
+                "finalization": []
+              }
+            },
+            "cacheEfficiency": {
+              "cacheHits": 0,
+              "cacheMisses": 0,
+              "totalRequests": 0,
+              "hitRate": 0,
+              "quality": "poor"
+            },
+            "recommendations": [
+              {
+                "type": "caching",
+                "priority": "high",
+                "title": "Low Cache Hit Rate",
+                "description": "Cache hit rate is 0.0% (below 60%)",
+                "impact": "high",
+                "suggestion": "Review caching strategy and increase cache TTL",
+                "details": [
+                  "Cache hits: 0",
+                  "Cache misses: 0"
+                ]
+              }
+            ],
+            "report": "# Workflow Summary Report\n\n**Workflow Run ID:** workflow_20260311_102044\n**Version:** 1.0.0\n**Mode:** interactive\n**Start Time:** 2026-03-11T13:12:35.806Z\n**End Time:** 2026-03-11T13:25:47.070Z\n**Total Duration:** 0s\n\n---\n\n## Executive Summary\n\n**Overall Status:** ⚠️ Completed\n**Success Rate:** 0.0%\n**Total Steps:** 0\n**Successful:** 0 ✅\n**Average Step Duration:** 0s\n\n---\n\n## Execution Timeline\n\n\n\n---\n\n## Phase Breakdown\n\n\n\n---\n\n## Performance Metrics\n\n| Metric | Value |\n|--------|-------|\n| Total Duration | 0s |\n| Average Step Duration | 0s |\n| Total Steps | 0 |\n| Success Rate | 0.0% |\n\n---\n\n## Recommendations\n\n### 🟠 Low Cache Hit Rate\n**Priority:** HIGH\n**Type:** caching\n**Description:** Cache hit rate is 0.0% (below 60%)\n**Suggestion:** Review caching strategy and increase cache TTL\n\n**Details:**\n- Cache hits: 0\n- Cache misses: 0\n\n\n---\n\n*Generated by AI Workflow Automation v1.0.0*\n\n*Report generated at: 2026-03-11T13:25:47.072Z*\n"
+          },
+          "message": "Workflow summary generated successfully"
+        },
+        "duration": 25
+      },
+      "step_0f": {
+        "stepId": "step_0f",
+        "stepName": "Commit Artifacts",
+        "success": true,
+        "output": {
+          "success": true,
+          "committed": true,
+          "files": [
+            ".ai_workflow/.step_cache/step_06_partition.json",
+            ".ai_workflow/.step_cache/step_10_partition.json",
+            ".ai_workflow/.step_cache/step_10_quality.json",
+            ".ai_workflow/metrics/current_run.json",
+            "docs/API.md",
+            "docs/utils.md"
+          ],
+          "summary": "Committed 6 artifact file(s)"
+        },
+        "duration": 92
+      },
+      "step_12": {
+        "stepId": "step_12",
+        "stepName": "Git Finalization",
+        "success": true,
+        "output": {
+          "success": true,
+          "branch": "main",
+          "commitMessage": "feat(implementation+tests): update edit_operations docs and tests\n\nAdd comprehensive documentation for edit_operations utilities and class.\nUpdate test coverage for edit_operations with new cases and improved validation.\nSynchronize workflow configuration, changelog, CDN URLs, and package metadata for v0.5.7.\n\n- Added docs/edit_operations.md with usage, API, and examples\n- Enhanced test/core/edit_operations.test.ts for coverage and reliability\n- Updated src/core/edit_operations.ts and src/index.ts for API consistency\n- Refreshed workflow-config.yaml, CHANGELOG.md, cdn-urls.txt, and package.json\n- Improved developer experience and onboarding for edit_operations module\n\nNo breaking changes.\n[workflow-automation v0.5.7]",
+          "pushed": true,
+          "report": "### Git Finalization Summary\n\n**Branch:** main\n**Commits Ahead:** 2\n**Commits Behind:** 0\n**Commit Type:** feat(implementation+tests)\n**Modified Files:** 5\n**Total Changes:** 10\n\n### Change Breakdown\n\n- Documentation: 3 files\n- Tests: 1 files\n- Scripts: 0 files\n- Code: 2 files\n- Config: 2 files\n\n### Commit Message\n\n```\nfeat(implementation+tests): update edit_operations docs and tests\n\nAdd comprehensive documentation for edit_operations utilities and class.\nUpdate test coverage for edit_operations with new cases and improved validation.\nSynchronize workflow configuration, changelog, CDN URLs, and package metadata for v0.5.7.\n\n- Added docs/edit_operations.md with usage, API, and examples\n- Enhanced test/core/edit_operations.test.ts for coverage and reliability\n- Updated src/core/edit_operations.ts and src/index.ts for API consistency\n- Refreshed workflow-config.yaml, CHANGELOG.md, cdn-urls.txt, and package.json\n- Improved developer experience and onboarding for edit_operations module\n\nNo breaking changes.\n[workflow-automation v0.5.7]\n```\n\n**Push Status:** ✅ Pushed successfully"
+        },
+        "duration": 17451
+      }
+    },
+    "context": {
+      "workflowDir": "/home/mpb/Documents/GitHub/olinda_shell_interface.js/.ai_workflow",
+      "projectRoot": "/home/mpb/Documents/GitHub/olinda_shell_interface.js",
+      "auto": false,
+      "workflowRunId": "workflow_20260311_102044",
+      "modifiedFiles": [
+        ".workflow-config.yaml",
+        "CHANGELOG.md",
+        "cdn-urls.txt",
+        "dist/src/core/executor.js",
+        "dist/src/index.js",
+        "dist/types/src/index.d.ts",
+        "docs/API.md",
+        "docs/utils.md",
+        "package.json",
+        ".ai_workflow/metrics/current_run.json",
+        "src/index.ts",
+        "docs/edit_operations.md",
+        "src/core/edit_operations.ts",
+        "test/core/edit_operations.test.ts"
+      ],
+      "projectType": "nodejs_api",
+      "scope": "infrastructure",
+      "projectDescription": "olinda_shell_interface.js"
+    }
+  },
+  "metadata": {
+    "totalSteps": 25,
+    "progress": 0
+  }
+}

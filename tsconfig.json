@@ -13,6 +13,10 @@
     "esModuleInterop": false,
     "resolveJsonModule": false
   },
-  "include": ["src/lib/copilot_sdk_wrapper.ts", "src/types/local-modules.d.ts"],
+  "include": [
+    "src/lib/copilot_sdk_wrapper.ts",
+    "src/types/local-modules.d.ts",
+    "src/types/public-api.d.ts"
+  ],
   "exclude": ["node_modules", "dist", "build", "coverage"]
 }
