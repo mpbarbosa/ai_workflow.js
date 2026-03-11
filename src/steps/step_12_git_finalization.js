@@ -922,8 +922,7 @@ export class Step12GitFinalization {
     const tmpFile = join(tmpdir(), `workflow_commit_${Date.now()}.txt`);
     try {
       await fsPromises.writeFile(tmpFile, message, 'utf-8');
-      // Use --no-verify to skip pre-commit hooks (linting already ran in earlier steps)
-      await this._executeGit(`git commit --no-verify -F "${tmpFile}"`);
+      await this._executeGit(`git commit -F "${tmpFile}"`);
     } catch (err) {
       // "nothing to commit" is not an error — the step is still successful
       const errText = `${err.message} ${err.stderr ?? ''}`.toLowerCase();

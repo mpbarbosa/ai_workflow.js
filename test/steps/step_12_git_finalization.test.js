@@ -571,7 +571,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/ (pre-push stage)
@@ -607,8 +607,8 @@ describe('Step 12: Git Finalization', () => {
       expect(step.aiHelper).toBeDefined();
     });
 
-    // Automated commits must skip pre-commit hooks so lint-staged does not abort the commit
-    test('git commit uses --no-verify to skip pre-commit hooks', async () => {
+    // Automated commits run pre-commit hooks to enforce quality gates
+    test('git commit runs pre-commit hooks', async () => {
       mockExecutor.executeCommand = jest
         .fn()
         .mockResolvedValueOnce({ stdout: 'main' }) // current branch
@@ -637,15 +637,15 @@ describe('Step 12: Git Finalization', () => {
       const calls = mockExecutor.executeCommand.mock.calls.map((c) => c[0]);
       const commitCall = calls.find((cmd) => cmd.includes('git commit'));
       expect(commitCall).toBeDefined();
-      expect(commitCall).toContain('--no-verify');
+      expect(commitCall).not.toContain('--no-verify');
     });
 
     // "nothing to commit" must be treated as success, not an error
     test('handles "nothing to commit" from git gracefully', async () => {
-      const nothingToCommitError = Object.assign(
-        new Error('Command failed: git commit --no-verify -F ...'),
-        { stderr: 'nothing to commit, working tree clean', exitCode: 1 }
-      );
+      const nothingToCommitError = Object.assign(new Error('Command failed: git commit -F ...'), {
+        stderr: 'nothing to commit, working tree clean',
+        exitCode: 1,
+      });
 
       mockExecutor.executeCommand = jest
         .fn()
@@ -692,7 +692,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent)
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
@@ -733,7 +733,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A (parent) — must still run
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
         .mockResolvedValueOnce({ stdout: '' }); // git push
@@ -771,7 +771,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: '' }) // git tag v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v<current>
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/ (pre-push stage)
@@ -812,7 +812,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockResolvedValueOnce({ stdout: '' }) // git tag v1.2.3
         .mockResolvedValueOnce({ stdout: '' }) // git push origin v1.2.3
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
@@ -852,7 +852,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         // no tag call expected
         .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
         .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
@@ -891,7 +891,7 @@ describe('Step 12: Git Finalization', () => {
         .mockResolvedValueOnce({ stdout: '' }) // git add -A
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
         .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit --no-verify
+        .mockResolvedValueOnce({ stdout: '' }) // git commit
         .mockRejectedValueOnce(
           Object.assign(new Error('tag already exists'), {
             stderr: 'fatal: tag already exists',
