@@ -25,7 +25,7 @@ import { cleanCommand } from './commands/clean.js';
 import { deployCommand } from './commands/deploy.js';
 
 // Package information
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 const DESCRIPTION = 'AI-powered workflow automation for software development';
 
 // ============================================================================

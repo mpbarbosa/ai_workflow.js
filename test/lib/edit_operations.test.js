@@ -1,7 +1,7 @@
 /**
  * Tests for Edit Operations Module
- * @version 2.0.0
- * Part of: AI Workflow Automation v1.1.0
+ * @description Re-exported from olinda_shell_interface.js v0.5.9 via src/lib/edit_operations.js.
+ * @see https://github.com/mpbarbosa/olinda_shell_interface.js
  */
 
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
@@ -22,8 +22,8 @@ import {
   generateDiff,
   formatDiff,
   EditOperations,
+  FileSystemError,
 } from '../../src/lib/edit_operations.js';
-import { FileSystemError } from '../../src/utils/errors.js';
 
 /**
  * PURE FUNCTION TESTS - Deterministic, no I/O

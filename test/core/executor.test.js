@@ -44,9 +44,19 @@ describe('execute', () => {
       expect(result.stdout).toBe('olinda');
     });
 
-    it('accepts a custom shell', async () => {
+    it('accepts a custom shell as a string', async () => {
       const result = await execute('echo ok', { shell: '/bin/bash' });
       expect(result.stdout).toBe('ok');
+    });
+
+    it('accepts shell: true (normalised to /bin/sh)', async () => {
+      const result = await execute('echo ok', { shell: true });
+      expect(result.stdout).toBe('ok');
+    });
+
+    it('accepts a maxBuffer option', async () => {
+      const result = await execute('echo hello', { maxBuffer: 1024 * 1024 });
+      expect(result.stdout).toBe('hello');
     });
 
     it('resolves for a multi-word command', async () => {
@@ -103,6 +113,33 @@ describe('execute', () => {
         await execute('exit 2');
       } catch (e) {
         expect(typeof e.exitCode).toBe('number');
+      }
+    });
+
+    it('thrown error has signal field (null for normal exit)', async () => {
+      try {
+        await execute('exit 1');
+      } catch (e) {
+        expect(e.signal === null || typeof e.signal === 'string').toBe(true);
+      }
+    });
+
+    it('thrown error has killed field (boolean)', async () => {
+      try {
+        await execute('exit 1');
+      } catch (e) {
+        expect(typeof e.killed).toBe('boolean');
+      }
+    });
+
+    it('signal is a string and killed is true when process is terminated by signal', async () => {
+      try {
+        await execute('sleep 10', { timeout: 50 });
+      } catch (e) {
+        if (e.signal !== null) {
+          expect(typeof e.signal).toBe('string');
+          expect(e.killed).toBe(true);
+        }
       }
     });
 
@@ -210,6 +247,18 @@ describe('executeStream', () => {
   describe('pipe fallback (no callbacks)', () => {
     it('resolves when no callbacks provided (pipes to process streams)', async () => {
       await expect(executeStream('true')).resolves.toBe(0);
+    });
+
+    it('handles commands with quoted arguments correctly', async () => {
+      const chunks = [];
+      await executeStream('echo "hello world"', { onStdout: (c) => chunks.push(c) });
+      expect(chunks.join('').trim()).toBe('hello world');
+    });
+
+    it('handles commands with spaces in arguments', async () => {
+      const chunks = [];
+      await executeStream('printf "%s %s" foo bar', { onStdout: (c) => chunks.push(c) });
+      expect(chunks.join('').trim()).toBe('foo bar');
     });
   });
 });

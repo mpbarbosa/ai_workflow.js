@@ -42,7 +42,7 @@ import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
  *   onExit?: () => void,
  * }} props
  */
-export function App({ orchestrator, stage, version = '1.6.0', verbose = false, onExit }) {
+export function App({ orchestrator, stage, version = '1.6.1', verbose = false, onExit }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const { steps, logs, progress, currentStepId, isComplete, lastError, streamChunks } =

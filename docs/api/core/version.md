@@ -55,7 +55,7 @@ Find latest version from array.
 **Example:**
 
 ```javascript
-getLatestVersion(['1.0.0', '2.1.0', '1.6.1']); // '2.1.0'
+getLatestVersion(['1.0.0', '2.1.0', '1.6.2']); // '2.1.0'
 ```
 
 ---

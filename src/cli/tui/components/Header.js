@@ -14,7 +14,7 @@ import { Box, Text } from 'ink';
 /**
  * @param {{ stage: string, completed: number, total: number, version?: string, projectRoot?: string, projectVersion?: string | null }} props
  */
-export function Header({ stage, completed, total, version = '1.6.0', projectRoot = '', projectVersion = null }) {
+export function Header({ stage, completed, total, version = '1.6.1', projectRoot = '', projectVersion = null }) {
   const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
 
   return React.createElement(

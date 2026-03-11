@@ -41,6 +41,36 @@ export {
   withRetry,
 } from './utils/retry.js';
 
+// Utility functions (via olinda_shell_interface.js v0.5.9 / olinda_utils.js v0.3.14)
+export {
+  camelCase,
+  kebabCase,
+  snakeCase,
+  pascalCase,
+  capitalize,
+  truncate,
+  sanitize,
+  cleanWhitespace,
+  escapeRegex,
+  dedupe,
+  chunk,
+  flatten,
+  groupBy,
+  sortBy,
+  intersection,
+  difference,
+  partition,
+  deepClone,
+  deepMerge,
+  pick,
+  omit,
+  getProperty,
+  setProperty,
+  hasProperty,
+  deepEqual,
+  isEmpty,
+} from './lib/utils.js';
+
 // Phase 2.1 exports (v2.0.0)
 export { Config } from './lib/config.js';
 export { Backlog } from './lib/backlog.js';
@@ -175,38 +205,6 @@ export {
   formatDiff,
   EditOperations,
 } from './lib/edit_operations.js';
-
-export {
-  // String utilities
-  camelCase,
-  kebabCase,
-  snakeCase,
-  pascalCase,
-  capitalize,
-  truncate,
-  sanitize,
-  cleanWhitespace,
-  escapeRegex,
-  // Array utilities
-  dedupe,
-  chunk,
-  flatten,
-  groupBy,
-  sortBy,
-  intersection,
-  difference,
-  partition,
-  // Object utilities
-  deepClone,
-  deepMerge,
-  pick,
-  omit,
-  getProperty,
-  setProperty,
-  hasProperty,
-  deepEqual,
-  isEmpty,
-} from 'olinda_utils.js';
 
 export {
   parseArguments,

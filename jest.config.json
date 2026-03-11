@@ -18,6 +18,10 @@
     "/scripts/",
     "/src/core/"
   ],
+  "moduleNameMapper": {
+    "^olinda_shell_interface\\.js/(.+)$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/$1.js",
+    "^olinda_shell_interface\\.js$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/index.js"
+  },
   "transform": {},
   "maxWorkers": "50%",
   "coverageThreshold": {

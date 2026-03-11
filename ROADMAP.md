@@ -1,6 +1,6 @@
 # ai_workflow.js — Project Roadmap
 
-> **Current version:** 1.6.0 · **Status:** Production Ready ✅
+> **Current version:** 1.6.1 · **Status:** Production Ready ✅
 > **Tests:** 5,837 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
 
 This roadmap tracks the evolution of **ai_workflow.js** from its initial architecture through
@@ -24,7 +24,7 @@ Active development continues on TUI enhancements, streaming, and the next releas
 ## Completed Work (Phases 1–11)
 
 All phases below shipped as part of the **v1.0.0 stable release** (2026-02-17), with subsequent
-bug-fix releases up to v1.6.0.
+bug-fix releases up to v1.6.1.
 
 | Phase                          | Scope                                                                                                    | Modules  | Tests  | Version |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------- | -------- | ------ | ------- |
@@ -43,7 +43,7 @@ bug-fix releases up to v1.6.0.
 
 ### Notable v1.x Bug Fixes
 
-- **v1.6.0** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
+- **v1.6.1** — `workflowDir` now resolved against `projectRoot` (not CWD); Step 2 version
   fallback; `modifiedFiles` propagation from commit history; step_02_5 absolute paths;
   tsconfig JSONC false-positive; step_07 soft-block on step_12 push; step_15 fallback for
   non-UI project kinds; step_10 full-scan on large change sets; C4 compliance for `promptsDir`

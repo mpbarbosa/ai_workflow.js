@@ -138,6 +138,20 @@ export function getCommandExamples(command) {
         command: 'ai-workflow clean --all --older-than-days 30',
       },
     ],
+    deploy: [
+      {
+        description: 'Preview deployment without executing',
+        command: 'ai-workflow deploy --dry-run',
+      },
+      {
+        description: 'Deploy using the script in .workflow-config.yaml',
+        command: 'ai-workflow deploy',
+      },
+      {
+        description: 'Deploy from the src folder',
+        command: 'ai-workflow deploy --source src',
+      },
+    ],
   };
 
   return examples[command] || [];
@@ -200,35 +214,52 @@ export function getWorkflowStages() {
     quick: {
       name: 'Quick',
       description: 'Fast validation for rapid feedback',
-      steps: 3,
-      duration: '1-2 minutes',
-      includes: ['Project detection', 'Documentation validation', 'Code analysis'],
+      steps: 5,
+      duration: '1-3 minutes',
+      includes: [
+        'Pre-analysis (step_00)',
+        'Documentation validation (step_01)',
+        'Consistency checks (step_02)',
+        'Config validation (step_04)',
+        'Directory structure (step_05)',
+      ],
     },
     medium: {
       name: 'Medium',
       description: 'Standard workflow with essential checks',
-      steps: 6,
-      duration: '5-10 minutes',
+      steps: 12,
+      duration: '5-15 minutes',
       includes: [
-        'Project detection',
-        'Documentation validation',
-        'Code analysis',
-        'Test generation',
-        'Quality checks',
-        'Dependency analysis',
+        'All quick steps',
+        'Doc optimization (step_02_5)',
+        'Script refs (step_03)',
+        'Test review (step_06)',
+        'Test generation (step_07)',
+        'Test execution (step_08)',
+        'Code quality (step_10)',
+        'Markdown lint (step_13)',
       ],
     },
     full: {
       name: 'Full',
       description: 'Complete workflow with all steps',
-      steps: 10,
-      duration: '15-30 minutes',
+      steps: 25,
+      duration: '20-45 minutes',
       includes: [
         'All medium steps',
-        'Git automation',
-        'Linting',
-        'Build verification',
-        'Artifact commits',
+        'Bootstrap docs (step_0b)',
+        'Dependencies (step_09)',
+        'Context management (step_11)',
+        'AWS LBS validation (step_11_5)',
+        'AWS Serverless AI review (step_11_6)',
+        'Prompt engineering (step_14)',
+        'UX analysis (step_15)',
+        'Version update (step_16)',
+        'Debugging analysis (step_18)',
+        'TypeScript review (step_19)',
+        'Summary (step_17)',
+        'Commit artifacts (step_0f)',
+        'Git finalization (step_12)',
       ],
     },
   };
@@ -400,7 +431,7 @@ export function displayTuiHelp() {
   console.log();
   console.log(chalk.bold('Layout:'));
   console.log(chalk.gray('  ┌─────────────────────────────────────────────────────┐'));
-  console.log(chalk.gray('  │  AI Workflow v1.6.0  stage: full         Step 5/20  │'));
+  console.log(chalk.gray('  │  AI Workflow v1.6.1  stage: full         Step 5/20  │'));
   console.log(chalk.gray('  ├──────────────────────┬──────────────────────────────┤'));
   console.log(chalk.gray('  │  STEPS               │  LIVE LOG                    │'));
   console.log(chalk.gray('  │  ✅ step_00  1.2s    │  [19:15:02] → Starting…      │'));
