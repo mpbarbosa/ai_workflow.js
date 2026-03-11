@@ -109,7 +109,7 @@ ${aiContent || '_No AI analysis available._'}
  * @param {Object} fileOps - FileOperations instance used for reading files.
  * @returns {Promise<string|null>} File content, or `null` when the file is absent.
  *
- * @since 1.6.2
+ * @since 1.6.3
  *
  * @example
  * const ctx = await readProjectContextFile('/path/to/project', fileOps);
@@ -322,7 +322,16 @@ export class Step18Debugging {
    */
   async _discoverSourceFiles(projectRoot) {
     const patterns = ['**/*.js', '**/*.ts', '**/*.py', '**/*.java', '**/*.go'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__', 'docs'];
+    const exclude = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'coverage',
+      'test',
+      '__tests__',
+      'docs',
+    ];
     const found = [];
     for (const pattern of patterns) {
       try {

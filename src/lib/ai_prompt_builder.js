@@ -150,7 +150,7 @@ export function injectProjectContext(prompt, projectInfo = {}) {
  * @param {string} content - Raw markdown content of PROJECT_CONTEXT.md.
  * @returns {string} Formatted section string, or `''` if content is empty.
  *
- * @since 1.6.2
+ * @since 1.6.3
  *
  * @example
  * const section = formatProjectContextSection('## Runtime\n- Node.js only');

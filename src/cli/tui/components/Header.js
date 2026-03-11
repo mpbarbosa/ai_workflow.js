@@ -18,7 +18,7 @@ export function Header({
   stage,
   completed,
   total,
-  version = '1.6.2',
+  version = '1.6.3',
   projectRoot = '',
   projectVersion = null,
 }) {
