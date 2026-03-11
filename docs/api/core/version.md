@@ -55,7 +55,11 @@ Find latest version from array.
 **Example:**
 
 ```javascript
+<<<<<<< HEAD
 getLatestVersion(['1.0.0', '2.1.0', '1.8.0']); // '2.1.0'
+=======
+getLatestVersion(['1.0.0', '2.1.0', '1.6.1']); // '2.1.0'
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 ```
 
 ---

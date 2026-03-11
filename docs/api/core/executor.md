@@ -1,7 +1,11 @@
 # executor - Command Execution Module
 
 **Module:** `core/executor`
+<<<<<<< HEAD
 **Version:** 0.5.9 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
+=======
+**Version:** 0.5.8 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 **Type:** Async Functions
 
 > **Note:** This module re-exports from the [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js) package (installed from GitHub). The implementation lives upstream; this file is a thin re-export layer.
@@ -25,7 +29,8 @@ Execute command and return output.
   - `cwd`: Working directory (default: `process.cwd()`)
   - `env`: Environment variables (default: `process.env`)
   - `timeout`: Max execution time in ms (default: `300_000`)
-  - `shell`: Shell path (default: `'/bin/sh'`)
+  - `shell`: Shell path or `true` to use `/bin/sh` (default: `'/bin/sh'`)
+  - `maxBuffer`: Max output buffer in bytes (default: `10_485_760` — 10 MB)
 
 **Returns:** Promise<`{stdout, stderr, exitCode}`>
 
@@ -145,6 +150,8 @@ Commands throw `ExecutionError` with:
 - `exitCode`: Process exit code
 - `stdout`: Standard output
 - `stderr`: Standard error
+- `signal`: Signal name that terminated the process (`string`), or `null` if exited normally
+- `killed`: `true` if the process was killed by a signal (e.g. on timeout)
 
 ```javascript
 import { ExecutionError } from '../utils/errors.js';
@@ -155,6 +162,9 @@ try {
   if (error instanceof ExecutionError) {
     console.log('Exit code:', error.exitCode);
     console.log('Stderr:', error.stderr);
+    if (error.killed) {
+      console.log('Killed by signal:', error.signal);
+    }
   }
 }
 ```
@@ -165,11 +175,10 @@ try {
 
 ### Buffer Size
 
-Default: 10MB max buffer. Increase for large output:
+Default: 10 MB max buffer. Override per-call:
 
 ```javascript
-// Note: Modify in module if needed
-const { stdout } = await execute('command-with-large-output');
+const { stdout } = await execute('command-with-large-output', { maxBuffer: 50 * 1024 * 1024 });
 ```
 
 ### Timeout
@@ -219,6 +228,12 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 
 ---
 
+<<<<<<< HEAD
 **Last Updated:** 2026-03-03
 **Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
 **Part of:** AI Workflow Automation v1.2.0
+=======
+**Last Updated:** 2026-03-11
+**Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
+**Part of:** AI Workflow Automation v1.6.1
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])

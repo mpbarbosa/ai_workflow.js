@@ -219,7 +219,11 @@ console.log(`Node Version: ${sysInfo.nodeVersion}`);
 import { parseVersion, compareVersions } from 'ai-workflow';
 
 const v1 = parseVersion('1.2.3');
+<<<<<<< HEAD
 const v2 = parseVersion('1.8.0');
+=======
+const v2 = parseVersion('1.6.1');
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 
 console.log(compareVersions(v1, v2)); // -1 (v1 < v2)
 console.log(compareVersions(v2, v1)); // 1 (v2 > v1)
@@ -248,7 +252,11 @@ if (isEqual('1.2.3', '1.2.3')) {
 ```javascript
 import { getLatestVersion } from 'ai-workflow';
 
+<<<<<<< HEAD
 const versions = ['1.0.0', '1.2.3', '2.0.0', '1.8.0'];
+=======
+const versions = ['1.0.0', '1.2.3', '2.0.0', '1.6.1'];
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 const latest = getLatestVersion(versions);
 console.log(`Latest: ${latest}`); // "2.0.0"
 ```

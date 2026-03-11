@@ -192,7 +192,11 @@ if (isWindows()) {
 ```javascript
 import { compareVersions, isCompatible } from './core/version.js';
 
+<<<<<<< HEAD
 if (compareVersions('2.0.0', '1.8.0') > 0) {
+=======
+if (compareVersions('2.0.0', '1.6.1') > 0) {
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
   console.log('Newer version available');
 }
 

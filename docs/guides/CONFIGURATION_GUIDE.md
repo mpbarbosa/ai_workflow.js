@@ -628,7 +628,11 @@ project:
   name: 'Data Processing Service'
   type: 'python-application'
   kind: 'python_app'
+<<<<<<< HEAD
   version: '1.8.0'
+=======
+  version: '1.6.1'
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
   description: 'Data processing service with Flask'
 
 tech_stack:

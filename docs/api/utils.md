@@ -3,37 +3,30 @@
 > **Moved to `olinda_utils.js`**
 > As of ai_workflow.js v1.3.0, the utility functions previously in `src/lib/utils.js` have been moved to the [`olinda_utils.js`](https://github.com/mpbarbosa/olinda_utils.js) package (v0.3.0+).
 
+> **Available via `olinda_shell_interface.js`**
+> As of `olinda_shell_interface.js` v0.5.9, all 26 utility functions are also re-exported from that package's root (and therefore from `ai_workflow.js` itself via `src/lib/utils.js`).
+
 ## Import
 
 ```javascript
+// Recommended: via ai_workflow.js (since v1.6.1)
 import {
-  camelCase,
-  kebabCase,
-  snakeCase,
-  pascalCase,
-  capitalize,
-  truncate,
-  sanitize,
-  cleanWhitespace,
-  escapeRegex,
-  dedupe,
-  chunk,
-  flatten,
-  groupBy,
-  sortBy,
-  intersection,
-  difference,
-  partition,
-  deepClone,
-  deepMerge,
-  pick,
-  omit,
-  getProperty,
-  setProperty,
-  hasProperty,
-  deepEqual,
-  isEmpty,
-} from 'olinda_utils.js';
+  camelCase, kebabCase, snakeCase, pascalCase, capitalize,
+  truncate, sanitize, cleanWhitespace, escapeRegex,
+  dedupe, chunk, flatten, groupBy, sortBy,
+  intersection, difference, partition,
+  deepClone, deepMerge, pick, omit, getProperty,
+  setProperty, hasProperty, deepEqual, isEmpty,
+} from 'ai-workflow';
+
+// Or via the lib module directly
+import { camelCase, deepMerge } from './lib/utils.js';
+
+// Or directly from olinda_shell_interface.js (since v0.5.8, updated in v0.5.9)
+import { camelCase, deepMerge } from 'olinda_shell_interface.js';
+
+// Or from the original source package
+import { camelCase, deepMerge } from 'olinda_utils.js';
 ```
 
 ## Full API Reference
@@ -52,8 +45,8 @@ See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.j
 
 ---
 
-**Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.3.0
+**Last Updated:** 2026-03-11
+**Part of:** AI Workflow Automation v1.6.1
 
 <!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
 

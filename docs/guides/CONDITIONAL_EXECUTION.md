@@ -1,6 +1,10 @@
 # Conditional Execution Strategy
 
+<<<<<<< HEAD
 **Version:** 1.8.0
+=======
+**Version:** 1.6.1
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 **Status:** ✅ Implemented
 **Impact:** 40-60% reduction in CI/CD time for low-impact changes
 
@@ -856,7 +860,11 @@ Run only tests that cover changed code:
 
 ## Changelog
 
+<<<<<<< HEAD
 ### [1.8.0] - 2026-02-07
+=======
+### [1.6.1] - 2026-02-07
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 
 - ✨ Initial implementation of conditional execution
 - ✨ Change impact analyzer script

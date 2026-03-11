@@ -81,7 +81,11 @@ This document outlines the migration of [ai_workflow](https://github.com/mpbarbo
 
 ## Current Implementation Status (ai_workflow.js)
 
+<<<<<<< HEAD
 **Project Version**: 1.8.0 (JavaScript implementation)
+=======
+**Project Version**: 1.6.1 (JavaScript implementation)
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 **Implementation Progress**: 100% complete (Phases 1-11)
 **Test Suite**: 3,601 passing tests out of 3,621 total (19 skipped, 1 failed, 99.5% pass rate)
 
@@ -1364,5 +1368,9 @@ After Phase 10 completion:
 
 **Migration Status:** Phase 9 nearly complete (19/20 steps, 3,417 passing tests), Phase 10 (Main Orchestrator) next
 **Source Version:** v4.0.1
+<<<<<<< HEAD
 **Implementation Version:** v1.8.0
+=======
+**Implementation Version:** v1.6.1
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 **Last Updated:** February 10, 2026 (v3.8.0 - Source sync, Phase 8 complete, Phase 9 95% done)

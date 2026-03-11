@@ -1,6 +1,10 @@
 # Workflow Execution Validation Guide
 
+<<<<<<< HEAD
 **Version:** 1.8.0
+=======
+**Version:** 1.6.1
+>>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 **Last Updated:** 2026-02-21
 **Applies to:** ai_workflow.js v1.2.0+
 
