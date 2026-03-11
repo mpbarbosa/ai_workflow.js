@@ -137,6 +137,33 @@ export function injectProjectContext(prompt, projectInfo = {}) {
 }
 
 /**
+ * Format a PROJECT_CONTEXT.md file's content as a prompt constraints section.
+ *
+ * Wraps the raw markdown from a project's `PROJECT_CONTEXT.md` into a clearly
+ * labelled section that can be prepended to any AI prompt. Positioning it early
+ * in the prompt signals to the AI which analysis areas are inapplicable for the
+ * current project's runtime (e.g. CORS for a Node.js-only library).
+ *
+ * Returns an empty string when `content` is falsy or not a string, making it safe
+ * to call unconditionally and only inject when content is available.
+ *
+ * @param {string} content - Raw markdown content of PROJECT_CONTEXT.md.
+ * @returns {string} Formatted section string, or `''` if content is empty.
+ *
+ * @since 1.6.1
+ *
+ * @example
+ * const section = formatProjectContextSection('## Runtime\n- Node.js only');
+ * // => '**Runtime Constraints (from PROJECT_CONTEXT.md)**:\n## Runtime\n- Node.js only'
+ */
+export function formatProjectContextSection(content) {
+  if (!content || typeof content !== 'string' || !content.trim()) {
+    return '';
+  }
+  return `**Runtime Constraints (from PROJECT_CONTEXT.md)**:\n${content.trim()}`;
+}
+
+/**
  * Format code block for prompt
  *
  * Wraps code in markdown code fence with language identifier.
@@ -761,6 +788,325 @@ ${lambdaList}
  *
  * Orchestrates prompt generation with configuration loading and file I/O.
  */
+// ==============================================================================
+// PHASE 14 — PROMPT ENGINEERING ENHANCEMENTS (Pattern #8, #9, #10, #11)
+// ==============================================================================
+
+// --- 14.1 Reflection Layer (Pattern #8 — Error Identification) ----------------
+
+/**
+ * Build a reflection prompt that asks the model to self-critique a prior response.
+ *
+ * After the primary AI response is received, send this follow-up prompt so the
+ * model can identify inaccuracies, gaps, or improvements before the result reaches
+ * the validation layer.
+ *
+ * @param {string} primaryResponse - The raw text of the primary AI response
+ * @returns {string} A follow-up prompt instructing the model to self-critique
+ */
+export function reflectionPrompt(primaryResponse) {
+  if (!primaryResponse || typeof primaryResponse !== 'string') {
+    return '';
+  }
+  return [
+    'You just produced the following response:',
+    '',
+    '---BEGIN RESPONSE---',
+    primaryResponse.trim(),
+    '---END RESPONSE---',
+    '',
+    'Please review this response critically and identify:',
+    '1. Any factual inaccuracies or hallucinations',
+    '2. Missing information that would make the response more complete',
+    '3. Ambiguous statements that could be misinterpreted',
+    '4. Specific improvements you would make if you rewrote the response',
+    '',
+    'Format your reflection as:',
+    'ISSUES: <comma-separated list of identified issues, or "none">',
+    'IMPROVEMENTS: <concrete improvements, or "none">',
+    'CONFIDENCE: <high|medium|low>',
+  ].join('\n');
+}
+
+/**
+ * Merge a reflection critique back into the primary result.
+ *
+ * Parses the model's structured reflection output and appends any identified
+ * issues and improvements to the primary result content. If the reflection
+ * reports low confidence, a `reflectionWarning` flag is set on the result.
+ *
+ * @param {Object} primaryResult - Parsed result from the primary AI call ({ content, ... })
+ * @param {Object} reflectionResult - Parsed result from the reflection AI call
+ * @returns {Object} Merged result with reflection metadata attached
+ */
+export function mergeReflectionResult(primaryResult, reflectionResult) {
+  if (!primaryResult || !reflectionResult) {
+    return primaryResult || {};
+  }
+
+  const reflection = reflectionResult.content || '';
+  const issuesMatch = reflection.match(/ISSUES:\s*(.+)/i);
+  const improvementsMatch = reflection.match(/IMPROVEMENTS:\s*(.+)/i);
+  const confidenceMatch = reflection.match(/CONFIDENCE:\s*(high|medium|low)/i);
+
+  const issues = issuesMatch ? issuesMatch[1].trim() : 'none';
+  const improvements = improvementsMatch ? improvementsMatch[1].trim() : 'none';
+  const confidence = confidenceMatch ? confidenceMatch[1].toLowerCase() : 'medium';
+
+  const hasIssues = issues.toLowerCase() !== 'none';
+  const hasImprovements = improvements.toLowerCase() !== 'none';
+
+  const merged = { ...primaryResult };
+  merged.reflection = { issues, improvements, confidence };
+
+  if (hasIssues || hasImprovements) {
+    const notes = [];
+    if (hasIssues) notes.push(`⚠ Reflection identified issues: ${issues}`);
+    if (hasImprovements) notes.push(`💡 Suggested improvements: ${improvements}`);
+    merged.content = [primaryResult.content || '', '', '---', ...notes].join('\n');
+  }
+
+  if (confidence === 'low') {
+    merged.reflectionWarning = true;
+  }
+
+  return merged;
+}
+
+// --- 14.2 Cognitive Verifier (Pattern #11 — Prompt Improvement) ---------------
+
+/**
+ * Decompose a complex question into an array of focused sub-prompts.
+ *
+ * Each sub-prompt is self-contained and can be sent to the model independently.
+ * The responses are later aggregated via `aggregateSubAnswers()`.
+ *
+ * @param {string} question - The original complex question / prompt
+ * @param {string[]} subQuestions - Focused sub-questions to decompose into
+ * @returns {string[]} Array of standalone sub-prompts
+ */
+export function decomposePrompt(question, subQuestions = []) {
+  if (!question || typeof question !== 'string') {
+    return [];
+  }
+  if (!Array.isArray(subQuestions) || subQuestions.length === 0) {
+    return [question];
+  }
+  return subQuestions.map((sub, i) =>
+    [
+      `Context — original question: ${question.trim()}`,
+      '',
+      `Sub-question ${i + 1} of ${subQuestions.length}: ${sub}`,
+      '',
+      'Answer this sub-question concisely and specifically. Your answer will be combined with',
+      'answers to the other sub-questions to produce a complete response.',
+    ].join('\n')
+  );
+}
+
+/**
+ * Aggregate individual sub-answers into a single coherent response.
+ *
+ * @param {string} question - The original question the sub-answers relate to
+ * @param {string[]} subAnswers - Answers to each sub-question (in order)
+ * @returns {string} Combined response ready for downstream validation
+ */
+export function aggregateSubAnswers(question, subAnswers = []) {
+  if (!Array.isArray(subAnswers) || subAnswers.length === 0) {
+    return '';
+  }
+  const parts = [
+    `# Combined Analysis`,
+    `**Original question:** ${question ? question.trim() : '(unspecified)'}`,
+    '',
+  ];
+  subAnswers.forEach((answer, i) => {
+    parts.push(`## Part ${i + 1}`);
+    parts.push((answer || '').trim());
+    parts.push('');
+  });
+  return parts.join('\n');
+}
+
+// --- 14.3 Alternative Approaches (Pattern #10 — Prompt Improvement) -----------
+
+/**
+ * Build a directive instructing the model to provide N alternative solution approaches.
+ *
+ * Append this to any step prompt to activate the Alternative Approaches pattern.
+ * Each alternative must include an explicit trade-off description so developers
+ * can make an informed choice.
+ *
+ * @param {number} [n=2] - Number of alternatives to request (minimum 2)
+ * @returns {string} Instruction text to append to a prompt
+ */
+export function buildAlternativesDirective(n = 2) {
+  const count = Math.max(2, Math.floor(n));
+  return [
+    '',
+    '---',
+    `**IMPORTANT:** Provide exactly ${count} alternative approaches for any recommendations`,
+    'or remediations you identify. Format each alternative as:',
+    '',
+    `ALTERNATIVE 1: <title>`,
+    `  Description: <what this approach does>`,
+    `  Trade-offs: <pros and cons>`,
+    '',
+    count > 2
+      ? Array.from(
+          { length: count - 1 },
+          (_, i) => `ALTERNATIVE ${i + 2}: <title>\n  Description: ...\n  Trade-offs: ...`
+        ).join('\n\n')
+      : `ALTERNATIVE 2: <title>`,
+    count > 2 ? '' : `  Description: <what this approach does>`,
+    count > 2 ? '' : `  Trade-offs: <pros and cons>`,
+    '',
+    'After listing alternatives, add:',
+    'RECOMMENDED: <number of the approach you recommend and brief reason>',
+  ]
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * Parse alternative approaches from a model response that used the alternatives directive.
+ *
+ * @param {string} responseText - Raw model response text
+ * @returns {{ alternatives: Array<{title:string,description:string,tradeoffs:string}>, recommended: string|null }}
+ */
+export function parseAlternatives(responseText) {
+  if (!responseText || typeof responseText !== 'string') {
+    return { alternatives: [], recommended: null };
+  }
+
+  const alternatives = [];
+  const altRegex = /ALTERNATIVE\s+(\d+):\s*(.+?)(?=ALTERNATIVE\s+\d+:|RECOMMENDED:|$)/gis;
+  let match;
+  while ((match = altRegex.exec(responseText)) !== null) {
+    const body = match[2];
+    const descMatch = body.match(/Description:\s*(.+?)(?=Trade-offs:|$)/is);
+    const tradeMatch = body.match(/Trade-offs:\s*(.+?)$/is);
+    alternatives.push({
+      number: parseInt(match[1], 10),
+      title: body.split('\n')[0].trim(),
+      description: descMatch ? descMatch[1].trim() : body.trim(),
+      tradeoffs: tradeMatch ? tradeMatch[1].trim() : '',
+    });
+  }
+
+  const recommendedMatch = responseText.match(/RECOMMENDED:\s*(.+)/i);
+  const recommended = recommendedMatch ? recommendedMatch[1].trim() : null;
+
+  return { alternatives, recommended };
+}
+
+// --- 14.5 Prompt Pre-flight / Question Refinement (Pattern #9) ----------------
+
+/**
+ * Build a meta-prompt that asks the model to rewrite a raw prompt for clarity.
+ *
+ * The returned string is a prompt-about-a-prompt; send it to the model, then
+ * use the model's response as the refined prompt in the actual task request.
+ *
+ * @param {string} rawPrompt - The original, potentially underspecified prompt
+ * @returns {string} A meta-prompt requesting a clearer rewrite
+ */
+export function refinePrompt(rawPrompt) {
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
+    return '';
+  }
+  return [
+    'You are a prompt engineering expert. Rewrite the following prompt to be:',
+    '- More specific and unambiguous',
+    '- Concrete about expected output format',
+    '- Free of vague language ("good", "proper", "appropriate")',
+    '- Scoped to avoid over-broad requests',
+    '',
+    'Original prompt:',
+    '---',
+    rawPrompt.trim(),
+    '---',
+    '',
+    'Return ONLY the rewritten prompt text. Do not explain your changes.',
+  ].join('\n');
+}
+
+/**
+ * Score the quality of a prompt using deterministic heuristics (0–100).
+ *
+ * Higher scores indicate more specific, well-formed prompts. Used for the
+ * Phase 14.5 benchmark test to verify that refined prompts outscore raw ones.
+ *
+ * Heuristics (each contributes 0–20 points):
+ * 1. Length — longer prompts tend to be more complete (capped at 20)
+ * 2. Specificity markers — presence of words like "specifically", "exactly", "format"
+ * 3. Concrete nouns — file paths, code identifiers, structured terms
+ * 4. Output format guidance — presence of "format:", "return:", "output:", JSON/YAML/list mentions
+ * 5. Avoidance of vague language — penalise "good", "proper", "appropriate", "nice"
+ *
+ * @param {string} prompt - Prompt text to score
+ * @returns {number} Quality score 0–100
+ */
+export function scorePromptQuality(prompt) {
+  if (!prompt || typeof prompt !== 'string') {
+    return 0;
+  }
+  const text = prompt.toLowerCase();
+  let score = 0;
+
+  // 1. Length score (0–20): 0 at 0 chars, 20 at >=400 chars
+  score += Math.min(20, Math.floor((prompt.length / 400) * 20));
+
+  // 2. Specificity markers (0–20)
+  const specificityWords = [
+    'specifically',
+    'exactly',
+    'format',
+    'must',
+    'required',
+    'ensure',
+    'include',
+    'provide',
+    'list',
+    'enumerate',
+  ];
+  const specificityHits = specificityWords.filter((w) => text.includes(w)).length;
+  score += Math.min(20, specificityHits * 4);
+
+  // 3. Concrete nouns — file extensions, identifiers, structured terms (0–20)
+  const concretePatterns = [
+    /\.[a-z]{2,4}\b/, // file extensions
+    /`[^`]+`/, // inline code
+    /\b(function|class|method|module|file|directory|json|yaml|yml|bash|shell)\b/,
+    /\b(step_\d+|src\/|test\/|\.github)/,
+  ];
+  const concreteHits = concretePatterns.filter((p) => p.test(prompt)).length;
+  score += Math.min(20, concreteHits * 5);
+
+  // 4. Output format guidance (0–20)
+  const formatWords = [
+    'output:',
+    'return:',
+    'format:',
+    'respond with',
+    'structure',
+    'json',
+    'yaml',
+    'markdown',
+    'numbered list',
+    'bullet',
+  ];
+  const formatHits = formatWords.filter((w) => text.includes(w)).length;
+  score += Math.min(20, formatHits * 5);
+
+  // 5. Vague language penalty (0–20 available, subtract 4 per vague word)
+  const vagueWords = ['good', 'proper', 'appropriate', 'nice', 'better', 'improve'];
+  const vagueHits = vagueWords.filter((w) => text.includes(w)).length;
+  score += Math.max(0, 20 - vagueHits * 4);
+
+  return Math.min(100, score);
+}
+
 export class PromptBuilder {
   /**
    * Create prompt builder

@@ -4,6 +4,7 @@ import { jest } from '@jest/globals';
 import {
   detectDebugPersona,
   formatDebuggingReport,
+  readProjectContextFile,
   Step18Debugging,
   STEP_DEFINITION,
 } from '../../src/steps/step_18_debugging.js';
@@ -58,10 +59,12 @@ describe('detectDebugPersona', () => {
   });
 
   it('handles case insensitivity', () => {
-    const files = [
-      'NEW MAP(); LINKEDLIST(); EVENTEMITTER(); ASYNC function() {}',
-    ];
-    expect(['observer_pattern_debugger_prompt', 'async_flow_debugger_prompt', 'data_structure_debugger_prompt']).toContain(detectDebugPersona(files));
+    const files = ['NEW MAP(); LINKEDLIST(); EVENTEMITTER(); ASYNC function() {}'];
+    expect([
+      'observer_pattern_debugger_prompt',
+      'async_flow_debugger_prompt',
+      'data_structure_debugger_prompt',
+    ]).toContain(detectDebugPersona(files));
   });
 
   it('handles null/undefined input gracefully', () => {
@@ -143,7 +146,15 @@ describe('STEP_DEFINITION', () => {
 });
 
 describe('Step18Debugging', () => {
-  let mockFileOps, mockBacklog, mockAiHelper, mockAiCache, step, loggerStepSpy, loggerInfoSpy, loggerSuccessSpy, loggerErrorSpy, loggerWarnSpy;
+  let mockFileOps,
+    mockBacklog,
+    mockAiHelper,
+    mockAiCache,
+    step,
+    loggerStepSpy,
+    loggerInfoSpy,
+    loggerSuccessSpy,
+    loggerWarnSpy;
 
   beforeEach(() => {
     mockFileOps = {
@@ -164,7 +175,7 @@ describe('Step18Debugging', () => {
     loggerStepSpy = jest.spyOn(logger, 'step').mockImplementation(() => {});
     loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
     loggerSuccessSpy = jest.spyOn(logger, 'success').mockImplementation(() => {});
-    loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
     loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     step = new Step18Debugging({
       fileOps: mockFileOps,
@@ -188,13 +199,16 @@ describe('Step18Debugging', () => {
     ].join('\n');
     mockFileOps.glob.mockResolvedValue(['file1.js', 'file2.js']);
     mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT')) // PROJECT_CONTEXT.md absent
       .mockResolvedValueOnce('async function run() { await fetch(); }') // file1.js
       .mockResolvedValueOnce('async function run() { await fetch(); }') // file2.js
-      .mockResolvedValueOnce(personaYaml)                                // AI_HELPERS_PATH
-      .mockResolvedValueOnce('{}');                                       // AI_PROJECT_KINDS_PATH
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
     mockAiHelper.initialize.mockResolvedValue(true);
     mockAiCache.init.mockResolvedValue(undefined);
-    mockAiCache.withCache.mockImplementation(async (_k1, _k2, _fn) => ({ content: 'AI debug content' }));
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, _fn) => ({
+      content: 'AI debug content',
+    }));
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
@@ -203,7 +217,9 @@ describe('Step18Debugging', () => {
     expect(result.aiContent).toBe('AI debug content');
     expect(result.report).toContain('AI debug content');
     expect(loggerStepSpy).toHaveBeenCalledWith('Step 18: Debugging Analysis');
-    expect(loggerSuccessSpy).toHaveBeenCalledWith('Step 18 completed - debugging analysis report generated');
+    expect(loggerSuccessSpy).toHaveBeenCalledWith(
+      'Step 18 completed - debugging analysis report generated'
+    );
     expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
   });
 
@@ -218,9 +234,10 @@ describe('Step18Debugging', () => {
     const fileContent = 'async function run() { await fetch(); }';
     mockFileOps.glob.mockResolvedValue(['src/utils/myfile.js']);
     mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT')) // PROJECT_CONTEXT.md absent
       .mockResolvedValueOnce(fileContent) // src/utils/myfile.js
       .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
-      .mockResolvedValueOnce('{}');       // AI_PROJECT_KINDS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
     mockAiHelper.initialize.mockResolvedValue(true);
     mockAiCache.init.mockResolvedValue(undefined);
 
@@ -253,8 +270,12 @@ describe('Step18Debugging', () => {
     expect(result.success).toBe(true);
     expect(result.aiContent).toBe('');
     expect(result.report).toContain('_No AI analysis available._');
-    expect(loggerWarnSpy).toHaveBeenCalledWith('AI helper not available - skipping debugging analysis');
-    expect(loggerInfoSpy).toHaveBeenCalledWith('Step 18 completed - no AI content (AI unavailable or prompt missing)');
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      'AI helper not available - skipping debugging analysis'
+    );
+    expect(loggerInfoSpy).toHaveBeenCalledWith(
+      'Step 18 completed - no AI content (AI unavailable or prompt missing)'
+    );
     expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
   });
 
@@ -263,13 +284,17 @@ describe('Step18Debugging', () => {
     mockFileOps.readFile.mockResolvedValue('eventemitter');
     mockAiHelper.initialize.mockResolvedValue(false);
 
-    const result = await step.execute('/project/root', { forcedPersona: 'observer_pattern_debugger_prompt' });
+    const result = await step.execute('/project/root', {
+      forcedPersona: 'observer_pattern_debugger_prompt',
+    });
     expect(result.personaKey).toBe('observer_pattern_debugger_prompt');
   });
 
   it('handles fileOps.readFile errors gracefully', async () => {
     mockFileOps.glob.mockResolvedValue(['file1.js', 'file2.js']);
-    mockFileOps.readFile.mockImplementation(() => { throw new Error('Read error'); });
+    mockFileOps.readFile.mockImplementation(() => {
+      throw new Error('Read error');
+    });
     mockAiHelper.initialize.mockResolvedValue(false);
 
     const result = await step.execute('/project/root');
@@ -319,7 +344,135 @@ describe('Step18Debugging', () => {
 
   it('uses options.sourceFiles if provided', async () => {
     mockAiHelper.initialize.mockResolvedValue(false);
-    const result = await step.execute('/project/root', { sourceFiles: ['custom1.js', 'custom2.js'] });
+    const result = await step.execute('/project/root', {
+      sourceFiles: ['custom1.js', 'custom2.js'],
+    });
     expect(result.filesAnalyzed).toEqual(['custom1.js', 'custom2.js']);
+  });
+});
+
+describe('readProjectContextFile', () => {
+  it('returns file content when PROJECT_CONTEXT.md exists', async () => {
+    const fakeContent = '## Runtime\n- Node.js only';
+    const mockFileOps = { readFile: jest.fn().mockResolvedValue(fakeContent) };
+    const result = await readProjectContextFile('/some/project', mockFileOps);
+    expect(result).toBe(fakeContent);
+    expect(mockFileOps.readFile).toHaveBeenCalledWith(
+      expect.stringContaining('PROJECT_CONTEXT.md')
+    );
+  });
+
+  it('returns null when PROJECT_CONTEXT.md is absent (ENOENT)', async () => {
+    const mockFileOps = {
+      readFile: jest.fn().mockRejectedValue(new Error('ENOENT: no such file')),
+    };
+    const result = await readProjectContextFile('/some/project', mockFileOps);
+    expect(result).toBeNull();
+  });
+
+  it('returns null on any read error', async () => {
+    const mockFileOps = { readFile: jest.fn().mockRejectedValue(new Error('Permission denied')) };
+    const result = await readProjectContextFile('/some/project', mockFileOps);
+    expect(result).toBeNull();
+  });
+});
+
+describe('Step18Debugging.execute() — PROJECT_CONTEXT.md injection', () => {
+  let mockFileOps, mockBacklog, mockAiHelper, mockAiCache, step;
+
+  beforeEach(() => {
+    mockFileOps = { readFile: jest.fn(), glob: jest.fn() };
+    mockBacklog = { saveStepSummary: jest.fn().mockResolvedValue(undefined) };
+    mockAiHelper = { initialize: jest.fn(), executeRequest: jest.fn() };
+    mockAiCache = { init: jest.fn(), withCache: jest.fn() };
+    jest.spyOn(logger, 'step').mockImplementation(() => {});
+    jest.spyOn(logger, 'info').mockImplementation(() => {});
+    jest.spyOn(logger, 'success').mockImplementation(() => {});
+    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    step = new Step18Debugging({
+      fileOps: mockFileOps,
+      backlog: mockBacklog,
+      aiHelper: mockAiHelper,
+      aiCache: mockAiCache,
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('injects PROJECT_CONTEXT.md content into the AI prompt when file is present', async () => {
+    const projectContext = '## Runtime\n- Node.js only\n- No CORS, no browser';
+    const personaYaml = [
+      'async_flow_debugger_prompt:',
+      '  role_prefix: AsyncRole',
+      '  specific_expertise: Async expertise',
+      '  approach: Analyze async flows',
+      '  output_format: Report',
+    ].join('\n');
+    mockFileOps.glob.mockResolvedValue(['src/index.js']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce(projectContext) // PROJECT_CONTEXT.md
+      .mockResolvedValueOnce('async function run() { await fetch(); }') // src/index.js
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+
+    let capturedPrompt = '';
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+      await fn();
+      return { content: 'ai-result' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ai-result' };
+    });
+
+    const result = await step.execute('/project/root');
+    expect(result.success).toBe(true);
+    expect(capturedPrompt).toContain('**Runtime Constraints (from PROJECT_CONTEXT.md)**:');
+    expect(capturedPrompt).toContain('Node.js only');
+    expect(capturedPrompt).toContain('No CORS, no browser');
+    // Constraints section appears before specific_expertise
+    const ctxPos = capturedPrompt.indexOf('Runtime Constraints');
+    const expertisePos = capturedPrompt.indexOf('Async expertise');
+    expect(ctxPos).toBeGreaterThan(-1);
+    expect(expertisePos).toBeGreaterThan(-1);
+    expect(ctxPos).toBeLessThan(expertisePos);
+  });
+
+  it('continues normally when PROJECT_CONTEXT.md is absent', async () => {
+    const personaYaml = [
+      'async_flow_debugger_prompt:',
+      '  role_prefix: AsyncRole',
+      '  specific_expertise: Async expertise',
+      '  approach: Analyze',
+      '  output_format: Report',
+    ].join('\n');
+    mockFileOps.glob.mockResolvedValue(['src/index.js']);
+    mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT')) // PROJECT_CONTEXT.md absent
+      .mockResolvedValueOnce('async function run() { await fetch(); }') // src/index.js
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+
+    let capturedPrompt = '';
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+      await fn();
+      return { content: 'ai-result' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ai-result' };
+    });
+
+    const result = await step.execute('/project/root');
+    expect(result.success).toBe(true);
+    expect(capturedPrompt).not.toContain('Runtime Constraints (from PROJECT_CONTEXT.md)');
+    expect(capturedPrompt).toContain('AsyncRole');
   });
 });

@@ -7,6 +7,7 @@
 import {
   buildPromptFromTemplate,
   injectProjectContext,
+  formatProjectContextSection,
   formatCodeBlock,
   buildFileListContext,
   truncateContext,
@@ -18,6 +19,15 @@ import {
   buildCodeQualityPrompt,
   buildTechnicalWriterPrompt,
   PromptBuilder,
+  // Phase 14 pure functions
+  reflectionPrompt,
+  mergeReflectionResult,
+  decomposePrompt,
+  aggregateSubAnswers,
+  buildAlternativesDirective,
+  parseAlternatives,
+  refinePrompt,
+  scorePromptQuality,
 } from '../../src/lib/ai_prompt_builder.js';
 
 describe('AI Prompt Builder Module - Template Processing', () => {
@@ -176,6 +186,44 @@ describe('AI Prompt Builder Module - Template Processing', () => {
     test('returns empty string for invalid prompt', () => {
       expect(injectProjectContext(null)).toBe('');
       expect(injectProjectContext(undefined)).toBe('');
+    });
+  });
+
+  describe('formatProjectContextSection', () => {
+    test('wraps content in a labelled runtime constraints section', () => {
+      const content = '## Runtime\n- Node.js only\n- No CORS';
+      const result = formatProjectContextSection(content);
+      expect(result).toContain('**Runtime Constraints (from PROJECT_CONTEXT.md)**:');
+      expect(result).toContain('## Runtime');
+      expect(result).toContain('- Node.js only');
+      expect(result).toContain('- No CORS');
+    });
+
+    test('trims leading and trailing whitespace from content', () => {
+      const result = formatProjectContextSection('  trimmed  ');
+      expect(result).toContain('trimmed');
+      expect(result).not.toMatch(/^\s/);
+    });
+
+    test('returns empty string for null content', () => {
+      expect(formatProjectContextSection(null)).toBe('');
+    });
+
+    test('returns empty string for undefined content', () => {
+      expect(formatProjectContextSection(undefined)).toBe('');
+    });
+
+    test('returns empty string for empty string', () => {
+      expect(formatProjectContextSection('')).toBe('');
+    });
+
+    test('returns empty string for whitespace-only string', () => {
+      expect(formatProjectContextSection('   \n  ')).toBe('');
+    });
+
+    test('returns empty string for non-string input', () => {
+      expect(formatProjectContextSection(42)).toBe('');
+      expect(formatProjectContextSection({})).toBe('');
     });
   });
 
@@ -689,6 +737,231 @@ describe('AI Prompt Builder Module - PromptBuilder Class', () => {
 
       expect(result).toContain('technical writer');
       expect(result).toContain('/project');
+    });
+  });
+});
+
+// ============================================================================
+// PHASE 14 — PROMPT ENGINEERING ENHANCEMENTS
+// ============================================================================
+
+describe('Phase 14 — Reflection (14.1)', () => {
+  describe('reflectionPrompt', () => {
+    test('returns a non-empty string', () => {
+      const result = reflectionPrompt('Some primary response text');
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(10);
+    });
+
+    test('references the primary response in the output', () => {
+      const primary = 'Use option A because it is faster.';
+      const result = reflectionPrompt(primary);
+      expect(result).toContain(primary);
+    });
+
+    test('asks for critique or review language', () => {
+      const result = reflectionPrompt('My answer');
+      const lower = result.toLowerCase();
+      expect(
+        lower.includes('review') ||
+          lower.includes('critique') ||
+          lower.includes('self') ||
+          lower.includes('gap') ||
+          lower.includes('improve')
+      ).toBe(true);
+    });
+  });
+
+  describe('mergeReflectionResult', () => {
+    test('returns an object with content field', () => {
+      const primary = { content: 'Original content', confidence: 80 };
+      const reflection = { content: 'No gaps found.' };
+      const merged = mergeReflectionResult(primary, reflection);
+      expect(merged).toHaveProperty('content');
+    });
+
+    test('primary content is preserved in merged result', () => {
+      const primary = { content: 'Step A, Step B, Step C', confidence: 90 };
+      const reflection = { content: 'Missing error handling.' };
+      const merged = mergeReflectionResult(primary, reflection);
+      expect(merged.content).toContain('Step A, Step B, Step C');
+    });
+
+    test('reflection content is incorporated', () => {
+      const primary = { content: 'Do X.', confidence: 70 };
+      // mergeReflectionResult parses ISSUES:/IMPROVEMENTS: structured blocks;
+      // when the reflection contains those markers the notes are appended to content.
+      const reflection = {
+        content: 'ISSUES: X is deprecated and should be replaced.\nIMPROVEMENTS: Use Y instead.',
+      };
+      const merged = mergeReflectionResult(primary, reflection);
+      // The merged result should carry reflection metadata even if content is unchanged
+      expect(merged).toHaveProperty('reflection');
+      expect(merged.reflection.issues).toMatch(/deprecated/);
+    });
+  });
+});
+
+describe('Phase 14 — Cognitive Verifier (14.2)', () => {
+  describe('decomposePrompt', () => {
+    test('returns array with length equal to subQuestions', () => {
+      const subs = ['What is A?', 'What is B?', 'What is C?'];
+      const result = decomposePrompt('Main question about Z', subs);
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(3);
+    });
+
+    test('each sub-prompt contains its sub-question', () => {
+      const subs = ['Q1', 'Q2'];
+      const result = decomposePrompt('Overall question', subs);
+      expect(result[0]).toContain('Q1');
+      expect(result[1]).toContain('Q2');
+    });
+
+    test('returns single-item array when given one sub-question', () => {
+      const result = decomposePrompt('Big question', ['Only sub']);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toContain('Only sub');
+    });
+  });
+
+  describe('aggregateSubAnswers', () => {
+    test('returns a non-empty string', () => {
+      const result = aggregateSubAnswers('Main question', ['A1', 'A2']);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    test('includes each sub-answer in the output', () => {
+      const subs = ['Answer for part one', 'Answer for part two'];
+      const result = aggregateSubAnswers('Overall question', subs);
+      expect(result).toContain('Answer for part one');
+      expect(result).toContain('Answer for part two');
+    });
+  });
+});
+
+describe('Phase 14 — Alternative Approaches (14.3)', () => {
+  describe('buildAlternativesDirective', () => {
+    test('returns a string', () => {
+      expect(typeof buildAlternativesDirective()).toBe('string');
+    });
+
+    test('default directive mentions 2 alternatives', () => {
+      const result = buildAlternativesDirective();
+      expect(result).toMatch(/2|two/i);
+    });
+
+    test('custom count is reflected', () => {
+      const result = buildAlternativesDirective(3);
+      expect(result).toMatch(/3|three/i);
+    });
+
+    test('mentions trade-offs or alternatives', () => {
+      const result = buildAlternativesDirective().toLowerCase();
+      expect(
+        result.includes('alternative') || result.includes('trade') || result.includes('option')
+      ).toBe(true);
+    });
+  });
+
+  describe('parseAlternatives', () => {
+    test('returns an object with alternatives array', () => {
+      const text = 'Option 1: Use PostgreSQL\n\nOption 2: Use SQLite';
+      const result = parseAlternatives(text);
+      expect(result).toHaveProperty('alternatives');
+      expect(Array.isArray(result.alternatives)).toBe(true);
+    });
+
+    test('returns empty alternatives for unstructured text', () => {
+      const result = parseAlternatives('Just some plain text without numbered options.');
+      expect(result.alternatives.length).toBe(0);
+    });
+
+    test('extracts numbered alternatives from structured response', () => {
+      const text = [
+        '**Alternative 1:** Use Redis for caching.',
+        '  Trade-offs: Fast but requires extra infra.',
+        '',
+        '**Alternative 2:** Use in-memory Map.',
+        '  Trade-offs: Simpler, but not persistent.',
+      ].join('\n');
+      const result = parseAlternatives(text);
+      expect(result.alternatives.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+});
+
+describe('Phase 14 — Prompt Pre-flight (14.5)', () => {
+  describe('refinePrompt', () => {
+    test('returns a string', () => {
+      expect(typeof refinePrompt('Analyze this code')).toBe('string');
+    });
+
+    test('incorporates the raw prompt', () => {
+      const raw = 'Fix the authentication bug';
+      const result = refinePrompt(raw);
+      expect(result).toContain(raw);
+    });
+
+    test('asks model to improve or rewrite', () => {
+      const result = refinePrompt('Do something').toLowerCase();
+      expect(
+        result.includes('rewrite') ||
+          result.includes('improve') ||
+          result.includes('refine') ||
+          result.includes('clearer') ||
+          result.includes('specific')
+      ).toBe(true);
+    });
+  });
+
+  describe('scorePromptQuality', () => {
+    test('returns a number between 0 and 100', () => {
+      const score = scorePromptQuality('Analyze the authentication module');
+      expect(typeof score).toBe('number');
+      expect(score).toBeGreaterThanOrEqual(0);
+      expect(score).toBeLessThanOrEqual(100);
+    });
+
+    test('empty string scores 0', () => {
+      expect(scorePromptQuality('')).toBe(0);
+    });
+
+    test('benchmark: refined prompts score higher than vague ones', () => {
+      const fixtures = [
+        {
+          raw: 'fix bugs',
+          refined:
+            'Identify and fix the top 3 authentication bugs in src/auth/login.js, focusing on JWT token validation and session expiry handling.',
+        },
+        {
+          raw: 'write tests',
+          refined:
+            'Generate Jest unit tests for the pure functions exported from src/lib/config.js, covering edge cases for missing fields and invalid YAML syntax.',
+        },
+        {
+          raw: 'make it faster',
+          refined:
+            'Profile src/lib/ai_cache.js and reduce cache lookup latency by replacing linear scan with a Map-based index; provide benchmark before/after numbers.',
+        },
+        {
+          raw: 'check docs',
+          refined:
+            'Validate that all public API functions in src/index.js have JSDoc @param and @returns annotations, and flag any that are missing examples.',
+        },
+        {
+          raw: 'clean up',
+          refined:
+            'Remove dead code in src/lib/utils.js: delete unused helper functions identified by running ts-prune, and consolidate duplicated array utilities.',
+        },
+      ];
+
+      for (const { raw, refined } of fixtures) {
+        const rawScore = scorePromptQuality(raw);
+        const refinedScore = scorePromptQuality(refined);
+        expect(refinedScore).toBeGreaterThan(rawScore);
+      }
     });
   });
 });
