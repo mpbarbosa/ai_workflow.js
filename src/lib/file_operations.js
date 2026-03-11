@@ -1,7 +1,7 @@
 /**
  * @fileoverview File Operations Module - File system operations with safe path validation
  * @module lib/file_operations
- * @description Re-exports file_operations from olinda_shell_interface.js.
+ * @description Re-exports file_operations from olinda_shell_interface.js (GitHub CDN install).
  * @see https://github.com/mpbarbosa/olinda_shell_interface.js
  */
 

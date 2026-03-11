@@ -9,7 +9,7 @@
 ## Import
 
 ```javascript
-// Recommended: via ai_workflow.js (since v1.6.1)
+// Recommended: via ai_workflow.js (since v1.6.2)
 import {
   camelCase, kebabCase, snakeCase, pascalCase, capitalize,
   truncate, sanitize, cleanWhitespace, escapeRegex,
@@ -46,7 +46,7 @@ See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.j
 ---
 
 **Last Updated:** 2026-03-11
-**Part of:** AI Workflow Automation v1.6.1
+**Part of:** AI Workflow Automation v1.6.2
 
 <!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
 
