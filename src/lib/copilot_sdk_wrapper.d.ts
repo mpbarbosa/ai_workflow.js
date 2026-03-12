@@ -14,6 +14,6 @@
  * @module lib/copilot_sdk_wrapper
  * @version 2.1.0
  */
-export { CopilotSdkWrapper, approveAll } from 'olinda_copilot_sdk.ts';
-export type { CopilotSdkWrapperOptions, InitializeResult, SendResult } from 'olinda_copilot_sdk.ts';
+export { CopilotSdkWrapper, approveAll, } from 'olinda_copilot_sdk.ts';
+export type { CopilotSdkWrapperOptions, InitializeResult, SendResult, } from 'olinda_copilot_sdk.ts';
 //# sourceMappingURL=copilot_sdk_wrapper.d.ts.map
