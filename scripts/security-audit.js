@@ -70,6 +70,7 @@ export async function checkHardcodedSecrets() {
         // Filter out comments and test data
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
+          pattern.lastIndex = 0;
           if (pattern.test(lines[i]) && !lines[i].trim().startsWith('//')) {
             findings.high.push({
               type: 'Hardcoded Secret',
@@ -113,6 +114,7 @@ export async function checkCommandInjection() {
       if (matches) {
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
+          pattern.lastIndex = 0;
           if (pattern.test(lines[i])) {
             findings.high.push({
               type: 'Command Injection Risk',
@@ -154,6 +156,7 @@ export async function checkPathTraversal() {
       if (matches) {
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
+          pattern.lastIndex = 0;
           if (pattern.test(lines[i]) && !lines[i].includes('projectRoot')) {
             findings.medium.push({
               type: 'Path Traversal Risk',
@@ -307,6 +310,12 @@ export function generateReport() {
  * Main audit function
  */
 export async function runSecurityAudit() {
+  findings.critical.length = 0;
+  findings.high.length = 0;
+  findings.medium.length = 0;
+  findings.low.length = 0;
+  findings.info.length = 0;
+
   console.log(`${colors.cyan}Starting Security Audit...${colors.reset}\n`);
 
   await checkHardcodedSecrets();
