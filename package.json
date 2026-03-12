@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -86,7 +86,7 @@
     "url": "git+https://github.com/mpbarbosa/ai_workflow.js.git"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.0.0",
     "npm": ">=9.0.0"
   },
   "private": true,

@@ -670,6 +670,10 @@ describe('Step 15: UX Analysis', () => {
         logger: mockLogger,
       });
 
+      // Mock discoverFiles to avoid real filesystem globbing (which is slow and
+      // would find .html files in docs/api/html/, preventing the skip).
+      step.discoverFiles = jest.fn().mockResolvedValue([]);
+
       const result = await step.execute({ projectType: 'nodejs_api' });
 
       expect(result.success).toBe(true);

@@ -1,20 +1,17 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 45,
-  "filesHash": "7a62f92d",
+  "totalPartitions": 44,
+  "filesHash": "b6f187d4",
   "partitionLabels": [
-    "scripts",
-    "scripts (2)",
-    "scripts (3)",
     "src/steps",
     "src/steps (2)",
     "src/steps (3)",
     "src/steps (4)",
     "src/steps (5)",
     "src/steps (6)",
-    ".ai_workflow/.ai_cache, .ai_workflow, package.json",
-    "src/core",
+    ".ai_workflow/.ai_cache, .ai_workflow, package-lock.json",
+    "package.json, src/core",
     "src/lib",
     "src/lib (2)",
     "src/lib (3)",
@@ -24,6 +21,8 @@
     "src/lib (7)",
     "src/lib (8)",
     "src/utils",
+    "scripts",
+    "scripts (2)",
     "src/cli",
     "src/cli (2)",
     "src/cli (3)",
@@ -47,8 +46,8 @@
     ".lintstagedrc.json, .prettierrc.json, .test-e2e/step-02-1771697742634-nc47xngdjgp, .test-e2e/step-02-1771699285303-hdpamja35hd",
     ".workflow_core/.ai_workflow",
     ".workflow_core, jest.config.json",
-    "jest.integration.config.json, package-lock.json, tsconfig.json, typedoc.json",
-    "src/types, .husky/_, .workflow_core/scripts"
+    "jest.integration.config.json, tsconfig.json, typedoc.json, src/types",
+    ".husky/_, .workflow_core/scripts"
   ],
-  "updatedAt": "2026-03-12T14:54:10.249Z"
+  "updatedAt": "2026-03-12T15:01:51.009Z"
 }

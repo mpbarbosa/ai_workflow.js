@@ -87,6 +87,23 @@ export declare class CopilotSdkWrapper {
      */
     send(prompt: string, timeoutMs?: number): Promise<SendResult>;
     /**
+     * Sends a prompt to the current session with streaming delta callbacks, then
+     * returns the final assistant response.  Requests are serialised — concurrent
+     * callers wait their turn.
+     *
+     * The SDK fires `assistant.streaming_delta` events as content arrives.  Each
+     * event's `data` object is forwarded to `onChunk` so callers can update a TUI
+     * or progress display in real time.  `sendAndWait` is still used to obtain the
+     * complete, structured final response.
+     *
+     * @param prompt    - The prompt text.
+     * @param onChunk   - Callback invoked for each streaming delta event's data.
+     * @param timeoutMs - Override the default timeout (ms).
+     * @returns Raw event data from the SDK (same shape as {@link send}).
+     * @throws {@link SystemError} If no active session exists.
+     */
+    sendStream(prompt: string, onChunk: (data: unknown) => void, timeoutMs?: number): Promise<SendResult>;
+    /**
      * Aborts any in-flight request on the current session (if the SDK supports it).
      */
     abort(): Promise<void>;
@@ -105,5 +122,10 @@ export declare class CopilotSdkWrapper {
     cleanup(): Promise<void>;
     /** Performs a single serialised sendAndWait call. */
     private _doSend;
+    /**
+     * Performs a serialised sendAndWait call while forwarding streaming delta
+     * events to `onChunk` for real-time progress updates.
+     */
+    private _doSendStream;
 }
 //# sourceMappingURL=copilot_sdk_wrapper.d.ts.map

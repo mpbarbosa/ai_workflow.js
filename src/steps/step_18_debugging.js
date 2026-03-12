@@ -248,7 +248,7 @@ export class Step18Debugging {
             if (ctxSection) parts.push(ctxSection);
             if (cfg.specific_expertise) parts.push(cfg.specific_expertise.trim());
             parts.push(
-              `**Source Files to Analyze** (${sourceFiles.length} total): ${sampleFiles.join(', ')}`
+              `**Source Files to Analyze** (${sourceFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
             );
             if (fileContentsSection) parts.push(fileContentsSection);
             if (cfg.approach) parts.push(cfg.approach.trim());
@@ -259,7 +259,7 @@ export class Step18Debugging {
             const builtPrompt = buildYamlStepPrompt(parsedYaml, personaKey, {
               project_name: projectRoot,
               source_files: sampleFiles.join(', '),
-              file_count: String(sourceFiles.length),
+              file_count: `${sourceFiles.length} total, sampling ${sampleFiles.length}`,
             });
             if (builtPrompt) {
               const ctxSection = formatProjectContextSection(projectContextContent);

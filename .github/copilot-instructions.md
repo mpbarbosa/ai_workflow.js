@@ -1081,7 +1081,7 @@ Always clarify which context applies to the current task.
 - **Project version**: 1.2.0
 - **Phase 1, 4 modules**: v1.0.0
 - **Phase 2, 3, 5, 6, 7, 8 modules**: v2.0.0 (referentially transparent)
-- **Node.js requirement**: >= 18.0.0
+- **Node.js requirement**: >= 20.0.0
 - **npm requirement**: >= 9.0.0
 - **Test suite**: 4,361 of 4,441 tests passing (19 skipped)
 

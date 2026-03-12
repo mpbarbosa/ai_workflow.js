@@ -87,6 +87,7 @@ export function resolveDeployConfig(workflowConfig) {
       description: deploySection.description || 'Deploy project',
       args: deploySection.args || null,
       enabled: true,
+      cdnFallback: resolveCdnFallbackConfig(deploySection),
     },
     error: null,
   };
@@ -174,6 +175,95 @@ export function formatDeployResult(result) {
 }
 
 /**
+ * Detect whether the deployment script reported that the artifact (e.g. git tag,
+ * npm version, CDN asset) already exists, making the deploy a no-op.
+ *
+ * Convention: deploy scripts signal this condition with exit code 3.
+ * Output patterns are checked as a secondary heuristic for scripts that do not
+ * follow the exit-code convention but still print recognisable messages.
+ *
+ * @pure
+ * @param {number|null} exitCode - Process exit code from the deployment script
+ * @param {string} [output] - Combined stdout + stderr captured during deployment
+ * @returns {{ message: string, hint: string }|null} Structured result, or null when
+ *   the error is not an "already deployed" condition.
+ */
+export function detectAlreadyDeployedError(exitCode, output = '') {
+  const alreadyExistsPatterns = [
+    /already exists and is already delivered/i,
+    /already published/i,
+    /already deployed/i,
+    /tag.*already/i,
+    /cannot publish over/i,
+  ];
+
+  const isExitCode3 = exitCode === 3;
+  const matchesOutput =
+    typeof output === 'string' && alreadyExistsPatterns.some((re) => re.test(output));
+
+  if (!isExitCode3 && !matchesOutput) return null;
+
+  return {
+    message: 'This version is already deployed — nothing to do.',
+    hint: 'Bump the version before deploying if you want to release a new build.',
+  };
+}
+
+/**
+ * Parse the optional `cdn_fallback` sub-section from the raw deploy config section.
+ * The fallback inherits `script`, `command`, and `args` from the parent deploy section
+ * when those keys are not explicitly overridden in the sub-section.
+ * Returns null when no `cdn_fallback` key is present.
+ * @pure
+ * @param {Object} deploySection - The raw deploy: section from workflow config
+ * @returns {Object|null} Resolved CDN fallback config, or null
+ */
+export function resolveCdnFallbackConfig(deploySection) {
+  if (!deploySection || !deploySection.cdn_fallback) return null;
+  const fallback = deploySection.cdn_fallback;
+  const script = Object.prototype.hasOwnProperty.call(fallback, 'script')
+    ? fallback.script
+    : (deploySection.script || null);
+  const command = Object.prototype.hasOwnProperty.call(fallback, 'command')
+    ? fallback.command
+    : (deploySection.command || null);
+  return {
+    script,
+    command,
+    description: fallback.description || 'Deploy to CDN only (npm publish skipped)',
+    args: Object.prototype.hasOwnProperty.call(fallback, 'args')
+      ? fallback.args
+      : (deploySection.args || null),
+    env: (fallback.env && typeof fallback.env === 'object') ? fallback.env : {},
+    enabled: true,
+  };
+}
+
+/**
+ * Return true when NPM_TOKEN is set and non-empty in the given environment object.
+ * @pure
+ * @param {Object} env - Environment variables object (e.g. process.env)
+ * @returns {boolean}
+ */
+export function hasNpmToken(env) {
+  return typeof env === 'object' && env !== null &&
+    typeof env.NPM_TOKEN === 'string' && env.NPM_TOKEN.length > 0;
+}
+
+/**
+ * Determine whether the CDN-only fallback path should be taken instead of the
+ * primary deployment. Returns true when a CDN fallback is configured AND the npm
+ * token is absent from the effective deployment environment.
+ * @pure
+ * @param {Object|null} cdnFallbackConfig - Resolved CDN fallback config (or null)
+ * @param {Object} deployEnv - Effective environment variables for the deployment
+ * @returns {boolean}
+ */
+export function shouldUseCdnFallback(cdnFallbackConfig, deployEnv) {
+  return cdnFallbackConfig !== null && !hasNpmToken(deployEnv);
+}
+
+/**
  * Detect well-known npm publish errors from captured output and return
  * a structured hint object, or null when no known pattern is matched.
  * @pure
@@ -182,6 +272,15 @@ export function formatDeployResult(result) {
  */
 export function detectNpmPublishError(output) {
   if (!output || typeof output !== 'string') return null;
+
+  // Missing token detected by the deploy script before calling npm
+  if (/NPM_TOKEN is not set/i.test(output) || /\bNPM_TOKEN\b.*\bnot set\b/i.test(output)) {
+    return {
+      message: 'npm publish failed: NPM_TOKEN environment variable is not set.',
+      hint: 'Create an Automation token at npmjs.com and set it with: export NPM_TOKEN=npm_...',
+      url: 'https://www.npmjs.com/settings/~/tokens',
+    };
+  }
 
   // 403 Forbidden — invalid / expired / missing token
   if (/npm error code E403/i.test(output) || /403 Forbidden/i.test(output)) {
@@ -296,23 +395,8 @@ export async function deployCommand(options = {}) {
     process.exit(1);
   }
 
-  // Build the command
-  const extraArgs = options.source ? `--source ${options.source}` : null;
-  const { command, cwd } = buildDeployCommand(deployConfig, projectRoot, extraArgs);
-
-  console.log();
-  console.log(chalk.cyan(`📦 ${deployConfig.description}`));
-  console.log(chalk.gray(`   Command: ${command}`));
-  console.log(chalk.gray(`   Working directory: ${cwd}`));
-  console.log();
-
-  // Dry-run: just print what would run
-  if (options.dryRun) {
-    console.log(chalk.yellow('⚠ Dry-run mode: command not executed'));
-    process.exit(0);
-  }
-
-  // Load .env file from project root (if present) and merge into environment
+  // Load .env file from project root (if present) and merge into environment.
+  // Must happen before the CDN fallback check so NPM_TOKEN presence can be inspected.
   const envFilePath = path.join(projectRoot, '.env');
   let deployEnv = { ...process.env };
   if (fs.existsSync(envFilePath)) {
@@ -328,6 +412,41 @@ export async function deployCommand(options = {}) {
     } catch (envErr) {
       logger.warn(chalk.yellow(`Warning: failed to read ${envFilePath}: ${envErr.message}`));
     }
+  }
+
+  // CDN fallback: when NPM_TOKEN is absent and a cdn_fallback is configured, use it
+  // instead of the primary deploy config so npm publish is never attempted.
+  let activeDeployConfig = deployConfig;
+  const cdnFallbackConfig = deployConfig.cdnFallback;
+  let usingCdnFallback = false;
+
+  if (shouldUseCdnFallback(cdnFallbackConfig, deployEnv)) {
+    usingCdnFallback = true;
+    activeDeployConfig = cdnFallbackConfig;
+    // Merge any extra env vars declared inside cdn_fallback.env
+    if (cdnFallbackConfig.env && Object.keys(cdnFallbackConfig.env).length > 0) {
+      deployEnv = { ...deployEnv, ...cdnFallbackConfig.env };
+    }
+  }
+
+  // Build the command
+  const extraArgs = options.source ? `--source ${options.source}` : null;
+  const { command, cwd } = buildDeployCommand(activeDeployConfig, projectRoot, extraArgs);
+
+  console.log();
+  console.log(chalk.cyan(`📦 ${activeDeployConfig.description}`));
+  if (usingCdnFallback) {
+    console.log(chalk.yellow('⚠ NPM_TOKEN not set – delivering via CDN only (npm publish skipped)'));
+    console.log(chalk.gray('  Set NPM_TOKEN to also publish to npm.'));
+  }
+  console.log(chalk.gray(`   Command: ${command}`));
+  console.log(chalk.gray(`   Working directory: ${cwd}`));
+  console.log();
+
+  // Dry-run: just print what would run
+  if (options.dryRun) {
+    console.log(chalk.yellow('⚠ Dry-run mode: command not executed'));
+    process.exit(0);
   }
 
   // Execute deployment
@@ -374,13 +493,29 @@ export async function deployCommand(options = {}) {
     process.exit(0);
   } catch (error) {
     const duration = Date.now() - startTime;
+    const capturedOutput = outputBuffer.join('');
+
+    // Idempotency: if the artifact already exists this run is a no-op, not a failure.
+    const alreadyDeployed = detectAlreadyDeployedError(error.exitCode ?? null, capturedOutput);
+    if (alreadyDeployed) {
+      if (spinner) spinner.succeed('Already deployed');
+      console.log(chalk.yellow(`⚠ ${alreadyDeployed.message}`));
+      console.log(chalk.gray(`  ${alreadyDeployed.hint}`));
+      console.log();
+      process.exit(0);
+    }
 
     if (spinner) spinner.fail('Deploy failed');
 
-    const capturedOutput = outputBuffer.join('');
     const npmError = detectNpmPublishError(capturedOutput);
 
     if (npmError) {
+      // If npm token is missing and a CDN fallback is configured but we somehow
+      // ended up in the primary path, suggest configuring cdn_fallback.
+      if (!usingCdnFallback && cdnFallbackConfig === null && /NPM_TOKEN/i.test(capturedOutput)) {
+        console.log(chalk.yellow('  Tip: add a cdn_fallback: section in .workflow-config.yaml to deliver via CDN when NPM_TOKEN is absent.'));
+        console.log();
+      }
       console.log(chalk.red(`✗ ${npmError.message}`));
       console.log(chalk.yellow(`  ${npmError.hint}`));
       if (npmError.url) {
@@ -405,4 +540,4 @@ export async function deployCommand(options = {}) {
   }
 }
 
-export default { deployCommand, validateDeployOptions, resolveDeployConfig, buildDeployCommand, formatDeployResult, detectNpmPublishError, parseEnvFile };
+export default { deployCommand, validateDeployOptions, resolveDeployConfig, buildDeployCommand, formatDeployResult, detectAlreadyDeployedError, detectNpmPublishError, parseEnvFile, resolveCdnFallbackConfig, hasNpmToken, shouldUseCdnFallback };

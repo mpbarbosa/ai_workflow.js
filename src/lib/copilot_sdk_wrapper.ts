@@ -14,7 +14,7 @@
  * @version 2.0.0
  */
 
-import { CopilotClient, CopilotSession } from '@github/copilot-sdk';
+import { CopilotClient, CopilotSession, approveAll } from '@github/copilot-sdk';
 import type { ModelInfo, SessionConfig } from '@github/copilot-sdk';
 import { logger } from '../core/logger.js';
 import { SystemError } from '../utils/errors.js';
@@ -157,7 +157,7 @@ export class CopilotSdkWrapper {
           logger.debug(`Could not fetch available models: ${msg}`);
         }
 
-        const sessionConfig: SessionConfig = { model: this._model };
+        const sessionConfig: SessionConfig = { model: this._model, onPermissionRequest: approveAll };
         if (this._workingDirectory) {
           sessionConfig.workingDirectory = this._workingDirectory;
         }
@@ -197,6 +197,35 @@ export class CopilotSdkWrapper {
   }
 
   /**
+   * Sends a prompt to the current session with streaming delta callbacks, then
+   * returns the final assistant response.  Requests are serialised — concurrent
+   * callers wait their turn.
+   *
+   * The SDK fires `assistant.streaming_delta` events as content arrives.  Each
+   * event's `data` object is forwarded to `onChunk` so callers can update a TUI
+   * or progress display in real time.  `sendAndWait` is still used to obtain the
+   * complete, structured final response.
+   *
+   * @param prompt    - The prompt text.
+   * @param onChunk   - Callback invoked for each streaming delta event's data.
+   * @param timeoutMs - Override the default timeout (ms).
+   * @returns Raw event data from the SDK (same shape as {@link send}).
+   * @throws {@link SystemError} If no active session exists.
+   */
+  async sendStream(
+    prompt: string,
+    onChunk: (data: unknown) => void,
+    timeoutMs?: number,
+  ): Promise<SendResult> {
+    if (!this._session) {
+      throw new SystemError('No active session. Call initialize() first.');
+    }
+    const result = this._sendQueue.then(() => this._doSendStream(prompt, onChunk, timeoutMs));
+    this._sendQueue = result.catch(() => {}) as Promise<void>;
+    return result;
+  }
+
+  /**
    * Aborts any in-flight request on the current session (if the SDK supports it).
    */
   async abort(): Promise<void> {
@@ -224,6 +253,7 @@ export class CopilotSdkWrapper {
 
     this._session = await this._client!.createSession({
       model: this._model,
+      onPermissionRequest: approveAll,
       ...(this._workingDirectory ? { workingDirectory: this._workingDirectory } : {}),
     });
 
@@ -278,5 +308,33 @@ export class CopilotSdkWrapper {
     const timeout = timeoutMs ?? this._timeout;
     const event = await this._session!.sendAndWait({ prompt }, timeout);
     return (event?.data ?? { content: '', success: false }) as SendResult;
+  }
+
+  /**
+   * Performs a serialised sendAndWait call while forwarding streaming delta
+   * events to `onChunk` for real-time progress updates.
+   */
+  private async _doSendStream(
+    prompt: string,
+    onChunk: (data: unknown) => void,
+    timeoutMs?: number,
+  ): Promise<SendResult> {
+    const timeout = timeoutMs ?? this._timeout;
+    const session = this._session as CopilotSession & {
+      on: (event: string, handler: (e: { data: unknown }) => void) => () => void;
+    };
+    const unsubscribe = session.on('assistant.streaming_delta', (event) => {
+      try {
+        onChunk(event.data);
+      } catch {
+        // Never let a consumer callback crash the send pipeline.
+      }
+    });
+    try {
+      const event = await this._session!.sendAndWait({ prompt }, timeout);
+      return (event?.data ?? { content: '', success: false }) as SendResult;
+    } finally {
+      unsubscribe();
+    }
   }
 }

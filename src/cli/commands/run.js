@@ -66,6 +66,7 @@ export function createOrchestratorOptions(cliOptions) {
   const rawAlt = cliOptions.alternatives;
   const alternatives =
     rawAlt === false || rawAlt === undefined ? false : Math.max(2, parseInt(rawAlt, 10) || 2);
+  const verbose = !!cliOptions.verbose;
   return {
     workflowDir: cliOptions.workflowDir || '.ai_workflow',
     projectRoot: cliOptions.projectRoot || process.cwd(),
@@ -75,6 +76,8 @@ export function createOrchestratorOptions(cliOptions) {
     noParallel: cliOptions.parallel === false,
     sdkSmokeTest: cliOptions.sdkSmokeTest || false,
     alternatives,
+    verbose,
+    streamingEnabled: verbose || !!cliOptions.tui,
   };
 }
 

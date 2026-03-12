@@ -296,7 +296,7 @@ export class Step19TypescriptReview {
             const builtPrompt = buildYamlStepPrompt(parsedYaml, 'typescript_developer_prompt', {
               project_name: options.projectName ?? path.basename(projectRoot),
               source_files: sampleFiles.join(', '),
-              file_count: String(tsFiles.length),
+              file_count: `${tsFiles.length} total, sampling ${sampleFiles.length}`,
             });
             if (builtPrompt) {
               let combined = fileContentsSection

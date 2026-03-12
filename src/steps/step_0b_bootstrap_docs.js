@@ -286,21 +286,36 @@ export function buildTechnicalWriterPrompt(context) {
 **Documentation Gaps Identified**:
 ${missingList}
 
+**Minimum Documentation Framework** — apply this three-tier priority order:
+
+**Must-have** (project is unusable without these):
+- README.md with install + basic usage
+- Inline JSDoc/type annotations on every public API (functions, classes, interfaces) — this is the primary signal consumed by IDEs and AI coding assistants at call sites
+- machine-readable package metadata (package.json: exports, types, main, engines) for published packages
+
+**Should-have** (contributors cannot work safely without these):
+- CHANGELOG.md — consumers need to know what changed between versions
+- CONTRIBUTING.md — coding conventions, test commands, PR process
+- LICENSE — legal requirement for open source
+
+**Nice-to-have** (appropriate for published packages with external contributors):
+- ROADMAP.md, docs/INDEX.md, docs/ARCHITECTURE.md, docs/GETTING_STARTED.md, docs/API.md
+
 **Your Task**:
-Generate comprehensive documentation for the missing files listed above. For each file provide:
+Generate documentation for the missing files listed above, applying the three-tier priority order above. For each file provide:
 
 ## [Filename]
-### Priority: [Critical/Important/Optional]
+### Tier: [Must-have / Should-have / Nice-to-have]
 ### Content:
 \`\`\`markdown
 [Complete markdown content ready to save]
 \`\`\`
 ### Reasoning:
-[Brief explanation of why this documentation is important]
+[Brief explanation of the impact this file has on usability, contributor experience, or AI tooling]
 
 ---
 
-Please generate documentation for the identified gaps, prioritizing critical files first.`;
+Generate must-have files first, then should-have, then nice-to-have. Do not generate "just in case" documentation — only produce files that are genuinely missing.`;
 }
 
 /**

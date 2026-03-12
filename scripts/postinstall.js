@@ -17,7 +17,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const nodeModules = join(__dirname, '..', 'node_modules');
 
 function readPkg(pkgPath) {
   try {
@@ -31,47 +30,58 @@ function writePkg(pkgPath, pkg) {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
 }
 
-// --- Patch 1: olinda_shell_interface.js ---
-{
-  const pkgPath = join(nodeModules, 'olinda_shell_interface.js', 'package.json');
-  const pkg = readPkg(pkgPath);
-  if (pkg) {
-    let changed = false;
-    const exports_ = pkg.exports ?? {};
-    for (const key of Object.keys(exports_)) {
-      const entry = exports_[key];
-      if (entry?.import?.default?.includes('/dist/esm/')) {
-        entry.import.default = entry.import.default.replace('/dist/esm/', '/dist/src/');
-        if (entry.import.types) {
-          entry.import.types = entry.require?.types ?? entry.import.types;
+/**
+ * Apply all postinstall patches to the given node_modules directory.
+ * Exported for testing; called automatically when run as main script.
+ *
+ * @param {string} [nodeModulesPath] - Path to node_modules (defaults to ../node_modules relative to this script)
+ */
+export function patchAll(nodeModulesPath = join(__dirname, '..', 'node_modules')) {
+  // --- Patch 1: olinda_shell_interface.js ---
+  {
+    const pkgPath = join(nodeModulesPath, 'olinda_shell_interface.js', 'package.json');
+    const pkg = readPkg(pkgPath);
+    if (pkg) {
+      let changed = false;
+      const exports_ = pkg.exports ?? {};
+      for (const key of Object.keys(exports_)) {
+        const entry = exports_[key];
+        if (entry?.import?.default?.includes('/dist/esm/')) {
+          entry.import.default = entry.import.default.replace('/dist/esm/', '/dist/src/');
+          if (entry.import.types) {
+            entry.import.types = entry.require?.types ?? entry.import.types;
+          }
+          changed = true;
         }
-        changed = true;
+      }
+      if (changed) {
+        pkg.exports = exports_;
+        writePkg(pkgPath, pkg);
+        console.log(
+          'postinstall: patched olinda_shell_interface.js exports map (dist/esm → dist/src)'
+        );
       }
     }
-    if (changed) {
-      pkg.exports = exports_;
+  }
+
+  // --- Patch 2: vscode-jsonrpc ---
+  {
+    const pkgPath = join(nodeModulesPath, 'vscode-jsonrpc', 'package.json');
+    const pkg = readPkg(pkgPath);
+    if (pkg && !pkg.exports?.['./node']) {
+      pkg.exports = {
+        '.': './lib/node/main.js',
+        './node': './node.js',
+        './browser': './browser.js',
+        './node.js': './node.js',
+        './browser.js': './browser.js',
+        ...(pkg.exports ?? {}),
+      };
       writePkg(pkgPath, pkg);
-      console.log(
-        'postinstall: patched olinda_shell_interface.js exports map (dist/esm → dist/src)'
-      );
+      console.log('postinstall: patched vscode-jsonrpc exports map (added ./node subpath)');
     }
   }
 }
 
-// --- Patch 2: vscode-jsonrpc ---
-{
-  const pkgPath = join(nodeModules, 'vscode-jsonrpc', 'package.json');
-  const pkg = readPkg(pkgPath);
-  if (pkg && !pkg.exports?.['./node']) {
-    pkg.exports = {
-      '.': './lib/node/main.js',
-      './node': './node.js',
-      './browser': './browser.js',
-      './node.js': './node.js',
-      './browser.js': './browser.js',
-      ...(pkg.exports ?? {}),
-    };
-    writePkg(pkgPath, pkg);
-    console.log('postinstall: patched vscode-jsonrpc exports map (added ./node subpath)');
-  }
-}
+// Run automatically when invoked as the main script
+patchAll();

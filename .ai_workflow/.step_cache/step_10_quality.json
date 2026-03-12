@@ -164,12 +164,12 @@
     "src/steps/step_18_debugging.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-11T22:53:07.387Z"
+      "lastAnalyzed": "2026-03-12T15:01:51.008Z"
     },
     "src/steps/step_19_typescript_review.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-11T22:53:07.387Z"
+      "lastAnalyzed": "2026-03-12T15:01:51.008Z"
     },
     "src/steps/step_00_analyze.js": {
       "score": 100,
@@ -210,6 +210,21 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-12T14:54:10.248Z"
+    },
+    "src/steps/step_0b_bootstrap_docs.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T15:01:51.008Z"
+    },
+    "src/steps/step_02_5_doc_optimize.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T15:01:51.008Z"
+    },
+    "src/steps/step_02_5_lib/ai_analyzer.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T15:01:51.008Z"
     }
   }
 }

@@ -65,7 +65,7 @@ npm install --save-dev ai-workflow
 
 ### Requirements
 
-- **Node.js**: >= 18.0.0
+- **Node.js**: >= 20.0.0
 - **npm**: >= 9.0.0
 - **Git**: >= 2.0.0 (for git automation features)
 - **jq**: >= 1.6 (for JSON processing, optional)
@@ -212,7 +212,7 @@ See [docs/architecture/MODULE_STRUCTURE.md](./docs/architecture/MODULE_STRUCTURE
 
 ### Prerequisites
 
-- **Node.js**: >= 18.0.0 (check with `node --version`)
+- **Node.js**: >= 20.0.0 (check with `node --version`)
 - **npm**: >= 9.0.0 (check with `npm --version`)
 - **Git**: For cloning and submodule management
 
