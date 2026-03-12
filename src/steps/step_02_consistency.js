@@ -698,13 +698,17 @@ export class Step2ConsistencyAnalyzer {
       '.workflow_fspec',
       '.ai_workflow',
     ];
+    // Generate both root-level ("dir/**") and nested ("**/dir/**") ignore patterns.
+    // "**/${dir}/**" alone does NOT match root-level dot-directories (e.g. ".ai_workflow/...")
+    // because minimatch requires a literal "/" before the directory name.
+    const ignorePatterns = exclude.flatMap((dir) => [`${dir}/**`, `**/${dir}/**`]);
 
     const files = [];
     for (const pattern of patterns) {
       try {
         const found = await this.fileOps.glob(pattern, {
           cwd: projectRoot,
-          ignore: exclude.map((dir) => `**/${dir}/**`),
+          ignore: ignorePatterns,
           absolute: true,
         });
         files.push(...found);
@@ -835,7 +839,10 @@ export class Step2ConsistencyAnalyzer {
       '.workflow_fspec',
       '.ai_workflow',
     ];
-    const ignoreList = exclude.map((dir) => `**/${dir}/**`);
+    // Generate both root-level ("dir/**") and nested ("**/dir/**") ignore patterns.
+    // "**/${dir}/**" alone does NOT match root-level dot-directories (e.g. ".ai_workflow/...")
+    // because minimatch requires a literal "/" before the directory name.
+    const ignoreList = exclude.flatMap((dir) => [`${dir}/**`, `**/${dir}/**`]);
 
     // Two passes: regular entries + dotfile directories (e.g. .github/, .husky/)
     // fs.glob excludes dotfile entries by default, so a separate pass is required.

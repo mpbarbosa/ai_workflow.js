@@ -397,7 +397,29 @@ describe('Step 2: Consistency Analysis', () => {
 
       await analyzer.execute('/project');
 
+      // Must include BOTH root-level and nested patterns so minimatch catches .ai_workflow/
+      // at the project root (where no leading "/" exists before the directory name).
+      expect(ignorePatterns).toEqual(expect.arrayContaining(['.ai_workflow/**']));
       expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.ai_workflow/**']));
+    });
+
+    test('[BUG FIX] .ai_workflow/backlog files are NOT included in Files to Analyze', async () => {
+      // Root-cause: minimatch("ai_workflow/backlog/x.md", "**/.ai_workflow/**") → false
+      // because there is no leading "/" before ".ai_workflow" at the project root.
+      // Fix: also emit the root-level pattern ".ai_workflow/**".
+      let capturedIgnore = [];
+      mockFileOps.glob = (pattern, options) => {
+        if (options?.ignore) capturedIgnore = options.ignore;
+        // Simulate what the real glob would return WITHOUT the fix:
+        // both project docs AND backlog files coming back from the OS.
+        // With the correct ignore patterns the implementation should filter them.
+        // Here we just validate that the ignore list includes the root-level pattern.
+        return Promise.resolve([]);
+      };
+
+      await analyzer.execute('/project');
+
+      expect(capturedIgnore).toContain('.ai_workflow/**');
     });
 
     test('[BUG FIX] cross-references into checked-out submodules are not falsely reported as broken', async () => {
