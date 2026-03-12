@@ -388,7 +388,7 @@ describe('Step 2: Consistency Analysis', () => {
       expect(globOptions.some((o) => o.absolute === true)).toBe(true);
     });
 
-    test('excludes .ai_workflow/logs from documentation discovery', async () => {
+    test('excludes entire .ai_workflow directory from documentation discovery', async () => {
       const ignorePatterns = [];
       mockFileOps.glob = (pattern, options) => {
         if (options?.ignore) ignorePatterns.push(...options.ignore);
@@ -397,7 +397,78 @@ describe('Step 2: Consistency Analysis', () => {
 
       await analyzer.execute('/project');
 
-      expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.ai_workflow/logs/**']));
+      expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.ai_workflow/**']));
+    });
+
+    test('[BUG FIX] cross-references into checked-out submodules are not falsely reported as broken', async () => {
+      // docs/README.md links into .workflow_core — which is a git submodule.
+      // The submodule is excluded from doc analysis but its files MUST exist in
+      // the link-validation index so the link resolves as valid (not broken).
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/.gitmodules') {
+          return Promise.resolve(
+            '[submodule ".workflow_core"]\n\tpath = .workflow_core\n\turl = https://example.com\n'
+          );
+        }
+        if (filePath.endsWith('package.json'))
+          return Promise.resolve(JSON.stringify({ version: '1.0.0' }));
+        // docs/README.md links into the submodule via ../ (resolves to /project/.workflow_core/…)
+        return Promise.resolve('[Templates](../.workflow_core/workflow-templates/README.md)');
+      };
+      mockFileOps.glob = (pattern, options) => {
+        // Doc-discovery pass (has ignore list) — returns docs/README.md (in docs/ subdir)
+        if (options?.ignore) return Promise.resolve(['/project/docs/README.md']);
+        // Submodule glob pass (cwd = submodule dir, no ignore) — returns the target file
+        if (options?.cwd === '/project/.workflow_core') {
+          return Promise.resolve(['/project/.workflow_core/workflow-templates/README.md']);
+        }
+        return Promise.resolve([]);
+      };
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.brokenLinks).toHaveLength(0);
+    });
+
+    test('[BUG FIX] getSubmodulePaths returns paths from .gitmodules', async () => {
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/.gitmodules') {
+          return Promise.resolve(
+            '[submodule ".workflow_core"]\n\tpath = .workflow_core\n' +
+              '[submodule ".workflow_fspec"]\n\tpath = .workflow_fspec\n'
+          );
+        }
+        return Promise.resolve('');
+      };
+
+      const paths = await analyzer.getSubmodulePaths('/project');
+
+      expect(paths).toEqual(['.workflow_core', '.workflow_fspec']);
+    });
+
+    test('[BUG FIX] getSubmodulePaths returns empty array when .gitmodules missing', async () => {
+      mockFileOps.readFile = () => Promise.reject(new Error('ENOENT'));
+
+      const paths = await analyzer.getSubmodulePaths('/project');
+
+      expect(paths).toEqual([]);
+    });
+
+    test('[BUG FIX] submodule not checked out does not crash buildFileIndex', async () => {
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/.gitmodules') {
+          return Promise.resolve('[submodule "empty"]\n\tpath = .empty_submodule\n');
+        }
+        return Promise.resolve('');
+      };
+      mockFileOps.glob = (pattern, options) => {
+        if (options?.cwd === '/project/.empty_submodule') throw new Error('ENOENT');
+        return Promise.resolve([]);
+      };
+
+      // Should not throw
+      await expect(analyzer.execute('/project')).resolves.toBeDefined();
     });
 
     test('executes successfully with documentation', async () => {

@@ -472,7 +472,9 @@ export class Step2ConsistencyAnalyzer {
 
       logger.info(`Found ${docFiles.length} documentation files`);
       if (archiveFiles.length > 0) {
-        logger.info(`Found ${archiveFiles.length} archive file(s) — injected as context, not analyzed`);
+        logger.info(
+          `Found ${archiveFiles.length} archive file(s) — injected as context, not analyzed`
+        );
       }
 
       // Build archive context block injected into every AI prompt partition.
@@ -694,8 +696,7 @@ export class Step2ConsistencyAnalyzer {
       'env',
       '.workflow_core',
       '.workflow_fspec',
-      '.ai_workflow/logs',
-      '.ai_workflow/archive',
+      '.ai_workflow',
     ];
 
     const files = [];
@@ -798,6 +799,24 @@ export class Step2ConsistencyAnalyzer {
   }
 
   /**
+   * Parse git submodule paths from .gitmodules.
+   * Returns relative submodule directory paths so their files can be added to
+   * the link-validation index (preventing false-positive broken-link reports for
+   * cross-references that point into a checked-out submodule).
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<string[]>} Array of relative submodule paths (e.g. ['.workflow_core'])
+   */
+  async getSubmodulePaths(projectRoot) {
+    try {
+      const content = await this.fileOps.readFile(path.join(projectRoot, '.gitmodules'));
+      const matches = content.match(/^\s*path\s*=\s*(.+)$/gm) || [];
+      return matches.map((m) => m.replace(/^\s*path\s*=\s*/, '').trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Build file index for link validation
    * @param {string} projectRoot - Project root directory
    * @returns {Promise<Set>} Set of existing file paths
@@ -814,8 +833,7 @@ export class Step2ConsistencyAnalyzer {
       'env',
       '.workflow_core',
       '.workflow_fspec',
-      '.ai_workflow/logs',
-      '.ai_workflow/archive',
+      '.ai_workflow',
     ];
     const ignoreList = exclude.map((dir) => `**/${dir}/**`);
 
@@ -838,6 +856,31 @@ export class Step2ConsistencyAnalyzer {
           fileSet.add(dir);
           dir = path.dirname(dir);
         }
+      }
+    }
+
+    // Submodule pass: add files inside git submodules to the index so that
+    // cross-references from project docs INTO submodule files are not falsely
+    // reported as broken links. Submodule files are never added to docFiles
+    // (discoverDocFiles excludes them separately), so they are index-only.
+    const submodulePaths = await this.getSubmodulePaths(projectRoot);
+    for (const submodulePath of submodulePaths) {
+      const submoduleAbs = path.join(projectRoot, submodulePath);
+      try {
+        const subFiles = await this.fileOps.glob('**/*', {
+          cwd: submoduleAbs,
+          absolute: true,
+        });
+        for (const f of subFiles) {
+          fileSet.add(f);
+          let dir = path.dirname(f);
+          while (dir.length > projectRoot.length) {
+            fileSet.add(dir);
+            dir = path.dirname(dir);
+          }
+        }
+      } catch {
+        // Submodule not checked out or empty — skip silently
       }
     }
 
