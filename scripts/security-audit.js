@@ -9,7 +9,12 @@
  * - Input validation issues
  * - Dependency vulnerabilities
  *
- * Usage: node scripts/security-audit.js
+ * Usage: node scripts/security-audit.js [--json]
+ *
+ * Options:
+ *   --json   Write findings as JSON to stdout instead of human-readable output.
+ *            Useful for CI integration (e.g. GitHub SARIF upload, Slack alerts).
+ *            Exit code: 0 = no critical/high, 1 = high, 2 = critical.
  */
 
 import { exec } from 'child_process';
@@ -57,7 +62,10 @@ export async function checkHardcodedSecrets() {
     { pattern: /private_?key/gi, name: 'Private Key' },
   ];
 
-  const files = await getAllJSFiles(path.join(projectRoot, 'src'));
+  const files = await getAllJSFiles([
+    path.join(projectRoot, 'src'),
+    path.join(projectRoot, 'scripts'),
+  ]);
   let issueCount = 0;
 
   for (const file of files) {
@@ -102,7 +110,10 @@ export async function checkCommandInjection() {
     { pattern: /eval\s*\(/g, name: 'Use of eval()' },
   ];
 
-  const files = await getAllJSFiles(path.join(projectRoot, 'src'));
+  const files = await getAllJSFiles([
+    path.join(projectRoot, 'src'),
+    path.join(projectRoot, 'scripts'),
+  ]);
   let issueCount = 0;
 
   for (const file of files) {
@@ -144,7 +155,10 @@ export async function checkPathTraversal() {
     { pattern: /fs\.\w+\s*\([^)]*\+/g, name: 'String concat in fs operations' },
   ];
 
-  const files = await getAllJSFiles(path.join(projectRoot, 'src'));
+  const files = await getAllJSFiles([
+    path.join(projectRoot, 'src'),
+    path.join(projectRoot, 'scripts'),
+  ]);
   let issueCount = 0;
 
   for (const file of files) {
@@ -211,6 +225,22 @@ export async function checkDependencies() {
           action: 'Run "npm audit fix" to resolve',
         });
       }
+
+      if (vulnerabilities.moderate > 0) {
+        findings.medium.push({
+          type: 'Dependency Vulnerability',
+          description: `${vulnerabilities.moderate} moderate vulnerabilities in dependencies`,
+          action: 'Run "npm audit" for details',
+        });
+      }
+
+      if (vulnerabilities.low > 0) {
+        findings.low.push({
+          type: 'Dependency Vulnerability',
+          description: `${vulnerabilities.low} low-severity vulnerabilities in dependencies`,
+          action: 'Run "npm audit" for details',
+        });
+      }
     }
   } catch {
     console.log(`  ${colors.yellow}⚠${colors.reset} npm audit failed or found issues`);
@@ -220,17 +250,34 @@ export async function checkDependencies() {
 }
 
 /**
- * Recursively get all JS files
+ * Recursively get all JS files from one or more directories.
+ * @param {string|string[]} dirs - Single directory path or array of paths.
  */
-export async function getAllJSFiles(dir) {
+export async function getAllJSFiles(dirs) {
+  const dirList = Array.isArray(dirs) ? dirs : [dirs];
+  const allFiles = [];
+  for (const dir of dirList) {
+    allFiles.push(...(await _getJSFilesFromDir(dir)));
+  }
+  return allFiles;
+}
+
+async function _getJSFilesFromDir(dir) {
   const files = [];
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return files; // Directory doesn't exist — skip silently
+  }
+
+  if (!Array.isArray(entries)) return files;
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory() && !entry.name.startsWith('.')) {
-      files.push(...(await getAllJSFiles(fullPath)));
+      files.push(...(await _getJSFilesFromDir(fullPath)));
     } else if (entry.isFile() && entry.name.endsWith('.js')) {
       files.push(fullPath);
     }
@@ -316,12 +363,22 @@ export async function runSecurityAudit() {
   findings.low.length = 0;
   findings.info.length = 0;
 
-  console.log(`${colors.cyan}Starting Security Audit...${colors.reset}\n`);
+  const jsonMode = process.argv.includes('--json');
+
+  if (!jsonMode) {
+    console.log(`${colors.cyan}Starting Security Audit...${colors.reset}\n`);
+  }
 
   await checkHardcodedSecrets();
   await checkCommandInjection();
   await checkPathTraversal();
   await checkDependencies();
+
+  if (jsonMode) {
+    process.stdout.write(JSON.stringify(findings, null, 2) + '\n');
+    const exitCode = findings.critical.length > 0 ? 2 : findings.high.length > 0 ? 1 : 0;
+    process.exit(exitCode);
+  }
 
   const exitCode = generateReport();
   process.exit(exitCode);

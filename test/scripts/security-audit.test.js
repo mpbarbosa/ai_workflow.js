@@ -84,6 +84,31 @@ describe('security-audit.js', () => {
       const files = await getAllJSFiles('/empty');
       expect(files).toEqual([]);
     });
+
+    it('accepts an array of directories and combines results', async () => {
+      // First dir: /src
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      // Second dir: /scripts
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'audit.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      const files = await getAllJSFiles(['/src', '/scripts']);
+      expect(files.length).toBe(2);
+      expect(files.some((f) => f.includes('app.js'))).toBe(true);
+      expect(files.some((f) => f.includes('audit.js'))).toBe(true);
+    });
+
+    it('silently skips directories that do not exist (array form)', async () => {
+      mockReaddir.mockResolvedValueOnce([
+        { name: 'app.js', isDirectory: () => false, isFile: () => true },
+      ]);
+      // Second dir returns undefined (simulates missing dir with no mock queued)
+      const files = await getAllJSFiles(['/src', '/nonexistent']);
+      expect(files.length).toBe(1);
+      expect(files[0]).toContain('app.js');
+    });
   });
 
   describe('checkHardcodedSecrets', () => {
@@ -93,7 +118,7 @@ describe('security-audit.js', () => {
       ]);
       mockReadFile.mockResolvedValueOnce("const api_key = '12345';");
       await checkHardcodedSecrets();
-      expect(findings.high.some(f => f.type === 'Hardcoded Secret')).toBe(true);
+      expect(findings.high.some((f) => f.type === 'Hardcoded Secret')).toBe(true);
     });
 
     it('detects hardcoded password', async () => {
@@ -102,7 +127,7 @@ describe('security-audit.js', () => {
       ]);
       mockReadFile.mockResolvedValueOnce("const password = 'hunter2';");
       await checkHardcodedSecrets();
-      expect(findings.high.some(f => f.description.includes('Password'))).toBe(true);
+      expect(findings.high.some((f) => f.description.includes('Password'))).toBe(true);
     });
 
     it('skips lines starting with //', async () => {
@@ -118,7 +143,7 @@ describe('security-audit.js', () => {
       mockReaddir.mockResolvedValueOnce([
         { name: 'app.js', isDirectory: () => false, isFile: () => true },
       ]);
-      mockReadFile.mockResolvedValueOnce("const x = 1; const y = 2;");
+      mockReadFile.mockResolvedValueOnce('const x = 1; const y = 2;');
       await checkHardcodedSecrets();
       expect(findings.high.length).toBe(0);
     });
@@ -137,16 +162,16 @@ describe('security-audit.js', () => {
       ]);
       mockReadFile.mockResolvedValueOnce("exec('ls ' + userInput)");
       await checkCommandInjection();
-      expect(findings.high.some(f => f.type === 'Command Injection Risk')).toBe(true);
+      expect(findings.high.some((f) => f.type === 'Command Injection Risk')).toBe(true);
     });
 
     it('detects use of eval()', async () => {
       mockReaddir.mockResolvedValueOnce([
         { name: 'run.js', isDirectory: () => false, isFile: () => true },
       ]);
-      mockReadFile.mockResolvedValueOnce("eval(code)");
+      mockReadFile.mockResolvedValueOnce('eval(code)');
       await checkCommandInjection();
-      expect(findings.high.some(f => f.description === 'Use of eval()')).toBe(true);
+      expect(findings.high.some((f) => f.description === 'Use of eval()')).toBe(true);
     });
 
     it('finds no injection risks in clean code', async () => {
@@ -166,7 +191,7 @@ describe('security-audit.js', () => {
       ]);
       mockReadFile.mockResolvedValueOnce("path.join('/base', userInput + '/data')");
       await checkPathTraversal();
-      expect(findings.medium.some(f => f.type === 'Path Traversal Risk')).toBe(true);
+      expect(findings.medium.some((f) => f.type === 'Path Traversal Risk')).toBe(true);
     });
 
     it('skips lines that reference projectRoot (safe usage)', async () => {
@@ -201,6 +226,30 @@ describe('security-audit.js', () => {
       expect(findings.critical[0].type).toBe('Dependency Vulnerability');
     });
 
+    it('surfaces moderate vulnerabilities into findings.medium', async () => {
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 0, high: 0, moderate: 3, low: 0 } },
+        }),
+      });
+      await checkDependencies();
+      expect(findings.medium.length).toBe(1);
+      expect(findings.medium[0].type).toBe('Dependency Vulnerability');
+      expect(findings.medium[0].description).toContain('3 moderate');
+    });
+
+    it('surfaces low vulnerabilities into findings.low', async () => {
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 0, high: 0, moderate: 0, low: 5 } },
+        }),
+      });
+      await checkDependencies();
+      expect(findings.low.length).toBe(1);
+      expect(findings.low[0].type).toBe('Dependency Vulnerability');
+      expect(findings.low[0].description).toContain('5 low');
+    });
+
     it('adds no findings when vulnerabilities are zero', async () => {
       mockExecAsync.mockResolvedValueOnce({
         stdout: JSON.stringify({
@@ -230,30 +279,56 @@ describe('security-audit.js', () => {
     });
 
     it('returns 2 when critical issues exist', () => {
-      findings.critical.push({ type: 'Dependency Vulnerability', description: 'Critical vuln', action: 'Run npm audit fix' });
+      findings.critical.push({
+        type: 'Dependency Vulnerability',
+        description: 'Critical vuln',
+        action: 'Run npm audit fix',
+      });
       expect(generateReport()).toBe(2);
     });
 
     it('returns 1 when only high issues exist', () => {
-      findings.high.push({ type: 'Hardcoded Secret', file: 'src/a.js', line: 1, description: 'Issue', code: 'bad code' });
+      findings.high.push({
+        type: 'Hardcoded Secret',
+        file: 'src/a.js',
+        line: 1,
+        description: 'Issue',
+        code: 'bad code',
+      });
       expect(generateReport()).toBe(1);
     });
 
     it('returns 0 when only medium issues exist', () => {
-      findings.medium.push({ type: 'Path Traversal Risk', file: 'src/b.js', line: 2, description: 'Risk' });
+      findings.medium.push({
+        type: 'Path Traversal Risk',
+        file: 'src/b.js',
+        line: 2,
+        description: 'Risk',
+      });
       expect(generateReport()).toBe(0);
     });
 
     it('truncates high issues display beyond 10 entries', () => {
       for (let i = 0; i < 12; i++) {
-        findings.high.push({ type: 'Hardcoded Secret', file: `src/f${i}.js`, line: i, description: `Issue ${i}`, code: 'code' });
+        findings.high.push({
+          type: 'Hardcoded Secret',
+          file: `src/f${i}.js`,
+          line: i,
+          description: `Issue ${i}`,
+          code: 'code',
+        });
       }
       expect(generateReport()).toBe(1);
     });
 
     it('truncates medium issues display beyond 5 entries', () => {
       for (let i = 0; i < 7; i++) {
-        findings.medium.push({ type: 'Path Traversal Risk', file: `src/f${i}.js`, line: i, description: `Risk ${i}` });
+        findings.medium.push({
+          type: 'Path Traversal Risk',
+          file: `src/f${i}.js`,
+          line: i,
+          description: `Risk ${i}`,
+        });
       }
       expect(generateReport()).toBe(0);
     });
@@ -284,6 +359,33 @@ describe('security-audit.js', () => {
       await runSecurityAudit();
       expect(exitSpy).toHaveBeenCalledWith(2);
       exitSpy.mockRestore();
+    });
+
+    it('writes JSON to stdout and exits when --json flag is present', async () => {
+      mockReaddir.mockResolvedValue([]);
+      mockExecAsync.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          metadata: { vulnerabilities: { critical: 0, high: 0, moderate: 0, low: 0 } },
+        }),
+      });
+      process.argv.push('--json');
+      const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
+      try {
+        await runSecurityAudit();
+        expect(writeSpy).toHaveBeenCalledTimes(1);
+        const written = writeSpy.mock.calls[0][0];
+        const parsed = JSON.parse(written.trim());
+        expect(parsed).toHaveProperty('critical');
+        expect(parsed).toHaveProperty('high');
+        expect(parsed).toHaveProperty('medium');
+        expect(parsed).toHaveProperty('low');
+        expect(exitSpy).toHaveBeenCalledWith(0);
+      } finally {
+        process.argv.splice(process.argv.indexOf('--json'), 1);
+        writeSpy.mockRestore();
+        exitSpy.mockRestore();
+      }
     });
   });
 });

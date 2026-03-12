@@ -7,13 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-03-12
+
 ### Added
 
 - **Streaming Copilot responses** (`src/lib/copilot_sdk_wrapper.js`, `src/lib/ai_helpers.js`): Copilot prompt responses can now be streamed token-by-token. Pass `streaming: true` to `CopilotSdkWrapper` (creates the session with `streaming: true` per SDK requirements) and call `executeRequest(prompt, { stream: true }, onChunk)` on `AiHelper` where `onChunk(delta)` receives each content fragment as it arrives. The final resolved value is identical to non-streaming mode, so all downstream validation, caching, and logging are unchanged. Non-streaming callers are unaffected.
 
+### Changed
+
+- **`scripts/security-audit.js`: extended scan scope to `scripts/`** (`scripts/security-audit.js`): `checkHardcodedSecrets()`, `checkCommandInjection()`, and `checkPathTraversal()` now scan both `src/` and `scripts/`. `getAllJSFiles()` accepts a string or array of directories and silently skips directories that do not exist.
+
+- **`scripts/security-audit.js`: surface moderate/low npm audit findings** (`scripts/security-audit.js`): `checkDependencies()` now pushes moderate findings to `findings.medium[]` and low findings to `findings.low[]` so they appear in `generateReport()` totals and are accessible to downstream tooling.
+
+- **`scripts/security-audit.js`: `--json` output mode** (`scripts/security-audit.js`): Running `node scripts/security-audit.js --json` writes the `findings` object as structured JSON to stdout and suppresses all human-readable color output. Useful for CI integration (e.g. GitHub SARIF upload, Slack alerts).
+
+- **`test/scripts/postinstall.test.js`: isolated temp directories** (`test/scripts/postinstall.test.js`): Test fixtures are now created in `os.tmpdir()` via `fs.mkdtempSync()` (in `beforeAll`) and removed in `afterAll`, eliminating the `test/node_modules/` workspace leak.
+
 ### Fixed
 
-- **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9`. That package's devDependency `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry (latest available is `0.3.31`), causing `npm install` to fail with `ETARGET`. The override pins the package to an existing version until `olinda_shell_interface.js` fixes its `typedoc` dependency.
+- **`scripts/security-audit.js`: reset regex `lastIndex` and findings before each run** (`scripts/security-audit.js`): Stateful `/g` regex patterns and the module-level `findings` arrays were not reset between runs, causing duplicate findings on repeated invocations within the same process.
+
+- **Step 2: exclude `.ai_workflow/backlog` from Files to Analyze** (`src/steps/step_02_consistency.js`): Backlog files were incorrectly included in the documentation scan, inflating the file count and producing false-positive broken-link reports.
+
+- **Step 2: resolve false-positive broken links for submodule cross-references** (`src/steps/step_02_consistency.js`): Links pointing into `.workflow_core/` and `.workflow_fspec/` submodule paths were flagged as broken because the file index did not include submodule contents. Submodule paths are now added to the existing-file set.
+
+- **Step 2: guard against undefined `projectRoot`** (`src/steps/step_02_consistency.js`): Calling `execute()` without a project root previously caused the step to silently scan the current working directory, which could take much longer than the test timeout. The step now returns `{ success: true, skipped: true, reason: 'no_project_root' }` immediately when `projectRoot` is falsy.
+
+- **AI: respect `stream: false` option and add missing `sendStream()`** (`src/lib/ai_helpers.js`, `src/lib/copilot_sdk_wrapper.js`): Passing `{ stream: false }` to `executeRequest()` was ignored; the option is now honoured. `CopilotSdkWrapper` also gained the missing `sendStream()` method required by the streaming path.
+
+- **SDK session: add `onPermissionRequest` handler** (`src/lib/copilot_sdk_wrapper.js`): Creating a Copilot SDK session without an `onPermissionRequest` callback caused an unhandled rejection in environments that issue permission prompts. A no-op handler is now registered by default.
+
+- **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9` whose `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry. The override pins to an existing version until upstream fixes its `typedoc` dependency.
+
+### Tests
+
+- **`test/scripts/postinstall.test.js`**: Added 4 missing edge-case unit tests: multiple matching export keys, `console.log` spy per patch, idempotency (calling `patchAll()` twice), and vscode-jsonrpc partial exports (object without `./node`). Added a black-box child-process integration test that spawns `node scripts/postinstall.js` against a minimal fixture and asserts exit code 0 and correct patched output.
+
+- **`test/scripts/security-audit.test.js`**: Added tests for `getAllJSFiles()` with array argument, `checkDependencies()` surfacing moderate/low findings, and `runSecurityAudit()` `--json` mode output.
 
 ## [1.6.3] - 2026-02-25
 

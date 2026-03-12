@@ -460,6 +460,11 @@ export class Step2ConsistencyAnalyzer {
     try {
       logger.step('Step 2: Documentation Consistency Analysis');
 
+      if (!projectRoot) {
+        logger.warn('Step 2: No project root provided — skipping');
+        return { success: true, skipped: true, reason: 'no_project_root' };
+      }
+
       // Phase 1: Discover documentation files (archive is excluded from analysis)
       const [docFiles, archiveFiles] = await Promise.all([
         this.discoverDocumentationFiles(projectRoot),
