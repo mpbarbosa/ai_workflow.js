@@ -4,15 +4,20 @@
  * Source: src/lib/copilot_sdk_wrapper.ts (TypeScript)
  * Compiled: src/lib/copilot_sdk_wrapper.js (runtime import target)
  *
+ * The wrapper re-exports CopilotSdkWrapper from olinda_copilot_sdk.ts v0.2.1.
+ * That package's implementation uses @github/copilot-sdk internally, so we
+ * mock @github/copilot-sdk to control the underlying SDK behaviour in tests.
+ * SystemError is also imported from olinda_copilot_sdk.ts because that is
+ * the error class thrown by the wrapper.
+ *
  * @jest-environment node
  */
 
 import { jest } from '@jest/globals';
-import { SystemError } from '../../src/utils/errors.js';
 
 // ---------------------------------------------------------------------------
 // Mock @github/copilot-sdk BEFORE importing the module under test so Jest's
-// module registry resolves the mock for the wrapper's static import.
+// module registry resolves the mock for olinda_copilot_sdk.ts's static import.
 // ---------------------------------------------------------------------------
 
 const mockSession = {
@@ -41,6 +46,8 @@ jest.unstable_mockModule('@github/copilot-sdk', () => ({
 const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
 // Also import the mocked CopilotClient so we can override behaviour per-test
 const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
+// SystemError comes from olinda_copilot_sdk.ts (it is the package's own error class)
+const { SystemError } = await import('olinda_copilot_sdk.ts');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -632,14 +639,28 @@ describe('CopilotSdkWrapper — sendStream()', () => {
     );
   });
 
-  test('[integration] sendStream subscribes to streaming_delta events and returns final response', async () => {
+  test('[integration] sendStream subscribes to events and returns final response', async () => {
+    // v0.2.1: session.on() takes a single event-multiplexer callback (not eventName + handler).
+    // Content comes from 'assistant.message' events, not from sendAndWait's return value.
+    let capturedCallback;
+    mockSession.on.mockImplementation((cb) => {
+      capturedCallback = cb;
+      return jest.fn(); // unsubscribe
+    });
+    mockSession.sendAndWait.mockImplementation(async () => {
+      capturedCallback({ type: 'assistant.message_delta', data: { deltaContent: 'hel' } });
+      capturedCallback({ type: 'assistant.message_delta', data: { deltaContent: 'lo' } });
+      capturedCallback({ type: 'assistant.message', data: { content: 'hello' } });
+    });
+
     const wrapper = makeWrapper();
     await wrapper.initialize();
 
     const chunks = [];
     const result = await wrapper.sendStream('hello', (delta) => chunks.push(delta), 5_000);
 
-    expect(mockSession.on).toHaveBeenCalledWith('assistant.streaming_delta', expect.any(Function));
+    expect(mockSession.on).toHaveBeenCalledWith(expect.any(Function));
+    expect(chunks).toEqual(['hel', 'lo']);
     expect(result).toEqual({ content: 'hello', success: true });
   });
 
@@ -668,15 +689,22 @@ describe('CopilotSdkWrapper — sendStream()', () => {
   });
 
   test('[integration] sendStream serialises concurrent calls via the send queue', async () => {
+    // v0.2.1: content arrives via 'assistant.message' event, not sendAndWait return value.
+    // Calls are serialised, so capturedCallback is set correctly for each sequential call.
     const order = [];
+    let capturedCallback;
+    mockSession.on.mockImplementation((cb) => {
+      capturedCallback = cb;
+      return jest.fn(); // unsubscribe
+    });
     mockSession.sendAndWait
       .mockImplementationOnce(async () => {
         order.push(1);
-        return { data: { content: 'first', success: true } };
+        capturedCallback({ type: 'assistant.message', data: { content: 'first' } });
       })
       .mockImplementationOnce(async () => {
         order.push(2);
-        return { data: { content: 'second', success: true } };
+        capturedCallback({ type: 'assistant.message', data: { content: 'second' } });
       });
 
     const wrapper = makeWrapper();
