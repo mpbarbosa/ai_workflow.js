@@ -1,6 +1,6 @@
 # Your First Workflow - Tutorial
 
-**Version:** 1.7.2
+**Version:** 1.7.3
 **Last Updated:** 2026-02-17
 **Difficulty:** Beginner
 **Estimated Time:** 15 minutes

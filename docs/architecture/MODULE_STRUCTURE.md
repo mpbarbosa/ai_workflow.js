@@ -1,6 +1,6 @@
 # Module Structure
 
-**AI Workflow Automation v1.7.2**
+**AI Workflow Automation v1.7.3**
 **Last Updated:** 2026-02-01
 **Audience:** Developers, Architects
 
@@ -832,4 +832,4 @@ import { sharedFunc } from './shared.js';
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.7.2
+**Version:** 1.7.3

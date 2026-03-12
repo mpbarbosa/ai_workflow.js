@@ -199,6 +199,6 @@ Potential enhancements:
 
 ---
 
-**Version:** 1.7.2
+**Version:** 1.7.3
 **Author:** GitHub Copilot CLI
 **Status:** Production Ready

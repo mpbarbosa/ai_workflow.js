@@ -1,7 +1,7 @@
 # Third-Party Exclusion API
 
 **Module:** `lib/third_party_exclusion`
-**Version:** 1.7.2
+**Version:** 1.7.3
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview

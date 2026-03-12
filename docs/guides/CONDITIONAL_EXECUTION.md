@@ -3,7 +3,7 @@
 <<<<<<< HEAD
 **Version:** 1.8.0
 =======
-**Version:** 1.7.2
+**Version:** 1.7.3
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 > > > > > > > **Status:** ✅ Implemented

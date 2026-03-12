@@ -1,6 +1,6 @@
 # Cleanup Artifacts Guide
 
-**Version:** 1.7.2
+**Version:** 1.7.3
 **Last Updated:** 2026-02-08
 **Script:** `scripts/cleanup_artifacts.sh`
 

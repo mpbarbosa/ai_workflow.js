@@ -1,6 +1,6 @@
 # Design Principles
 
-**AI Workflow Automation v1.7.2**
+**AI Workflow Automation v1.7.3**
 **Last Updated:** 2026-02-01
 **Audience:** Architects, Senior Developers
 
@@ -761,4 +761,4 @@ await fs.mkdir(dir);
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.7.2
+**Version:** 1.7.3

@@ -225,6 +225,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-12T15:01:51.008Z"
+    },
+    ".ai_workflow/.ai_cache/index.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T18:17:11.317Z"
+    },
+    ".ai_workflow/.ai_cache/step_hashes.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T18:17:11.317Z"
+    },
+    ".ai_workflow/commit_history.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T18:17:11.317Z"
+    },
+    ".ai_workflow/model_definitions.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T18:17:11.317Z"
     }
   }
 }
