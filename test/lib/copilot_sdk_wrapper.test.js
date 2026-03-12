@@ -457,9 +457,9 @@ describe('CopilotSdkWrapper — removed SDK features (regression)', () => {
     );
   });
 
-  test('[unit] sendStream method does not exist on the wrapper instance', () => {
+  test('[unit] sendStream method exists on the wrapper instance', () => {
     const wrapper = makeWrapper();
-    expect(wrapper.sendStream).toBeUndefined();
+    expect(typeof wrapper.sendStream).toBe('function');
   });
 
   test('[unit] constructor ignores streaming option without throwing', () => {
@@ -561,13 +561,13 @@ describe('CopilotSdkWrapper — initialize() + send() lifecycle', () => {
 
 // ==============================================================================
 // CopilotSdkWrapper — functional contract
-// Validates correctness of send queue and cleanup after removal of sendStream.
+// Validates correctness of send queue, sendStream, and cleanup.
 // ==============================================================================
 
-describe('CopilotSdkWrapper — functional contract (regression against removed features)', () => {
+describe('CopilotSdkWrapper — functional contract', () => {
   beforeEach(resetMocks);
 
-  test('[functional] concurrent send() calls serialise in order without sendStream', async () => {
+  test('[functional] concurrent send() calls serialise in order', async () => {
     const order = [];
     mockSession.sendAndWait
       .mockImplementationOnce(async () => {
@@ -615,5 +615,80 @@ describe('CopilotSdkWrapper — functional contract (regression against removed 
 
     const result = await wrapper.send('retry');
     expect(result.content).toBe('recovered');
+  });
+});
+
+// ==============================================================================
+// CopilotSdkWrapper — sendStream()
+// ==============================================================================
+
+describe('CopilotSdkWrapper — sendStream()', () => {
+  beforeEach(resetMocks);
+
+  test('[unit] sendStream throws SystemError when no session', async () => {
+    const wrapper = makeWrapper();
+    await expect(wrapper.sendStream('prompt', jest.fn(), 5_000)).rejects.toThrow(
+      'No active session'
+    );
+  });
+
+  test('[integration] sendStream subscribes to streaming_delta events and returns final response', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const chunks = [];
+    const result = await wrapper.sendStream('hello', (delta) => chunks.push(delta), 5_000);
+
+    expect(mockSession.on).toHaveBeenCalledWith('assistant.streaming_delta', expect.any(Function));
+    expect(result).toEqual({ content: 'hello', success: true });
+  });
+
+  test('[integration] sendStream unsubscribes from events after completion', async () => {
+    const unsubscribe = jest.fn();
+    mockSession.on.mockReturnValue(unsubscribe);
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    await wrapper.sendStream('hello', jest.fn(), 5_000);
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  test('[integration] sendStream unsubscribes even when sendAndWait throws', async () => {
+    const unsubscribe = jest.fn();
+    mockSession.on.mockReturnValue(unsubscribe);
+    mockSession.sendAndWait.mockRejectedValue(new Error('send failed'));
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    await expect(wrapper.sendStream('boom', jest.fn(), 5_000)).rejects.toThrow('send failed');
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  test('[integration] sendStream serialises concurrent calls via the send queue', async () => {
+    const order = [];
+    mockSession.sendAndWait
+      .mockImplementationOnce(async () => {
+        order.push(1);
+        return { data: { content: 'first', success: true } };
+      })
+      .mockImplementationOnce(async () => {
+        order.push(2);
+        return { data: { content: 'second', success: true } };
+      });
+
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const [r1, r2] = await Promise.all([
+      wrapper.sendStream('a', jest.fn()),
+      wrapper.sendStream('b', jest.fn()),
+    ]);
+
+    expect(order).toEqual([1, 2]);
+    expect(r1.content).toBe('first');
+    expect(r2.content).toBe('second');
   });
 });

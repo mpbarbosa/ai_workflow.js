@@ -144,6 +144,30 @@ export class CopilotSdkWrapper {
     return result;
   }
   /**
+   * Sends a prompt to the current session with streaming delta callbacks, then
+   * returns the final assistant response.  Requests are serialised — concurrent
+   * callers wait their turn.
+   *
+   * The SDK fires `assistant.streaming_delta` events as content arrives.  Each
+   * event's `data` object is forwarded to `onChunk` so callers can update a TUI
+   * or progress display in real time.  `sendAndWait` is still used to obtain the
+   * complete, structured final response.
+   *
+   * @param prompt    - The prompt text.
+   * @param onChunk   - Callback invoked for each streaming delta event's data.
+   * @param timeoutMs - Override the default timeout (ms).
+   * @returns Raw event data from the SDK (same shape as {@link send}).
+   * @throws {@link SystemError} If no active session exists.
+   */
+  async sendStream(prompt, onChunk, timeoutMs) {
+    if (!this._session) {
+      throw new SystemError('No active session. Call initialize() first.');
+    }
+    const result = this._sendQueue.then(() => this._doSendStream(prompt, onChunk, timeoutMs));
+    this._sendQueue = result.catch(() => {});
+    return result;
+  }
+  /**
    * Aborts any in-flight request on the current session (if the SDK supports it).
    */
   async abort() {
@@ -214,5 +238,25 @@ export class CopilotSdkWrapper {
     const timeout = timeoutMs ?? this._timeout;
     const event = await this._session.sendAndWait({ prompt }, timeout);
     return event?.data ?? { content: '', success: false };
+  }
+  /**
+   * Performs a serialised sendAndWait call while forwarding streaming delta
+   * events to `onChunk` for real-time progress updates.
+   */
+  async _doSendStream(prompt, onChunk, timeoutMs) {
+    const timeout = timeoutMs ?? this._timeout;
+    const unsubscribe = this._session.on('assistant.streaming_delta', (event) => {
+      try {
+        onChunk(event.data);
+      } catch {
+        // Never let a consumer callback crash the send pipeline.
+      }
+    });
+    try {
+      const event = await this._session.sendAndWait({ prompt }, timeout);
+      return event?.data ?? { content: '', success: false };
+    } finally {
+      unsubscribe();
+    }
   }
 }

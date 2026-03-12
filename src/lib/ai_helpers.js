@@ -854,11 +854,17 @@ export class AiHelper {
         // OR if the instance was configured with a persistent streamingCallback.
         // When using the instance-level streamingCallback, enrich each chunk with
         // persona metadata so upstream listeners (e.g. the TUI) can display context.
-        let effectiveOnChunk = onChunk;
-        if (!effectiveOnChunk && this.config.streamingCallback) {
+        // Explicit stream:false in the raw caller options always disables streaming
+        // regardless of streamingCallback.  We check `options` (before mergeRequestOptions
+        // applies the default false) so that callers who omit `stream` entirely still
+        // benefit from instance-level streamingCallback.
+        const streamingExplicitlyDisabled = options.stream === false;
+        let effectiveOnChunk = streamingExplicitlyDisabled ? null : onChunk;
+        if (!streamingExplicitlyDisabled && !effectiveOnChunk && this.config.streamingCallback) {
           effectiveOnChunk = (delta) => this.config.streamingCallback(delta, { persona });
         }
         const useStreaming =
+          !streamingExplicitlyDisabled &&
           (requestOptions.stream === true || !!this.config.streamingCallback) &&
           typeof effectiveOnChunk === 'function';
         const rawResponse = useStreaming
