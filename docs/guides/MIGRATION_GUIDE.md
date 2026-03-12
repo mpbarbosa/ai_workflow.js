@@ -54,7 +54,7 @@ minimal friction.
 ### What Changes
 
 - Entry point: `bash run.sh` → `ai-workflow run`
-- Runtime requirement: bash + yq → Node.js ≥ 18.0.0 + npm ≥ 9.0.0
+- Runtime requirement: bash + yq → Node.js ≥ 20.0.0 + npm ≥ 9.0.0
 - Step customization: editing `.sh` files → extending ES module classes
 - Config introspection: `yq` CLI → `ai-workflow config get <key>`
 
@@ -66,7 +66,7 @@ minimal friction.
 
 | Requirement | Minimum               | Recommended      |
 | ----------- | --------------------- | ---------------- |
-| Node.js     | 18.0.0                | 20 LTS or 22 LTS |
+| Node.js     | 20.0.0                | 22 LTS or 24 LTS |
 | npm         | 9.0.0                 | 10.x             |
 | Git         | 2.x                   | latest           |
 | OS          | Linux, macOS, Windows | Linux / macOS    |
@@ -74,7 +74,7 @@ minimal friction.
 ### Check Your Node.js Version
 
 ```bash
-node --version   # must print v18.0.0 or higher
+node --version   # must print v20.0.0 or higher
 npm --version    # must print 9.0.0 or higher
 ```
 
@@ -723,7 +723,7 @@ resource usage. There is no equivalent in the bash version.
 ### 4. Node.js Runtime Dependency (New Requirement)
 
 The bash version requires only bash ≥ 4 and optionally `yq`/`jq`. The JavaScript version
-requires Node.js ≥ 18.0.0 and npm ≥ 9.0.0. On minimal CI images you may need to add a
+requires Node.js ≥ 20.0.0 and npm ≥ 9.0.0. On minimal CI images you may need to add a
 Node.js installation step.
 
 **GitHub Actions example:**
@@ -834,10 +834,10 @@ const require_ = createRequire(import.meta.url);
 
 ```
 Error: The engine "node" is incompatible with this module.
-Expected version ">=18.0.0". Got "16.x.x"
+Expected version ">=20.0.0". Got "16.x.x"
 ```
 
-**Fix**: Upgrade Node.js to v18 LTS or later.
+**Fix**: Upgrade Node.js to v20 LTS or later.
 
 ```bash
 # With nvm

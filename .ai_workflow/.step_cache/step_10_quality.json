@@ -185,6 +185,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-11T23:07:53.670Z"
+    },
+    "scripts/postinstall.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T14:54:10.248Z"
+    },
+    "scripts/analyze-change-impact.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T14:54:10.248Z"
+    },
+    "scripts/analyze-jsdoc-coverage.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T14:54:10.248Z"
+    },
+    "scripts/analyze-readability.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T14:54:10.248Z"
+    },
+    "scripts/check-version-consistency.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-12T14:54:10.248Z"
     }
   }
 }

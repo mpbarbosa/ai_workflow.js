@@ -5,7 +5,7 @@ during AI-assisted code review (workflow step validation).
 
 ---
 
-## ✅ `scripts/security-audit.js` — COMPLETED in v1.7.0
+## ✅ `scripts/security-audit.js` — COMPLETED in v1.7.1
 
 > Source: step_18 log analysis (`code_quality_analyst`)
 
@@ -27,7 +27,7 @@ and suppresses all human-readable output.
 
 ---
 
-## ✅ `scripts/postinstall.js` / `test/scripts/postinstall.test.js` — COMPLETED in v1.7.0
+## ✅ `scripts/postinstall.js` / `test/scripts/postinstall.test.js` — COMPLETED in v1.7.1
 
 > Source: step_07 log analysis (`test_engineer`)
 

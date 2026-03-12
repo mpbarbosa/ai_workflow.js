@@ -39,7 +39,7 @@ The `ai-workflow` CLI is a command-line interface for managing AI-powered workfl
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 
 ### Install from npm

@@ -150,7 +150,7 @@ The ai_workflow.js project demonstrates exceptional script documentation quality
 
 - ✅ Purpose/description: "Prevents export name mismatches" (VALIDATION_SCRIPTS.md)
 - ✅ Usage examples: 3 variants provided (lines 24-34)
-- ✅ Prerequisites: Node.js >= 18.0.0 (documented in README)
+- ✅ Prerequisites: Node.js >= 20.0.0 (documented in README)
 - ✅ Output documentation: Success/error output examples (lines 36-55)
 - ✅ Exit codes: 0 = success, 1 = errors (line 64)
 - ✅ Error handling: Example error output provided
@@ -161,7 +161,7 @@ The ai_workflow.js project demonstrates exceptional script documentation quality
 
 - ✅ Purpose/description: "Detect version mismatches" (VALIDATION_SCRIPTS.md line 68)
 - ✅ Usage examples: 2 variants (lines 78-85)
-- ✅ Prerequisites: Node.js >= 18.0.0
+- ✅ Prerequisites: Node.js >= 20.0.0
 - ✅ Output documentation: Success/inconsistency output (lines 87-100+)
 - ✅ Exit codes: 0 = consistent, 1 = inconsistencies (inline doc line 12)
 - ✅ Error handling: Detailed mismatch reporting
@@ -610,9 +610,9 @@ git commit -m "fix(scripts): add executable permissions to Node.js scripts"
 
      | Script                       | Requires                  | Optional    | Notes                |
      | ---------------------------- | ------------------------- | ----------- | -------------------- |
-     | validate-exports.js          | Node.js >= 18.0.0         | -           | No external deps     |
-     | check-version-consistency.js | Node.js >= 18.0.0         | -           | No external deps     |
-     | analyze-change-impact.js     | Node.js >= 18.0.0, Git    | jq (for CI) | Git history required |
+     | validate-exports.js          | Node.js >= 20.0.0         | -           | No external deps     |
+     | check-version-consistency.js | Node.js >= 20.0.0         | -           | No external deps     |
+     | analyze-change-impact.js     | Node.js >= 20.0.0, Git    | jq (for CI) | Git history required |
      | cleanup_artifacts.sh         | Bash 4.0+, find, du, stat | -           | Standard Unix tools  |
      ```
 

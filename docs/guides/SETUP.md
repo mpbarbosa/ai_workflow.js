@@ -9,7 +9,7 @@ Sets up the development environment for ai_workflow.js. Installs dependencies, i
 
 ## Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 - git (required for submodule initialization)
 
@@ -58,7 +58,7 @@ git pull && ./scripts/setup.sh
 
 ## Troubleshooting
 
-- **npm install fails**: Ensure Node.js >= 18.0.0 and npm >= 9.0.0 are installed.
+- **npm install fails**: Ensure Node.js >= 20.0.0 and npm >= 9.0.0 are installed.
 - **Submodule init fails**: Ensure git is installed and you have network access.
 - **Permission denied**: Run `chmod +x scripts/setup.sh` before executing.
 

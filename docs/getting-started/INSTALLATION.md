@@ -32,7 +32,7 @@ Complete installation instructions for ai_workflow.js across different platforms
 
 | Software    | Minimum Version | Recommended | Purpose                      |
 | ----------- | --------------- | ----------- | ---------------------------- |
-| **Node.js** | 18.0.0          | 20.x LTS    | JavaScript runtime           |
+| **Node.js** | 20.0.0          | 22.x LTS    | JavaScript runtime           |
 | **npm**     | 9.0.0           | 10.x        | Package manager              |
 | **Git**     | 2.x             | Latest      | Version control & submodules |
 
@@ -484,7 +484,7 @@ Add to `~/.bashrc` or `~/.zshrc` to persist.
 **Error:**
 
 ```
-Error: The engine "node" is incompatible with this module. Expected version ">=18.0.0".
+Error: The engine "node" is incompatible with this module. Expected version ">=20.0.0".
 ```
 
 **Solution:**
@@ -784,7 +784,7 @@ bash scripts/cleanup_artifacts.sh # Remove old workflow artifacts
 bash scripts/prepare-release.sh   # Prepare a release
 ```
 
-**Prerequisites:** All shell scripts require Bash ≥ 4, Node.js ≥ 18, and a cloned repository with `npm install` already run.
+**Prerequisites:** All shell scripts require Bash ≥ 4, Node.js ≥ 20, and a cloned repository with `npm install` already run.
 
 ---
 

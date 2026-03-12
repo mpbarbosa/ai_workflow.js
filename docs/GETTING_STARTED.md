@@ -3,7 +3,7 @@
 This guide will help you install, configure, and run olinda_shell_interface.js for the first time.
 
 ## Prerequisites
-- Node.js >= 18.x
+- Node.js >= 20.x
 - npm >= 9.x
 
 ## Installation

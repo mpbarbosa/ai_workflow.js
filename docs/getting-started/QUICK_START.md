@@ -4,7 +4,7 @@ Get up and running with ai_workflow.js in 5 minutes!
 
 ## Prerequisites
 
-- **Node.js** >= 18.0.0 ([Download](https://nodejs.org/))
+- **Node.js** >= 20.0.0 ([Download](https://nodejs.org/))
 - **npm** >= 9.0.0 (comes with Node.js)
 - **Git** (for cloning the repository)
 
@@ -32,7 +32,7 @@ npm install -g ai-workflow
 
 ```bash
 # Check Node.js version
-node --version  # Should be >= 18.0.0
+node --version  # Should be >= 20.0.0
 
 # Run tests to verify everything works
 npm test
@@ -365,7 +365,7 @@ console.log('Quality standards:', config.quality);
 ### Node.js Version Error
 
 ```bash
-# Error: Requires Node.js >= 18.0.0
+# Error: Requires Node.js >= 20.0.0
 # Solution: Upgrade Node.js
 nvm install 18
 nvm use 18

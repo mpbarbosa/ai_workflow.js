@@ -283,7 +283,7 @@ steps:
     action: 'check_version'
     params:
       command: 'node --version'
-      required: '>=18.0.0'
+      required: '>=20.0.0'
 
   - name: 'Install Dependencies'
     action: 'execute_command'
@@ -322,7 +322,7 @@ ai-workflow run setup-env.yaml
 ```
 🚀 Starting workflow: Environment Setup
 ✅ Step 1: Check Node.js Version [PASSED] (0.1s)
-   Node.js v18.17.0 (>= 18.0.0)
+   Node.js v18.17.0 (>= 20.0.0)
 ✅ Step 2: Install Dependencies [PASSED] (8.3s)
    Installed 247 packages
 ✅ Step 3: Initialize Git Hooks [PASSED] (0.5s)
@@ -340,7 +340,7 @@ ai-workflow run setup-env.yaml
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - AI Workflow Automation installed
 - Project initialized with `.workflow-config.yaml`
 

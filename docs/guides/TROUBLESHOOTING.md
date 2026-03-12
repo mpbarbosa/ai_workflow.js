@@ -22,7 +22,7 @@ This guide helps you diagnose and resolve common issues with ai_workflow.js.
 ### Check System Requirements
 
 ```bash
-# Node.js version (requires >= 18.0.0)
+# Node.js version (requires >= 20.0.0)
 node --version
 
 # npm version (requires >= 9.0.0)
@@ -97,8 +97,8 @@ npm ERR! ERESOLVE unable to resolve dependency tree
 
 3. **Check Node.js version:**
    ```bash
-   node --version  # Must be >= 18.0.0
-   nvm use 18      # Switch to Node 18 if using nvm
+   node --version  # Must be >= 20.0.0
+   nvm use 18      # Switch to Node 20 if using nvm
    ```
 
 ### Problem: Module not found errors

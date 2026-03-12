@@ -9,7 +9,7 @@ Runs integration tests, generates coverage reports, and validates coverage thres
 
 ## Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 - Dependencies installed (`./scripts/setup.sh`)
 

@@ -36,7 +36,7 @@ Welcome to AI Workflow Automation! This guide will help you build automated work
 
 ### Prerequisites
 
-- Node.js 18.0.0 or higher
+- Node.js 20.0.0 or higher
 - Basic JavaScript knowledge
 - Familiarity with command line
 

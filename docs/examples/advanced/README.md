@@ -363,7 +363,7 @@ steps:
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - AI Workflow Automation >= 1.0.0
 - Additional dependencies (varies by example)
 

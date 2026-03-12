@@ -42,7 +42,7 @@ This guide provides comprehensive information for developers contributing to ai_
 
 **Required:**
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 - Git >= 2.30.0
 

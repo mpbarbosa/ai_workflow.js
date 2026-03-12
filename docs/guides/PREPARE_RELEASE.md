@@ -9,7 +9,7 @@ Prepares the project for a versioned release. Validates the version format, runs
 
 ## Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 - git (clean working tree required)
 - Dependencies installed (`./scripts/setup.sh`)

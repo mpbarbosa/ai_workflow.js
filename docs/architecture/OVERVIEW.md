@@ -157,7 +157,7 @@ export class SessionManager {
 ### 4. Cross-Platform Compatibility
 
 - Works on Linux, macOS, and Windows
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - Platform-specific code isolated in `system.js`
 - Path handling with Node.js `path` module
 
