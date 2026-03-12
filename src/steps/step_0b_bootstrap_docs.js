@@ -751,7 +751,7 @@ export class Step0bBootstrapDocs {
       const meta = await this.fileOps.stat(path.join(this.projectRoot, 'README.md'));
       readmeSize = meta.size;
     } catch {
-      readmeSize = 0;
+      // readmeSize remains 0 if README.md is not found
     }
 
     return {

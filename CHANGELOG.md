@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`engines.node` raised to `>=20.0.0`** (`package.json`, `test/fixtures/nodejs-api/package.json`): Node.js 18 reached end-of-life in April 2025. The minimum supported runtime is now Node.js 20 LTS. All documentation and test fixtures updated accordingly.
 
-## [1.7.1] - 2026-03-12
+## [1.7.2] - 2026-03-12
 
 ### Added
 
