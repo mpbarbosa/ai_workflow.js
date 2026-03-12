@@ -40,9 +40,7 @@ jest.unstable_mockModule('@github/copilot-sdk', () => ({
 // Import the wrapper AFTER mocking the SDK
 const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
 // Also import the mocked CopilotClient so we can override behaviour per-test
-const { CopilotClient: MockCopilotClient, approveAll: mockApproveAll } = await import(
-  '@github/copilot-sdk'
-);
+const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -82,7 +80,9 @@ describe('CopilotSdkWrapper.isAvailable (static)', () => {
   });
 
   test('returns false when CopilotClient constructor throws', () => {
-    MockCopilotClient.mockImplementationOnce(() => { throw new Error('SDK unavailable'); });
+    MockCopilotClient.mockImplementationOnce(() => {
+      throw new Error('SDK unavailable');
+    });
     expect(CopilotSdkWrapper.isAvailable()).toBe(false);
   });
 });
@@ -121,10 +121,9 @@ describe('CopilotSdkWrapper — initialize()', () => {
     expect(mockClient.start).toHaveBeenCalledTimes(1);
     expect(mockClient.getAuthStatus).toHaveBeenCalledTimes(1);
     expect(mockClient.listModels).toHaveBeenCalledTimes(1);
-    expect(mockClient.createSession).toHaveBeenCalledWith({
-      model: 'gpt-4',
-      onPermissionRequest: mockApproveAll,
-    });
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gpt-4' })
+    );
     expect(result.authenticated).toBe(true);
     expect(result.availableModels).toEqual([{ id: 'gpt-4' }, { id: 'gpt-4o' }]);
     expect(wrapper.session).toBe(mockSession);
@@ -144,11 +143,9 @@ describe('CopilotSdkWrapper — initialize()', () => {
     const wrapper = makeWrapper({ workingDirectory: '/tmp/project' });
     await wrapper.initialize();
 
-    expect(mockClient.createSession).toHaveBeenCalledWith({
-      model: 'gpt-4',
-      onPermissionRequest: mockApproveAll,
-      workingDirectory: '/tmp/project',
-    });
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gpt-4', workingDirectory: '/tmp/project' })
+    );
   });
 
   test('cookbook: client.stop() called and client nulled when auth step throws', async () => {
@@ -188,14 +185,6 @@ describe('CopilotSdkWrapper — initialize()', () => {
 
     expect(result.authenticated).toBe(true);
     expect(wrapper.session).toBe(mockSession);
-  });
-
-  test('onPermissionRequest: approveAll is always forwarded to createSession', async () => {
-    const wrapper = makeWrapper();
-    await wrapper.initialize();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ onPermissionRequest: mockApproveAll })
-    );
   });
 
   test('nullish getAuthStatus response treated as unauthenticated', async () => {
@@ -356,16 +345,6 @@ describe('CopilotSdkWrapper — recreateSession()', () => {
     expect(mockClient.start).toHaveBeenCalledTimes(2); // once in initialize, once in recreate
   });
 
-  test('onPermissionRequest: approveAll is forwarded to createSession when recreating', async () => {
-    const wrapper = makeWrapper();
-    await wrapper.initialize();
-    mockClient.createSession.mockClear();
-    await wrapper.recreateSession();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ onPermissionRequest: mockApproveAll })
-    );
-  });
-
   test('workingDirectory is forwarded to createSession when recreating', async () => {
     const wrapper = makeWrapper({ workingDirectory: '/tmp/wd' });
     await wrapper.initialize();
@@ -447,185 +426,194 @@ describe('CopilotSdkWrapper — cleanup()', () => {
 });
 
 // ==============================================================================
-// CopilotSdkWrapper — streaming (constructor flag + sendStream)
+// CopilotSdkWrapper — removed SDK features (regression)
+// Guards against re-introduction of features that do not exist in the SDK.
 // ==============================================================================
 
-describe('CopilotSdkWrapper — streaming: createSession flag', () => {
+describe('CopilotSdkWrapper — removed SDK features (regression)', () => {
   beforeEach(resetMocks);
 
-  test('createSession called without streaming when streaming=false (default)', async () => {
+  test('[unit] createSession is called WITH onPermissionRequest', async () => {
     const wrapper = makeWrapper();
     await wrapper.initialize();
     expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.not.objectContaining({ streaming: true })
+      expect.objectContaining({ onPermissionRequest: expect.anything() })
     );
   });
 
-  test('createSession called with streaming:true when streaming=true', async () => {
-    const wrapper = makeWrapper({ streaming: true });
+  test('[unit] createSession is called WITHOUT streaming', async () => {
+    const wrapper = makeWrapper();
     await wrapper.initialize();
     expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ streaming: true })
+      expect.not.objectContaining({ streaming: expect.anything() })
     );
   });
 
-  test('recreateSession preserves streaming:true', async () => {
-    const wrapper = makeWrapper({ streaming: true });
+  test('[unit] createSession is called WITHOUT tools', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tools: expect.anything() })
+    );
+  });
+
+  test('[unit] sendStream method does not exist on the wrapper instance', () => {
+    const wrapper = makeWrapper();
+    expect(wrapper.sendStream).toBeUndefined();
+  });
+
+  test('[unit] constructor ignores streaming option without throwing', () => {
+    expect(() => makeWrapper({ streaming: true })).not.toThrow();
+  });
+
+  test('[unit] constructor ignores tools option without throwing', () => {
+    const mockTool = { name: 'read_file', handler: jest.fn() };
+    expect(() => makeWrapper({ tools: [mockTool] })).not.toThrow();
+  });
+
+  test('[unit] recreateSession called WITH onPermissionRequest', async () => {
+    const wrapper = makeWrapper();
     await wrapper.initialize();
     mockClient.createSession.mockClear();
     await wrapper.recreateSession();
     expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ streaming: true })
+      expect.objectContaining({ onPermissionRequest: expect.anything() })
     );
   });
 
-  test('recreateSession does not set streaming when streaming=false', async () => {
-    const wrapper = makeWrapper({ streaming: false });
+  test('[unit] recreateSession called WITHOUT streaming', async () => {
+    const wrapper = makeWrapper();
     await wrapper.initialize();
     mockClient.createSession.mockClear();
     await wrapper.recreateSession();
     expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.not.objectContaining({ streaming: true })
+      expect.not.objectContaining({ streaming: expect.anything() })
+    );
+  });
+
+  test('[unit] recreateSession called WITHOUT tools', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+    expect(mockClient.createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tools: expect.anything() })
     );
   });
 });
 
-describe('CopilotSdkWrapper — sendStream', () => {
+// ==============================================================================
+// CopilotSdkWrapper — initialize() + send() lifecycle (integration)
+// Validates the streamlined session lifecycle after removing unused SDK features.
+// ==============================================================================
+
+describe('CopilotSdkWrapper — initialize() + send() lifecycle', () => {
   beforeEach(resetMocks);
 
-  test('throws SystemError when session is not initialised', async () => {
-    const wrapper = makeWrapper({ streaming: true });
-    await expect(wrapper.sendStream('hello', () => {})).rejects.toThrow('No active session');
-  });
-
-  test('delivers delta chunks to onChunk callback', async () => {
-    const wrapper = makeWrapper({ streaming: true });
+  test('[integration] full lifecycle: initialize → send → cleanup succeeds', async () => {
+    const wrapper = makeWrapper();
     await wrapper.initialize();
 
-    // Simulate session.on registering a handler that we invoke manually
-    let deltaHandler = null;
-    mockSession.on.mockImplementation((eventType, handler) => {
-      if (eventType === 'assistant.message_delta') deltaHandler = handler;
-      return () => {};
+    const result = await wrapper.send('hello');
+
+    await wrapper.cleanup();
+
+    expect(result).toEqual({ content: 'hello', success: true });
+    expect(wrapper.session).toBeNull();
+    expect(wrapper.client).toBeNull();
+  });
+
+  test('[integration] createSession receives model and onPermissionRequest when no workingDirectory', async () => {
+    const wrapper = makeWrapper();
+    await wrapper.initialize();
+
+    const sessionConfig = mockClient.createSession.mock.calls[0][0];
+    expect(sessionConfig).toMatchObject({ model: 'gpt-4', onPermissionRequest: expect.anything() });
+    expect(sessionConfig.workingDirectory).toBeUndefined();
+  });
+
+  test('[integration] createSession receives model + workingDirectory + onPermissionRequest when provided', async () => {
+    const wrapper = makeWrapper({ workingDirectory: '/repo' });
+    await wrapper.initialize();
+
+    const sessionConfig = mockClient.createSession.mock.calls[0][0];
+    expect(sessionConfig).toMatchObject({
+      model: 'gpt-4',
+      workingDirectory: '/repo',
+      onPermissionRequest: expect.anything(),
     });
-    mockSession.sendAndWait.mockImplementation(async () => {
-      // Fire two delta events before resolving
-      deltaHandler?.({ data: { deltaContent: 'Hello' } });
-      deltaHandler?.({ data: { deltaContent: ' world' } });
-      return { data: { content: 'Hello world', success: true } };
+  });
+
+  test('[integration] recreateSession also sends model + workingDirectory + onPermissionRequest', async () => {
+    const wrapper = makeWrapper({ workingDirectory: '/repo' });
+    await wrapper.initialize();
+    mockClient.createSession.mockClear();
+    await wrapper.recreateSession();
+
+    const sessionConfig = mockClient.createSession.mock.calls[0][0];
+    expect(sessionConfig).toMatchObject({
+      model: 'gpt-4',
+      workingDirectory: '/repo',
+      onPermissionRequest: expect.anything(),
     });
-
-    const chunks = [];
-    const result = await wrapper.sendStream('prompt', (chunk) => chunks.push(chunk));
-
-    expect(chunks).toEqual(['Hello', ' world']);
-    expect(result).toEqual({ content: 'Hello world', success: true });
   });
+});
 
-  test('unsubscribes delta listener after successful call', async () => {
-    const wrapper = makeWrapper({ streaming: true });
-    await wrapper.initialize();
+// ==============================================================================
+// CopilotSdkWrapper — functional contract
+// Validates correctness of send queue and cleanup after removal of sendStream.
+// ==============================================================================
 
-    const unsubscribe = jest.fn();
-    mockSession.on.mockReturnValue(unsubscribe);
-    mockSession.sendAndWait.mockResolvedValue({ data: { content: 'ok', success: true } });
+describe('CopilotSdkWrapper — functional contract (regression against removed features)', () => {
+  beforeEach(resetMocks);
 
-    await wrapper.sendStream('prompt', () => {});
-    expect(unsubscribe).toHaveBeenCalled();
-  });
-
-  test('unsubscribes delta listener even when sendAndWait throws', async () => {
-    const wrapper = makeWrapper({ streaming: true });
-    await wrapper.initialize();
-
-    const unsubscribe = jest.fn();
-    mockSession.on.mockReturnValue(unsubscribe);
-    mockSession.sendAndWait.mockRejectedValue(new Error('timeout'));
-
-    await expect(wrapper.sendStream('prompt', () => {})).rejects.toThrow('timeout');
-    expect(unsubscribe).toHaveBeenCalled();
-  });
-
-  test('returns assembled content fallback when event.data is null', async () => {
-    const wrapper = makeWrapper({ streaming: true });
-    await wrapper.initialize();
-
-    let deltaHandler = null;
-    mockSession.on.mockImplementation((eventType, handler) => {
-      if (eventType === 'assistant.message_delta') deltaHandler = handler;
-      return () => {};
-    });
-    mockSession.sendAndWait.mockImplementation(async () => {
-      deltaHandler?.({ data: { deltaContent: 'chunk1' } });
-      deltaHandler?.({ data: { deltaContent: 'chunk2' } });
-      return null; // SDK returns null
-    });
-
-    const result = await wrapper.sendStream('prompt', () => {});
-    expect(result).toEqual({ content: 'chunk1chunk2', success: true });
-  });
-
-  test('serialises concurrent sendStream calls', async () => {
-    const wrapper = makeWrapper({ streaming: true });
-    await wrapper.initialize();
-
-    mockSession.on.mockReturnValue(() => {});
+  test('[functional] concurrent send() calls serialise in order without sendStream', async () => {
     const order = [];
     mockSession.sendAndWait
-      .mockImplementationOnce(async () => { order.push(1); return { data: { content: 'a', success: true } }; })
-      .mockImplementationOnce(async () => { order.push(2); return { data: { content: 'b', success: true } }; });
+      .mockImplementationOnce(async () => {
+        order.push(1);
+        return { data: { content: 'first', success: true } };
+      })
+      .mockImplementationOnce(async () => {
+        order.push(2);
+        return { data: { content: 'second', success: true } };
+      });
 
-    await Promise.all([
-      wrapper.sendStream('p1', () => {}),
-      wrapper.sendStream('p2', () => {}),
-    ]);
-
-    expect(order).toEqual([1, 2]);
-  });
-});
-
-// ==============================================================================
-// CopilotSdkWrapper — tools option
-// ==============================================================================
-
-describe('CopilotSdkWrapper — tools: createSession flag', () => {
-  beforeEach(resetMocks);
-
-  test('createSession called without tools when tools is empty (default)', async () => {
     const wrapper = makeWrapper();
     await wrapper.initialize();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.not.objectContaining({ tools: expect.anything() })
-    );
+
+    const [r1, r2] = await Promise.all([wrapper.send('a'), wrapper.send('b')]);
+
+    expect(order).toEqual([1, 2]);
+    expect(r1.content).toBe('first');
+    expect(r2.content).toBe('second');
   });
 
-  test('createSession called with tools when tools array is provided', async () => {
-    const mockTool = { name: 'read_file', handler: jest.fn() };
-    const wrapper = makeWrapper({ tools: [mockTool] });
+  test('[functional] cleanup succeeds even after send() throws', async () => {
+    mockSession.sendAndWait.mockRejectedValue(new Error('network error'));
+
+    const wrapper = makeWrapper();
     await wrapper.initialize();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ tools: [mockTool] })
-    );
+
+    await expect(wrapper.send('boom')).rejects.toThrow('network error');
+
+    await expect(wrapper.cleanup()).resolves.toBeUndefined();
+    expect(mockClient.stop).toHaveBeenCalledTimes(1);
+    expect(wrapper.session).toBeNull();
+    expect(wrapper.client).toBeNull();
   });
 
-  test('recreateSession preserves tools', async () => {
-    const mockTool = { name: 'list_files', handler: jest.fn() };
-    const wrapper = makeWrapper({ tools: [mockTool] });
-    await wrapper.initialize();
-    mockClient.createSession.mockClear();
-    await wrapper.recreateSession();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ tools: [mockTool] })
-    );
-  });
+  test('[functional] subsequent send() works after a failed send()', async () => {
+    mockSession.sendAndWait
+      .mockRejectedValueOnce(new Error('transient failure'))
+      .mockResolvedValue({ data: { content: 'recovered', success: true } });
 
-  test('recreateSession does not set tools when tools is empty', async () => {
-    const wrapper = makeWrapper({ tools: [] });
+    const wrapper = makeWrapper();
     await wrapper.initialize();
-    mockClient.createSession.mockClear();
-    await wrapper.recreateSession();
-    expect(mockClient.createSession).toHaveBeenCalledWith(
-      expect.not.objectContaining({ tools: expect.anything() })
-    );
+
+    await expect(wrapper.send('fail')).rejects.toThrow('transient failure');
+
+    const result = await wrapper.send('retry');
+    expect(result.content).toBe('recovered');
   });
 });
