@@ -1,7 +1,7 @@
 /**
- * Ambient type declarations for local JavaScript modules imported by
- * copilot_sdk_wrapper.ts.  These stubs give TypeScript enough information to
- * type-check the .ts file without converting the JS modules to TypeScript.
+ * Ambient type declarations for local JavaScript modules imported by TypeScript
+ * source files.  These stubs give TypeScript enough information to type-check
+ * .ts files without converting the JS modules to TypeScript.
  */
 
 declare module '../core/logger.js' {
@@ -10,18 +10,28 @@ declare module '../core/logger.js' {
     info(msg: string): void;
     warn(msg: string): void;
     error(msg: string): void;
+    success(msg: string): void;
   }
   export const logger: Logger;
 }
 
 declare module '../utils/errors.js' {
-  export class SystemError extends Error {
-    constructor(message: string, code?: string, details?: Record<string, unknown>);
-  }
-  export class ConfigError extends Error {
-    constructor(message: string, code?: string, details?: Record<string, unknown>);
-  }
   export class WorkflowError extends Error {
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
+  }
+  export class SystemError extends WorkflowError {
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
+  }
+  export class ExecutionError extends WorkflowError {
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
+  }
+  export class ConfigurationError extends WorkflowError {
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
+  }
+  export class ValidationError extends WorkflowError {
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
+  }
+  export class FileSystemError extends WorkflowError {
     constructor(message: string, code?: string, details?: Record<string, unknown>);
   }
 }
