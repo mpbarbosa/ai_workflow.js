@@ -23,6 +23,7 @@ import { initCommand } from './commands/init.js';
 import { configCommand } from './commands/config.js';
 import { cleanCommand } from './commands/clean.js';
 import { deployCommand } from './commands/deploy.js';
+import { fixLogIssuesCommand } from './commands/fix_log_issues.js';
 
 // Package information
 const VERSION = '1.6.3';
@@ -211,6 +212,22 @@ export function createProgram() {
     .action(async (options) => {
       const globalOpts = program.opts();
       await deployCommand({ ...globalOpts, ...options });
+    });
+
+  // Fix log issues command
+  program
+    .command('fix-log-issues')
+    .description('Validate log files and generate a structured fix plan for reported issues')
+    .option('--log-dir <path>', 'Path to log directory (default: <workflow-dir>/logs)')
+    .option('--project-root <path>', 'Project root for codebase file validation (default: cwd)')
+    .option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
+    .option('--output <path>', 'Save Markdown fix plan to this file')
+    .option('--latest', 'Use only the most recent log run', false)
+    .option('--severity <level>', 'Filter by severity: critical | warning | all', 'all')
+    .option('--dry-run', 'Preview without writing output file', false)
+    .action(async (options) => {
+      const globalOpts = program.opts();
+      await fixLogIssuesCommand({ ...globalOpts, ...options });
     });
 
   return program;

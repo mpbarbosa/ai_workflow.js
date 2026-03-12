@@ -93,6 +93,21 @@ export {
   COMMIT_HISTORY_FILENAME,
 } from './lib/commit_history.js';
 
+// Log Parser exports (v2.0.0)
+export {
+  SEVERITY as LOG_SEVERITY,
+  CATEGORY as LOG_CATEGORY,
+  parseLogLine,
+  extractIssues,
+  discoverLogFiles,
+  suggestFix,
+  filterBySeverity,
+  sortIssuesByPriority,
+  validateFileReferences as validateLogFileReferences,
+  generateFixPlan,
+  formatFixPlanMarkdown,
+} from './lib/log_parser.js';
+
 // Phase 8 exports (v2.0.0)
 export { PerformanceTracker } from './lib/performance.js';
 export {
