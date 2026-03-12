@@ -179,7 +179,7 @@ export async function withRetry(fn, options = {}) {
     jitter = 0,
     onRetry = null,
     shouldRetryFn = shouldRetry,
-    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms).unref()),
   } = options;
 
   let lastError;

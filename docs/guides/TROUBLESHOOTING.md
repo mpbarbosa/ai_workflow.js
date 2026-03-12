@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Last Updated:** 2026-02-11
 
 This guide helps you diagnose and resolve common issues with ai_workflow.js.
@@ -635,18 +635,21 @@ ValidationError: AI response validation failed
 
    ```yaml
    # .github/workflows/test.yml
-  - uses: actions/setup-node@v3
-     with:
-       node-version: '18.x'
    ```
 
+- uses: actions/setup-node@v3
+  with:
+  node-version: '18.x'
+
+````
+
 3. **Increase timeouts:**
-   ```javascript
-   // jest.config.json
-   {
-     "testTimeout": 30000  // 30 seconds
-   }
-   ```
+```javascript
+// jest.config.json
+{
+  "testTimeout": 30000  // 30 seconds
+}
+````
 
 ### Problem: Test coverage below threshold
 
@@ -713,11 +716,12 @@ process.env.DEBUG = 'ai-workflow:*';
 
 1. Search existing issues: https://github.com/mpbarbosa/ai_workflow.js/issues
 2. Create new issue with:
-  - Node.js version
-  - npm version
-  - Configuration file (sanitized)
-  - Full error message
-  - Steps to reproduce
+
+- Node.js version
+- npm version
+- Configuration file (sanitized)
+- Full error message
+- Steps to reproduce
 
 ### Common Error Codes
 

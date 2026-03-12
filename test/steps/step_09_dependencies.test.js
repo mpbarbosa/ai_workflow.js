@@ -923,6 +923,34 @@ describe('Step 9: Dependency Validation', () => {
       expect(result.issues.some((i) => i.includes('non-HTTPS'))).toBe(true);
     });
 
+    test('accepts git+ssh:// resolved URLs for private packages', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/private-pkg': {
+            version: '1.0.0',
+            resolved: 'git+ssh://git@github.com/org/private-pkg.git#abc123',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.issues.filter((i) => i.includes('private-pkg'))).toHaveLength(0);
+    });
+
+    test('accepts git+https:// resolved URLs', () => {
+      const lockfilePath = writeLockfile({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/git-pkg': {
+            version: '1.0.0',
+            resolved: 'git+https://github.com/org/git-pkg.git#abc123',
+          },
+        },
+      });
+      const result = validateLockfileStructure(lockfilePath);
+      expect(result.issues.filter((i) => i.includes('git-pkg'))).toHaveLength(0);
+    });
+
     test('returns issue for empty integrity hash', () => {
       const lockfilePath = writeLockfile({
         lockfileVersion: 3,

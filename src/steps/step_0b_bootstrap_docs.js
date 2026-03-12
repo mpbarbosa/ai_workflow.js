@@ -746,12 +746,12 @@ export class Step0bBootstrapDocs {
       (f) => path.basename(f).toLowerCase() === 'changelog.md'
     );
 
-    let readmeSize = 0;
+    let readmeSize;
     try {
       const meta = await this.fileOps.stat(path.join(this.projectRoot, 'README.md'));
       readmeSize = meta.size;
     } catch {
-      // readmeSize remains 0 if README.md is not found
+      readmeSize = 0;
     }
 
     return {

@@ -563,9 +563,7 @@ export function parseConsistencyCheckOutput(output) {
 
   for (const line of lines) {
     // "mismatch in <file>" — sets the current file in scope
-    const mismatchMatch = line.match(
-      /mismatch\s+in\s+([\w./\\-]+(?:\.\w+)?)/i
-    );
+    const mismatchMatch = line.match(/mismatch\s+in\s+([\w./\\-]+(?:\.\w+)?)/i);
     if (mismatchMatch) {
       currentFile = mismatchMatch[1];
       ensureEntry(currentFile);
@@ -642,7 +640,11 @@ export const ${safeName} = '${safeVersion}';
  * @returns {string} Constant name in UPPER_SNAKE_CASE
  */
 export function deriveVersionConstantName(filePath) {
-  const base = filePath.split('/').pop().replace(/\.[^.]+$/, '').toUpperCase();
+  const base = filePath
+    .split('/')
+    .pop()
+    .replace(/\.[^.]+$/, '')
+    .toUpperCase();
   // If the basename already looks like a version-related word, use it directly
   if (/^VERSION$/.test(base)) return 'VERSION';
   return `${base}_VERSION`;
@@ -899,13 +901,14 @@ Reply with ONLY one word: major, minor, or patch.`;
             `Version consistency check reported issues (exit ${consistencyCheck.exitCode}) — attempting auto-fix...`
           );
           // Auto-fix: parse the checker output and correct stale/missing version files
-          const fixResults = await this.autoFixConsistencyIssues(consistencyCheck.output, newVersion);
+          const fixResults = await this.autoFixConsistencyIssues(
+            consistencyCheck.output,
+            newVersion
+          );
           const fixed = fixResults.filter((r) => r.action === 'updated' || r.action === 'created');
           const skipped = fixResults.filter((r) => r.action === 'skipped');
           if (fixed.length > 0) {
-            this.logger.success(
-              `Auto-fixed ${fixed.length} file(s) with stale version references`
-            );
+            this.logger.success(`Auto-fixed ${fixed.length} file(s) with stale version references`);
           }
           if (skipped.length > 0) {
             this.logger.warn(
@@ -1074,8 +1077,13 @@ Reply with ONLY one word: major, minor, or patch.`;
         const isNotFound =
           err.code === 'ENOENT' ||
           (err.message && err.message.toLowerCase().includes('no such file'));
-        if (isNotFound) {
-          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        const isDirectory = err.code === 'EISDIR';
+        if (isNotFound || isDirectory) {
+          results.push({
+            file: relPath,
+            skipped: true,
+            reason: isDirectory ? 'is a directory' : 'file not found',
+          });
         } else {
           results.push({ file: relPath, success: false, error: err.message });
         }
@@ -1126,8 +1134,13 @@ Reply with ONLY one word: major, minor, or patch.`;
         const isNotFound =
           err.code === 'ENOENT' ||
           (err.message && err.message.toLowerCase().includes('no such file'));
-        if (isNotFound) {
-          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        const isDirectory = err.code === 'EISDIR';
+        if (isNotFound || isDirectory) {
+          results.push({
+            file: relPath,
+            skipped: true,
+            reason: isDirectory ? 'is a directory' : 'file not found',
+          });
         } else {
           results.push({ file: relPath, success: false, error: err.message });
         }
@@ -1179,8 +1192,13 @@ Reply with ONLY one word: major, minor, or patch.`;
         const isNotFound =
           err.code === 'ENOENT' ||
           (err.message && err.message.toLowerCase().includes('no such file'));
-        if (isNotFound) {
-          results.push({ file: relPath, skipped: true, reason: 'file not found' });
+        const isDirectory = err.code === 'EISDIR';
+        if (isNotFound || isDirectory) {
+          results.push({
+            file: relPath,
+            skipped: true,
+            reason: isDirectory ? 'is a directory' : 'file not found',
+          });
         } else {
           results.push({ file: relPath, success: false, error: err.message });
         }
@@ -1261,7 +1279,11 @@ Reply with ONLY one word: major, minor, or patch.`;
             this.logger.warn(`Could not create ${file}: ${err.message}`);
           }
         } else {
-          results.push({ file, action: 'skipped', error: 'non-JS missing file — manual fix needed' });
+          results.push({
+            file,
+            action: 'skipped',
+            error: 'non-JS missing file — manual fix needed',
+          });
         }
         continue;
       }
@@ -1289,7 +1311,11 @@ Reply with ONLY one word: major, minor, or patch.`;
         }
 
         if (!changed) {
-          results.push({ file, action: 'skipped', error: 'no replaceable version strings found in content' });
+          results.push({
+            file,
+            action: 'skipped',
+            error: 'no replaceable version strings found in content',
+          });
           continue;
         }
 
@@ -1302,9 +1328,15 @@ Reply with ONLY one word: major, minor, or patch.`;
         );
       } catch (err) {
         const isNotFound =
-          err.code === 'ENOENT' || (err.message && err.message.toLowerCase().includes('no such file'));
-        if (isNotFound) {
-          results.push({ file, action: 'skipped', error: 'file not found' });
+          err.code === 'ENOENT' ||
+          (err.message && err.message.toLowerCase().includes('no such file'));
+        const isDirectory = err.code === 'EISDIR';
+        if (isNotFound || isDirectory) {
+          results.push({
+            file,
+            action: 'skipped',
+            error: isDirectory ? 'is a directory' : 'file not found',
+          });
         } else {
           results.push({ file, action: 'skipped', error: err.message });
           this.logger.warn(`Auto-fix failed for ${file}: ${err.message}`);

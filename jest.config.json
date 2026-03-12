@@ -13,17 +13,14 @@
   ],
   "testMatch": ["**/test/**/*.test.js", "**/test/**/*.spec.js", "**/__tests__/**/*.js"],
   "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/"],
-  "coveragePathIgnorePatterns": [
-    "/node_modules/",
-    "/scripts/",
-    "/src/core/"
-  ],
+  "coveragePathIgnorePatterns": ["/node_modules/", "/scripts/", "/src/core/"],
   "moduleNameMapper": {
     "^olinda_shell_interface\\.js/(.+)$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/$1.js",
     "^olinda_shell_interface\\.js$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/index.js"
   },
   "transform": {},
   "maxWorkers": "50%",
+  "forceExit": true,
   "coverageThreshold": {
     "global": {
       "statements": 83,

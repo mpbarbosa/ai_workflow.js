@@ -639,6 +639,31 @@ Confidence: high`;
         expect(failed.length).toBe(0);
       });
 
+      test('skips directories (EISDIR) instead of failing — e.g. git submodule entries', async () => {
+        const eisdirError = Object.assign(
+          new Error('EISDIR: illegal operation on a directory, read'),
+          {
+            code: 'EISDIR',
+          }
+        );
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockRejectedValue(eisdirError),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        const results = await step.updateVersionsInFiles(['.workflow_core'], '1.0.0', '1.0.1');
+        const skipped = results.filter((r) => r.skipped);
+        const failed = results.filter((r) => r.success === false);
+        expect(skipped.some((r) => r.file === '.workflow_core')).toBe(true);
+        expect(failed.length).toBe(0);
+      });
+
       test('still records failure for non-ENOENT errors', async () => {
         const ioError = new Error('permission denied');
         const step = new Step16VersionUpdate({

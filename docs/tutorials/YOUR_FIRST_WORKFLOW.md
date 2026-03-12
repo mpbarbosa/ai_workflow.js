@@ -1,6 +1,6 @@
 # Your First Workflow - Tutorial
 
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Last Updated:** 2026-02-17
 **Difficulty:** Beginner
 **Estimated Time:** 15 minutes
@@ -40,6 +40,7 @@ cd ai_workflow.js
 ```
 
 The setup script will:
+
 - ✅ Verify Node.js and npm versions
 - ✅ Install dependencies
 - ✅ Initialize Git submodules
@@ -60,15 +61,15 @@ Edit `.workflow-config.yaml` with your project details:
 ```yaml
 # Project Metadata
 project:
-  name: "my-awesome-project"
-  version: "1.0.0"
-  primary_language: "javascript"
-  project_kind: "nodejs_api"
+  name: 'my-awesome-project'
+  version: '1.0.0'
+  primary_language: 'javascript'
+  project_kind: 'nodejs_api'
 
 # Workflow Settings
 workflow:
-  stage: "quick"           # Options: quick, medium, full
-  auto: false             # Auto-approve steps?
+  stage: 'quick' # Options: quick, medium, full
+  auto: false # Auto-approve steps?
   parallel_execution: true # Run independent steps in parallel?
 ```
 

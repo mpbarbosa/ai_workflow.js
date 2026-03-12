@@ -913,7 +913,7 @@ export class AiHelper {
           logger.info(
             `[AI] Retrying in ${delay}ms (attempt ${attempt + 2}/${this.config.maxRetries})...`
           );
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay).unref());
           // Recreate the session before retrying — a timed-out session is left
           // in a non-idle state and will immediately time out again if reused.
           await this._wrapper.recreateSession();

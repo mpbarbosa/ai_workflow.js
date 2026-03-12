@@ -605,9 +605,16 @@ export function validateLockfileStructure(lockfilePath) {
       }
     }
 
-    // Validate resolved URL (must be HTTPS when present)
+    // Validate resolved URL (must be HTTPS or a git protocol URL when present)
     if (entry.resolved !== undefined) {
-      if (typeof entry.resolved !== 'string' || !entry.resolved.startsWith('https://')) {
+      const resolved = entry.resolved;
+      const isValidUrl =
+        typeof resolved === 'string' &&
+        (resolved.startsWith('https://') ||
+          resolved.startsWith('git+ssh://') ||
+          resolved.startsWith('git+https://') ||
+          resolved.startsWith('git://'));
+      if (!isValidUrl) {
         issues.push(`${name}: non-HTTPS resolved URL "${entry.resolved}"`);
       }
     }

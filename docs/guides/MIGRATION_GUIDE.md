@@ -1,6 +1,6 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v1.6.0**
+**AI Workflow Automation v1.7.2**
 **Last Updated:** 2026-03-11
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 
@@ -662,7 +662,7 @@ import type { WorkflowConfig, StepResult } from 'ai_workflow.js';
 import { WorkflowEngine } from 'ai_workflow.js';
 
 const config: WorkflowConfig = {
-  steps: [],          // populate with StepDefinition objects
+  steps: [], // populate with StepDefinition objects
   parallel: true,
   streamingEnabled: false,
 };
@@ -670,9 +670,12 @@ const config: WorkflowConfig = {
 const engine = new WorkflowEngine(config);
 const results: Record<string, StepResult> = await engine.run();
 
-const failed = Object.values(results).filter(r => !r.success);
+const failed = Object.values(results).filter((r) => !r.success);
 if (failed.length > 0) {
-  console.error('Failed steps:', failed.map(r => r.error));
+  console.error(
+    'Failed steps:',
+    failed.map((r) => r.error)
+  );
 }
 ```
 

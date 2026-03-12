@@ -1,7 +1,7 @@
 # Third-Party Exclusion API
 
 **Module:** `lib/third_party_exclusion`
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -15,26 +15,31 @@ The Third-Party Exclusion module filters third-party files and directories from 
 - **Pattern Matching**: Glob-like pattern matching for files
 - **Pattern Merging**: Combines multiple pattern sources
 - **Exclusion Reports**: Generate filtered file lists with statistics
-- **Common Exclusions**: node_modules, .git, dist, build, venv, __pycache__, etc.
+- **Common Exclusions**: node_modules, .git, dist, build, venv, **pycache**, etc.
 
 ### Common Exclusions
 
 **Version Control:**
+
 - `.git/**`, `.svn/**`, `.hg/**`
 
 **Dependencies:**
+
 - `node_modules/**` (Node.js)
 - `venv/**`, `__pycache__/**` (Python)
 
 **Build Outputs:**
+
 - `dist/**`, `build/**`, `out/**`
 - `*.min.js`, `*.bundle.js`
 
 **IDE/Editor:**
+
 - `.vscode/**`, `.idea/**`, `.vs/**`
 - `*.swp`, `*.swo`, `*~`
 
 **Workflow Artifacts:**
+
 - `.ai_workflow/**`, `.workflow_core/**`
 
 ### Architecture
@@ -85,6 +90,7 @@ Gets default exclusion patterns for a project kind.
 **Pure:** ✅ Deterministic, no side effects
 
 **Pattern Format:**
+
 - `**` matches any number of directories
 - `*` matches any characters except /
 - Patterns are relative to project root
@@ -689,7 +695,7 @@ console.log('Analysis complete:', analysis);
 
 ## Notes
 
-- **Pattern Format**: Uses glob-like patterns (**, *, ?)
+- **Pattern Format**: Uses glob-like patterns (\*_, _, ?)
 - **Performance**: Patterns compiled once, reused for all checks
 - **Gitignore**: Fully compatible with .gitignore syntax
 - **Negation**: Patterns starting with ! negate previous patterns

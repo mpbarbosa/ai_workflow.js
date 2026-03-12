@@ -613,7 +613,7 @@ export class AutoCommit {
       setTimeout(async () => {
         const result = await this.commitAll();
         resolve(result);
-      }, delay);
+      }, delay).unref();
     });
   }
 

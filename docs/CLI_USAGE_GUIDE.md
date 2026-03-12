@@ -25,6 +25,7 @@ ai-workflow run [options]
 ```
 
 **Options:**
+
 - `--stage <stage>` - Workflow stage: `quick`, `medium`, or `full` (default: `full`)
 - `--auto` - Run in automatic mode without prompts (default: `false`)
 - `--dry-run` - Preview execution without making changes (default: `false`)
@@ -32,6 +33,7 @@ ai-workflow run [options]
 - `--workflow-dir <path>` - Workflow artifacts directory (default: `.ai_workflow`)
 
 **Global Options:**
+
 - `-v, --verbose` - Enable verbose logging
 - `-q, --quiet` - Suppress non-essential output
 - `--no-color` - Disable colored output
@@ -40,7 +42,9 @@ ai-workflow run [options]
 ## Workflow Stages
 
 ### Quick Stage (5 steps, ~30 seconds)
+
 Fast validation for quick checks:
+
 - Pre-Analysis (project detection)
 - Documentation validation
 - Consistency checks
@@ -52,7 +56,9 @@ ai-workflow run --stage quick
 ```
 
 ### Medium Stage (13 steps, ~2-5 minutes)
+
 Includes testing and quality checks:
+
 - Everything from Quick stage
 - Documentation optimization
 - Script reference validation
@@ -66,7 +72,9 @@ ai-workflow run --stage medium
 ```
 
 ### Full Stage (20 steps, ~5-15 minutes)
+
 Complete workflow with all features:
+
 - Everything from Medium stage
 - Bootstrap documentation
 - Dependency analysis
@@ -84,22 +92,26 @@ ai-workflow run --stage full
 ## Common Use Cases
 
 ### 1. Quick Validation Before Commit
+
 ```bash
 cd /path/to/project
 ai-workflow run --stage quick --auto
 ```
 
 ### 2. Full Validation in CI/CD
+
 ```bash
 ai-workflow run --project-root /workspace/project --stage full --auto --quiet
 ```
 
 ### 3. Test Changes Without Execution
+
 ```bash
 ai-workflow run --dry-run --stage medium
 ```
 
 ### 4. Run on Multiple Projects
+
 ```bash
 # Project 1
 ai-workflow run --project-root ~/projects/api --stage quick
@@ -112,6 +124,7 @@ ai-workflow run --project-root ~/projects/backend --stage full
 ```
 
 ### 5. Custom Workflow Directory
+
 ```bash
 # Use custom artifact directory
 ai-workflow run --workflow-dir .custom_ai_workflow
@@ -120,6 +133,7 @@ ai-workflow run --workflow-dir .custom_ai_workflow
 ## Other Commands
 
 ### Initialize New Project
+
 ```bash
 # Interactive setup
 ai-workflow init --interactive
@@ -135,6 +149,7 @@ ai-workflow init --interactive --force
 ```
 
 ### Resume from Checkpoint
+
 ```bash
 # List available checkpoints
 ai-workflow resume --list
@@ -147,11 +162,13 @@ ai-workflow resume workflow_1771291699863-1771291699864
 ```
 
 ### Check Status
+
 ```bash
 ai-workflow status --workflow-dir /path/to/project/.ai_workflow
 ```
 
 ### Manage Configuration
+
 ```bash
 # Show configuration
 ai-workflow config show
@@ -167,6 +184,7 @@ ai-workflow config set primary_language javascript
 ```
 
 ### Clean Workflow Artifacts
+
 ```bash
 # Clean all artifacts
 ai-workflow clean --all
@@ -189,6 +207,7 @@ ai-workflow clean --all --dry-run
 ## Examples by Scenario
 
 ### Scenario 1: Daily Development Workflow
+
 ```bash
 # Morning: Check what changed
 ai-workflow status
@@ -201,6 +220,7 @@ ai-workflow run --stage full
 ```
 
 ### Scenario 2: CI/CD Pipeline
+
 ```bash
 #!/bin/bash
 # In your CI/CD script
@@ -222,6 +242,7 @@ fi
 ```
 
 ### Scenario 3: Batch Processing Multiple Projects
+
 ```bash
 #!/bin/bash
 # Process all projects in a directory
@@ -237,6 +258,7 @@ done
 ```
 
 ### Scenario 4: Pre-commit Hook
+
 ```bash
 #!/bin/bash
 # .git/hooks/pre-commit
@@ -274,6 +296,7 @@ AI_WORKFLOW_CONFIG=custom.yaml ai-workflow run
 ## Output and Artifacts
 
 ### Workflow Directory Structure
+
 ```
 .ai_workflow/
 ├── backlog/              # Execution reports
@@ -291,6 +314,7 @@ AI_WORKFLOW_CONFIG=custom.yaml ai-workflow run
 ```
 
 ### Generated Files
+
 ```
 .workflow-config.yaml     # Project configuration
 .ai_workflow/             # Workflow artifacts
@@ -309,6 +333,7 @@ AI_WORKFLOW_CONFIG=custom.yaml ai-workflow run
 ## Troubleshooting
 
 ### Workflow Fails to Start
+
 ```bash
 # Check configuration
 ai-workflow config validate
@@ -321,12 +346,14 @@ ai-workflow run --dry-run
 ```
 
 ### "No configuration found"
+
 ```bash
 # Initialize configuration
 ai-workflow init --project-root /path/to/project
 ```
 
 ### Permission Issues
+
 ```bash
 # Check workflow directory permissions
 ls -la .ai_workflow
@@ -336,6 +363,7 @@ mkdir -p .ai_workflow
 ```
 
 ### Resume Not Working
+
 ```bash
 # List available checkpoints
 ai-workflow resume --list
@@ -358,6 +386,7 @@ cat .ai_workflow/checkpoints/checkpoint_*.json
 **Version:** 1.8.0
 **For:** ai_workflow.js v1.8.0+
 =======
-**Version:** 1.6.1
+**Version:** 1.7.2
 **For:** ai_workflow.js v1.6.1+
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
+
+> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])

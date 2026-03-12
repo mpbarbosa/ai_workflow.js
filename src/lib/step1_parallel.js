@@ -522,10 +522,11 @@ export class Step1ParallelProcessor {
    * @async
    */
   async _executeWithTimeout(fn, timeout) {
-    return Promise.race([
-      fn(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout)),
-    ]);
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Timeout')), timeout);
+    });
+    return Promise.race([fn(), timeoutPromise]).finally(() => clearTimeout(timeoutId));
   }
 
   /**

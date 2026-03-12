@@ -1,7 +1,7 @@
 # Tech Stack Detection API
 
 **Module:** `lib/tech_stack`
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -21,24 +21,31 @@ The Tech Stack Detection module identifies programming languages, frameworks, bu
 ### Detected Technologies
 
 **Languages (11):**
+
 - javascript, typescript, python, shell, go, rust, java, yaml, json, markdown, html/css
 
 **Web Frameworks (5):**
+
 - Express.js, Koa, NestJS, Fastify, Hapi
 
 **Frontend Frameworks (5):**
+
 - React, Vue.js, Angular, Svelte, Preact
 
 **Meta Frameworks (4):**
+
 - Next.js, Nuxt, Gatsby, Remix
 
 **Build Systems (10+):**
+
 - webpack, vite, rollup, parcel, esbuild, tsc, babel, etc.
 
 **Test Frameworks (8):**
+
 - Jest, Mocha, Vitest, Pytest, Unittest, etc.
 
 **Linters (5):**
+
 - ESLint, Prettier, Pylint, Black, etc.
 
 ### Architecture
@@ -388,7 +395,10 @@ const techStack = await detector.detectTechStack();
 
 console.log('Languages:', techStack.languages);
 console.log('Primary:', techStack.primary_language);
-console.log('Frameworks:', techStack.frameworks.map((f) => f.name));
+console.log(
+  'Frameworks:',
+  techStack.frameworks.map((f) => f.name)
+);
 console.log('Build System:', techStack.build_system.buildSystem);
 console.log('Test Framework:', techStack.test_framework.testFramework);
 console.log('Linters:', techStack.linters.linters);
@@ -523,10 +533,7 @@ if (hasReact) {
 ### Build System and Test Framework
 
 ```javascript
-import {
-  detectBuildSystem,
-  detectTestFramework,
-} from 'ai_workflow.js/lib/tech_stack';
+import { detectBuildSystem, detectTestFramework } from 'ai_workflow.js/lib/tech_stack';
 import { FileOperations } from 'ai_workflow.js/lib/file_operations';
 
 const fileOps = new FileOperations();

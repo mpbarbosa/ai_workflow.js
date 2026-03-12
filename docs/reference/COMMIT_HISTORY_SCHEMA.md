@@ -1,7 +1,7 @@
 # Commit History Schema
 
 **File:** `.ai_workflow/commit_history.json`
-**Version:** 1.0.0
+**Version:** 1.7.2
 
 ## Overview
 
@@ -27,19 +27,19 @@ Tracks which git commits have had the AI workflow executed against them. Used by
 
 ### Root
 
-| Field | Type | Required | Description |
-| ----- | ---- | -------- | ----------- |
-| `version` | `string` | Yes | Schema version (semver). Current: `"1.0.0"`. |
-| `lastRunCommit` | `string` | Yes | Full SHA-1 of the most recent commit that completed a workflow run. |
-| `runs` | `array` | Yes | Ordered list of all recorded workflow runs (oldest first). |
+| Field           | Type     | Required | Description                                                         |
+| --------------- | -------- | -------- | ------------------------------------------------------------------- |
+| `version`       | `string` | Yes      | Schema version (semver). Current: `"1.0.0"`.                        |
+| `lastRunCommit` | `string` | Yes      | Full SHA-1 of the most recent commit that completed a workflow run. |
+| `runs`          | `array`  | Yes      | Ordered list of all recorded workflow runs (oldest first).          |
 
 ### `runs[]` entries
 
-| Field | Type | Required | Description |
-| ----- | ---- | -------- | ----------- |
-| `hash` | `string` | Yes | Full 40-character git SHA-1 of the commit at the time of the run. |
-| `runId` | `string` | Yes | Unique workflow run identifier — format `workflow_<unix-ms-timestamp>`. |
-| `timestamp` | `string` | Yes | ISO 8601 UTC timestamp when the run was recorded. |
+| Field       | Type     | Required | Description                                                             |
+| ----------- | -------- | -------- | ----------------------------------------------------------------------- |
+| `hash`      | `string` | Yes      | Full 40-character git SHA-1 of the commit at the time of the run.       |
+| `runId`     | `string` | Yes      | Unique workflow run identifier — format `workflow_<unix-ms-timestamp>`. |
+| `timestamp` | `string` | Yes      | ISO 8601 UTC timestamp when the run was recorded.                       |
 
 ## Notes
 

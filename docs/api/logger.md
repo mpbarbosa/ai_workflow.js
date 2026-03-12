@@ -1,7 +1,7 @@
 # logger - Logging Module
 
 **Module:** `core/logger`
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Type:** Class-based with singleton instance
 
 ## Overview
@@ -408,4 +408,4 @@ function processFiles(files, options) {
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.0.0
+**Part of:** AI Workflow Automation v1.7.2

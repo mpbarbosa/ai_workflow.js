@@ -11,12 +11,32 @@
 ```javascript
 // Recommended: via ai_workflow.js (since v1.6.3)
 import {
-  camelCase, kebabCase, snakeCase, pascalCase, capitalize,
-  truncate, sanitize, cleanWhitespace, escapeRegex,
-  dedupe, chunk, flatten, groupBy, sortBy,
-  intersection, difference, partition,
-  deepClone, deepMerge, pick, omit, getProperty,
-  setProperty, hasProperty, deepEqual, isEmpty,
+  camelCase,
+  kebabCase,
+  snakeCase,
+  pascalCase,
+  capitalize,
+  truncate,
+  sanitize,
+  cleanWhitespace,
+  escapeRegex,
+  dedupe,
+  chunk,
+  flatten,
+  groupBy,
+  sortBy,
+  intersection,
+  difference,
+  partition,
+  deepClone,
+  deepMerge,
+  pick,
+  omit,
+  getProperty,
+  setProperty,
+  hasProperty,
+  deepEqual,
+  isEmpty,
 } from 'ai-workflow';
 
 // Or via the lib module directly
@@ -46,7 +66,7 @@ See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.j
 ---
 
 **Last Updated:** 2026-03-11
-**Part of:** AI Workflow Automation v1.6.3
+**Part of:** AI Workflow Automation v1.7.2
 
 <!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
 
@@ -182,4 +202,4 @@ const merged = deepMerge(defaults, userConfig);
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.0.0
+**Part of:** AI Workflow Automation v1.7.2

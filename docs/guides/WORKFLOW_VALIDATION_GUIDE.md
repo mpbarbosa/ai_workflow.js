@@ -3,10 +3,11 @@
 <<<<<<< HEAD
 **Version:** 1.8.0
 =======
-**Version:** 1.6.1
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-**Last Updated:** 2026-02-21
-**Applies to:** ai_workflow.js v1.2.0+
+**Version:** 1.7.2
+
+> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
+> > > > > > > **Last Updated:** 2026-02-21
+> > > > > > > **Applies to:** ai_workflow.js v1.2.0+
 
 This guide documents the process for validating a workflow execution run. It was formalized from the analysis of run `workflow_20260220_210720` and is designed to be reusable for future validations.
 
@@ -229,14 +230,14 @@ Not every step makes an AI call on every run. The following table documents when
 
 **Steps with no AI calls** (by design):
 
-| Step      | Name               | Reason                                     |
-| --------- | ------------------ | ------------------------------------------ |
-| step_00   | Pre-Analysis       | Structural project detection only          |
-| step_02_5 | Doc Optimization   | Heuristics-based analysis                  |
-| step_07   | Test Generation    | Runs test commands directly                |
-| step_11   | Context Management | File aggregation                           |
-| step_0f   | Commit Artifacts   | Git operations                             |
-| step_17   | Workflow Summary   | Aggregation of step results                |
+| Step      | Name               | Reason                            |
+| --------- | ------------------ | --------------------------------- |
+| step_00   | Pre-Analysis       | Structural project detection only |
+| step_02_5 | Doc Optimization   | Heuristics-based analysis         |
+| step_07   | Test Generation    | Runs test commands directly       |
+| step_11   | Context Management | File aggregation                  |
+| step_0f   | Commit Artifacts   | Git operations                    |
+| step_17   | Workflow Summary   | Aggregation of step results       |
 
 ### Prompt Key Reference
 

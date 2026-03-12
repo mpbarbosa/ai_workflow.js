@@ -5,10 +5,11 @@
 <<<<<<< HEAD
 **Version:** 1.8.0
 =======
-**Version:** 1.6.1
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-**Date:** February 2, 2026
-**Status:** Active
+**Version:** 1.7.2
+
+> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
+> > > > > > > **Date:** February 2, 2026
+> > > > > > > **Status:** Active
 
 ---
 

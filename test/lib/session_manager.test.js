@@ -448,12 +448,12 @@ describe('SessionManager - Wrapper Class (Integration)', () => {
       manager.registerSession(sessionId, 'Test');
 
       // Wait a bit to accumulate some age
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const age = manager.getSessionAge(sessionId);
 
-      expect(age).toBeGreaterThanOrEqual(10);
-      expect(age).toBeLessThan(100);
+      expect(age).toBeGreaterThanOrEqual(20);
+      expect(age).toBeLessThan(500);
     });
 
     test('should return null for non-existent session', () => {

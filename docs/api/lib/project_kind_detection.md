@@ -1,7 +1,7 @@
 # Project Kind Detection API
 
 **Module:** `lib/project_kind_detection`
-**Version:** 1.0.0
+**Version:** 1.7.2
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -467,14 +467,7 @@ const result = detectByFilePatterns(files);
 ```javascript
 import { detectByDirectoryStructure } from 'ai_workflow.js/lib/project_kind_detection';
 
-const dirs = [
-  'src',
-  'src/components',
-  'src/pages',
-  'src/hooks',
-  'public',
-  'node_modules',
-];
+const dirs = ['src', 'src/components', 'src/pages', 'src/hooks', 'public', 'node_modules'];
 
 const result = detectByDirectoryStructure(dirs);
 // => { kind: 'react_spa', confidence: 85, indicators: ['has_components_dir', 'has_pages_dir', 'has_hooks_dir'] }

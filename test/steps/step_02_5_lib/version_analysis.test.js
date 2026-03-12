@@ -122,7 +122,7 @@ See @3.1.0 for details
     });
 
     test('calculates minor gap', () => {
-      const gap = calculateVersionGap('1.2.0', '1.7.2');
+      const gap = calculateVersionGap('1.2.0', '1.7.0');
       expect(gap.major).toBe(0);
       expect(gap.minor).toBe(5);
       expect(gap.patch).toBe(0);
