@@ -486,7 +486,7 @@ technical_writer_prompt:
       expect(mockLogger.info).toHaveBeenCalledWith('[DRY RUN] Documentation gap analysis preview:');
     });
 
-    test('skips when documentation coverage is adequate', async () => {
+    test('skips when documentation coverage is adequate and all catalog docs are present', async () => {
       const step = new Step0bBootstrapDocs({
         backlog: mockBacklog,
         logger: mockLogger,
@@ -500,11 +500,24 @@ technical_writer_prompt:
         hasDocsDir: true,
       });
 
+      // All DOC_TYPES catalog files are present — identifyMissingDocs returns []
+      step.listExistingDocs = jest
+        .fn()
+        .mockResolvedValue([
+          'README.md',
+          'CHANGELOG.md',
+          'CONTRIBUTING.md',
+          'LICENSE',
+          'docs/API.md',
+          'docs/ARCHITECTURE.md',
+          'docs/GETTING_STARTED.md',
+        ]);
+
       const result = await step.execute();
 
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('documentation coverage adequate');
+      expect(result.reason).toBe('all catalog documentation files present');
       expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
         '0b',
         'Bootstrap_Docs',

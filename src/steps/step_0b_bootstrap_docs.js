@@ -515,20 +515,7 @@ export class Step0bBootstrapDocs {
       const needsBootstrap = shouldBootstrapDocs(stats);
 
       if (!needsBootstrap) {
-        this.logger.info('Step 0b: Documentation coverage adequate - no bootstrap needed');
-
-        await this.backlog.saveStepSummary(
-          '0b',
-          'Bootstrap_Docs',
-          'Skipped: Documentation coverage adequate',
-          '⏭️'
-        );
-
-        return {
-          success: true,
-          skipped: true,
-          reason: 'documentation coverage adequate',
-        };
+        this.logger.info('Step 0b: Documentation coverage adequate - checking for catalog gaps...');
       }
 
       this.logger.debug('Phase 3');
@@ -539,6 +526,23 @@ export class Step0bBootstrapDocs {
       const existingFiles = await this.listExistingDocs();
       const missingDocs = identifyMissingDocs(existingFiles);
       const categorized = categorizeMissingDocs(missingDocs);
+
+      if (missingDocs.length === 0) {
+        this.logger.info('Step 0b: All catalog docs present — nothing to generate');
+
+        await this.backlog.saveStepSummary(
+          '0b',
+          'Bootstrap_Docs',
+          'Skipped: All catalog documentation files are present',
+          '⏭️'
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          reason: 'all catalog documentation files present',
+        };
+      }
 
       this.logger.warn(
         `Found ${missingDocs.length} missing documentation files (${categorized.critical.length} critical)`
