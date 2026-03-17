@@ -699,6 +699,8 @@ export class Step0bBootstrapDocs {
    * @returns {Promise<string[]>} Directory/file names to exclude
    */
   async loadGitignoreExclusions() {
+    // Always exclude the workflow's own runtime directory regardless of .gitignore
+    const hardcoded = ['.ai_workflow'];
     try {
       const gitignorePath = path.join(this.projectRoot, '.gitignore');
       const content = await this.fileOps.readFile(gitignorePath);
@@ -713,9 +715,9 @@ export class Step0bBootstrapDocs {
         // No .gitmodules or unreadable — proceed without submodule exclusions
       }
 
-      return [...new Set([...fromGitignore, ...fromSubmodules])];
+      return [...new Set([...hardcoded, ...fromGitignore, ...fromSubmodules])];
     } catch {
-      return [];
+      return hardcoded;
     }
   }
 
