@@ -55,6 +55,7 @@ export const EXCLUDED_DIRECTORIES = Object.freeze([
   'tmp',
   // Generated documentation / report output directories
   'docs/api',
+  'api-generated',
   'typedoc',
   'api-docs',
   'jsdoc',

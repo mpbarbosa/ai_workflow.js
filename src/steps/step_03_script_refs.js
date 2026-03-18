@@ -559,7 +559,16 @@ export class Step3ScriptAnalyzer {
    */
   async findScripts(projectRoot, directories, patterns) {
     const scripts = [];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', '.husky/_'];
+    const exclude = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'coverage',
+      '.husky/_',
+      'venv',
+      '.venv',
+    ];
 
     for (const dir of directories) {
       for (const pattern of patterns) {
