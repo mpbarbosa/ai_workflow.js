@@ -48,11 +48,12 @@ const DEFAULT_REQUEST = {
   MODEL: 'gpt-4.1',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 4000,
-  TIMEOUT_MS: 60000, // 60 seconds (doubles to 120 s on first timeout retry)
+  TIMEOUT_MS: 120000, // 120 seconds initial timeout, doubled on each timeout retry
   STREAM: false,
   MAX_RETRIES: 3,
   BASE_DELAY_MS: 1000, // 1 second initial retry delay
   MAX_DELAY_MS: 30000, // 30 seconds maximum retry delay
+  FALLBACK_MODEL: 'claude-haiku-4.5', // Fallback when primary model exhausts all timeout retries
 };
 
 // ==============================================================================
@@ -293,6 +294,20 @@ export function shouldRetry(errorInfo, attemptCount, maxAttempts = 3) {
 }
 
 /**
+ * Returns true when the error message represents a session.idle timeout from
+ * the Copilot SDK — i.e. the session never became idle within the allowed
+ * window ("Timeout after Xms waiting for session.idle").
+ *
+ * @param {Object} errorInfo - Result of {@link parseErrorResponse}
+ * @returns {boolean}
+ *
+ * @pure
+ */
+export function isSessionIdleTimeout(errorInfo) {
+  return /timeout/i.test(errorInfo.message) && /session\.idle/i.test(errorInfo.message);
+}
+
+/**
  * Merges request options with defaults.
  *
  * @param {Object} options - User-provided options
@@ -328,12 +343,31 @@ export function mergeRequestOptions(options = {}, defaults = {}) {
 
 // Valid model identifiers accepted by the Copilot SDK
 const VALID_MODELS = [
+  // Legacy / broadly-tested models (kept for backward compatibility)
   'gpt-4.1',
   'gpt-4o',
   'gpt-4-turbo',
   'gpt-4',
   'gpt-3.5-turbo',
   'claude-3-5-sonnet',
+  // Current production models (as of March 2026)
+  'claude-sonnet-4.6',
+  'claude-sonnet-4.5',
+  'claude-haiku-4.5',
+  'claude-opus-4.6',
+  'claude-opus-4.6-fast',
+  'claude-opus-4.5',
+  'claude-sonnet-4',
+  'gemini-3-pro-preview',
+  'gpt-5.4',
+  'gpt-5.3-codex',
+  'gpt-5.2-codex',
+  'gpt-5.2',
+  'gpt-5.1-codex-max',
+  'gpt-5.1-codex',
+  'gpt-5.1',
+  'gpt-5.1-codex-mini',
+  'gpt-5-mini',
 ];
 
 // Timeout bounds considered safe for production (ms)
@@ -588,10 +622,12 @@ export class AiHelper {
    * Creates AI Helper instance.
    *
    * @param {Object} [config={}] - Configuration options
-   * @param {string} [config.model='gpt-4'] - Default model to use
+   * @param {string} [config.model='gpt-4.1'] - Default model to use
    * @param {number} [config.maxRetries=3] - Maximum retry attempts
    * @param {boolean} [config.cache=true] - Enable response caching
    * @param {number} [config.timeout=120000] - Request timeout in ms
+   * @param {string} [config.fallbackModel='claude-haiku-4.5'] - Model to try when the primary
+   *   model exhausts all retries due to timeouts. Set to null to disable fallback.
    * @param {Object[]} [config.tools] - SDK tools for Copilot to call; defaults to buildWorkflowTools()
    */
   constructor(config = {}) {
@@ -605,18 +641,25 @@ export class AiHelper {
       promptsDir: config.promptsDir || null,
       workingDirectory: config.workingDirectory || null,
       projectVersion: config.projectVersion || null,
+      // Fallback model to try when the primary model exhausts all retries due to timeouts.
+      // Set to null/false to disable. Must differ from the primary model to take effect.
+      fallbackModel:
+        config.fallbackModel !== undefined ? config.fallbackModel : DEFAULT_REQUEST.FALLBACK_MODEL,
       // When set, every executeRequest call automatically streams via this callback.
       // The callback receives (delta: string, meta: {persona, model}) per token chunk.
       streamingCallback: config.streamingCallback ?? null,
     };
 
     this.logger = config.logger || logger;
+    // Store resolved tools so they can be reused by a fallback wrapper without
+    // re-evaluating the workingDirectory default a second time.
+    this._tools = config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd());
     this._wrapper = new CopilotSdkWrapper({
       model: this.config.model,
       timeout: this.config.timeout,
       workingDirectory: this.config.workingDirectory,
       streaming: !!this.config.streamingCallback,
-      tools: config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd()),
+      tools: this._tools,
     });
     this.initialized = false;
     this.available = false;
@@ -867,13 +910,19 @@ export class AiHelper {
           !streamingExplicitlyDisabled &&
           (requestOptions.stream === true || !!this.config.streamingCallback) &&
           typeof effectiveOnChunk === 'function';
-        const rawResponse = useStreaming
-          ? await this._wrapper.sendStream(
-              prompt,
-              effectiveOnChunk,
-              requestOptions.timeout || this.config.timeout
-            )
-          : await this._wrapper.send(prompt, requestOptions.timeout || this.config.timeout);
+        // sendStream is not available in the current SDK version — always use send().
+        // When streaming was requested, deliver the full response as a single chunk.
+        const rawResponse = await this._wrapper.send(
+          prompt,
+          requestOptions.timeout || this.config.timeout
+        );
+        if (useStreaming && typeof effectiveOnChunk === 'function') {
+          const content =
+            typeof rawResponse === 'string'
+              ? rawResponse
+              : (rawResponse?.content ?? rawResponse?.text ?? JSON.stringify(rawResponse));
+          effectiveOnChunk(content);
+        }
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);
@@ -933,12 +982,65 @@ export class AiHelper {
       }
     }
 
-    // All retries exhausted
-    const errorInfo = parseErrorResponse(lastError);
-    throw new SystemError(`AI request failed after ${attempt + 1} attempts: ${errorInfo.message}`, {
-      error: errorInfo,
-      attempts: attempt + 1,
-    });
+    // All primary retries exhausted
+    const primaryErrorInfo = parseErrorResponse(lastError);
+
+    // ── Fallback model attempt ─────────────────────────────────────────────────
+    // When all retries fail due to timeouts (e.g. "waiting for session.idle"),
+    // try once with the fallback model before giving up entirely.
+    const fallbackModel = this.config.fallbackModel;
+    const primaryModel = requestOptions.model || this.config.model;
+    if (
+      /timeout/i.test(primaryErrorInfo.message) &&
+      fallbackModel &&
+      fallbackModel !== primaryModel
+    ) {
+      logger.warn(
+        `[AI] Primary model "${primaryModel}" timed out after ${attempt} attempt(s) — trying fallback: ${fallbackModel}`
+      );
+      const fallbackWrapper = new CopilotSdkWrapper({
+        model: fallbackModel,
+        timeout: DEFAULT_REQUEST.TIMEOUT_MS,
+        workingDirectory: this.config.workingDirectory,
+        streaming: false,
+        tools: this._tools,
+      });
+      try {
+        await fallbackWrapper.initialize();
+        const fallbackStart = Date.now();
+        const rawFallback = await fallbackWrapper.send(prompt, DEFAULT_REQUEST.TIMEOUT_MS);
+        const parsedFallback = parseAiResponse(rawFallback);
+        const fallbackMs = Date.now() - fallbackStart;
+        logger.info(
+          `[AI] Fallback "${fallbackModel}" succeeded — persona: ${persona}, response_chars: ${(parsedFallback.content || '').length}, latency: ${fallbackMs}ms`
+        );
+        if (requestOptions.validate !== false) {
+          const validation = validateAIResponse(parsedFallback.content, {
+            minLength: requestOptions.minLength || 10,
+            requireSections: requestOptions.requireSections,
+            schema: requestOptions.schema,
+          });
+          if (!validation.valid) {
+            logger.warn(`Fallback response validation failed: ${validation.errors.join(', ')}`);
+            parsedFallback.validation = validation;
+          }
+        }
+        await this._logPrompt(prompt, options, parsedFallback);
+        return parsedFallback;
+      } catch (fallbackError) {
+        logger.warn(
+          `[AI] Fallback model "${fallbackModel}" also failed: ${parseErrorResponse(fallbackError).message}`
+        );
+      }
+    }
+
+    throw new SystemError(
+      `AI request failed after ${attempt + 1} attempts: ${primaryErrorInfo.message}`,
+      {
+        error: primaryErrorInfo,
+        attempts: attempt + 1,
+      }
+    );
   }
 
   /**

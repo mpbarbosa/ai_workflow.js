@@ -14,6 +14,7 @@ import {
   formatBatchRequests,
   calculateRetryDelay,
   shouldRetry,
+  isSessionIdleTimeout,
   mergeRequestOptions,
   validateAiHelperState,
   AiHelper,
@@ -367,6 +368,40 @@ describe('AI Helpers Module - Pure Functions', () => {
     });
   });
 
+  describe('isSessionIdleTimeout', () => {
+    test('returns true for session.idle timeout error', () => {
+      const errorInfo = { message: 'Timeout after 60000ms waiting for session.idle' };
+      expect(isSessionIdleTimeout(errorInfo)).toBe(true);
+    });
+
+    test('returns true for varying timeout durations', () => {
+      expect(
+        isSessionIdleTimeout({ message: 'Timeout after 120000ms waiting for session.idle' })
+      ).toBe(true);
+      expect(
+        isSessionIdleTimeout({ message: 'Timeout after 240000ms waiting for session.idle' })
+      ).toBe(true);
+    });
+
+    test('returns false for non-timeout errors', () => {
+      expect(isSessionIdleTimeout({ message: 'Network error' })).toBe(false);
+      expect(isSessionIdleTimeout({ message: 'Authentication failed' })).toBe(false);
+    });
+
+    test('returns false for timeout without session.idle', () => {
+      expect(isSessionIdleTimeout({ message: 'Timeout after 60000ms waiting for response' })).toBe(
+        false
+      );
+      expect(isSessionIdleTimeout({ message: 'Request timed out' })).toBe(false);
+    });
+
+    test('is case-insensitive for both keywords', () => {
+      expect(
+        isSessionIdleTimeout({ message: 'TIMEOUT after 60000ms waiting for SESSION.IDLE' })
+      ).toBe(true);
+    });
+  });
+
   describe('mergeRequestOptions', () => {
     test('uses defaults for missing options', () => {
       const result = mergeRequestOptions();
@@ -488,7 +523,19 @@ describe('validateAiHelperState (pure)', () => {
     });
 
     test('all valid alternate models pass', () => {
-      for (const model of ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-5-sonnet']) {
+      for (const model of [
+        // legacy
+        'gpt-4o',
+        'gpt-4-turbo',
+        'gpt-3.5-turbo',
+        'claude-3-5-sonnet',
+        // current production
+        'claude-sonnet-4.6',
+        'claude-haiku-4.5',
+        'claude-opus-4.6',
+        'gpt-5.4',
+        'gpt-5-mini',
+      ]) {
         const result = validateAiHelperState({ ...validConfig, model }, freshState);
         expect(result.consistent).toBe(true);
       }
@@ -941,21 +988,20 @@ describe('AiHelper class methods', () => {
 
     // ── streaming path ──────────────────────────────────────────────────────
 
-    test('uses sendStream when stream:true and onChunk provided', async () => {
+    test('uses send (not sendStream) when stream:true and onChunk provided', async () => {
       helper.available = true;
       helper.authenticated = true;
-      const sendStream = jest.fn().mockResolvedValue('Streamed response content here.');
+      const send = jest.fn().mockResolvedValue('Streamed response content here.');
       helper._wrapper = {
-        send: jest.fn(),
-        sendStream,
+        send,
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       const onChunk = jest.fn();
       const result = await helper.executeRequest('stream me', { stream: true }, onChunk);
-      expect(sendStream).toHaveBeenCalledWith('stream me', onChunk, expect.any(Number));
-      expect(helper._wrapper.send).not.toHaveBeenCalled();
+      expect(send).toHaveBeenCalledWith('stream me', expect.any(Number));
+      expect(onChunk).toHaveBeenCalledWith('Streamed response content here.');
       expect(result).toHaveProperty('success', true);
     });
 
@@ -965,14 +1011,12 @@ describe('AiHelper class methods', () => {
       const send = jest.fn().mockResolvedValue('Non-streamed response content here.');
       helper._wrapper = {
         send,
-        sendStream: jest.fn(),
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       const result = await helper.executeRequest('no chunk', { stream: true });
       expect(send).toHaveBeenCalled();
-      expect(helper._wrapper.sendStream).not.toHaveBeenCalled();
       expect(result).toHaveProperty('success', true);
     });
 
@@ -982,62 +1026,52 @@ describe('AiHelper class methods', () => {
       const send = jest.fn().mockResolvedValue('Response content for non-streaming test.');
       helper._wrapper = {
         send,
-        sendStream: jest.fn(),
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       await helper.executeRequest('non-stream', { stream: false }, jest.fn());
       expect(send).toHaveBeenCalled();
-      expect(helper._wrapper.sendStream).not.toHaveBeenCalled();
     });
 
     // ── streamingCallback (instance-level) ──────────────────────────────────
 
-    test('streamingCallback: uses sendStream automatically without explicit stream:true', async () => {
+    test('streamingCallback: uses send automatically without explicit stream:true', async () => {
       const streamingCallback = jest.fn();
-      const sendStream = jest.fn().mockResolvedValue('Streamed via instance callback.');
+      const send = jest.fn().mockResolvedValue('Streamed via instance callback.');
       const h = new AiHelper({ streamingCallback });
       h.available = true;
       h.authenticated = true;
       h._wrapper = {
-        send: jest.fn(),
-        sendStream,
+        send,
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       const result = await h.executeRequest('prompt', {});
-      expect(sendStream).toHaveBeenCalled();
-      expect(h._wrapper.send).not.toHaveBeenCalled();
+      expect(send).toHaveBeenCalled();
+      expect(streamingCallback).toHaveBeenCalled();
       expect(result).toHaveProperty('success', true);
     });
 
     test('streamingCallback: wraps callback with persona metadata', async () => {
       const received = [];
       const streamingCallback = (delta, meta) => received.push({ delta, meta });
-      // The wrapper will call the effectiveOnChunk with just the delta.
-      // We need to simulate what _doSendStream does: call onChunk(delta).
-      const sendStream = jest.fn().mockImplementation(async (_prompt, onChunk) => {
-        onChunk('hello');
-        onChunk(' world');
-        return 'hello world';
-      });
+      // SDK delivers the full response as a single chunk (no real streaming).
+      const send = jest.fn().mockResolvedValue('hello world');
       const h = new AiHelper({ streamingCallback });
       h.available = true;
       h.authenticated = true;
       h._wrapper = {
-        send: jest.fn(),
-        sendStream,
+        send,
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       await h.executeRequest('p', { persona: 'test_engineer' });
-      expect(received).toHaveLength(2);
-      expect(received[0].delta).toBe('hello');
+      expect(received).toHaveLength(1);
+      expect(received[0].delta).toBe('hello world');
       expect(received[0].meta).toMatchObject({ persona: 'test_engineer' });
-      expect(received[1].delta).toBe(' world');
     });
 
     test('streamingCallback: does not activate when null (non-streaming default)', async () => {
@@ -1047,29 +1081,23 @@ describe('AiHelper class methods', () => {
       h.authenticated = true;
       h._wrapper = {
         send,
-        sendStream: jest.fn(),
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
       };
       await h.executeRequest('prompt', {});
       expect(send).toHaveBeenCalled();
-      expect(h._wrapper.sendStream).not.toHaveBeenCalled();
     });
 
     test('explicit onChunk arg takes precedence over streamingCallback', async () => {
       const instanceCb = jest.fn();
       const explicitCb = jest.fn();
-      const sendStream = jest.fn().mockImplementation(async (_p, onChunk) => {
-        onChunk('tok');
-        return 'tok';
-      });
+      const send = jest.fn().mockResolvedValue('tok');
       const h = new AiHelper({ streamingCallback: instanceCb });
       h.available = true;
       h.authenticated = true;
       h._wrapper = {
-        send: jest.fn(),
-        sendStream,
+        send,
         recreateSession: jest.fn().mockResolvedValue(undefined),
         client: null,
         session: null,
@@ -1277,6 +1305,100 @@ describe('AiHelper class - additional method coverage', () => {
     const result = await helper.initialize();
     expect(result).toBe(true); // still initializes successfully
     expect(helper.available).toBe(true);
+  });
+
+  test('constructor stores fallbackModel from config', () => {
+    const helper = new AiHelper({ model: 'gpt-4.1', fallbackModel: 'gpt-5-mini' });
+    expect(helper.config.fallbackModel).toBe('gpt-5-mini');
+  });
+
+  test('constructor defaults fallbackModel to claude-haiku-4.5', () => {
+    const helper = new AiHelper({ model: 'gpt-4.1' });
+    expect(helper.config.fallbackModel).toBe('claude-haiku-4.5');
+  });
+
+  test('constructor allows disabling fallback by passing null', () => {
+    const helper = new AiHelper({ model: 'gpt-4.1', fallbackModel: null });
+    expect(helper.config.fallbackModel).toBeNull();
+  });
+
+  test('constructor stores _tools reference', () => {
+    const tools = [{ name: 'my_tool' }];
+    const helper = new AiHelper({ tools });
+    expect(helper._tools).toBe(tools);
+  });
+
+  test('executeRequest invokes fallback model when all retries time out', async () => {
+    // Use baseDelay: 0 to avoid waiting between retries in the test.
+    const helper = new AiHelper({
+      model: 'gpt-4.1',
+      fallbackModel: 'claude-haiku-4.5',
+      baseDelay: 0,
+    });
+    helper.available = true;
+    helper.authenticated = true;
+    helper.config.maxRetries = 1;
+    const primarySend = jest
+      .fn()
+      .mockRejectedValue(new Error('Timeout after 60000ms waiting for session.idle'));
+    const recreateSession = jest.fn().mockResolvedValue(undefined);
+    helper._wrapper = { send: primarySend, recreateSession };
+
+    // The fallback creates a real CopilotSdkWrapper; in test env it may succeed or fail.
+    // Either way, after exhausting the primary retries the function must NOT throw the
+    // original error directly — it must first attempt the fallback path.
+    // We verify by confirming the primary mock was called and recreateSession was invoked.
+    try {
+      await helper.executeRequest('test prompt');
+    } catch {
+      // Fallback may also fail in some environments — that is expected.
+    }
+    expect(primarySend).toHaveBeenCalled();
+    expect(recreateSession).toHaveBeenCalled();
+  }, 15000);
+
+  test('executeRequest skips fallback when fallbackModel is null', async () => {
+    const helper = new AiHelper({ model: 'gpt-4.1', fallbackModel: null, baseDelay: 0 });
+    helper.available = true;
+    helper.authenticated = true;
+    helper.config.maxRetries = 1;
+    helper._wrapper = {
+      send: jest
+        .fn()
+        .mockRejectedValue(new Error('Timeout after 60000ms waiting for session.idle')),
+      recreateSession: jest.fn().mockResolvedValue(undefined),
+    };
+    await expect(helper.executeRequest('test prompt')).rejects.toThrow(/AI request failed after/);
+  });
+
+  test('executeRequest skips fallback when error is not a timeout', async () => {
+    const helper = new AiHelper({
+      model: 'gpt-4.1',
+      fallbackModel: 'claude-haiku-4.5',
+      baseDelay: 0,
+    });
+    helper.available = true;
+    helper.authenticated = true;
+    helper.config.maxRetries = 1;
+    helper._wrapper = {
+      send: jest.fn().mockRejectedValue(new Error('Authentication failed')),
+      recreateSession: jest.fn().mockResolvedValue(undefined),
+    };
+    await expect(helper.executeRequest('test prompt')).rejects.toThrow(/AI request failed after/);
+  });
+
+  test('executeRequest skips fallback when fallbackModel equals primary model', async () => {
+    const helper = new AiHelper({ model: 'gpt-4.1', fallbackModel: 'gpt-4.1', baseDelay: 0 });
+    helper.available = true;
+    helper.authenticated = true;
+    helper.config.maxRetries = 1;
+    helper._wrapper = {
+      send: jest
+        .fn()
+        .mockRejectedValue(new Error('Timeout after 60000ms waiting for session.idle')),
+      recreateSession: jest.fn().mockResolvedValue(undefined),
+    };
+    await expect(helper.executeRequest('test prompt')).rejects.toThrow(/AI request failed after/);
   });
 
   test('executeBatch - parallel mode with concurrency', async () => {

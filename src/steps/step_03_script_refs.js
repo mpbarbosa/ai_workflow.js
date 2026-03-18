@@ -501,7 +501,10 @@ export class Step3ScriptAnalyzer {
           ...scripts.map((s) => `script:${s}`),
         ];
         const aiResult = await this.aiCache.withFileChangeGuard('step_03', fileHashEntries, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })
+          this.aiHelper.executeRequest(prompt, {
+            persona: 'devops_engineer',
+            model: 'claude-haiku-4.5',
+          })
         );
         const aiContent = aiResult?.content ?? '';
         parsedAlternatives = options.alternatives
