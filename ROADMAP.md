@@ -351,12 +351,12 @@ surface area of new code minimal.
 
 #### W1.2 — Workflow Control Endpoints
 
-| Method   | Path                            | Action                                         |
-| -------- | ------------------------------- | ---------------------------------------------- |
+| Method   | Path                            | Action                                          |
+| -------- | ------------------------------- | ----------------------------------------------- |
 | `POST`   | `/api/workflow/run`             | Start a workflow run (body mirrors CLI options) |
 | `POST`   | `/api/workflow/resume`          | Resume from a checkpoint                        |
 | `POST`   | `/api/workflow/cancel`          | Cancel the active run                           |
-| `GET`    | `/api/workflow/status`          | Current run status + active step               |
+| `GET`    | `/api/workflow/status`          | Current run status + active step                |
 | `GET`    | `/api/workflow/checkpoints`     | List available checkpoints                      |
 | `DELETE` | `/api/workflow/checkpoints/:id` | Delete a checkpoint                             |
 
@@ -374,24 +374,24 @@ surface area of new code minimal.
 
 #### W1.4 — Configuration & Project Endpoints
 
-| Method | Path              | Action                                  |
-| ------ | ----------------- | --------------------------------------- |
-| `GET`  | `/api/config`     | Return parsed `.workflow-config.yaml`   |
-| `PUT`  | `/api/config`     | Validate and save updated config        |
-| `GET`  | `/api/project`    | Project kind, tech stack, git status    |
-| `GET`  | `/api/steps`      | Registered steps with metadata          |
+| Method | Path           | Action                                |
+| ------ | -------------- | ------------------------------------- |
+| `GET`  | `/api/config`  | Return parsed `.workflow-config.yaml` |
+| `PUT`  | `/api/config`  | Validate and save updated config      |
+| `GET`  | `/api/project` | Project kind, tech stack, git status  |
+| `GET`  | `/api/steps`   | Registered steps with metadata        |
 
 - [ ] Implement `src/web/routes/config.js` and `src/web/routes/project.js`
 - [ ] Reuse `ConfigManager`, `ProjectKindDetection`, `TechStack`, `GitAutomation`
 
 #### W1.5 — Metrics & Logs Endpoints
 
-| Method | Path                      | Action                                        |
-| ------ | ------------------------- | --------------------------------------------- |
-| `GET`  | `/api/metrics`            | Aggregated performance metrics (latest run)   |
-| `GET`  | `/api/metrics/history`    | Per-run metrics (last N runs)                 |
-| `GET`  | `/api/logs`               | Paginated log lines (supports `?step=` filter)|
-| `GET`  | `/api/backlog`            | Workflow backlog / summary report             |
+| Method | Path                   | Action                                         |
+| ------ | ---------------------- | ---------------------------------------------- |
+| `GET`  | `/api/metrics`         | Aggregated performance metrics (latest run)    |
+| `GET`  | `/api/metrics/history` | Per-run metrics (last N runs)                  |
+| `GET`  | `/api/logs`            | Paginated log lines (supports `?step=` filter) |
+| `GET`  | `/api/backlog`         | Workflow backlog / summary report              |
 
 - [ ] Implement `src/web/routes/metrics.js` and `src/web/routes/logs.js`
 - [ ] Reuse `MetricsCollector` and `BacklogManager`
@@ -520,15 +520,15 @@ surface area of new code minimal.
 
 ### Phase W — Priority Order
 
-| Sub-phase            | Value  | Effort | Suggested Order |
-| -------------------- | ------ | ------ | --------------- |
-| W1 Backend API       | High   | Medium | **First**       |
-| W2.1–W2.3 Core UI    | High   | Medium | **Second**      |
-| W2.4 Step Graph      | Medium | Medium | Third           |
-| W2.5 Metrics         | Medium | Low    | Third           |
-| W3 Config UI         | Medium | Medium | Fourth          |
-| W4 Auth & Multi-proj | Medium | Medium | Fourth          |
-| W5 Packaging         | High   | Low    | **Alongside W2**|
+| Sub-phase            | Value  | Effort | Suggested Order  |
+| -------------------- | ------ | ------ | ---------------- |
+| W1 Backend API       | High   | Medium | **First**        |
+| W2.1–W2.3 Core UI    | High   | Medium | **Second**       |
+| W2.4 Step Graph      | Medium | Medium | Third            |
+| W2.5 Metrics         | Medium | Low    | Third            |
+| W3 Config UI         | Medium | Medium | Fourth           |
+| W4 Auth & Multi-proj | Medium | Medium | Fourth           |
+| W5 Packaging         | High   | Low    | **Alongside W2** |
 
 ---
 
@@ -679,8 +679,8 @@ This project follows [Semantic Versioning](https://semver.org/):
 
 | Milestone                    | Target Version | Key Deliverables                                                         |
 | ---------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Phase 12 complete            | 1.8.0          | Integration tests, full API docs                                         |
-| Phase 13 complete            | 1.8.0          | npm public, CI/CD, release automation                                    |
+| Phase 12 complete            | 1.9.0          | Integration tests, full API docs                                         |
+| Phase 13 complete            | 1.9.0          | npm public, CI/CD, release automation                                    |
 | TUI Phase T1+T2 complete     | 1.9.0          | Interactive TUI                                                          |
 | TUI Phase T3+T4 complete     | 1.10.0         | Rich visualizations, TUI-first workflows                                 |
 | Phase 14 complete            | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater |

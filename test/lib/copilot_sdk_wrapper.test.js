@@ -45,7 +45,7 @@ jest.unstable_mockModule('@github/copilot-sdk', () => ({
 // Import the wrapper AFTER mocking the SDK
 const { CopilotSdkWrapper, approveAll } = await import('../../src/lib/copilot_sdk_wrapper.js');
 // Also import the mocked CopilotClient and defineTool so we can inspect calls per-test
-const { CopilotClient: MockCopilotClient, defineTool: mockDefineTool } = await import('@github/copilot-sdk');
+const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
 // SystemError comes from olinda_copilot_sdk.ts (it is the package's own error class)
 const { SystemError } = await import('olinda_copilot_sdk.ts');
 

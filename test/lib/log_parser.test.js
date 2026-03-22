@@ -265,9 +265,9 @@ describe('collectFilesRecursive', () => {
 
   test('recurses into subdirectories', () => {
     const tree = {
-      '/run': { 'steps': {}, 'prompts': {} },
+      '/run': { steps: {}, prompts: {} },
       '/run/steps': { 'step_01.log': null },
-      '/run/prompts': { 'step_01': {} },
+      '/run/prompts': { step_01: {} },
       '/run/prompts/step_01': { 'response.md': null },
     };
     const result = collectFilesRecursive('/run', ['.log', '.md'], makeFs(tree));
@@ -277,12 +277,16 @@ describe('collectFilesRecursive', () => {
   });
 
   test('returns empty array when readdirSync throws', () => {
-    const fs = { readdirSync: () => { throw new Error('EACCES'); }, statSync: () => ({}) };
+    const fs = {
+      readdirSync: () => {
+        throw new Error('EACCES');
+      },
+      statSync: () => ({}),
+    };
     expect(collectFilesRecursive('/bad', ['.log'], fs)).toEqual([]);
   });
 
   test('skips entries where statSync throws', () => {
-    const tree = { '/run': { 'ok.log': null, 'bad.log': null } };
     let calls = 0;
     const fs = {
       readdirSync: () => ['ok.log', 'bad.log'],
@@ -294,6 +298,7 @@ describe('collectFilesRecursive', () => {
     };
     const result = collectFilesRecursive('/run', ['.log'], fs);
     expect(result).toHaveLength(1);
+    expect(calls).toBe(2);
   });
 });
 
