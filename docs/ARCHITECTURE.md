@@ -1,27 +1,33 @@
-# Architecture Overview
+# Architecture Overview: guia_turistico
 
 ## System Overview
 
-This project provides Bash scripts to automate AWS Location-Based Services (LBS) backend setup, deployment, and teardown.
+guia_turistico is a modular JavaScript/Node.js application for managing tourist guides, tours, and bookings. It follows a layered architecture for maintainability and scalability.
 
-## Components
+## Main Components
 
-- **deploy.sh**: Handles provisioning of AWS resources.
-- **teardown.sh**: Destroys provisioned resources.
-- **status.sh**: Reports on the current state of resources.
+- **Express Server**: Handles HTTP requests and routing
+- **Controllers**: Business logic for tours, users, bookings
+- **Models**: Data schemas and database access (e.g., MongoDB, Sequelize)
+- **Routes**: API endpoint definitions
+- **Services**: External integrations (e.g., payment, maps)
+- **Utils**: Helper functions
 
 ## Data Flow
 
-1. User invokes a script with the target environment.
-2. Script authenticates with AWS CLI and performs the requested action.
-3. Outputs are logged to the console for user review.
+1. Client sends HTTP request to API endpoint
+2. Route forwards request to appropriate controller
+3. Controller interacts with models/services
+4. Response returned to client
 
-## Dependencies
+## Key Dependencies
 
-- AWS CLI (configured with appropriate credentials)
-- Bash (POSIX-compliant)
+- Node.js (>=20.x)
+- Express.js
+- Database driver (e.g., Mongoose, Sequelize)
 
-## Design Decisions
+## Design Principles
 
-- Scripts are modular for easy maintenance.
-- All configuration is passed via environment variables or script parameters.
+- Separation of concerns (controllers, models, routes)
+- RESTful API design
+- Modular, testable codebase

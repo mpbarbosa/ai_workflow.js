@@ -386,7 +386,7 @@ cat .ai_workflow/checkpoints/checkpoint_*.json
 **Version:** 1.8.0
 **For:** ai_workflow.js v1.8.0+
 =======
-**Version:** 1.7.3
+**Version:** 1.8.0
 **For:** ai_workflow.js v1.6.1+
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])

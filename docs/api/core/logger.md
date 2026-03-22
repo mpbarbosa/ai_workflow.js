@@ -1,7 +1,7 @@
 # logger.js API Documentation
 
 **Module:** `core/logger`
-**Version:** 1.7.3
+**Version:** 1.8.0
 **Architecture:** Class-based
 
 ## Overview

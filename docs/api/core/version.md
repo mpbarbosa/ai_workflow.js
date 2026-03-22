@@ -1,7 +1,7 @@
 # version - Version Comparison Module
 
 **Module:** `core/version`
-**Version:** 1.7.3
+**Version:** 1.8.0
 **Type:** Pure Functional
 
 ## Overview
@@ -102,4 +102,4 @@ if (isGreaterThan(latest, currentVersion)) {
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.7.3
+**Part of:** AI Workflow Automation v1.8.0

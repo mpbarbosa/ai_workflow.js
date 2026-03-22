@@ -104,7 +104,7 @@
     "src/cli/index.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
     },
     "src/cli/tui/App.js": {
       "score": 100,
@@ -245,6 +245,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-12T18:17:11.317Z"
+    },
+    "src/cli/commands/fix_log_issues.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
+    },
+    "src/cli/commands/clean.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
+    },
+    "src/cli/commands/config.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
+    },
+    "src/cli/commands/init.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
     }
   }
 }

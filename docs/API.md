@@ -1,37 +1,45 @@
-# API Documentation
+# API Documentation: guia_turistico
 
-This backend consists of Bash shell scripts for AWS LBS management. Below are the main public scripts and their usage:
+This document describes the main public modules, classes, and functions of the guia_turistico JavaScript project.
 
-## Scripts
+## Main Modules
 
-### deploy.sh
+- **src/controllers/**: Route handlers for main features (e.g., tours, users, bookings)
+- **src/models/**: Data models and database access
+- **src/routes/**: Express route definitions
+- **src/services/**: Business logic and integrations
+- **src/utils/**: Utility functions
 
-- **Purpose**: Deploys backend resources to AWS.
-- **Usage**: `./deploy.sh <environment>`
-- **Parameters**:
-  - `environment`: Target environment (e.g., `dev`, `prod`)
-- **Returns**: Exit code 0 on success, non-zero on failure.
+## Example: Tour Controller
 
-### teardown.sh
-
-- **Purpose**: Removes backend resources from AWS.
-- **Usage**: `./teardown.sh <environment>`
-- **Parameters**:
-  - `environment`: Target environment
-- **Returns**: Exit code 0 on success, non-zero on failure.
-
-### status.sh
-
-- **Purpose**: Checks the status of deployed resources.
-- **Usage**: `./status.sh <environment>`
-- **Parameters**:
-  - `environment`: Target environment
-- **Returns**: Prints resource status to stdout.
-
-## Example
-
-```sh
-./deploy.sh dev
-./status.sh dev
-./teardown.sh dev
+```js
+/**
+ * Get all tours
+ * @route GET /api/tours
+ * @returns {Array<Tour>} List of tours
+ */
+async function getAllTours(req, res) { ... }
 ```
+
+## Example: User Model
+
+```js
+/**
+ * User schema
+ * @typedef {Object} User
+ * @property {string} id
+ * @property {string} name
+ * @property {string} email
+ */
+```
+
+## Usage Example
+
+```js
+import { getAllTours } from './src/controllers/tourController';
+
+app.get('/api/tours', getAllTours);
+```
+
+---
+For full API details, see inline JSDoc in each module.

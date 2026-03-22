@@ -159,10 +159,10 @@ if (missing.length > 0) {
 <<<<<<< HEAD
 **Last Updated:** 2026-03-03
 **Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
-**Part of:** AI Workflow Automation v1.7.3
+**Part of:** AI Workflow Automation v1.8.0
 =======
 **Last Updated:** 2026-03-11
 **Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
-**Part of:** AI Workflow Automation v1.7.3
+**Part of:** AI Workflow Automation v1.8.0
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])

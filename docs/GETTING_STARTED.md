@@ -1,6 +1,6 @@
-# Getting Started with olinda_shell_interface.js
+# Getting Started with guia_turistico
 
-This guide will help you install, configure, and run olinda_shell_interface.js for the first time.
+This guide will help you install, configure, and run guia_turistico for the first time.
 
 ## Prerequisites
 - Node.js >= 20.x
@@ -9,8 +9,8 @@ This guide will help you install, configure, and run olinda_shell_interface.js f
 ## Installation
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-org/olinda_shell_interface.js.git
-   cd olinda_shell_interface.js
+   git clone https://github.com/your-org/guia_turistico.git
+   cd guia_turistico
    ```
 2. **Install dependencies:**
    ```bash
@@ -18,7 +18,7 @@ This guide will help you install, configure, and run olinda_shell_interface.js f
    ```
 
 ## Running the Project
-To start the shell interface:
+To start the application:
 ```bash
 npm start
 ```
@@ -35,8 +35,8 @@ npm test
 - `test/` — Test suite
 
 ## Next Steps
-- See `docs/USER_GUIDE.md` for usage instructions
+- See `docs/API.md` for API usage
 - See `CONTRIBUTING.md` for contributing guidelines
 
 ---
-For troubleshooting, see `docs/TROUBLESHOOTING.md` or open an issue on GitHub.
+For troubleshooting, open an issue on GitHub.
