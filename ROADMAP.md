@@ -16,6 +16,7 @@ Active development continues on TUI enhancements, streaming, and the next releas
 - [Phase 12 — Testing & Documentation](#phase-12--testing--documentation)
 - [Phase 13 — Packaging & Release](#phase-13--packaging--release)
 - [Phase 14 — Prompt Engineering Enhancements](#phase-14--prompt-engineering-enhancements)
+- [Phase W — Web Interface](#phase-w--web-interface)
 - [TUI Roadmap (Phases T1–T5)](#tui-roadmap-phases-t1t5)
 - [Long-Term Vision](#long-term-vision)
 
@@ -318,6 +319,219 @@ low-quality initial prompts and produces more consistent step outputs.
 
 ---
 
+## Phase W — Web Interface
+
+> **Goal:** Provide a browser-based dashboard that mirrors and extends the CLI/TUI
+> experience, enabling teams to monitor, control, and inspect ai_workflow.js runs from
+> any device without requiring a local terminal.
+>
+> **Stack:** Node.js · [Fastify](https://fastify.dev/) REST API · Server-Sent Events for
+> real-time streaming · Vanilla JS + [htmx](https://htmx.org/) frontend (no build step
+> required) · optional Docker packaging.
+
+The web interface is architecturally layered on top of the existing orchestrator and CLI
+modules — it does not duplicate business logic. The Fastify server imports `MainOrchestrator`,
+`WorkflowEngine`, `CheckpointManager`, and the CLI command handlers directly, keeping the
+surface area of new code minimal.
+
+---
+
+### Phase W1 — Backend API Server
+
+> **Goal:** A Fastify HTTP server exposing every CLI capability as a JSON REST API,
+> with Server-Sent Events (SSE) for real-time workflow progress.
+
+#### W1.1 — Project Scaffold
+
+- [ ] Create `src/web/server.js` — Fastify app factory (accepts config, returns server instance)
+- [ ] Create `src/web/index.js` — entry point (`node src/web/index.js` or `ai-workflow web`)
+- [ ] Add `web` command to `src/cli/commands/web.js` — starts the server, respects `--port` / `--host` / `--open`
+- [ ] Register `web` in `src/cli/index.js` command registry
+- [ ] Add `fastify`, `@fastify/cors`, `@fastify/static` to `dependencies` in `package.json`
+
+#### W1.2 — Workflow Control Endpoints
+
+| Method   | Path                            | Action                                         |
+| -------- | ------------------------------- | ---------------------------------------------- |
+| `POST`   | `/api/workflow/run`             | Start a workflow run (body mirrors CLI options) |
+| `POST`   | `/api/workflow/resume`          | Resume from a checkpoint                        |
+| `POST`   | `/api/workflow/cancel`          | Cancel the active run                           |
+| `GET`    | `/api/workflow/status`          | Current run status + active step               |
+| `GET`    | `/api/workflow/checkpoints`     | List available checkpoints                      |
+| `DELETE` | `/api/workflow/checkpoints/:id` | Delete a checkpoint                             |
+
+- [ ] Implement route handlers in `src/web/routes/workflow.js`
+- [ ] Serialize `WorkflowEngine` events into JSON responses
+- [ ] Enforce single-run constraint (reject `/run` if a run is already active)
+
+#### W1.3 — Real-Time Streaming (SSE)
+
+- [ ] `GET /api/workflow/stream` — SSE endpoint; emits `step:start`, `step:complete`,
+      `step:error`, `ai:stream:chunk`, `workflow:complete`, `workflow:error` events
+- [ ] Implement `src/web/sse.js` — manages open SSE connections, subscribes to `WorkflowEngine`
+      event emitter, fans out to all connected clients
+- [ ] Reconnection support (`Last-Event-ID` header, replay last N events from in-memory ring buffer)
+
+#### W1.4 — Configuration & Project Endpoints
+
+| Method | Path              | Action                                  |
+| ------ | ----------------- | --------------------------------------- |
+| `GET`  | `/api/config`     | Return parsed `.workflow-config.yaml`   |
+| `PUT`  | `/api/config`     | Validate and save updated config        |
+| `GET`  | `/api/project`    | Project kind, tech stack, git status    |
+| `GET`  | `/api/steps`      | Registered steps with metadata          |
+
+- [ ] Implement `src/web/routes/config.js` and `src/web/routes/project.js`
+- [ ] Reuse `ConfigManager`, `ProjectKindDetection`, `TechStack`, `GitAutomation`
+
+#### W1.5 — Metrics & Logs Endpoints
+
+| Method | Path                      | Action                                        |
+| ------ | ------------------------- | --------------------------------------------- |
+| `GET`  | `/api/metrics`            | Aggregated performance metrics (latest run)   |
+| `GET`  | `/api/metrics/history`    | Per-run metrics (last N runs)                 |
+| `GET`  | `/api/logs`               | Paginated log lines (supports `?step=` filter)|
+| `GET`  | `/api/backlog`            | Workflow backlog / summary report             |
+
+- [ ] Implement `src/web/routes/metrics.js` and `src/web/routes/logs.js`
+- [ ] Reuse `MetricsCollector` and `BacklogManager`
+
+#### W1.6 — Tests
+
+- [ ] Unit tests for each route module (`test/web/routes/`)
+- [ ] SSE fan-out tests with mock `WorkflowEngine` event emitter
+- [ ] Integration tests: start real Fastify instance, exercise all endpoints
+
+---
+
+### Phase W2 — Frontend Dashboard
+
+> **Goal:** A single-page dashboard served by Fastify at `/`. No build step: plain HTML,
+> CSS, and htmx for dynamic updates. Progressive enhancement — the API remains fully
+> usable without the browser UI.
+
+#### W2.1 — Static Asset Serving
+
+- [ ] Create `src/web/public/` — static assets served by `@fastify/static`
+- [ ] `index.html` — dashboard shell with sidebar navigation
+- [ ] `style.css` — minimal CSS (CSS custom properties for theming; supports dark mode via `prefers-color-scheme`)
+- [ ] `app.js` — htmx configuration, SSE connection management, toast notifications
+
+#### W2.2 — Workflow Control Panel
+
+- [ ] **Run** form: project path, step selection checkboxes, dry-run toggle, verbose toggle
+- [ ] **Status bar**: active step name, elapsed time, progress indicator (steps done / total)
+- [ ] **Cancel** button (disabled when no run is active)
+- [ ] **Resume** dropdown: lists checkpoints from `GET /api/workflow/checkpoints`
+- [ ] htmx `hx-sse` attribute connects status bar to `/api/workflow/stream`
+
+#### W2.3 — Live Log Viewer
+
+- [ ] Scrollable log pane that appends `ai:stream:chunk` and `step:*` SSE events in real time
+- [ ] Filter toolbar: by step, by log level (info / warn / error)
+- [ ] "Jump to bottom" / "Pause scroll" toggle
+- [ ] Download button: exports current log as `.txt`
+
+#### W2.4 — Step Dependency Graph
+
+- [ ] Fetch step metadata from `GET /api/steps` on load
+- [ ] Render a directed acyclic graph using [D3.js](https://d3js.org/) (added as a static asset; no npm build)
+- [ ] Color-code nodes by state: pending (grey) · running (blue) · done (green) · skipped (dim) · error (red)
+- [ ] Click a node to open a detail panel showing step description, duration, and output summary
+
+#### W2.5 — Metrics Dashboard
+
+- [ ] Summary cards: total duration, steps run/skipped, AI calls, tokens used
+- [ ] Per-step duration bar chart (D3 or CSS-only bar chart)
+- [ ] Run history table: links to per-run detail (reads from `GET /api/metrics/history`)
+
+---
+
+### Phase W3 — Configuration & Management UI
+
+> **Goal:** In-browser editing of `.workflow-config.yaml` and project settings, with
+> live validation feedback.
+
+#### W3.1 — Config Editor
+
+- [ ] Embed [CodeMirror 6](https://codemirror.net/) YAML editor (loaded from CDN; no build step)
+- [ ] On save, `PUT /api/config` — server validates via `ConfigManager.validate()` and returns
+      structured errors highlighted in the editor gutter
+- [ ] Show diff of pending vs. saved config before committing
+
+#### W3.2 — Step Management
+
+- [ ] Enable / disable individual steps from the UI (persisted to config)
+- [ ] Drag-and-drop step reordering (writes `workflow.stepOrder` override to config)
+- [ ] Reset to defaults button
+
+#### W3.3 — Project Inspector
+
+- [ ] Display detected project kind, tech stack, third-party exclusions
+- [ ] Git status panel: branch, last commit, modified files count
+- [ ] "Refresh" button re-calls `GET /api/project` without page reload
+
+---
+
+### Phase W4 — Authentication & Multi-Project Support
+
+> **Goal:** Make the web interface safe to expose on a local network and capable of
+> managing multiple projects from a single server instance.
+
+#### W4.1 — Local Authentication
+
+- [ ] Optional token-based auth (`workflow.web.auth.token` in config; env-var override `AI_WORKFLOW_WEB_TOKEN`)
+- [ ] `POST /api/auth/login` — exchanges token for a short-lived session cookie
+- [ ] Protect all `/api/*` routes with `@fastify/auth` preHandler when token is configured
+- [ ] Login page served at `/login`
+
+#### W4.2 — Multi-Project Support
+
+- [ ] Config key `workflow.web.projects[]` — list of `{ name, path }` project roots
+- [ ] `GET /api/projects` — list registered projects
+- [ ] All `/api/workflow/*` and `/api/config` routes accept optional `?project=<name>` query param
+- [ ] Project switcher dropdown in the sidebar; persists selection in `localStorage`
+
+---
+
+### Phase W5 — Packaging & Deployment
+
+> **Goal:** Zero-friction startup for local use; optional containerised deployment for
+> shared team environments.
+
+#### W5.1 — CLI Integration
+
+- [ ] `ai-workflow web` command (Phase W1.1) with flags: `--port` (default 4242),
+      `--host` (default `127.0.0.1`), `--open` (launch browser), `--auth` (require token)
+- [ ] `ai-workflow web --init` generates a `web.config.yaml` with annotated defaults
+
+#### W5.2 — Docker Support
+
+- [ ] `Dockerfile` in `docker/web/` — Node.js 20 Alpine base, `COPY src/web`, exposes port 4242
+- [ ] `docker-compose.yml` — mounts project root as a volume; sets `AI_WORKFLOW_WEB_TOKEN`
+- [ ] Document usage in `docs/guides/WEB_INTERFACE.md`
+
+#### W5.3 — Tests & Documentation
+
+- [ ] E2E tests using [Playwright](https://playwright.dev/): dashboard load, run workflow,
+      observe SSE updates, check step graph colours
+- [ ] `docs/guides/WEB_INTERFACE.md` — installation, configuration, screenshots, security notes
+- [ ] Update `README.md` and `docs/README.md` with web interface entry point
+
+### Phase W — Priority Order
+
+| Sub-phase            | Value  | Effort | Suggested Order |
+| -------------------- | ------ | ------ | --------------- |
+| W1 Backend API       | High   | Medium | **First**       |
+| W2.1–W2.3 Core UI    | High   | Medium | **Second**      |
+| W2.4 Step Graph      | Medium | Medium | Third           |
+| W2.5 Metrics         | Medium | Low    | Third           |
+| W3 Config UI         | Medium | Medium | Fourth          |
+| W4 Auth & Multi-proj | Medium | Medium | Fourth          |
+| W5 Packaging         | High   | Low    | **Alongside W2**|
+
+---
+
 ## TUI Roadmap (Phases T1–T5)
 
 The TUI baseline (Ink-based, `--tui` flag) shipped in Phase 11. The following phases
@@ -465,13 +679,15 @@ This project follows [Semantic Versioning](https://semver.org/):
 
 | Milestone                    | Target Version | Key Deliverables                                                         |
 | ---------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Phase 12 complete            | 1.7.3          | Integration tests, full API docs                                         |
+| Phase 12 complete            | 1.8.0          | Integration tests, full API docs                                         |
 | Phase 13 complete            | 1.8.0          | npm public, CI/CD, release automation                                    |
 | TUI Phase T1+T2 complete     | 1.9.0          | Interactive TUI                                                          |
 | TUI Phase T3+T4 complete     | 1.10.0         | Rich visualizations, TUI-first workflows                                 |
 | Phase 14 complete            | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater |
+| Phase W1+W2 complete         | 1.12.0         | Web API server, live dashboard, SSE streaming                            |
+| Phase W3+W4+W5 complete      | 1.13.0         | Config UI, multi-project, auth, Docker packaging                         |
 | Full TUI + npm public stable | **2.0.0**      | Public API freeze, accessibility, themes                                 |
 
 ---
 
-_Last updated: 2026-03-10 · See [CHANGELOG.md](CHANGELOG.md) for release history._
+_Last updated: 2026-03-18 · See [CHANGELOG.md](CHANGELOG.md) for release history._

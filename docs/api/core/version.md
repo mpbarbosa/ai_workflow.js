@@ -1,7 +1,7 @@
 # version - Version Comparison Module
 
 **Module:** `core/version`
-**Version:** 1.8.0
+**Version:** 1.9.0
 **Type:** Pure Functional
 
 ## Overview
@@ -56,7 +56,7 @@ Find latest version from array.
 
 ```javascript
 <<<<<<< HEAD
-getLatestVersion(['1.0.0', '2.1.0', '1.8.0']); // '2.1.0'
+getLatestVersion(['1.0.0', '2.1.0', '1.9.0']); // '2.1.0'
 =======
 getLatestVersion(['1.0.0', '2.1.0', '1.6.1']); // '2.1.0'
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
@@ -102,4 +102,4 @@ if (isGreaterThan(latest, currentVersion)) {
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.8.0
+**Part of:** AI Workflow Automation v1.9.0

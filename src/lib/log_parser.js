@@ -283,7 +283,41 @@ export function extractIssues(logContent) {
 // ============================================================================
 
 /**
- * Discover log files within a log directory.
+ * Recursively collect files from a directory matching an extension filter.
+ * @pure
+ * @param {string} dir - Directory to walk
+ * @param {string[]} extensions - Allowed file extensions (e.g. ['.log', '.md'])
+ * @param {{ readdirSync: Function, statSync: Function }} fs - Filesystem interface
+ * @returns {string[]} Absolute file paths
+ */
+export function collectFilesRecursive(dir, extensions, fs) {
+  let results = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return results;
+  }
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry);
+    try {
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        results = results.concat(collectFilesRecursive(fullPath, extensions, fs));
+      } else if (extensions.some((ext) => entry.endsWith(ext))) {
+        results.push(fullPath);
+      }
+    } catch {
+      // skip unreadable entries
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Discover log files within a log directory, including prompt logs (prompts/**\/*.md).
  * @pure
  * @param {string} logDir - Path to log directory
  * @param {boolean} latestOnly - Whether to use only the most recent run folder
@@ -321,15 +355,8 @@ export function discoverLogFiles(logDir, latestOnly, fs) {
   const selected = latestOnly ? runDirs.slice(0, 1) : runDirs;
 
   return selected.map(({ name, fullPath }) => {
-    let files;
-    try {
-      files = fs
-        .readdirSync(fullPath)
-        .filter((f) => f.endsWith('.log'))
-        .map((f) => path.join(fullPath, f));
-    } catch {
-      files = [];
-    }
+    // Collect .log and .md files recursively (includes prompts/**/*.md)
+    const files = collectFilesRecursive(fullPath, ['.log', '.md'], fs);
     return { runDir: path.join(logDir, name), files };
   });
 }
@@ -551,6 +578,7 @@ export default {
   CATEGORY,
   parseLogLine,
   extractIssues,
+  collectFilesRecursive,
   discoverLogFiles,
   suggestFix,
   filterBySeverity,

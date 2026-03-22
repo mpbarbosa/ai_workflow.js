@@ -265,6 +265,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-22T23:26:39.734Z"
+    },
+    "src/lib/log_parser.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+    },
+    "src/lib/ai_personas.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+    },
+    "src/lib/ai_personas.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+    },
+    "src/lib/copilot_sdk_wrapper.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+    },
+    "src/lib/copilot_sdk_wrapper.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
     }
   }
 }

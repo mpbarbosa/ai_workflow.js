@@ -27,6 +27,7 @@ import {
   buildFileContentMap,
   formatFileContentMap,
   buildCodeContentHash,
+  shouldRunErrorResiliencePrompt,
 } from '../../src/steps/step_10_code_quality.js';
 
 describe('Step 10: Code Quality Analysis', () => {
@@ -586,6 +587,49 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - Error Resilience
+  // ========================================================================
+
+  describe('shouldRunErrorResiliencePrompt', () => {
+    test('returns true for nodejs_api', () => {
+      expect(shouldRunErrorResiliencePrompt('nodejs_api')).toBe(true);
+    });
+
+    test('returns true for react_spa', () => {
+      expect(shouldRunErrorResiliencePrompt('react_spa')).toBe(true);
+    });
+
+    test('returns true for python_app', () => {
+      expect(shouldRunErrorResiliencePrompt('python_app')).toBe(true);
+    });
+
+    test('returns true for shell_script_automation', () => {
+      expect(shouldRunErrorResiliencePrompt('shell_script_automation')).toBe(true);
+    });
+
+    test('returns true for client_spa', () => {
+      expect(shouldRunErrorResiliencePrompt('client_spa')).toBe(true);
+    });
+
+    test('returns true for generic', () => {
+      expect(shouldRunErrorResiliencePrompt('generic')).toBe(true);
+    });
+
+    test('returns true for unknown/empty kind', () => {
+      expect(shouldRunErrorResiliencePrompt('')).toBe(true);
+      expect(shouldRunErrorResiliencePrompt(undefined)).toBe(true);
+    });
+
+    test('returns false for static_website', () => {
+      expect(shouldRunErrorResiliencePrompt('static_website')).toBe(false);
+    });
+
+    test('returns false for configuration_library', () => {
+      expect(shouldRunErrorResiliencePrompt('configuration_library')).toBe(false);
+    });
+  });
+
+  // ========================================================================
   // STEP 10 ANALYZER - Integration Tests
   // ========================================================================
 
@@ -858,6 +902,149 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
       const result = await analyzer.execute('/project');
       expect(result.success).toBe(true);
+    });
+
+    // -----------------------------------------------------------------------
+    // Error Resilience integration tests
+    // -----------------------------------------------------------------------
+
+    /** Minimal ai_helpers.yaml stub containing only the error_resilience_prompt key. */
+    const minimalErYaml = [
+      'error_resilience_prompt:',
+      '  role_prefix: |',
+      '    You are a reliability engineer.',
+      '  task_template: |',
+      '    Review {project_name} files.',
+      '    {file_content_map}',
+      '  approach: |',
+      '    Check error handling.',
+    ].join('\n');
+
+    test('error resilience runs as a separate AI call per partition', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/index.js'];
+      mockFileOps.readFile = async (path) => {
+        if (path.includes('ai_helpers')) return minimalErYaml;
+        return 'const x = 1;';
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const cacheKeys = [];
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'analysis result' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withFileChangeGuard: jest.fn().mockImplementation((key, _files, fn) => {
+          cacheKeys.push(key);
+          return fn();
+        }),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-er-test-'));
+      try {
+        const result = await analyzer.execute(testDir, {
+          projectKind: 'nodejs_api',
+          modifiedFiles: [],
+        });
+
+        expect(result.success).toBe(true);
+        // Main quality call (per slice) + ER call (per partition) = 2 total AI requests.
+        expect(prompts.length).toBe(2);
+        // ER call uses a distinct step_10_er_p cache key.
+        expect(cacheKeys.some((k) => k.startsWith('step_10_er_p'))).toBe(true);
+        // ER result is exposed in the return value.
+        expect(result.erFindings).toBe('analysis result');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('error resilience section appears separately in the backlog report', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/index.js'];
+      mockFileOps.readFile = async (path) => {
+        if (path.includes('ai_helpers')) return minimalErYaml;
+        return 'const x = 1;';
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const savedReports = [];
+      mockBacklog.saveStepSummary = async (_step, _label, report) => {
+        savedReports.push(report);
+      };
+
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockResolvedValue({ content: 'ER findings here' }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withFileChangeGuard: jest.fn().mockImplementation((_key, _files, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-er-report-'));
+      try {
+        await analyzer.execute(testDir, { projectKind: 'nodejs_api', modifiedFiles: [] });
+
+        const finalReport = savedReports[savedReports.length - 1];
+        expect(finalReport).toContain('## Error Resilience Analysis');
+        expect(finalReport).toContain('ER findings here');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('static_website skips the error resilience pass', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/index.js'];
+      mockFileOps.readFile = async (path) => {
+        if (path.includes('ai_helpers')) return minimalErYaml;
+        return 'const x = 1;';
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const cacheKeys = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockResolvedValue({ content: 'main result' }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withFileChangeGuard: jest.fn().mockImplementation((key, _files, fn) => {
+          cacheKeys.push(key);
+          return fn();
+        }),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-static-'));
+      try {
+        const result = await analyzer.execute(testDir, {
+          projectKind: 'static_website',
+          modifiedFiles: [],
+        });
+
+        expect(result.success).toBe(true);
+        // No ER cache key should be generated for static_website.
+        expect(cacheKeys.some((k) => k.startsWith('step_10_er_p'))).toBe(false);
+        expect(result.erFindings).toBe('');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
     });
 
     test('countSourceFiles excludes test directories and test file patterns', async () => {

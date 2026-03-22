@@ -562,8 +562,8 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       const result = buildCodeQualityPrompt(options);
 
       expect(result).toContain('...(truncated)');
-      // Should not contain all 5000 chars
-      expect(result.length).toBeLessThan(bigContent.length + 1_000);
+      // Should not contain all 5000 chars; allow for prompt boilerplate overhead
+      expect(result.length).toBeLessThan(bigContent.length + 2_000);
     });
 
     test('omits files beyond total content budget', () => {

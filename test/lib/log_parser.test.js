@@ -9,6 +9,7 @@ import {
   CATEGORY,
   parseLogLine,
   extractIssues,
+  collectFilesRecursive,
   discoverLogFiles,
   suggestFix,
   filterBySeverity,
@@ -242,6 +243,61 @@ describe('extractIssues', () => {
 });
 
 // ============================================================================
+// collectFilesRecursive
+// ============================================================================
+
+describe('collectFilesRecursive', () => {
+  const makeFs = (tree) => ({
+    readdirSync: (dir) => Object.keys(tree[dir] || {}),
+    statSync: (p) => ({
+      isDirectory: () => tree[p] !== undefined && typeof tree[p] === 'object',
+    }),
+  });
+
+  test('returns files matching extensions in flat dir', () => {
+    const tree = {
+      '/run': { 'workflow.log': null, 'step_01.log': null, 'README.md': null },
+    };
+    const result = collectFilesRecursive('/run', ['.log'], makeFs(tree));
+    expect(result).toHaveLength(2);
+    expect(result.every((f) => f.endsWith('.log'))).toBe(true);
+  });
+
+  test('recurses into subdirectories', () => {
+    const tree = {
+      '/run': { 'steps': {}, 'prompts': {} },
+      '/run/steps': { 'step_01.log': null },
+      '/run/prompts': { 'step_01': {} },
+      '/run/prompts/step_01': { 'response.md': null },
+    };
+    const result = collectFilesRecursive('/run', ['.log', '.md'], makeFs(tree));
+    expect(result).toHaveLength(2);
+    expect(result.some((f) => f.endsWith('.log'))).toBe(true);
+    expect(result.some((f) => f.endsWith('.md'))).toBe(true);
+  });
+
+  test('returns empty array when readdirSync throws', () => {
+    const fs = { readdirSync: () => { throw new Error('EACCES'); }, statSync: () => ({}) };
+    expect(collectFilesRecursive('/bad', ['.log'], fs)).toEqual([]);
+  });
+
+  test('skips entries where statSync throws', () => {
+    const tree = { '/run': { 'ok.log': null, 'bad.log': null } };
+    let calls = 0;
+    const fs = {
+      readdirSync: () => ['ok.log', 'bad.log'],
+      statSync: (p) => {
+        calls++;
+        if (p.endsWith('bad.log')) throw new Error('EPERM');
+        return { isDirectory: () => false };
+      },
+    };
+    const result = collectFilesRecursive('/run', ['.log'], fs);
+    expect(result).toHaveLength(1);
+  });
+});
+
+// ============================================================================
 // discoverLogFiles
 // ============================================================================
 
@@ -301,6 +357,29 @@ describe('discoverLogFiles', () => {
       },
     };
     expect(discoverLogFiles('/fake/logs', false, fs)).toEqual([]);
+  });
+
+  test('includes .md files from prompts subdirectory', () => {
+    const run = 'workflow_20260312_151321';
+    const fs = {
+      existsSync: () => true,
+      readdirSync: (p) => {
+        if (p.endsWith('logs')) return [run];
+        if (p.endsWith(run)) return ['steps', 'prompts'];
+        if (p.endsWith('steps')) return ['step_01.log'];
+        if (p.endsWith('prompts')) return ['step_01'];
+        if (p.endsWith('step_01')) return ['response.md'];
+        return [];
+      },
+      statSync: (p) => ({
+        isDirectory: () =>
+          p.endsWith(run) || p.endsWith('steps') || p.endsWith('prompts') || p.endsWith('step_01'),
+      }),
+    };
+    const result = discoverLogFiles('/fake/logs', false, fs);
+    expect(result).toHaveLength(1);
+    expect(result[0].files.some((f) => f.endsWith('.log'))).toBe(true);
+    expect(result[0].files.some((f) => f.endsWith('.md'))).toBe(true);
   });
 });
 

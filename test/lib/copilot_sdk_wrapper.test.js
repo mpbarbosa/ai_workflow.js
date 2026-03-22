@@ -4,7 +4,7 @@
  * Source: src/lib/copilot_sdk_wrapper.ts (TypeScript)
  * Compiled: src/lib/copilot_sdk_wrapper.js (runtime import target)
  *
- * The wrapper re-exports CopilotSdkWrapper from olinda_copilot_sdk.ts v0.2.1.
+ * The wrapper re-exports CopilotSdkWrapper from olinda_copilot_sdk.ts v0.5.1.
  * That package's implementation uses @github/copilot-sdk internally, so we
  * mock @github/copilot-sdk to control the underlying SDK behaviour in tests.
  * SystemError is also imported from olinda_copilot_sdk.ts because that is
@@ -43,9 +43,9 @@ jest.unstable_mockModule('@github/copilot-sdk', () => ({
 }));
 
 // Import the wrapper AFTER mocking the SDK
-const { CopilotSdkWrapper } = await import('../../src/lib/copilot_sdk_wrapper.js');
-// Also import the mocked CopilotClient so we can override behaviour per-test
-const { CopilotClient: MockCopilotClient } = await import('@github/copilot-sdk');
+const { CopilotSdkWrapper, approveAll } = await import('../../src/lib/copilot_sdk_wrapper.js');
+// Also import the mocked CopilotClient and defineTool so we can inspect calls per-test
+const { CopilotClient: MockCopilotClient, defineTool: mockDefineTool } = await import('@github/copilot-sdk');
 // SystemError comes from olinda_copilot_sdk.ts (it is the package's own error class)
 const { SystemError } = await import('olinda_copilot_sdk.ts');
 
@@ -640,7 +640,7 @@ describe('CopilotSdkWrapper — sendStream()', () => {
   });
 
   test('[integration] sendStream subscribes to events and returns final response', async () => {
-    // v0.2.1: session.on() takes a single event-multiplexer callback (not eventName + handler).
+    // v0.4.1: session.on() takes a single event-multiplexer callback (not eventName + handler).
     // Content comes from 'assistant.message' events, not from sendAndWait's return value.
     let capturedCallback;
     mockSession.on.mockImplementation((cb) => {
@@ -689,7 +689,7 @@ describe('CopilotSdkWrapper — sendStream()', () => {
   });
 
   test('[integration] sendStream serialises concurrent calls via the send queue', async () => {
-    // v0.2.1: content arrives via 'assistant.message' event, not sendAndWait return value.
+    // v0.4.1: content arrives via 'assistant.message' event, not sendAndWait return value.
     // Calls are serialised, so capturedCallback is set correctly for each sequential call.
     const order = [];
     let capturedCallback;
@@ -718,5 +718,25 @@ describe('CopilotSdkWrapper — sendStream()', () => {
     expect(order).toEqual([1, 2]);
     expect(r1.content).toBe('first');
     expect(r2.content).toBe('second');
+  });
+});
+
+// ==============================================================================
+// v0.5.1 — re-exports available from olinda_copilot_sdk.ts via CDN tarball
+// ==============================================================================
+
+describe('copilot_sdk_wrapper — v0.5.1 re-exports', () => {
+  test('approveAll is re-exported as a function', () => {
+    expect(typeof approveAll).toBe('function');
+  });
+
+  test('ResumeSessionConfig type is re-exported (import resolves without error)', async () => {
+    // ResumeSessionConfig is a type-only export — no runtime value to check.
+    // Verify the module resolves without throwing (type exports don't exist at runtime).
+    const mod = await import('../../src/lib/copilot_sdk_wrapper.js');
+    expect(mod).toBeDefined();
+    // Value exports still present
+    expect(typeof mod.CopilotSdkWrapper).toBe('function');
+    expect(typeof mod.approveAll).toBe('function');
   });
 });

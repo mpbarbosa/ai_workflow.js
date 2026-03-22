@@ -1,7 +1,7 @@
 # Project Kind Detection API
 
 **Module:** `lib/project_kind_detection`
-**Version:** 1.8.0
+**Version:** 1.9.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview

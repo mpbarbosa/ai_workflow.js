@@ -657,8 +657,16 @@ ${codeList}${fileContentsSection}`;
 2. **Issue Identification**: Find bugs, security issues, TODOs, and design problems
 3. **Best Practices**: Check adherence to language and project standards
 4. **Recommendations**: Provide specific fixes with code examples
+5. **Error Resilience**: Identify production-critical failure modes:
+   - Empty or swallowed catch blocks (\`catch (e) {}\`, log-only catch without re-throw)
+   - Missing \`await\` on async calls that silently discard errors and results
+   - Unhandled Promise rejections (\`.then()\` chains without \`.catch()\`, fire-and-forget async calls)
+   - Error masking — replacing the original error with a generic message, losing the stack trace
+   - Missing null/undefined guards on external data (API responses, env vars, parsed JSON, CLI args)
+   - Missing \`finally\` blocks when resources (file handles, DB connections) are opened in try blocks
+   - Uncaught top-level rejections in entry points (no \`unhandledRejection\` handler)
 
-**Focus**: Bugs, security, performance, maintainability, design patterns
+**Focus**: Bugs, security, performance, maintainability, design patterns, error resilience
 
 **Important**: If no critical issues (bugs, security risks, or anti-patterns) are found, do NOT stop at "no issues found". Instead, automatically perform a deeper analysis covering:
 - Code structure and architecture quality

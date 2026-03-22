@@ -1,13 +1,9 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 37,
-  "filesHash": "ff7dd14a",
+  "totalPartitions": 36,
+  "filesHash": "82c603f5",
   "partitionLabels": [
-    "src/cli",
-    "src/cli (2)",
-    "src/cli (3)",
-    "src/cli (4)",
     "src/lib",
     "src/lib (2)",
     "src/lib (3)",
@@ -25,8 +21,11 @@
     "src/steps (3)",
     "src/steps (4)",
     "src/steps (5)",
-    "package-lock.json, package.json, tsconfig.json, .ai_workflow/.ai_cache",
-    ".ai_workflow, .ai_workflow/metrics",
+    "package-lock.json, package.json, tsconfig.json",
+    "src/cli",
+    "src/cli (2)",
+    "src/cli (3)",
+    ".ai_workflow/.ai_cache, .ai_workflow, .ai_workflow/metrics",
     "docs/api",
     "scripts",
     "scripts (2)",
@@ -42,5 +41,5 @@
     "jest.integration.config.json, typedoc.json, src/core, src/types",
     ".husky/_, .workflow_core/scripts"
   ],
-  "updatedAt": "2026-03-22T23:26:39.735Z"
+  "updatedAt": "2026-03-22T23:32:48.173Z"
 }

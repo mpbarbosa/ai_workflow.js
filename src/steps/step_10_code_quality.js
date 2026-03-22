@@ -605,6 +605,23 @@ export function buildCodeContentHash(fileContents) {
   return hash.toString(16).padStart(8, '0');
 }
 
+/**
+ * Determine whether the error resilience supplementary prompt should be run
+ * for the given project kind.
+ *
+ * The error_resilience_prompt focuses on server-side and general application
+ * failure modes (uncaught exceptions, unhandled rejections, silent failures).
+ * It is not applicable to purely static or passive projects.
+ *
+ * @pure
+ * @param {string} projectKind - Project kind identifier
+ * @returns {boolean} True when error resilience analysis is appropriate
+ */
+export function shouldRunErrorResiliencePrompt(projectKind) {
+  const excluded = new Set(['static_website', 'configuration_library']);
+  return !excluded.has(projectKind);
+}
+
 // ============================================================================
 // STEP 10 ANALYZER - Integration
 // ============================================================================
@@ -766,6 +783,7 @@ export class Step10CodeQualityAnalyzer {
       const primaryLanguage =
         techStackResult.primary_language || detectedLanguages[0] || 'javascript';
       let stepAlternatives = { alternatives: [], recommended: null };
+      let erContent = '';
       try {
         const aiAvailable = await this.aiHelper.initialize();
         if (aiAvailable) {
@@ -963,13 +981,54 @@ export class Step10CodeQualityAnalyzer {
           const aiSections = aiSectionResults.filter((c) => c);
 
           const aiContent = aiSections.join('\n\n---\n\n');
+
+          // Error Resilience: separate AI pass at the partition level (not per-slice).
+          // One focused call reviews all partition files for production failure modes:
+          // empty catches, missing await, unhandled rejections, error masking, etc.
+          // Runs independently so it has its own cache key and never inflates the
+          // main code quality prompt.
+          const currentKind = options?.projectType ?? options?.projectKind ?? '';
+          if (sharedParsedYaml && shouldRunErrorResiliencePrompt(currentKind)) {
+            try {
+              const erFileMap = formatFileContentMap(
+                buildFileContentMap(fileContents, {
+                  maxFiles: partition.files.length,
+                  maxCharsPerFile: 2000,
+                })
+              );
+              const erPrompt = buildYamlStepPrompt(sharedParsedYaml, 'error_resilience_prompt', {
+                project_name: basename(projectRoot),
+                primary_language: primaryLanguage,
+                file_content_map: erFileMap,
+              });
+              if (erPrompt) {
+                const erHashEntries = Object.entries(fileContents).map(([k, v]) => `${k}:${v}`);
+                const erResult = await this.aiCache.withFileChangeGuard(
+                  `step_10_er_p${partition.index}`,
+                  erHashEntries,
+                  () =>
+                    this.aiHelper.executeRequest(erPrompt, {
+                      persona: 'code_quality_analyst',
+                      timeout: 180000,
+                    })
+                );
+                erContent = erResult?.content ?? '';
+              }
+            } catch (erError) {
+              logger.warn(`Error resilience analysis skipped: ${erError.message}`);
+            }
+          }
+
           const parsedAlternatives = options.alternatives
             ? parseAlternatives(aiContent)
             : { alternatives: [], recommended: null };
           stepAlternatives = parsedAlternatives;
-          if (aiContent) {
+          if (aiContent || erContent) {
             const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
-            const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
+            let enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
+            if (erContent) {
+              enrichedReport += `\n\n---\n\n## Error Resilience Analysis\n\n${erContent}`;
+            }
             await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
             // Update per-file quality scores and advance partition for the next run.
             const perFileIssues = collectPerFileIssues(perLanguageResults, projectRoot);
@@ -1000,6 +1059,7 @@ export class Step10CodeQualityAnalyzer {
         sourceFileCount: aggregateTotals.fileCount,
         alternatives: stepAlternatives.alternatives,
         recommendedAlternative: stepAlternatives.recommended,
+        erFindings: erContent,
       };
     } catch (error) {
       logger.error(`Step 10 failed: ${error.message}`);

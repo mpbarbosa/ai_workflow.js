@@ -224,6 +224,7 @@ export function createProgram() {
     .option('--output <path>', 'Save Markdown fix plan to this file')
     .option('--latest', 'Use only the most recent log run', false)
     .option('--severity <level>', 'Filter by severity: critical | warning | all', 'all')
+    .option('--model <model>', 'Model to use (default: gpt-4.1)')
     .option('--dry-run', 'Preview without writing output file', false)
     .action(async (options) => {
       const globalOpts = program.opts();

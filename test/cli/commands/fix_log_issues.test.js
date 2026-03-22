@@ -9,6 +9,7 @@ import {
   resolveLogDirectory,
   resolveProjectRoot,
   formatIssueSummary,
+  buildFixLogPrompt,
 } from '../../../src/cli/commands/fix_log_issues.js';
 
 // ============================================================================
@@ -177,5 +178,50 @@ describe('formatIssueSummary', () => {
     const lines = formatIssueSummary(1, 1, 3); // 1 info = 3 - 1 - 1
     const text = lines.join('\n');
     expect(text).toContain('1'); // info count
+  });
+});
+
+// ============================================================================
+// buildFixLogPrompt
+// ============================================================================
+
+describe('buildFixLogPrompt', () => {
+  const entries = [
+    { filePath: '/logs/run/workflow.log', content: 'step_01 completed' },
+    { filePath: '/logs/run/prompts/step_09/response.md', content: '# Prompt Log\n## Response\nChange name to hyphenated.' },
+  ];
+
+  test('returns a string', () => {
+    const prompt = buildFixLogPrompt(entries, '/project');
+    expect(typeof prompt).toBe('string');
+    expect(prompt.length).toBeGreaterThan(0);
+  });
+
+  test('includes the project root path', () => {
+    const prompt = buildFixLogPrompt(entries, '/my/project');
+    expect(prompt).toContain('/my/project');
+  });
+
+  test('includes the file count', () => {
+    const prompt = buildFixLogPrompt(entries, '/project');
+    expect(prompt).toContain('2 files');
+  });
+
+  test('embeds each file path as a heading', () => {
+    const prompt = buildFixLogPrompt(entries, '/project');
+    expect(prompt).toContain('workflow.log');
+    expect(prompt).toContain('response.md');
+  });
+
+  test('embeds file content in code blocks', () => {
+    const prompt = buildFixLogPrompt(entries, '/project');
+    expect(prompt).toContain('step_01 completed');
+    expect(prompt).toContain('Change name to hyphenated.');
+  });
+
+  test('returns empty-entries prompt gracefully', () => {
+    const prompt = buildFixLogPrompt([], '/project');
+    expect(typeof prompt).toBe('string');
+    expect(prompt).toContain('0 files');
   });
 });

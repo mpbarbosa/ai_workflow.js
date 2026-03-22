@@ -16,6 +16,7 @@
   "include": [
     "src/lib/copilot_sdk_wrapper.ts",
     "src/lib/ai_cache.ts",
+    "src/lib/ai_personas.ts",
     "src/types/local-modules.d.ts",
     "src/types/public-api.d.ts"
   ],

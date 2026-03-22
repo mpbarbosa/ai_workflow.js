@@ -1,6 +1,6 @@
 // test/copilot_sdk_wrapper.test.ts
 
-import { CopilotSdkWrapper, CopilotSdkWrapperOptions, InitializeResult, SendResult } from '../lib/copilot_sdk_wrapper.d.ts';
+import { CopilotSdkWrapper, CopilotSdkWrapperOptions, InitializeResult, SendResult, ResumeSessionConfig } from '../lib/copilot_sdk_wrapper.d.ts';
 
 describe('CopilotSdkWrapper', () => {
   let wrapper: CopilotSdkWrapper;
@@ -145,5 +145,18 @@ describe('CopilotSdkWrapper', () => {
       await expect(wrapper.cleanup()).resolves.toBeUndefined();
       expect(wrapper.client).toBeNull();
     });
+  });
+});
+
+// ==============================================================================
+// v0.5.1 — ResumeSessionConfig type is re-exported from the wrapper
+// ==============================================================================
+
+describe('copilot_sdk_wrapper — v0.5.1 ResumeSessionConfig re-export', () => {
+  it('should accept a ResumeSessionConfig-shaped object', () => {
+    // ResumeSessionConfig is a type alias for @github/copilot-sdk's type.
+    // We verify the import compiles and the shape is structurally assignable.
+    const config: ResumeSessionConfig = {};
+    expect(config).toBeDefined();
   });
 });

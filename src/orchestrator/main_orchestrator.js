@@ -67,6 +67,7 @@ import { Step16VersionUpdate } from '../steps/step_16_version_update.js';
 import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
 import { Step18Debugging } from '../steps/step_18_debugging.js';
 import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
+import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
 
 // ============================================================================
 // CONSTANTS
@@ -182,6 +183,7 @@ export function getStepsForStage(stage) {
       'step_16', // Version update
       'step_18', // Debugging analysis
       'step_19', // TypeScript review (Strider)
+      'step_20', // Async performance review
       'step_17', // Summary
       'step_0f', // Commit artifacts
       'step_12', // Git finalization (must run last)
@@ -497,11 +499,19 @@ export class MainOrchestrator {
         dependencies: ['step_18'],
       },
       {
+        id: 'step_20',
+        name: 'Async Performance Review',
+        description:
+          'AI-powered async performance review (overfetching, event loop, memory leaks, promise anti-patterns)',
+        class: Step20AsyncPerfReview,
+        dependencies: ['step_19'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
-        dependencies: ['step_19'],
+        dependencies: ['step_20'],
       },
       {
         id: 'step_0f',

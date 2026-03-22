@@ -1,6 +1,6 @@
 # Dependency Graph
 
-**AI Workflow Automation v1.8.0**
+**AI Workflow Automation v1.9.0**
 **Last Updated:** 2026-02-01
 **Audience:** Architects, Developers
 
@@ -602,4 +602,4 @@ What does it depend on?
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.8.0
+**Version:** 1.9.0

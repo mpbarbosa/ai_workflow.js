@@ -31,9 +31,9 @@ describe('ai_personas - Pure Functions', () => {
       expect(personas.length).toBeGreaterThan(0);
     });
 
-    test('returns 16 personas', () => {
+    test('returns 17 personas', () => {
       const personas = getAllPersonas();
-      expect(personas).toHaveLength(16);
+      expect(personas).toHaveLength(17);
     });
 
     test('all personas have required fields', () => {
@@ -131,6 +131,7 @@ describe('ai_personas - Pure Functions', () => {
         'api_designer',
         'devops_engineer',
         'accessibility_expert',
+        'async_performance_engineer',
       ];
 
       expectedIds.forEach((id) => {
@@ -221,6 +222,13 @@ describe('ai_personas - Pure Functions', () => {
       expect(ids).toContain('security_expert');
     });
 
+    test('returns async-performance personas', () => {
+      const personas = getPersonasByTask('async-performance');
+      expect(personas.length).toBeGreaterThanOrEqual(1);
+      const ids = personas.map((p) => p.id);
+      expect(ids).toContain('async_performance_engineer');
+    });
+
     test('returns accessibility personas', () => {
       const personas = getPersonasByTask('accessibility');
       expect(personas.length).toBeGreaterThanOrEqual(1);
@@ -266,6 +274,7 @@ describe('ai_personas - Pure Functions', () => {
         'accessibility',
         'ux',
         'prompts',
+        'async-performance',
       ];
 
       taskTypes.forEach((task) => {
@@ -419,7 +428,7 @@ describe('ai_personas - Pure Functions', () => {
   describe('getPersonaCount', () => {
     test('returns correct count', () => {
       const count = getPersonaCount();
-      expect(count).toBe(16);
+      expect(count).toBe(17);
     });
 
     test('matches getAllPersonas length', () => {
@@ -437,7 +446,7 @@ describe('ai_personas - Pure Functions', () => {
     test('returns all persona IDs', () => {
       const ids = getPersonaIds();
       expect(Array.isArray(ids)).toBe(true);
-      expect(ids).toHaveLength(16);
+      expect(ids).toHaveLength(17);
     });
 
     test('all IDs are strings', () => {
@@ -537,6 +546,20 @@ describe('ai_personas - Pure Functions', () => {
       expect(persona.expertise).toContain('AWS Lambda');
       expect(persona.expertise).toContain('Amazon API Gateway');
       expect(persona.expertise).toContain('AWS Location Service');
+      expect(persona.useCases.length).toBeGreaterThan(0);
+    });
+
+    test('Async Performance Engineer has correct properties', () => {
+      const persona = getPersonaById('async_performance_engineer');
+      expect(persona).not.toBeNull();
+      expect(persona.name).toBe('Async Performance Engineer');
+      expect(persona.role.toLowerCase()).toContain('async');
+      expect(persona.expertise).toContain('Promise anti-patterns');
+      expect(persona.expertise).toContain('Memory leak detection');
+      expect(persona.expertise).toContain('API call batching');
+      expect(persona.expertise).toContain('Debouncing and throttling');
+      expect(persona.focus).toContain('Event loop congestion');
+      expect(persona.focus).toContain('Memory leaks');
       expect(persona.useCases.length).toBeGreaterThan(0);
     });
 

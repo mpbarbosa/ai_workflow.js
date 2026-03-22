@@ -76,4 +76,4 @@ console.log(`Found ${old.length} old files`);
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.8.0
+**Part of:** AI Workflow Automation v1.9.0

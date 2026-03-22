@@ -3,9 +3,9 @@
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
 <<<<<<< HEAD
-**Version:** 1.8.0
+**Version:** 1.9.0
 =======
-**Version:** 1.8.0
+**Version:** 1.9.0
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 > > > > > > > **Date:** February 2, 2026
