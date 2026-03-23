@@ -51,6 +51,12 @@ export const HEURISTIC_THRESHOLDS = Object.freeze({
 /** npm script name used for project-level version consistency validation */
 export const CHECK_VERSION_SCRIPT = 'check:version';
 
+/**
+ * Key under `skills` in .workflow-config.yaml that declares the project's
+ * version-sync skill (command + check_command).
+ */
+export const VERSION_SYNC_SKILL_KEY = 'version_sync';
+
 // ============================================================================
 // PURE FUNCTIONS - Version Parsing and Manipulation
 // ============================================================================
@@ -891,6 +897,28 @@ Reply with ONLY one word: major, minor, or patch.`;
         }
       }
 
+      // Phase 3d (optional): Invoke project version-sync skill
+      // If .workflow-config.yaml declares skills.version_sync, run the skill's
+      // command now.  This lets projects with a dedicated sync script (e.g.
+      // `npm run version:sync`) regenerate project-specific files that Step 16's
+      // generic scan-and-replace may not fully cover (e.g. a file that is
+      // wholly regenerated from a template rather than line-patched).
+      const versionSkillConfig = await this._loadVersionSkillConfig();
+      if (versionSkillConfig) {
+        this.logger.info(
+          `${colors.blue}Phase 3d:${colors.reset} Invoking version-sync skill ` +
+            `(${versionSkillConfig.command})...`
+        );
+        const skillResult = await this._runVersionSyncSkill(versionSkillConfig);
+        if (skillResult.exitCode === 0) {
+          this.logger.success(`Version-sync skill completed successfully ✅`);
+        } else {
+          this.logger.warn(
+            `Version-sync skill exited with code ${skillResult.exitCode}:\n${skillResult.output}`
+          );
+        }
+      }
+
       // Phase 4 (optional): Run project check:version script to verify consistency
       const consistencyCheck = await this.runVersionConsistencyCheck();
       if (consistencyCheck.ran) {
@@ -1243,6 +1271,62 @@ Reply with ONLY one word: major, minor, or patch.`;
   }
 
   /**
+   * Load the version-sync skill configuration from .workflow-config.yaml.
+   *
+   * Reads `skills.version_sync` — a project-specific declaration that tells
+   * Step 16 which command to run after its own file-scan pass in order to
+   * propagate the new version through project-specific files (e.g. a
+   * regeneration script for `src/config/version.ts`).
+   *
+   * Expected shape in .workflow-config.yaml:
+   * ```yaml
+   * skills:
+   *   version_sync:
+   *     command: "npm run version:sync"       # required — sync command
+   *     check_command: "npm run version:check" # optional — consistency check
+   *     skill_doc: ".github/skills/sync-version/SKILL.md"  # informational
+   *     description: "..."                     # informational
+   * ```
+   *
+   * @returns {Promise<{command: string, check_command?: string, skill_doc?: string, description?: string}|null>}
+   */
+  async _loadVersionSkillConfig() {
+    const configPath = join(this.projectRoot, '.workflow-config.yaml');
+    try {
+      const content = await this.fileOps.readFile(configPath);
+      if (!content) return null;
+      const config = yaml.load(content);
+      const skill = config?.skills?.[VERSION_SYNC_SKILL_KEY];
+      if (!skill || typeof skill.command !== 'string' || !skill.command.trim()) return null;
+      return skill;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Invoke the project's version-sync skill command.
+   *
+   * Runs `skillConfig.command` (e.g. `npm run version:sync`) in
+   * `this.projectRoot` and reports the outcome.  A non-zero exit code is
+   * treated as a warning rather than a hard failure so that the overall step
+   * is not blocked when the skill command is unavailable.
+   *
+   * @param {{command: string}} skillConfig - Skill config object from _loadVersionSkillConfig()
+   * @returns {Promise<{ran: boolean, exitCode: number, output: string}>}
+   */
+  async _runVersionSyncSkill(skillConfig) {
+    const [bin, ...args] = skillConfig.command.split(/\s+/);
+    return new Promise((resolve) => {
+      execFile(bin, args, { cwd: this.projectRoot, timeout: 60_000 }, (err, stdout, stderr) => {
+        const output = (stdout + stderr).trim();
+        const exitCode = err ? (err.code ?? 1) : 0;
+        resolve({ ran: true, exitCode, output });
+      });
+    });
+  }
+
+  /**
    * Auto-fix version inconsistencies reported by a check:version script.
    *
    * Parses the script's text output to find which files contain stale versions
@@ -1348,12 +1432,30 @@ Reply with ONLY one word: major, minor, or patch.`;
   }
 
   /**
-   * Run the project's check:version npm script (if present) to validate version consistency.
+   * Run the project's version consistency check.
+   *
+   * Resolution order:
+   * 1. `skills.version_sync.check_command` from .workflow-config.yaml (project-specific skill)
+   * 2. `check:version` npm script in package.json (legacy fallback)
+   *
    * This is a best-effort check; failures are reported as warnings, not step failures.
-   * @returns {Promise<Object>} - { ran, exitCode, output }
+   * @returns {Promise<{ran: boolean, exitCode?: number, output?: string}>}
    */
   async runVersionConsistencyCheck() {
-    // Detect if the project has a check:version npm script
+    // 1. Prefer the skill's check_command if the project has declared one
+    const skillConfig = await this._loadVersionSkillConfig();
+    if (skillConfig?.check_command) {
+      const [bin, ...args] = skillConfig.check_command.split(/\s+/);
+      return new Promise((resolve) => {
+        execFile(bin, args, { cwd: this.projectRoot, timeout: 30_000 }, (err, stdout, stderr) => {
+          const output = (stdout + stderr).trim();
+          const exitCode = err ? (err.code ?? 1) : 0;
+          resolve({ ran: true, exitCode, output });
+        });
+      });
+    }
+
+    // 2. Fall back to the hardcoded check:version npm script
     const pkgPath = `${this.projectRoot}/package.json`;
     let hasScript = false;
     try {
