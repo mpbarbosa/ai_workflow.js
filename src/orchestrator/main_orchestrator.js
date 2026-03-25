@@ -68,6 +68,7 @@ import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
 import { Step18Debugging } from '../steps/step_18_debugging.js';
 import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
 import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
+import { DocConsolidationStep } from '../steps/step_21_doc_consolidation.js';
 
 // ============================================================================
 // CONSTANTS
@@ -151,6 +152,7 @@ export function getStepsForStage(stage) {
       'step_01',
       'step_02',
       'step_02_5', // Doc optimization
+      'step_21', // Doc consolidation
       'step_03', // Script refs
       'step_04',
       'step_05',
@@ -166,6 +168,7 @@ export function getStepsForStage(stage) {
       'step_01',
       'step_02',
       'step_02_5',
+      'step_21', // Doc consolidation
       'step_03',
       'step_04',
       'step_05',
@@ -376,6 +379,14 @@ export class MainOrchestrator {
         description: 'Optimize documentation size and quality',
         class: DocumentationOptimizer,
         dependencies: ['step_02'],
+      },
+      {
+        id: 'step_21',
+        name: 'Doc Consolidation',
+        description:
+          'Find similar markdown docs via Cosine Similarity/TF-IDF and AI-merge them into canonical documents',
+        class: DocConsolidationStep,
+        dependencies: ['step_02_5'],
       },
       {
         id: 'step_03',
