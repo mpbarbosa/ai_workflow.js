@@ -339,6 +339,34 @@ export function partitionFiles(files, chunkSize) {
 }
 
 /**
+ * Build a compact two-level directory tree from a file-index Set.
+ *
+ * Produces a fenced Markdown block listing unique top-two-level directory
+ * paths (e.g. `src/`, `src/patterns/`) derived from the absolute paths in
+ * `fileSet`. Root-level files are omitted; only paths that have at least one
+ * child appear. Returns an empty string when no directories are found.
+ *
+ * @param {Set<string>} fileSet - Absolute paths (files + ancestor dirs) from buildFileIndex
+ * @param {string} projectRoot - Absolute path to the project root
+ * @returns {string} Fenced markdown block headed "**Directory Tree:**", or ''
+ */
+export function buildCompactDirectoryTree(fileSet, projectRoot) {
+  const dirs = new Set();
+  for (const absPath of fileSet) {
+    const rel = path.relative(projectRoot, absPath);
+    if (!rel || rel.startsWith('..')) continue;
+    const parts = rel.split(path.sep).filter(Boolean);
+    if (parts.length >= 2) {
+      dirs.add(parts[0] + '/');
+      dirs.add(parts[0] + '/' + parts[1] + '/');
+    }
+  }
+  const sorted = Array.from(dirs).sort();
+  if (sorted.length === 0) return '';
+  return `**Directory Tree:**\n\`\`\`\n${sorted.join('\n')}\n\`\`\``;
+}
+
+/**
  * Build the prompt context strings for a single partition.
  * Returns the doc-file list string and broken-refs string, both already
  * size-bounded so the resulting prompt stays within MAX_PROMPT_CHARS.
@@ -507,6 +535,9 @@ export class Step2ConsistencyAnalyzer {
       const brokenLinks = await this.checkLinks(docFiles, existingFiles, projectRoot);
       logger.info(`Link check: ${brokenLinks.length} broken link(s) found`);
 
+      // Phase 4b: Build compact directory tree for architecture consistency analysis
+      const directoryTree = buildCompactDirectoryTree(existingFiles, projectRoot);
+
       // Phase 5: Generate report
       const totalIssues = versionIssues.length + brokenLinks.length;
       const results = {
@@ -577,6 +608,7 @@ export class Step2ConsistencyAnalyzer {
                 modified_count: String(partFiles.length),
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
+                directory_tree: directoryTree,
               });
               if (prompt && roleOverride) {
                 prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;

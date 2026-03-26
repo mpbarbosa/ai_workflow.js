@@ -562,9 +562,15 @@ export class TechStackDetector {
           techStack.languages.unshift(configLang);
         } else {
           // Move config language to front so languages[0] returns the right value
-          techStack.languages = [configLang, ...techStack.languages.filter((l) => l !== configLang)];
+          techStack.languages = [
+            configLang,
+            ...techStack.languages.filter((l) => l !== configLang),
+          ];
         }
       }
+
+      // camelCase alias consumed by step_02, step_03, step_05, and step_00
+      techStack.primaryLanguage = techStack.primary_language;
 
       // Cache result
       this.cache.set(cacheKey, techStack);
@@ -579,6 +585,7 @@ export class TechStackDetector {
       return {
         error: error.message,
         primary_language: null,
+        primaryLanguage: null,
         languages: [],
         frameworks: [],
         build_system: 'none',
