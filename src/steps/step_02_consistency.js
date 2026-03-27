@@ -21,7 +21,7 @@ import {
   buildYamlStepPrompt,
   buildProjectKindPrompt,
 } from '../lib/ai_prompt_builder.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 
 // ============================================================================
 // CONSTANTS
@@ -956,12 +956,7 @@ export class Step2ConsistencyAnalyzer {
   }
 
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectTechStack(projectRoot);
-      return detection.primaryLanguage || 'javascript';
-    } catch {
-      return 'javascript';
-    }
+    return getPrimaryLanguage(this.techStack, projectRoot, 'javascript');
   }
 }
 

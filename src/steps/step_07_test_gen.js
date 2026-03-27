@@ -10,10 +10,15 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  AI_HELPERS_PATH,
+  AI_PROJECT_KINDS_PATH,
+  buildYamlStepPrompt,
+  buildProjectKindPrompt,
+} from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import path from 'path';
 
@@ -339,7 +344,9 @@ export function buildTestFilesSummary(testFiles) {
   }
 
   const dirCount = Object.keys(groups).length;
-  const lines = [`${testFiles.length} test files across ${dirCount} director${dirCount === 1 ? 'y' : 'ies'}:`];
+  const lines = [
+    `${testFiles.length} test files across ${dirCount} director${dirCount === 1 ? 'y' : 'ies'}:`,
+  ];
   for (const [dir, files] of Object.entries(groups)) {
     const sample = files.slice(0, 3).join(', ');
     const more = files.length > 3 ? `, ... (+${files.length - 3} more)` : '';
@@ -572,9 +579,15 @@ export class Step7TestGenerator {
               try {
                 const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
                 const parsedPk = yaml.load(pkYaml);
-                const pk = buildProjectKindPrompt(parsedPk, options?.projectKind ?? 'default', 'test_engineer');
+                const pk = buildProjectKindPrompt(
+                  parsedPk,
+                  options?.projectKind ?? 'default',
+                  'test_engineer'
+                );
                 if (pk?.role) roleOverride = pk.role;
-              } catch { /* optional */ }
+              } catch {
+                /* optional */
+              }
               const strategyPrompt = buildYamlStepPrompt(parsedYaml, 'test_strategy_prompt', {
                 project_name: path.basename(projectRoot),
                 coverage_stats: `${coveragePercentage}% (${testedCount}/${sourceFiles.length} source files have tests, ${testFiles.length} total test files)`,
@@ -600,7 +613,9 @@ export class Step7TestGenerator {
                   await this.backlog.saveStepSummary(7, 'Test Generation', stratReport);
                 }
               }
-            } catch { /* non-fatal */ }
+            } catch {
+              /* non-fatal */
+            }
             logger.info(
               `Generating tests for ${filesToGenerate.length} file(s) via AI (cap: ${MAX_FILES_TO_GENERATE})...`
             );
@@ -715,15 +730,7 @@ export class Step7TestGenerator {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
-    } catch {
-      // Fallback
-    }
-    return 'javascript';
+    return getPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

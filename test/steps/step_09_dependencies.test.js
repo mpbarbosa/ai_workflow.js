@@ -701,7 +701,7 @@ describe('Step 9: Dependency Validation', () => {
       };
 
       mockTechStack = {
-        detectAll: async () => ({ languages: ['javascript'] }),
+        detectTechStack: async () => ({ primaryLanguage: 'javascript', languages: ['javascript'] }),
       };
 
       validator = new Step9DependencyValidator({
@@ -714,7 +714,10 @@ describe('Step 9: Dependency Validation', () => {
     });
 
     test('skips validation for shell projects', async () => {
-      mockTechStack.detectAll = async () => ({ languages: ['bash'] });
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'bash',
+        languages: ['bash'],
+      });
 
       const result = await validator.execute('/project');
 
@@ -813,7 +816,10 @@ describe('Step 9: Dependency Validation', () => {
     });
 
     test('validates Python project dependencies', async () => {
-      mockTechStack.detectAll = async () => ({ languages: ['python'] });
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'python',
+        languages: ['python'],
+      });
       mockFileOps.exists = async () => true;
       mockFileOps.readFile = async () => 'requests==2.31.0\nflask>=2.0.0\n';
 
@@ -826,7 +832,10 @@ describe('Step 9: Dependency Validation', () => {
     });
 
     test('validates Rust project dependencies', async () => {
-      mockTechStack.detectAll = async () => ({ languages: ['rust'] });
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'rust',
+        languages: ['rust'],
+      });
       mockFileOps.exists = async () => true;
       mockFileOps.readFile = async () =>
         `[package]\nname = "myapp"\n\n[dependencies]\nserde = "1.0"\ntokio = "1"\n`;
@@ -842,7 +851,7 @@ describe('Step 9: Dependency Validation', () => {
     });
 
     test('validates Go project dependencies', async () => {
-      mockTechStack.detectAll = async () => ({ languages: ['go'] });
+      mockTechStack.detectTechStack = async () => ({ primaryLanguage: 'go', languages: ['go'] });
       mockFileOps.exists = async () => true;
       mockFileOps.readFile = async () =>
         `module example.com/mymod\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.1\n)\n`;

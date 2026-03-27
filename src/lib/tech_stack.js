@@ -465,6 +465,27 @@ export function normalizeLanguageName(lang) {
 }
 
 /**
+ * Resolve the primary language for a project using a TechStackDetector instance.
+ *
+ * Single canonical entry point that replaces the per-step `detectLanguage()`
+ * implementations. All steps should call this instead of reading
+ * `detection.primaryLanguage` directly.
+ *
+ * @param {TechStackDetector} detector - Injected TechStackDetector instance
+ * @param {string} projectRoot - Absolute path to project root
+ * @param {string} [fallback='javascript'] - Returned when detection fails or yields empty
+ * @returns {Promise<string>} Resolved primary language name (normalised)
+ */
+export async function getPrimaryLanguage(detector, projectRoot, fallback = 'javascript') {
+  try {
+    const detection = await detector.detectTechStack(projectRoot);
+    return detection.primaryLanguage || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Tech Stack Detector
  * Analyzes project to detect languages, frameworks, and tools
  */

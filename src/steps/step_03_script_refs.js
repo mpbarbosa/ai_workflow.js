@@ -10,7 +10,7 @@ import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
@@ -542,12 +542,7 @@ export class Step3ScriptAnalyzer {
    * @returns {Promise<string>} Detected language
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectTechStack(projectRoot);
-      return detection.primaryLanguage || 'bash';
-    } catch {
-      return 'bash';
-    }
+    return getPrimaryLanguage(this.techStack, projectRoot, 'bash');
   }
 
   /**

@@ -12,7 +12,7 @@ import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
@@ -766,15 +766,7 @@ export class Step8TestExecutor {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
-    } catch {
-      // Fallback
-    }
-    return 'javascript';
+    return getPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

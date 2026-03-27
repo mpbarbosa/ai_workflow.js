@@ -10,6 +10,7 @@ import {
   detectTestFramework,
   detectLinters,
   generateTechStackReport,
+  getPrimaryLanguage,
   TechStackDetector,
 } from '../../src/lib/tech_stack.js';
 
@@ -513,5 +514,44 @@ describe('Tech Stack Detection - Integration', () => {
 
     detector.clearCache();
     expect(detector.cache.size).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getPrimaryLanguage
+// ─────────────────────────────────────────────────────────────────────────────
+describe('getPrimaryLanguage', () => {
+  it('returns primaryLanguage from detection result', async () => {
+    const mockDetector = {
+      detectTechStack: async () => ({ primaryLanguage: 'typescript' }),
+    };
+    const result = await getPrimaryLanguage(mockDetector, '/fake/root');
+    expect(result).toBe('typescript');
+  });
+
+  it('returns config-override language when detectTechStack reflects it', async () => {
+    const mockDetector = {
+      detectTechStack: async () => ({ primaryLanguage: 'python' }),
+    };
+    const result = await getPrimaryLanguage(mockDetector, '/fake/root', 'javascript');
+    expect(result).toBe('python');
+  });
+
+  it('returns custom fallback when detection throws', async () => {
+    const mockDetector = {
+      detectTechStack: async () => {
+        throw new Error('detection failed');
+      },
+    };
+    const result = await getPrimaryLanguage(mockDetector, '/fake/root', 'bash');
+    expect(result).toBe('bash');
+  });
+
+  it('returns default fallback "javascript" when primaryLanguage is empty and no fallback provided', async () => {
+    const mockDetector = {
+      detectTechStack: async () => ({ primaryLanguage: null }),
+    };
+    const result = await getPrimaryLanguage(mockDetector, '/fake/root');
+    expect(result).toBe('javascript');
   });
 });

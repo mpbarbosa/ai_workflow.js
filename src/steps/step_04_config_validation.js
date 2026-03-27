@@ -612,9 +612,9 @@ export class Step4ConfigAnalyzer {
         let techStackSummary = '';
         try {
           const detection = await this.techStack.detectTechStack(projectRoot);
-          if (!projectKind) projectKind = detection.primary_language || '';
+          if (!projectKind) projectKind = detection.primaryLanguage || '';
           techStackSummary = [
-            detection.primary_language,
+            detection.primaryLanguage,
             ...(detection.frameworks ?? []).map((f) => (typeof f === 'string' ? f : f.name)),
           ]
             .filter(Boolean)

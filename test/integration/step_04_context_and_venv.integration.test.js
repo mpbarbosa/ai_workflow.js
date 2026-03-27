@@ -88,6 +88,7 @@ function buildTechStackStub({ primaryLanguage, frameworks = [] }) {
   return {
     detectTechStack: () =>
       Promise.resolve({
+        primaryLanguage,
         primary_language: primaryLanguage,
         frameworks,
         testing: [],

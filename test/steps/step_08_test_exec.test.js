@@ -417,7 +417,7 @@ describe('Step 8: Test Execution', () => {
       };
 
       mockTechStack = {
-        detectAll: async () => ({ languages: ['javascript'] }),
+        detectTechStack: async () => ({ primaryLanguage: 'javascript', languages: ['javascript'] }),
       };
 
       executor = new Step8TestExecutor({
@@ -548,7 +548,10 @@ describe('Step 8: Test Execution', () => {
 
     test('handles missing test command', async () => {
       mockFileOps.readFile = async () => JSON.stringify({ scripts: {} });
-      mockTechStack.detectAll = async () => ({ languages: ['bash'] });
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'bash',
+        languages: ['bash'],
+      });
 
       const result = await executor.execute('/project');
 
@@ -595,7 +598,12 @@ describe('Step 8: Test Execution', () => {
           exists: async () => false,
         },
         backlog: { saveStepSummary: async () => {} },
-        techStack: { detectAll: async () => ({ languages: ['javascript'] }) },
+        techStack: {
+          detectTechStack: async () => ({
+            primaryLanguage: 'javascript',
+            languages: ['javascript'],
+          }),
+        },
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
@@ -653,7 +661,12 @@ describe('Step 8: Test Execution', () => {
         executor: mockExecutor,
         fileOps: mockFileOps,
         backlog: { saveStepSummary: async () => {} },
-        techStack: { detectAll: async () => ({ languages: ['typescript'] }) },
+        techStack: {
+          detectTechStack: async () => ({
+            primaryLanguage: 'typescript',
+            languages: ['typescript'],
+          }),
+        },
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
@@ -758,7 +771,12 @@ describe('Step 8: Test Execution', () => {
         executor: mockExecutor,
         fileOps: mockFileOps,
         backlog: { saveStepSummary: async () => {} },
-        techStack: { detectAll: async () => ({ languages: ['typescript'] }) },
+        techStack: {
+          detectTechStack: async () => ({
+            primaryLanguage: 'typescript',
+            languages: ['typescript'],
+          }),
+        },
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
