@@ -986,7 +986,7 @@ export class Step9DependencyValidator {
               dep_count: String(dependencyCounts.production ?? 0),
               dev_dep_count: String(dependencyCounts.development ?? 0),
               total_deps: String(dependencyCounts.total ?? 0),
-              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.dev ?? 0} dev)`,
+              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.development ?? 0} dev)`,
               dependency_report_content: report.slice(0, 1500) || 'none',
               prod_deps: prodList,
               dev_deps: devList,
@@ -999,7 +999,7 @@ export class Step9DependencyValidator {
           if (!prompt) {
             const role = `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`;
             const task = `Analyze the dependency health report for a ${language} project:
-- Total dependencies: ${dependencyCounts.total} (${dependencyCounts.dev || 0} dev, ${dependencyCounts.production || 0} production)
+- Total dependencies: ${dependencyCounts.total} (${dependencyCounts.development || 0} dev, ${dependencyCounts.production || 0} production)
 - Vulnerabilities: ${vuln} total (${vulnerabilities.summary?.critical || 0} critical, ${vulnerabilities.summary?.high || 0} high)
 - Outdated packages: ${outdated}`;
             const approach = `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`;
