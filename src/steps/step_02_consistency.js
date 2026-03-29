@@ -323,6 +323,80 @@ export function formatConsistencyReport(results) {
 // ============================================================================
 
 /**
+ * Map a relative file path to a human-readable category label for prompt display.
+ * @pure
+ * @param {string} filePath - Relative path from project root
+ * @returns {string} Category label
+ */
+function getFileCategory(filePath) {
+  const p = filePath.replace(/\\/g, '/');
+  if (!p.includes('/')) return 'Root';
+
+  if (p.startsWith('.github/')) {
+    const rest = p.slice('.github/'.length);
+    if (!rest.includes('/')) return '.github/ — Guides & Policies';
+    if (rest.startsWith('ISSUE_TEMPLATE/')) return '.github/ISSUE_TEMPLATE/ — Issue Templates';
+    if (rest.startsWith('actions/')) return '.github/actions/ — GitHub Actions';
+    if (rest.startsWith('skills/')) return '.github/skills/ — Skills';
+    if (rest.startsWith('workflows/')) return '.github/workflows/ — Workflows';
+    if (rest.startsWith('scripts/')) return '.github/scripts/ — Scripts';
+    return `.github/${rest.split('/')[0]}/`;
+  }
+
+  const topDir = p.split('/')[0];
+  if (topDir === 'docs') return 'docs/ — Documentation';
+  if (topDir === 'src') return 'src/ — Source';
+  if (topDir === '__tests__') return '__tests__/ — Tests';
+  return `${topDir}/`;
+}
+
+/** Defined ordering of well-known category labels. */
+const CATEGORY_ORDER = [
+  'Root',
+  '.github/ — Guides & Policies',
+  '.github/ISSUE_TEMPLATE/ — Issue Templates',
+  '.github/actions/ — GitHub Actions',
+  '.github/skills/ — Skills',
+  '.github/workflows/ — Workflows',
+  '.github/scripts/ — Scripts',
+  'docs/ — Documentation',
+  'src/ — Source',
+  '__tests__/ — Tests',
+];
+
+/**
+ * Group an array of relative file paths into ordered categories for prompt display.
+ * Returns an array of [label, paths[]] pairs in a consistent category order.
+ * Unknown categories (e.g. dynamic .github subdirs, other top-level dirs) are
+ * appended in alphabetical order after the well-known ones.
+ *
+ * @pure
+ * @param {string[]} partFiles - Relative doc-file paths in the partition
+ * @returns {Array<[string, string[]]>} Ordered [label, filePaths[]] pairs
+ */
+export function categorizeFiles(partFiles) {
+  const map = new Map();
+  for (const f of partFiles) {
+    const label = getFileCategory(f);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label).push(f);
+  }
+
+  const result = [];
+  for (const label of CATEGORY_ORDER) {
+    if (map.has(label)) {
+      result.push([label, map.get(label)]);
+      map.delete(label);
+    }
+  }
+  // Remaining categories in alphabetical order
+  for (const [label, files] of [...map.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    result.push([label, files]);
+  }
+  return result;
+}
+
+/**
  * Partition an array into chunks of at most `chunkSize` elements.
  * @pure
  * @param {Array} files - Array to split
@@ -376,10 +450,26 @@ export function buildCompactDirectoryTree(fileSet, projectRoot) {
  * @param {Object[]} brokenLinks - All broken-link issues (full set); each has {file, line, link}
  * @param {number} partIndex - 0-based partition index
  * @param {number} totalParts - Total number of partitions
+ * @param {number} [totalDocCount=0] - Total markdown files in the project (used for the
+ *   completeness note shown to the AI; 0 suppresses the "X of Y" preamble)
  * @returns {{ docFilesList: string, brokenRefsList: string, header: string }}
  */
-export function buildPartitionContext(partFiles, brokenLinks, partIndex, totalParts) {
-  const docFilesList = partFiles.join(', ');
+export function buildPartitionContext(
+  partFiles,
+  brokenLinks,
+  partIndex,
+  totalParts,
+  totalDocCount = 0
+) {
+  const groups = categorizeFiles(partFiles);
+  const groupLines = groups.map(
+    ([label, files]) => `**${label}** (${files.length}): ${files.join(', ')}`
+  );
+  const preamble =
+    totalDocCount > partFiles.length
+      ? `_(This partition covers ${partFiles.length} of ${totalDocCount} total markdown files in the project — other files may exist but are not listed here.)_`
+      : `_(${partFiles.length} file${partFiles.length !== 1 ? 's' : ''} in this partition.)_`;
+  const docFilesList = `${preamble}\n${groupLines.join('\n')}`;
 
   // Filter broken links to those whose SOURCE file is in this partition
   const matchingBroken = brokenLinks.filter((l) => {
@@ -586,6 +676,19 @@ export class Step2ConsistencyAnalyzer {
           `[step_02] Running AI analysis in ${totalParts} partition(s) of ≤${PARTITION_SIZE} files`
         );
 
+        // Count TypeScript source files (excluding .d.ts) for prompt context
+        let tsSourceCount = 'unknown';
+        try {
+          const tsFiles = await this.fileOps.glob('src/**/*.ts', {
+            cwd: projectRoot,
+            ignore: ['src/**/*.d.ts'],
+            absolute: false,
+          });
+          tsSourceCount = String(tsFiles.length);
+        } catch {
+          /* non-fatal — leave as 'unknown' */
+        }
+
         const aiParts = [];
         for (let i = 0; i < totalParts; i++) {
           const partFiles = partitions[i];
@@ -593,7 +696,8 @@ export class Step2ConsistencyAnalyzer {
             partFiles,
             brokenLinks,
             i,
-            totalParts
+            totalParts,
+            docFiles.length
           );
 
           let prompt;
@@ -605,6 +709,7 @@ export class Step2ConsistencyAnalyzer {
                 primary_language: language,
                 change_scope: options.scope || '',
                 doc_count: String(docFiles.length),
+                ts_source_count: tsSourceCount,
                 modified_count: String(partFiles.length),
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,

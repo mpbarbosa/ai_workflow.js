@@ -15,6 +15,7 @@ import {
   formatConsistencyReport,
   partitionFiles,
   buildPartitionContext,
+  categorizeFiles,
   validateAiResponseQuality,
   MIN_COVERAGE_RATIO,
   ISSUE_TYPE,
@@ -685,9 +686,106 @@ describe('Step 2: Consistency Analysis', () => {
       expect(header).toBe('');
     });
 
-    test('docFilesList joins partition files with comma', () => {
+    test('docFilesList is grouped by directory category', () => {
       const { docFilesList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
-      expect(docFilesList).toBe('docs/testing/TESTING.md, docs/ux/VISUAL_HIERARCHY.md');
+      expect(docFilesList).toContain('**docs/ — Documentation**');
+      expect(docFilesList).toContain('docs/testing/TESTING.md');
+      expect(docFilesList).toContain('docs/ux/VISUAL_HIERARCHY.md');
+    });
+
+    test('docFilesList preamble shows partition count when no totalDocCount', () => {
+      const { docFilesList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
+      expect(docFilesList).toMatch(/2 files in this partition/);
+    });
+
+    test('docFilesList preamble shows "X of Y" when totalDocCount exceeds partition', () => {
+      const { docFilesList } = buildPartitionContext(partFiles, brokenLinks, 0, 1, 100);
+      expect(docFilesList).toMatch(/2 of 100 total markdown files/);
+    });
+
+    test('docFilesList preamble uses singular "file" for single-file partition', () => {
+      const single = ['docs/testing/TESTING.md'];
+      const { docFilesList } = buildPartitionContext(single, [], 0, 1);
+      expect(docFilesList).toMatch(/1 file in this partition/);
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - categorizeFiles
+  // ========================================================================
+
+  describe('categorizeFiles', () => {
+    test('root-level files go to Root category', () => {
+      const groups = categorizeFiles(['README.md', 'CHANGELOG.md']);
+      expect(groups[0][0]).toBe('Root');
+      expect(groups[0][1]).toEqual(['README.md', 'CHANGELOG.md']);
+    });
+
+    test('.github/ direct children go to Guides & Policies', () => {
+      const groups = categorizeFiles(['.github/CONTRIBUTING.md', '.github/TDD_GUIDE.md']);
+      const labels = groups.map(([l]) => l);
+      expect(labels).toContain('.github/ — Guides & Policies');
+    });
+
+    test('.github/ISSUE_TEMPLATE/ files get their own category', () => {
+      const groups = categorizeFiles(['.github/ISSUE_TEMPLATE/feature_request.md']);
+      expect(groups[0][0]).toBe('.github/ISSUE_TEMPLATE/ — Issue Templates');
+    });
+
+    test('.github/actions/ files get Actions category', () => {
+      const groups = categorizeFiles(['.github/actions/README.md']);
+      expect(groups[0][0]).toBe('.github/actions/ — GitHub Actions');
+    });
+
+    test('.github/skills/ files get Skills category', () => {
+      const groups = categorizeFiles(['.github/skills/audit-and-fix/SKILL.md']);
+      expect(groups[0][0]).toBe('.github/skills/ — Skills');
+    });
+
+    test('.github/workflows/ files get Workflows category', () => {
+      const groups = categorizeFiles(['.github/workflows/README.md']);
+      expect(groups[0][0]).toBe('.github/workflows/ — Workflows');
+    });
+
+    test('.github/scripts/ files get Scripts category', () => {
+      const groups = categorizeFiles(['.github/scripts/README.md']);
+      expect(groups[0][0]).toBe('.github/scripts/ — Scripts');
+    });
+
+    test('docs/ files get Documentation category', () => {
+      const groups = categorizeFiles(['docs/architecture/README.md']);
+      expect(groups[0][0]).toBe('docs/ — Documentation');
+    });
+
+    test('src/ files get Source category', () => {
+      const groups = categorizeFiles(['src/address-parser.ts']);
+      expect(groups[0][0]).toBe('src/ — Source');
+    });
+
+    test('__tests__/ files get Tests category', () => {
+      const groups = categorizeFiles(['__tests__/e2e/README.md']);
+      expect(groups[0][0]).toBe('__tests__/ — Tests');
+    });
+
+    test('unknown top-level dirs get a generic "<dir>/" label', () => {
+      const groups = categorizeFiles(['__mocks__/README.md']);
+      expect(groups[0][0]).toBe('__mocks__/');
+    });
+
+    test('other .github subdirs get a generic ".github/<sub>/" label', () => {
+      const groups = categorizeFiles(['.github/custom/file.md']);
+      expect(groups[0][0]).toBe('.github/custom/');
+    });
+
+    test('categories appear in well-known order (Root before docs/ before src/)', () => {
+      const groups = categorizeFiles(['src/index.ts', 'docs/README.md', 'README.md']);
+      const labels = groups.map(([l]) => l);
+      expect(labels.indexOf('Root')).toBeLessThan(labels.indexOf('docs/ — Documentation'));
+      expect(labels.indexOf('docs/ — Documentation')).toBeLessThan(labels.indexOf('src/ — Source'));
+    });
+
+    test('returns empty array for empty input', () => {
+      expect(categorizeFiles([])).toEqual([]);
     });
   });
 
