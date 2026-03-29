@@ -603,6 +603,15 @@ export class MainOrchestrator {
     try {
       this.startTime = Date.now();
 
+      // Guard: project root must exist before any I/O (metrics, logs, etc.).
+      // fs.mkdir with { recursive: true } would otherwise silently create the
+      // directory, hiding typos / non-existent paths from the caller.
+      try {
+        await fs.access(this.projectRoot);
+      } catch {
+        throw new Error(`Project root does not exist: ${this.projectRoot}`);
+      }
+
       // Open log file for this run so all logger output is persisted.
       // Use this.workflowDir so that tests passing a custom workflowDir
       // (e.g. a temp directory) don't pollute the real .ai_workflow/logs folder.
