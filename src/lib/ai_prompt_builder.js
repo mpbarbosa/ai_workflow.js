@@ -90,6 +90,7 @@ export function buildPromptFromTemplate(template, context = {}) {
  *
  * @param {string} prompt - Base prompt text
  * @param {Object} projectInfo - Project information
+ * @param {string} [projectInfo.description] - Human-readable project description
  * @param {string} [projectInfo.language] - Primary language
  * @param {string} [projectInfo.projectKind] - Project type
  * @param {string[]} [projectInfo.techStack] - Technologies used
@@ -98,6 +99,7 @@ export function buildPromptFromTemplate(template, context = {}) {
  *
  * @example
  * const enhanced = injectProjectContext(prompt, {
+ *   description: 'Interactive TUI tool to analyze ai_workflow.js execution logs',
  *   language: 'JavaScript',
  *   projectKind: 'nodejs_api',
  *   framework: 'Express'
@@ -113,6 +115,10 @@ export function injectProjectContext(prompt, projectInfo = {}) {
   // Add project context section
   if (Object.keys(projectInfo).length > 0) {
     const contextLines = ['', '**Project Context**:'];
+
+    if (projectInfo.description) {
+      contextLines.push(`- **Description**: ${projectInfo.description}`);
+    }
 
     if (projectInfo.language) {
       contextLines.push(`- **Language**: ${projectInfo.language}`);
@@ -460,7 +466,7 @@ ${docList}`;
 export function buildConsistencyPrompt(options) {
   const { docDirectory, docFiles = [], scanResults = {}, projectInfo = {} } = options;
 
-  const role = `You are a senior technical documentation specialist and information architect with expertise in documentation quality assurance, technical writing standards, and cross-reference validation.
+  const role = `You are a senior technical documentation specialist and information architect reviewing the human-readable documentation of a software project. Your expertise covers documentation quality assurance, technical writing standards, and cross-reference validation across project artefacts such as README files, architecture documents, changelogs, and API references.
 
 **Critical Behavioral Guidelines**:
 - ONLY report issues that are verifiable from the provided file list and scan results below

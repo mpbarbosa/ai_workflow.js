@@ -736,7 +736,10 @@ export class Step2ConsistencyAnalyzer {
               docDirectory: projectRoot,
               docFiles: partFiles,
               scanResults: results,
-              projectInfo: { project_name: projectRoot },
+              projectInfo: {
+                project_name: projectRoot,
+                description: options.projectDescription || '',
+              },
             });
             if (header) prompt = `${header}\n\n${prompt}`;
             if (archiveContext) prompt = `${prompt}\n\n${archiveContext}`;
