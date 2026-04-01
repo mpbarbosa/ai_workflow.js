@@ -579,11 +579,11 @@ export class Step8TestExecutor {
       const runnerCrashed = !!testResult.runnerCrashed;
       const noTestsFound =
         testResults.total === 0 &&
-        testResults.suitesFailed === 0 &&
+        (testResults.suitesFailed ?? 0) === 0 &&
         (testResult.exitCode === 0 || noTestsMessageInOutput || runnerCrashed);
       const anyFailure =
         testResults.failed > 0 ||
-        testResults.suitesFailed > 0 ||
+        (testResults.suitesFailed ?? 0) > 0 ||
         (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
 

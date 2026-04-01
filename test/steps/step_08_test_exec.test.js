@@ -522,6 +522,22 @@ describe('Step 8: Test Execution', () => {
       expect(result.testResults.failed).toBe(0);
     });
 
+    test('[BUG FIX] runner crash with no output and suitesFailed=undefined is treated as success=true', async () => {
+      // Reproduces the exact scenario from workflow log:
+      //   - exit code 1, 0 bytes output (runnerCrashed: true)
+      //   - parseTestOutput returns suitesFailed: undefined (non-Jest parser)
+      // Before fix: suitesFailed === 0 evaluated false for undefined, making noTestsFound=false
+      // and anyFailure=true, incorrectly halting the workflow as a critical failure.
+      mockExecutor.execute = async () => {
+        throw { exitCode: 1, stdout: '', stderr: '' };
+      };
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.noTestsFound).toBe(true);
+    });
+
     test('collects coverage metrics', async () => {
       let readCount = 0;
       mockFileOps.readFile = async (_path) => {
