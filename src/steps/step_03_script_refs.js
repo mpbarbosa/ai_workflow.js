@@ -19,9 +19,8 @@ import {
   buildYamlStepPrompt,
   buildAlternativesDirective,
   parseAlternatives,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 import path from 'node:path';
 
 // ============================================================================
@@ -447,8 +446,7 @@ export class Step3ScriptAnalyzer {
         await this.aiCache.init();
         let prompt;
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
           const docCoverageMap = formatDocCoverageMap(coverageMap);
           // Include first ~80 lines of each doc file so the AI can verify claims

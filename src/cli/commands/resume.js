@@ -12,6 +12,7 @@
  * @since 2026-02-10
  */
 
+import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { logger } from '../../core/logger.js';
@@ -102,7 +103,9 @@ export function formatCheckpointList(checkpoints) {
  * @returns {Promise<void>}
  */
 async function listCheckpoints(workflowDir) {
-  const checkpointManager = new CheckpointManager(workflowDir);
+  const checkpointManager = new CheckpointManager({
+    checkpointDir: path.join(workflowDir, 'checkpoints'),
+  });
 
   try {
     const checkpoints = await checkpointManager.list();
@@ -134,7 +137,9 @@ async function listCheckpoints(workflowDir) {
  * @returns {Promise<string|null>} Latest checkpoint ID
  */
 async function getLatestCheckpointId(workflowDir) {
-  const checkpointManager = new CheckpointManager(workflowDir);
+  const checkpointManager = new CheckpointManager({
+    checkpointDir: path.join(workflowDir, 'checkpoints'),
+  });
 
   try {
     const checkpoints = await checkpointManager.list();
@@ -146,7 +151,7 @@ async function getLatestCheckpointId(workflowDir) {
     // Sort by timestamp descending
     checkpoints.sort((a, b) => b.timestamp - a.timestamp);
 
-    return checkpoints[0].workflowId;
+    return checkpoints[0].id;
   } catch (error) {
     logger.error(chalk.red(`Failed to get latest checkpoint: ${error.message}`));
     return null;

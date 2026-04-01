@@ -40,7 +40,7 @@ import {
   Step2ConsistencyAnalyzer,
   formatConsistencyReport,
 } from '../../src/steps/step_02_consistency.js';
-import { buildConsistencyPrompt } from '../../src/lib/ai_prompt_builder.js';
+import { buildConsistencyPrompt, resolveAllRoleRefs } from '../../src/lib/ai_prompt_builder.js';
 import logger from '../../src/core/logger.js';
 
 // ---------------------------------------------------------------------------
@@ -106,10 +106,14 @@ function buildBacklogStub(reportOutputPath = null) {
   };
 }
 
-/** Load and parse ai_helpers.yaml from the real repo. */
+/** Load, parse, and resolve role refs in ai_helpers.yaml from the real repo. */
 async function loadAiHelpersYaml() {
+  const PROMPT_ROLES_PATH = path.join(REPO_ROOT, '.workflow_core', 'config', 'prompt_roles.yaml');
   const raw = await fs.readFile(AI_HELPERS_YAML, 'utf8');
-  return yaml.load(raw);
+  const parsed = yaml.load(raw);
+  const rolesContent = await fs.readFile(PROMPT_ROLES_PATH, 'utf8');
+  const roles = yaml.load(rolesContent);
+  return resolveAllRoleRefs(parsed, roles);
 }
 
 // ---------------------------------------------------------------------------

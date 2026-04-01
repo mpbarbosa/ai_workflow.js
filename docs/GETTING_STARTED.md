@@ -1,42 +1,38 @@
-# Getting Started with guia_turistico
+# Getting Started with ai_workflow_core
 
-This guide will help you install, configure, and run guia_turistico for the first time.
+Welcome to **ai_workflow_core**! This guide will help you install, configure, and run your first workflow.
 
 ## Prerequisites
-- Node.js >= 20.x
-- npm >= 9.x
+
+- Node.js >= 20.0.0
+- npm >= 9.0.0
 
 ## Installation
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-org/guia_turistico.git
-   cd guia_turistico
-   ```
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
 
-## Running the Project
-To start the application:
 ```bash
-npm start
+npm install
 ```
 
-## Running Tests
-To verify your setup:
-```bash
-npm test
-```
+## Quick Start
 
-## Directory Structure
-- `src/` — Source code
-- `docs/` — Documentation
+1. Copy the config template:
+   ```bash
+   cp .workflow_core/config/.workflow-config.yaml.template .workflow-config.yaml
+   ```
+2. Create artifact directories:
+   ```bash
+   mkdir -p .ai_workflow/{backlog,summaries,logs,metrics,checkpoints,prompts,ml_models,.incremental_cache}
+   ```
+3. Run the workflow:
+   ```bash
+   npm run workflow
+   ```
+
+## Project Structure
+
+- `src/` — Source code modules
 - `test/` — Test suite
+- `docs/` — Documentation
+- `.ai_workflow/` — Workflow artifacts
 
-## Next Steps
-- See `docs/API.md` for API usage
-- See `CONTRIBUTING.md` for contributing guidelines
-
----
-For troubleshooting, open an issue on GitHub.
+See [docs/guides/USER_GUIDE.md] for more details.

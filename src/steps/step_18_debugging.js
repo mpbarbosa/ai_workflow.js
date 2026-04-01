@@ -20,7 +20,7 @@ import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -199,8 +199,7 @@ export class Step18Debugging {
       if (aiAvailable) {
         await this.aiCache.init();
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           // Apply project-kind debugging_specialist overlay if available
           let roleOverride = '';
           try {

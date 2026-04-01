@@ -22,9 +22,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -948,9 +947,8 @@ export class Step9DependencyValidator {
             ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
           ];
           let prompt;
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
           try {
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml = yaml.load(yamlContent);
             const pkgMgrMap = {
               javascript: 'npm',
               typescript: 'npm',
@@ -1024,9 +1022,7 @@ export class Step9DependencyValidator {
                 /* file may not exist */
               }
 
-              const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-              const parsedYaml2 = yaml.load(yamlContent2);
-              const jsPrompt = buildYamlStepPrompt(parsedYaml2, 'javascript_developer_prompt', {
+              const jsPrompt = buildYamlStepPrompt(parsedYaml, 'javascript_developer_prompt', {
                 project_name: path.basename(projectRoot),
                 project_description: options?.projectDescription ?? 'N/A',
                 project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',

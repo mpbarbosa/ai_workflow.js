@@ -193,19 +193,15 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(prompt).toContain('Senior Technical Writer');
     });
 
-    test('builds prompt from yaml promptConfig when provided', () => {
-      const promptConfig = `
-technical_writer_prompt:
-  role_prefix: |
-    You are a yaml-loaded technical writer.
-  behavioral_guidelines: |
-    Be helpful.
-  task_template: |
-    Project: {project_name} ({project_description})
-    Language: {primary_language}
-    Docs: {doc_count}
-    Sources: {source_files}
-`;
+    test('builds prompt from resolvedAiHelpers when provided', () => {
+      const resolvedAiHelpers = {
+        technical_writer_prompt: {
+          role_prefix: 'You are a yaml-loaded technical writer.\n',
+          behavioral_guidelines: 'Be helpful.\n',
+          task_template:
+            'Project: {project_name} ({project_description})\nLanguage: {primary_language}\nDocs: {doc_count}\nSources: {source_files}\n',
+        },
+      };
       const context = {
         projectName: 'YamlProject',
         projectDescription: 'Loaded from yaml',
@@ -213,7 +209,7 @@ technical_writer_prompt:
         docCount: 3,
         sourceCount: 10,
         missingDocs: ['CHANGELOG.md'],
-        promptConfig,
+        resolvedAiHelpers,
       };
 
       const prompt = buildTechnicalWriterPrompt(context);

@@ -22,9 +22,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -447,9 +446,8 @@ export class Step5DirectoryAnalyzer {
       if (aiAvailable) {
         await this.aiCache.init();
         let prompt;
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
           const language = options.language || (await this.detectLanguage(projectRoot));
           const issueLines =
             structureResults.issues?.length > 0
@@ -512,9 +510,7 @@ export class Step5DirectoryAnalyzer {
             /* docs dir may not exist */
           }
 
-          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml2 = yaml.load(yamlContent2);
-          const reqPrompt = buildYamlStepPrompt(parsedYaml2, 'requirements_engineer_prompt', {
+          const reqPrompt = buildYamlStepPrompt(parsedYaml, 'requirements_engineer_prompt', {
             project_name: projectRoot,
             project_description: options?.projectDescription ?? '',
             primary_language:

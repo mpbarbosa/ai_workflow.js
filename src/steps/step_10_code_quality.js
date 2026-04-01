@@ -19,7 +19,7 @@ import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
 import {
   buildCodeQualityPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -833,8 +833,7 @@ export class Step10CodeQualityAnalyzer {
           let sharedParsedYaml = null;
           let sharedRoleOverride = '';
           try {
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            sharedParsedYaml = yaml.load(yamlContent);
+            sharedParsedYaml = await loadResolvedAiHelpers(this.fileOps);
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
               const parsedPk = yaml.load(pkYaml);

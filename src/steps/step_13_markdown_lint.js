@@ -24,9 +24,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -34,7 +33,16 @@ import yaml from 'js-yaml';
 
 export const MARKDOWN_PATTERNS = {
   files: '**/*.md',
-  excludeDirs: ['node_modules', 'coverage', '.git', 'dist', 'build', '.ai_workflow', '.workflow_core', '.workflow_fspec'],
+  excludeDirs: [
+    'node_modules',
+    'coverage',
+    '.git',
+    'dist',
+    'build',
+    '.ai_workflow',
+    '.workflow_core',
+    '.workflow_fspec',
+  ],
 };
 
 export const ANTI_PATTERNS = {
@@ -800,10 +808,7 @@ export class Step13MarkdownLint {
 
       let prompt;
       try {
-        const yamlContent =
-          (await this.fileOps?.readFile(AI_HELPERS_PATH)) ??
-          (await import('fs').then((m) => m.promises.readFile(AI_HELPERS_PATH, 'utf-8')));
-        const parsedYaml = yaml.load(yamlContent);
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
         prompt = buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
           project_name: projectRoot,
           lint_report: lintReport,

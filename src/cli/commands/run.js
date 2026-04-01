@@ -17,6 +17,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { logger } from '../../core/logger.js';
 import { MainOrchestrator, WORKFLOW_STAGES } from '../../orchestrator/main_orchestrator.js';
+import { StartupResumeEvaluator } from '../../lib/startup_resume_evaluator.js';
 
 // ============================================================================
 // PURE FUNCTIONS - Command Logic
@@ -105,9 +106,36 @@ export function formatWorkflowResult(result) {
   }
 }
 
-// ============================================================================
-// IMPURE WRAPPER - Command Execution
-// ============================================================================
+/**
+ * Format last execution status for display at startup
+ * @pure
+ * @param {string} projectRoot - Target project path
+ * @param {Object} decision - AutoResumeDecision from StartupResumeEvaluator
+ * @param {Object|null} checkpoint - Latest checkpoint metadata (from list()), or null
+ * @returns {string[]} Lines to print
+ */
+export function formatLastExecutionStatus(projectRoot, decision, checkpoint) {
+  const lines = [];
+  lines.push(chalk.gray(`Project: ${projectRoot}`));
+
+  if (!decision.logDirName) {
+    lines.push(chalk.gray('Last run: – no previous executions'));
+    return lines;
+  }
+
+  // Derive a display date from the log dir name (workflow_YYYYMMDD_HHMMSS)
+  const m = /^workflow_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/.exec(decision.logDirName);
+  const dateStr = m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}` : decision.logDirName;
+
+  if (decision.shouldResume) {
+    const stepInfo = checkpoint ? ` (${checkpoint.state.completedSteps} steps done)` : '';
+    lines.push(chalk.yellow(`Last run: ⚠ incomplete on ${dateStr}${stepInfo}`));
+  } else {
+    lines.push(chalk.gray(`Last run: ✓ completed on ${dateStr}`));
+  }
+
+  return lines;
+}
 
 /**
  * Execute the run command
@@ -140,9 +168,38 @@ export async function runCommand(options) {
     }
     console.log();
 
-    // Create orchestrator
+    // Create orchestrator (workflowDir is resolved to projectRoot inside the constructor)
     const orchestratorOptions = createOrchestratorOptions(options);
     const orchestrator = new MainOrchestrator(orchestratorOptions);
+
+    // ── Startup status display ───────────────────────────────────────────────
+    // Evaluate last-execution state before starting so we can always show the
+    // user what happened last time, even when no resume is needed.
+    // Use orchestrator.workflowDir (resolved absolute path) so the evaluator
+    // looks in the correct directory regardless of where the CLI was invoked from.
+    const startupEvaluator = new StartupResumeEvaluator({
+      workflowDir: orchestrator.workflowDir,
+    });
+    const startupDecision = await startupEvaluator.evaluate();
+
+    // Fetch the latest checkpoint metadata for richer status info (best-effort)
+    let latestCheckpointMeta = null;
+    if (startupDecision.shouldResume && startupDecision.checkpointId) {
+      try {
+        const cpList = await startupEvaluator.checkpointManager.list();
+        latestCheckpointMeta = cpList.find((c) => c.id === startupDecision.checkpointId) ?? null;
+      } catch (_err) {
+        // eslint-disable-line no-unused-vars
+        // ignore — status display is best-effort
+      }
+    }
+
+    formatLastExecutionStatus(
+      orchestratorOptions.projectRoot,
+      startupDecision,
+      latestCheckpointMeta
+    ).forEach((line) => console.log(line));
+    console.log();
 
     // ── TUI mode ────────────────────────────────────────────────────────────
     if (options.tui) {
@@ -170,8 +227,33 @@ export async function runCommand(options) {
       spinner = ora('Initializing workflow...').start();
     }
 
-    // Execute workflow
-    const result = await orchestrator.execute();
+    // ── Auto-resume check ───────────────────────────────────────────────────
+    // Before starting a fresh run, inspect the most recent execution log.
+    // When the last workflow was interrupted before completion and a valid
+    // checkpoint exists, resume automatically (unless --no-auto-resume is set).
+    let result;
+    if (!options.noAutoResume) {
+      // Re-use the decision already computed above for the status display.
+      const resumeDecision = startupDecision;
+
+      if (resumeDecision.shouldResume) {
+        if (spinner) spinner.stop();
+        console.log(
+          chalk.yellow(`\n⚠ Incomplete workflow detected (${resumeDecision.logDirName})`)
+        );
+        console.log(chalk.cyan(`  Auto-resuming from checkpoint: ${resumeDecision.checkpointId}`));
+        console.log();
+        if (spinner) spinner = ora('Resuming workflow...').start();
+
+        result = await orchestrator.resume(resumeDecision.checkpointId);
+      } else {
+        // Normal execution
+        result = await orchestrator.execute();
+      }
+    } else {
+      // Auto-resume explicitly disabled by the caller
+      result = await orchestrator.execute();
+    }
 
     // Remove SIGINT listener — workflow has finished
     process.removeListener('SIGINT', onSigint);

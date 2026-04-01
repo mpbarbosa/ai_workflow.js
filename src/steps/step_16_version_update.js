@@ -16,7 +16,7 @@ import { AiCache } from '../lib/ai_cache.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { execFile } from 'child_process';
@@ -773,8 +773,7 @@ export class Step16VersionUpdate {
           let yamlApproach = '';
           let yamlOutputFormat = '';
           try {
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml = yaml.load(yamlContent);
+            const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
             const cfg = parsedYaml?.version_manager_prompt || {};
             yamlExpertise = cfg.specific_expertise || '';
             yamlApproach = cfg.approach || '';

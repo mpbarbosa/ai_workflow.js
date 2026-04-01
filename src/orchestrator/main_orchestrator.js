@@ -307,7 +307,9 @@ export class MainOrchestrator {
     // Initialize components
     this.configManager = new Config(this.projectRoot);
     this.metricsCollector = new Metrics(this.configManager);
-    this.checkpointManager = new CheckpointManager(this.workflowDir);
+    this.checkpointManager = new CheckpointManager({
+      checkpointDir: path.join(this.workflowDir, 'checkpoints'),
+    });
     this.stepRegistry = new StepRegistry();
     this.workflowEngine = new WorkflowEngine({
       projectRoot: this.projectRoot,
@@ -1184,7 +1186,7 @@ export class MainOrchestrator {
       this.results.endTime = Date.now();
 
       // Save final checkpoint
-      await this.checkpointManager.save(workflow.id, {
+      await this.checkpointManager.save(workflow, {
         workflowId: workflow.id,
         stage: this.stage,
         results: this.results,

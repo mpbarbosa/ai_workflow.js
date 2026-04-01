@@ -21,9 +21,8 @@ import {
   buildYamlStepPrompt,
   buildAlternativesDirective,
   parseAlternatives,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -40,6 +39,8 @@ export const EXCLUDE_DIRS = [
   'build',
   'coverage',
   '.ai_cache',
+  '.ai_workflow',
+  '.olinda',
   'venv',
   '.venv',
   'env',
@@ -637,9 +638,8 @@ export class Step4ConfigAnalyzer {
         const filesContentBlock = buildFileContentsBlock(fileEntries);
 
         let prompt;
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
           prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
             project_name: path.basename(projectRoot),
             config_files_list: relPaths.join(', '),
@@ -696,9 +696,7 @@ ${filesContentBlock}`;
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
         try {
-          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml2 = yaml.load(yamlContent2);
-          const qPrompt = buildYamlStepPrompt(parsedYaml2, 'quality_prompt', {
+          const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
             files_to_review: (configFiles ?? []).slice(0, 10).join(', '),
             project_name: projectRoot,
           });

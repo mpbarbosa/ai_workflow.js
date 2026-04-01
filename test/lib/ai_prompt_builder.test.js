@@ -28,6 +28,9 @@ import {
   parseAlternatives,
   refinePrompt,
   scorePromptQuality,
+  // Role-ref resolution
+  resolveRoleRef,
+  resolveAllRoleRefs,
 } from '../../src/lib/ai_prompt_builder.js';
 
 describe('AI Prompt Builder Module - Template Processing', () => {
@@ -396,6 +399,112 @@ describe('AI Prompt Builder Module - Template Processing', () => {
       const result = buildStructuredPrompt({});
 
       expect(result).toBe('');
+    });
+  });
+});
+
+describe('AI Prompt Builder Module - Role Reference Resolution', () => {
+  const mockRoles = {
+    roles: {
+      doc_analysis: {
+        role_prefix: 'You are a senior technical documentation specialist.',
+      },
+      technical_writer: {
+        role_prefix: 'You are a senior technical writer and documentation architect.',
+      },
+    },
+  };
+
+  describe('resolveRoleRef', () => {
+    test('replaces role_ref with role_prefix from roles', () => {
+      const persona = {
+        role_ref: 'doc_analysis',
+        task_template: 'Analyze {files}',
+      };
+      const result = resolveRoleRef(persona, mockRoles);
+      expect(result.role_prefix).toBe('You are a senior technical documentation specialist.');
+      expect(result.role_ref).toBeUndefined();
+      expect(result.task_template).toBe('Analyze {files}');
+    });
+
+    test('returns persona unchanged when role_ref is absent', () => {
+      const persona = {
+        role_prefix: 'You are a pre-existing inline role.',
+        task_template: 'Do something.',
+      };
+      const result = resolveRoleRef(persona, mockRoles);
+      expect(result).toEqual(persona);
+      expect(result).not.toBe(persona); // still a new object via spread
+    });
+
+    test('throws when role_ref key is not found in roles', () => {
+      const persona = { role_ref: 'nonexistent_role' };
+      expect(() => resolveRoleRef(persona, mockRoles)).toThrow(
+        'role_ref "nonexistent_role" not found in prompt_roles.yaml'
+      );
+    });
+
+    test('returns null/undefined input unchanged', () => {
+      expect(resolveRoleRef(null, mockRoles)).toBeNull();
+      expect(resolveRoleRef(undefined, mockRoles)).toBeUndefined();
+    });
+
+    test('does not mutate the original persona object', () => {
+      const persona = { role_ref: 'doc_analysis', approach: 'Step by step.' };
+      resolveRoleRef(persona, mockRoles);
+      expect(persona.role_ref).toBe('doc_analysis');
+      expect(persona.role_prefix).toBeUndefined();
+    });
+  });
+
+  describe('resolveAllRoleRefs', () => {
+    test('resolves all role_ref entries in a yaml object', () => {
+      const yaml = {
+        doc_analysis_prompt: { role_ref: 'doc_analysis', task_template: 'Analyze.' },
+        technical_writer_prompt: { role_ref: 'technical_writer', task_template: 'Write.' },
+      };
+      const result = resolveAllRoleRefs(yaml, mockRoles);
+      expect(result.doc_analysis_prompt.role_prefix).toBe(
+        'You are a senior technical documentation specialist.'
+      );
+      expect(result.technical_writer_prompt.role_prefix).toBe(
+        'You are a senior technical writer and documentation architect.'
+      );
+    });
+
+    test('passes through entries without role_ref unchanged', () => {
+      const yaml = {
+        some_prompt: { role_prefix: 'Inline role.', task_template: 'Task.' },
+        lookup_table: { javascript: { key_points: 'Use ESLint.' } },
+        metadata: { version: '1.0.0' },
+      };
+      const result = resolveAllRoleRefs(yaml, mockRoles);
+      expect(result.some_prompt).toEqual({ role_prefix: 'Inline role.', task_template: 'Task.' });
+      expect(result.lookup_table).toBe(yaml.lookup_table);
+      expect(result.metadata).toBe(yaml.metadata);
+    });
+
+    test('returns a new object (does not mutate input)', () => {
+      const yaml = {
+        doc_analysis_prompt: { role_ref: 'doc_analysis' },
+      };
+      const result = resolveAllRoleRefs(yaml, mockRoles);
+      expect(result).not.toBe(yaml);
+      expect(yaml.doc_analysis_prompt.role_ref).toBe('doc_analysis');
+    });
+
+    test('returns input unchanged for null or non-object', () => {
+      expect(resolveAllRoleRefs(null, mockRoles)).toBeNull();
+      expect(resolveAllRoleRefs('string', mockRoles)).toBe('string');
+    });
+
+    test('throws if a role_ref cannot be resolved', () => {
+      const yaml = {
+        bad_prompt: { role_ref: 'missing_role' },
+      };
+      expect(() => resolveAllRoleRefs(yaml, mockRoles)).toThrow(
+        'role_ref "missing_role" not found in prompt_roles.yaml'
+      );
     });
   });
 });

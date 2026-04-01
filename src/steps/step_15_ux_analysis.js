@@ -14,7 +14,7 @@ import { Logger } from '../core/logger.js';
 import { colors } from '../core/colors.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import {
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -565,8 +565,7 @@ export class Step15UxAnalysis {
       let prompt = buildUxAnalysisPrompt(analysisContext);
       // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
       try {
-        const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-        const parsedYaml = yaml.load(yamlContent);
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
         const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
           project_name: this.projectRoot,
           file_count: String(uiFiles.length),

@@ -1,62 +1,44 @@
-# Contributing to guia_turistico
+# Contributing to ai_workflow_core
 
-Thank you for your interest in contributing to guia_turistico! This guide explains how to set up your environment, follow our coding standards, and submit changes.
+Thank you for your interest in contributing! Please follow these guidelines to ensure a smooth process.
 
 ## Getting Started
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-org/guia_turistico.git
-   cd guia_turistico
-   ```
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-3. **Run tests:**
-   ```bash
-   npm test
-   ```
+- Fork the repository and clone your fork.
+- Install dependencies: `npm install`
+- Run tests: `npm test`
 
-## Coding Standards
+## Code Style
 
-- Use JavaScript (ES6+) for all source files
-- Follow existing code style and naming conventions
-- Write clear, descriptive comments and JSDoc for all public functions/classes
-- Run `npm run lint` before submitting
+- Use ES6+ JavaScript (Node.js >= 20)
+- Follow the existing code structure and naming conventions
+- Run `npm run lint` and `npm run format` before submitting
 
-## Submitting Changes
+## Commit Messages
 
-1. **Fork the repository** and create a feature branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. **Make your changes** and add tests as needed
-3. **Commit with a descriptive message:**
-   ```bash
-   git commit -m "feat: add new feature"
-   ```
-4. **Push your branch** and open a pull request
+- Use [Conventional Commits](https://www.conventionalcommits.org/)
+- Example: `feat(core): add new logger`
 
-## Scripts
+## Pull Requests
 
-The `scripts/` directory provides automation for common development and release tasks. Run `bash scripts/<name>.sh --help` for full options.
+- Reference related issues in your PR description
+- Ensure all tests pass and code is linted
+- Add/Update documentation as needed
 
 ## Testing
 
 - All new features must include tests
 - Run `npm test` to verify
-- Ensure no test failures before submitting
 
-## Code Review
+## Documentation
 
-- Pull requests are reviewed for correctness, clarity, and test coverage
-- Address all review comments promptly
+- Update or add JSDoc for all public functions/classes
+- Update API docs in `docs/api/` as needed
 
-## License
+## Code of Conduct
 
-By contributing, you agree your code will be released under the MIT License.
+- See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
----
+## Questions?
 
-For questions, open an issue or contact the maintainers.
+Open an issue or discussion for help.

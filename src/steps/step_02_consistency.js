@@ -16,7 +16,7 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
   buildConsistencyPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -650,8 +650,7 @@ export class Step2ConsistencyAnalyzer {
         let parsedYaml = null;
         let roleOverride = '';
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          parsedYaml = yaml.load(yamlContent);
+          parsedYaml = await loadResolvedAiHelpers(this.fileOps);
         } catch {
           /* YAML unavailable, will use fallback builder */
         }
