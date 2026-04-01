@@ -22,6 +22,7 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import {
   loadResolvedAiHelpers,
   buildYamlStepPrompt,
@@ -29,6 +30,8 @@ import {
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
+
+const MAX_FILE_PATHS_IN_CONTEXT = 20;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -152,6 +155,7 @@ export class Step20AsyncPerfReview {
     this.backlog = options.backlog || new Backlog();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir ?? null });
     this.aiCache = options.aiCache || new AiCache();
+    this.techStack = options.techStack || new TechStackDetector();
   }
 
   /**
@@ -161,6 +165,7 @@ export class Step20AsyncPerfReview {
    * @param {Object} [options]
    * @param {string[]} [options.sourceFiles] - Override JS/TS files to analyze
    * @param {string}   [options.projectName] - Project name for prompt context
+   * @param {string}   [options.projectDescription] - Short project description
    * @param {string}   [options.projectKind] - Project kind for prompt context
    * @returns {Promise<Object>} Step result
    */
@@ -224,12 +229,38 @@ export class Step20AsyncPerfReview {
       if (aiAvailable) {
         await this.aiCache.init();
         try {
+          // Detect tech stack for richer prompt context
+          let buildSystem = 'npm';
+          let testFramework = 'jest';
+          try {
+            const techStackResult = await this.techStack.detectAll(projectRoot);
+            buildSystem = techStackResult.build_system || 'npm';
+            testFramework = techStackResult.test_framework || 'jest';
+          } catch {
+            // Non-fatal: fall back to defaults
+          }
+
+          // Build concise file path list (capped to avoid token bloat)
+          const filePathList = relativeFiles
+            .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
+            .map((f) => `      - ${f}`)
+            .join('\n');
+          const filePathsContext =
+            relativeFiles.length > MAX_FILE_PATHS_IN_CONTEXT
+              ? `${filePathList}\n      ... and ${relativeFiles.length - MAX_FILE_PATHS_IN_CONTEXT} more`
+              : filePathList;
+
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const prompt = buildYamlStepPrompt(parsedYaml, 'async_perf_engineer_prompt', {
             project_name: options.projectName ?? path.basename(projectRoot),
-            project_kind: options.projectKind ?? 'unknown',
+            project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
+            project_kind: options.projectKind ?? 'nodejs_api',
             primary_language: 'JavaScript/TypeScript',
+            build_system: buildSystem,
+            test_framework: testFramework,
+            source_file_count: String(relativeFiles.length),
             modified_count: String(relativeFiles.length),
+            file_paths: filePathsContext,
           });
 
           if (prompt) {
