@@ -1558,4 +1558,50 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
     expect(content).not.toContain('**Project Version:**');
   });
+
+  test('includes Project Path in log header when workingDirectory is set', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir, workingDirectory: '/home/user/my-project' });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('**Project Path:** /home/user/my-project');
+  });
+
+  test('omits Project Path line when workingDirectory is not set', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).not.toContain('**Project Path:**');
+  });
+
+  test('Project Path appears immediately after Project Version', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({
+      promptsDir,
+      projectVersion: '2.0.0',
+      workingDirectory: '/home/user/my-project',
+    });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    const versionIdx = content.indexOf('**Project Version:**');
+    const pathIdx = content.indexOf('**Project Path:**');
+    expect(versionIdx).toBeGreaterThan(-1);
+    expect(pathIdx).toBeGreaterThan(versionIdx);
+  });
 });

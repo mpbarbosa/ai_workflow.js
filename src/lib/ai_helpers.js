@@ -1068,6 +1068,9 @@ export class AiHelper {
         ...(this.config.projectVersion
           ? [`**Project Version:** ${this.config.projectVersion}`]
           : []),
+        ...(this.config.workingDirectory
+          ? [`**Project Path:** ${this.config.workingDirectory}`]
+          : []),
         ``,
         `## Prompt`,
         ``,
