@@ -31,6 +31,23 @@ export const UI_PROJECT_TYPES = Object.freeze({
   documentationSite: 'documentation_site',
 });
 
+/**
+ * Project kinds that are definitively non-web (libraries, CLI tools, APIs).
+ * Their .tsx/.jsx files are utility or terminal-UI code, not browser UI.
+ * The fallback framework-file probe must never override this exclusion.
+ */
+export const NON_UI_PROJECT_KINDS = Object.freeze([
+  'typescript_library',
+  'nodejs_library',
+  'configuration_library',
+  'typescript_sdk',
+  'npm_package',
+  'cli_tool',
+  'nodejs_api',
+  'nodejs_cli',
+  'shell_script_automation',
+]);
+
 export const UI_FILE_PATTERNS = Object.freeze({
   react: ['.jsx', '.tsx'],
   vue: ['.vue'],
@@ -494,6 +511,26 @@ export class Step15UxAnalysis {
       // Fallback: even when the detected project_kind doesn't imply a UI, the project
       // might contain Vue/React/Svelte files (e.g. location_based_service with Vue 3 SPA).
       if (!shouldRunUxAnalysis(projectType)) {
+        // Hard-skip for definitively non-web project kinds (libraries, CLI tools, APIs).
+        // Their .tsx/.jsx files are terminal or utility code — the framework-file probe
+        // would incorrectly treat them as web UI and trigger a misleading web UX analysis.
+        if (NON_UI_PROJECT_KINDS.includes(projectType)) {
+          this.logger.info(
+            `Step 15: UX Analysis skipped — project kind '${projectType}' is a non-web library/tool; .tsx/.jsx files are not browser UI`
+          );
+          await this.backlog.saveStepSummary(
+            '15',
+            'UX_Analysis',
+            `Skipped: Non-web project kind '${projectType}'`,
+            '⏭️'
+          );
+          return {
+            success: true,
+            skipped: true,
+            reason: `non-web project kind: ${projectType}`,
+          };
+        }
+
         // Probe for actual UI *framework* files before giving up.
         // We intentionally use filterFrameworkUiFiles (not filterUiFiles) here:
         // plain .html/.css files alone are not sufficient evidence of an embedded
@@ -567,9 +604,13 @@ export class Step15UxAnalysis {
       try {
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
         const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
-          project_name: this.projectRoot,
+          project_name: path.basename(this.projectRoot),
+          project_description: context.projectDescription || context.description || '',
           file_count: String(uiFiles.length),
           project_type: projectType,
+          target_audience: context.targetAudience || 'Application developers',
+          design_system_status: context.designSystemStatus || '',
+          modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
         });
         if (uiUxPrompt) {
           let roleOverride = '';
