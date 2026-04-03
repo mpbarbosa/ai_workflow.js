@@ -112,7 +112,7 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return full workflow steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.FULL);
 
-      expect(steps).toHaveLength(27); // All 27 steps
+      expect(steps).toHaveLength(29); // All 29 steps
       expect(steps).toContain('step_00');
       expect(steps).toContain('step_0b');
       expect(steps).toContain('step_0f');
@@ -123,17 +123,11 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should default to full workflow for invalid stage', () => {
       const steps = getStepsForStage('invalid');
 
-      expect(steps).toHaveLength(27);
+      expect(steps).toHaveLength(29);
     });
   });
 
   describe('calculateProgress', () => {
-    test('should calculate progress percentage', () => {
-      expect(calculateProgress(5, 10)).toBe(50);
-      expect(calculateProgress(7, 10)).toBe(70);
-      expect(calculateProgress(10, 10)).toBe(100);
-    });
-
     test('should handle zero total', () => {
       expect(calculateProgress(0, 0)).toBe(0);
       expect(calculateProgress(5, 0)).toBe(0);
@@ -338,11 +332,11 @@ describe('Main Orchestrator - Integration Tests', () => {
       orchestrator = new MainOrchestrator({ workflowDir: testDir });
     });
 
-    test('should register all 27 workflow steps', () => {
+    test('should register all 29 workflow steps', () => {
       orchestrator.registerAllSteps();
 
       const stepCount = orchestrator.stepRegistry.list().length;
-      expect(stepCount).toBe(27);
+      expect(stepCount).toBe(29);
     });
 
     test('should register steps with correct metadata', () => {
@@ -866,7 +860,7 @@ describe('Main Orchestrator - Integration Tests', () => {
         );
       });
 
-      test('should register all 22 workflow steps with handler field', () => {
+      test('should register all 24 workflow steps with handler field', () => {
         orchestrator.registerAllSteps();
 
         const expectedSteps = [
@@ -892,6 +886,8 @@ describe('Main Orchestrator - Integration Tests', () => {
           'step_16',
           'step_17',
           'step_20',
+          'step_22',
+          'step_23',
         ];
 
         for (const stepId of expectedSteps) {

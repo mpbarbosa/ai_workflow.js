@@ -69,6 +69,8 @@ import { Step18Debugging } from '../steps/step_18_debugging.js';
 import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
 import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
 import { DocConsolidationStep } from '../steps/step_21_doc_consolidation.js';
+import { Step22AccessibilityReview } from '../steps/step_22_accessibility_review.js';
+import { Step23PerfReview } from '../steps/step_23_perf_review.js';
 
 // ============================================================================
 // CONSTANTS
@@ -187,6 +189,8 @@ export function getStepsForStage(stage) {
       'step_18', // Debugging analysis
       'step_19', // TypeScript review (Strider)
       'step_20', // Async performance review
+      'step_22', // Accessibility review
+      'step_23', // Performance review
       'step_17', // Summary
       'step_0f', // Commit artifacts
       'step_12', // Git finalization (must run last)
@@ -520,11 +524,27 @@ export class MainOrchestrator {
         dependencies: ['step_19'],
       },
       {
+        id: 'step_22',
+        name: 'Accessibility Review',
+        description:
+          'AI-powered WCAG 2.1 AA/AAA accessibility review (ARIA, keyboard navigation, colour contrast, reduced-motion)',
+        class: Step22AccessibilityReview,
+        dependencies: ['step_21'],
+      },
+      {
+        id: 'step_23',
+        name: 'Performance Review',
+        description:
+          'AI-powered performance review (algorithmic complexity, sync I/O, memory hotspots, missing memoization)',
+        class: Step23PerfReview,
+        dependencies: ['step_22'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
-        dependencies: ['step_20'],
+        dependencies: ['step_20', 'step_23'],
       },
       {
         id: 'step_0f',
