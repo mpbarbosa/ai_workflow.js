@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { useOrchestrator } from './hooks/useOrchestrator.js';
 import { Header } from './components/Header.js';
-import { StepsPanel } from './components/StepsPanel.js';
+import { StepsPanel } from 'pajussara_tui_comp';
 import { LogPanel } from './components/LogPanel.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { StatusBar } from './components/StatusBar.js';
@@ -224,13 +224,13 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
       Box,
       { flexDirection: 'row', height: contentHeight },
       React.createElement(StepsPanel, {
-        steps,
-        currentStepId,
+        items: steps,
+        currentItemId: currentStepId,
         width: leftWidth,
         height: contentHeight,
         isFocused: focusedPanel === 'steps',
-        selectedStepId,
-        onSelectStep: setSelectedStepId,
+        selectedItemId: selectedStepId,
+        onSelectItem: setSelectedStepId,
       }),
       React.createElement(
         Box,

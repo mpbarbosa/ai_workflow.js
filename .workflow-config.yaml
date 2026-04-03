@@ -1,21 +1,21 @@
-# AI Workflow Automation Configuration Template
-# Copy this file to your project root as .workflow-config.yaml and customize
+# AI Workflow Automation Configuration
+# Project: ai_workflow.js
 
 project:
   name: 'ai_workflow.js'
-  type: 'nodejs-application' # e.g., bash-automation-framework, nodejs-application, python-package
+  type: 'nodejs-application'
   description: 'JavaScript/Node.js migration of AI workflow automation system'
-  kind: 'nodejs_automation' # e.g., shell_automation, nodejs_api, nodejs_automation, python_app, generic
+  kind: 'nodejs_automation'
   version: '1.0.0'
 
 tech_stack:
-  primary_language: 'javascript' # e.g., bash, javascript, python, typescript
+  primary_language: 'javascript'
   secondary_languages:
     - 'typescript'
-  build_system: 'npm' # e.g., none, npm, webpack, maven, gradle
-  test_framework: 'jest' # e.g., shell-script, jest, pytest, mocha
-  test_command: 'npm test' # e.g., ./tests/run_all_tests.sh, npm test, pytest
-  lint_command: 'npm run lint' # e.g., shellcheck src/**/*.sh, eslint ., pylint src/
+  build_system: 'npm'
+  test_framework: 'jest'
+  test_command: 'npm test'
+  lint_command: 'npm run lint'
 
 structure:
   source_dirs:
@@ -24,3 +24,317 @@ structure:
     - test
   docs_dirs:
     - docs
+
+# ============================================================================
+# AI PERSONAS
+# ============================================================================
+# Personas selected for this project (Node.js automation, no UI, no AWS).
+#
+# ENABLED — matched to this project's stack and characteristics:
+#   documentation_expert    — extensive docs directory (48+ files), Steps 1 & 2
+#   technical_writer        — bootstrap & markdown, Steps 0b, 13, 21
+#   test_engineer           — large Jest suite (4,361 tests), Steps 6, 7, 8
+#   code_quality_analyst    — JS codebase quality & anti-patterns, Steps 4, 9, 10, 18
+#   git_specialist          — git automation is a core feature, Step 12
+#   prompt_engineer         — AI prompts are central to this project, Step 14
+#   dependency_analyst      — npm dependency management, Step 9
+#   architecture_reviewer   — complex 46-module layered architecture, Step 5
+#   devops_engineer         — config validation, CI/CD, version bumps, Steps 3, 4, 16
+#   async_performance_engineer — all I/O is async JavaScript, Step 20
+#   typescript_reviewer     — secondary TypeScript usage, Step 19
+#
+# DISABLED — not applicable:
+#   ux_analyst              — no UI/web frontend
+#   accessibility_expert    — no HTML/CSS layer
+#   aws_serverless_engineer — no AWS infrastructure
+#   api_designer            — not an HTTP API server
+#   performance_engineer    — no frontend/browser performance concerns
+#   security_expert         — covered by dependency_analyst (npm audit)
+
+ai_personas:
+  enabled:
+    - documentation_expert
+    - technical_writer
+    - test_engineer
+    - code_quality_analyst
+    - git_specialist
+    - prompt_engineer
+    - dependency_analyst
+    - architecture_reviewer
+    - devops_engineer
+    - async_performance_engineer
+    - typescript_reviewer
+  disabled:
+    - ux_analyst
+    - accessibility_expert
+    - aws_serverless_engineer
+    - api_designer
+    - performance_engineer
+    - security_expert
+
+# ============================================================================
+# WORKFLOW EXECUTION CONFIGURATION
+# ============================================================================
+
+workflow:
+  settings:
+    auto_mode: false
+    parallel_execution: true
+    smart_execution: true # Skip steps based on change detection
+    ml_optimize: false
+    multi_stage: false
+    auto_commit: false
+
+  steps:
+    # -------------------------------------------------------------------------
+    # PRE-PROCESSING
+    # -------------------------------------------------------------------------
+
+    - name: version_update
+      description: 'Update semantic version before the pipeline runs'
+      module: step_16_version_update.js
+      enabled: true
+      dependencies: []
+      ai_persona: devops_engineer
+
+    - name: pre_analysis
+      description: 'Detect project kind and analyze changed files'
+      module: step_00_analyze.js
+      enabled: true
+      dependencies: []
+      ai_persona: architecture_reviewer
+
+    # -------------------------------------------------------------------------
+    # DOCUMENTATION
+    # -------------------------------------------------------------------------
+
+    - name: bootstrap_documentation
+      description: 'Generate initial docs for undocumented files'
+      module: step_0b_bootstrap_docs.js
+      enabled: true
+      dependencies: []
+      conditions:
+        - missing_documentation
+      ai_persona: technical_writer
+      optional: true
+
+    - name: documentation_updates
+      description: 'Update existing documentation based on code changes'
+      module: step_01_documentation.js
+      enabled: true
+      dependencies: [bootstrap_documentation]
+      conditions:
+        - code_or_docs_changed
+      ai_persona: documentation_expert
+
+    - name: consistency_analysis
+      description: 'Validate cross-document coherence and terminology'
+      module: step_02_consistency.js
+      enabled: true
+      dependencies: [documentation_updates]
+      ai_persona: documentation_expert
+
+    - name: documentation_optimization
+      description: 'Optimize documentation structure and reduce redundancy'
+      module: step_02_5_doc_optimize.js
+      enabled: true
+      dependencies: [consistency_analysis]
+      ai_persona: technical_writer
+
+    - name: markdown_linting
+      description: 'Lint and fix markdown formatting across docs/'
+      module: step_13_markdown_lint.js
+      enabled: true
+      dependencies: [documentation_updates]
+      ai_persona: technical_writer
+
+    - name: doc_consolidation
+      description: 'Consolidate and de-duplicate documentation'
+      module: step_21_doc_consolidation.js
+      enabled: true
+      dependencies: [documentation_optimization]
+      ai_persona: technical_writer
+      optional: true
+
+    # -------------------------------------------------------------------------
+    # VALIDATION
+    # -------------------------------------------------------------------------
+
+    - name: script_reference_validation
+      description: 'Validate code references mentioned in documentation'
+      module: step_03_script_refs.js
+      enabled: true
+      dependencies: [documentation_updates]
+      ai_persona: devops_engineer
+
+    - name: config_validation
+      description: 'Validate configuration files for syntax and best practices'
+      module: step_04_config_validation.js
+      enabled: true
+      dependencies: []
+      ai_persona: devops_engineer
+
+    - name: directory_validation
+      description: 'Validate directory structure against architectural conventions'
+      module: step_05_directory.js
+      enabled: true
+      dependencies: []
+      ai_persona: architecture_reviewer
+
+    # -------------------------------------------------------------------------
+    # TESTING
+    # -------------------------------------------------------------------------
+
+    - name: test_review
+      description: 'Review existing Jest tests for quality and coverage gaps'
+      module: step_06_test_review.js
+      enabled: true
+      dependencies: []
+      conditions:
+        - has_test_files
+      ai_persona: test_engineer
+
+    - name: test_generation
+      description: 'Generate missing Jest tests for uncovered source files'
+      module: step_07_test_gen.js
+      enabled: true
+      dependencies: [test_review]
+      conditions:
+        - has_code_files
+      ai_persona: test_engineer
+
+    - name: test_execution
+      description: 'Run npm test and analyze failures and coverage'
+      module: step_08_test_exec.js
+      enabled: true
+      dependencies: [test_generation]
+      ai_persona: test_engineer
+
+    # -------------------------------------------------------------------------
+    # QUALITY & ANALYSIS
+    # -------------------------------------------------------------------------
+
+    - name: dependency_validation
+      description: 'Audit npm dependencies for vulnerabilities and updates'
+      module: step_09_dependencies.js
+      enabled: true
+      dependencies: []
+      ai_persona: dependency_analyst
+
+    - name: code_quality_validation
+      description: 'System-wide JS/TS architectural review and technical debt'
+      module: step_10_code_quality.js
+      enabled: true
+      dependencies: [test_execution]
+      ai_persona: code_quality_analyst
+
+    - name: async_performance_review
+      description: 'Review promise patterns, event-loop usage, and memory leaks'
+      module: step_20_async_perf_review.js
+      enabled: true
+      dependencies: [code_quality_validation]
+      ai_persona: async_performance_engineer
+
+    - name: typescript_review
+      description: 'Type-safety and strict-mode compliance for TypeScript files'
+      module: step_19_typescript_review.js
+      enabled: true
+      dependencies: [async_performance_review]
+      ai_persona: typescript_reviewer
+
+    - name: debugging_analysis
+      description: 'AI-powered debugging for observer/async/data-structure issues'
+      module: step_18_debugging.js
+      enabled: true
+      dependencies: [code_quality_validation]
+      ai_persona: code_quality_analyst
+      optional: true
+
+    - name: prompt_engineer_analysis
+      description: 'Review and improve AI prompt quality across workflow templates'
+      module: step_14_prompt_engineer.js
+      enabled: true
+      dependencies: []
+      ai_persona: prompt_engineer
+
+    - id: step_22
+      name: 'Accessibility Review'
+      module: 'step_22.js'
+      description: 'HTML/CSS accessibility and WCAG compliance audit'
+      phase: 'quality'
+      enabled: false
+      reason: 'No HTML/CSS layer in this Node.js automation project'
+      can_parallelize: true
+      dependencies: [code_quality_validation]
+      ai_persona: accessibility_expert
+
+    - id: step_23
+      name: 'Performance Review'
+      module: 'step_23.js'
+      description: 'Frontend rendering and load performance review'
+      phase: 'quality'
+      enabled: false
+      reason: 'Covered by async_performance_engineer (step_20); no frontend performance concerns'
+      can_parallelize: true
+      dependencies: [code_quality_validation]
+      ai_persona: performance_engineer
+
+    # -------------------------------------------------------------------------
+    # FINALIZATION
+    # -------------------------------------------------------------------------
+
+    - name: context_analysis
+      description: 'Capture workflow context and execution metadata'
+      module: step_11_context.js
+      enabled: true
+      dependencies: []
+      ai_persona: devops_engineer
+
+    - name: commit_artifacts
+      description: 'Commit workflow artifacts (.ai_workflow/) to git'
+      module: step_0f_commit_artifacts.js
+      enabled: true
+      dependencies: [context_analysis]
+      ai_persona: git_specialist
+
+    - name: git_finalization
+      description: 'Generate conventional commit message and finalize git state'
+      module: step_12_git_finalization.js
+      enabled: true
+      dependencies: [commit_artifacts]
+      ai_persona: git_specialist
+
+    - name: summary
+      description: 'Generate workflow execution summary report'
+      module: step_17_summary.js
+      enabled: true
+      dependencies: [git_finalization]
+      ai_persona: devops_engineer
+
+    # -------------------------------------------------------------------------
+    # DISABLED — not applicable for this project
+    # -------------------------------------------------------------------------
+
+    - name: ux_analysis
+      description: 'UX and accessibility analysis (web projects only)'
+      module: step_15_ux_analysis.js
+      enabled: false
+      dependencies: []
+      ai_persona: ux_analyst
+      reason: 'No UI/web frontend in this project'
+
+    - name: aws_lbs_validation
+      description: 'AWS Location-Based Services infrastructure validation'
+      module: step_11_5_aws_lbs_validation.js
+      enabled: false
+      dependencies: []
+      ai_persona: devops_engineer
+      reason: 'No AWS infrastructure'
+
+    - name: aws_serverless_review
+      description: 'AWS serverless deployment readiness review'
+      module: step_11_6_aws_serverless_review.js
+      enabled: false
+      dependencies: []
+      ai_persona: aws_serverless_engineer
+      reason: 'No AWS infrastructure'

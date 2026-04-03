@@ -14,6 +14,7 @@ import {
   filterFrameworkUiFiles,
   groupUiFilesByType,
   selectKeyFiles,
+  isTuiProject,
   buildUxAnalysisPrompt,
   calculateSeverityScore,
   parseUxAnalysisResult,
@@ -288,6 +289,81 @@ describe('Step 15: UX Analysis', () => {
   });
 
   // ========================================================================
+  // PURE FUNCTIONS - TUI Detection
+  // ========================================================================
+
+  describe('isTuiProject', () => {
+    test('returns true when fileContents contains an ink import', () => {
+      const fileContents = [{ file: 'src/App.tsx', content: "import { Box } from 'ink';" }];
+      expect(isTuiProject(fileContents)).toBe(true);
+    });
+
+    test('returns true for double-quote ink import', () => {
+      const fileContents = [{ file: 'src/App.tsx', content: 'import { Text } from "ink";' }];
+      expect(isTuiProject(fileContents)).toBe(true);
+    });
+
+    test('returns true for require ink', () => {
+      const fileContents = [{ file: 'src/App.js', content: "const { Box } = require('ink');" }];
+      expect(isTuiProject(fileContents)).toBe(true);
+    });
+
+    test('returns true for @inkjs scoped import', () => {
+      const fileContents = [{ file: 'src/App.tsx', content: "import something from '@inkjs/ui';" }];
+      expect(isTuiProject(fileContents)).toBe(true);
+    });
+
+    test('returns false when fileContents has no ink import', () => {
+      const fileContents = [{ file: 'src/App.tsx', content: "import React from 'react';" }];
+      expect(isTuiProject(fileContents)).toBe(false);
+    });
+
+    test('returns false when fileContents is empty array', () => {
+      expect(isTuiProject([])).toBe(false);
+    });
+
+    test('returns false when fileContents is null', () => {
+      expect(isTuiProject(null)).toBe(false);
+    });
+
+    test('[package.json fallback] returns true when ink is in dependencies and fileContents is empty', () => {
+      const pkg = JSON.stringify({ dependencies: { ink: '^4.0.0', react: '^18.0.0' } });
+      expect(isTuiProject([], pkg)).toBe(true);
+    });
+
+    test('[package.json fallback] returns true when ink is in devDependencies and fileContents is empty', () => {
+      const pkg = JSON.stringify({ devDependencies: { ink: '^4.0.0' } });
+      expect(isTuiProject([], pkg)).toBe(true);
+    });
+
+    test('[package.json fallback] returns true when ink is in peerDependencies', () => {
+      const pkg = JSON.stringify({ peerDependencies: { ink: '>=3.0.0' } });
+      expect(isTuiProject([], pkg)).toBe(true);
+    });
+
+    test('[package.json fallback] returns false when ink is absent from package.json', () => {
+      const pkg = JSON.stringify({ dependencies: { react: '^18.0.0' } });
+      expect(isTuiProject([], pkg)).toBe(false);
+    });
+
+    test('[package.json fallback] handles malformed package.json gracefully', () => {
+      expect(isTuiProject([], 'not valid json')).toBe(false);
+    });
+
+    test('[package.json fallback] returns true via package.json even when fileContents is null', () => {
+      const pkg = JSON.stringify({ dependencies: { ink: '^4.0.0' } });
+      expect(isTuiProject(null, pkg)).toBe(true);
+    });
+
+    test('source-file scan takes precedence when both fileContents and packageJsonContent present', () => {
+      // packageJsonContent has no ink, but source file does — should still return true
+      const fileContents = [{ file: 'src/App.tsx', content: "import { Box } from 'ink';" }];
+      const pkg = JSON.stringify({ dependencies: { react: '^18.0.0' } });
+      expect(isTuiProject(fileContents, pkg)).toBe(true);
+    });
+  });
+
+  // ========================================================================
   // PURE FUNCTIONS - File Selection
   // ========================================================================
 
@@ -326,6 +402,38 @@ describe('Step 15: UX Analysis', () => {
     test('handles missing fileGroups keys', () => {
       const result = selectKeyFiles(['src/app.vue'], {}, 5);
       expect(result).toEqual([]);
+    });
+
+    test('falls back to react files when no html/css present (TUI/Ink projects)', () => {
+      const reactFiles = ['src/ListPanel.tsx', 'src/index.ts'];
+      const fileGroups = { react: reactFiles, vue: [], svelte: [], html: [], css: [] };
+      const result = selectKeyFiles(reactFiles, fileGroups, 10);
+      expect(result).toEqual(reactFiles);
+    });
+
+    test('fills remaining slots with framework files after html/css (mixed project)', () => {
+      const fileGroups = {
+        html: ['src/index.html'],
+        css: [],
+        react: ['src/App.tsx', 'src/Button.tsx'],
+        vue: [],
+        svelte: [],
+      };
+      const result = selectKeyFiles(
+        ['src/index.html', 'src/App.tsx', 'src/Button.tsx'],
+        fileGroups,
+        5
+      );
+      expect(result).toContain('src/index.html');
+      expect(result).toContain('src/App.tsx');
+      expect(result).toContain('src/Button.tsx');
+    });
+
+    test('respects maxFiles cap when framework files overflow', () => {
+      const reactFiles = Array.from({ length: 20 }, (_, i) => `src/Comp${i}.tsx`);
+      const fileGroups = { react: reactFiles, vue: [], svelte: [], html: [], css: [] };
+      const result = selectKeyFiles(reactFiles, fileGroups, 5);
+      expect(result).toHaveLength(5);
     });
 
     test('[BUG FIX] includes CSS files even when HTML count exceeds maxFiles', () => {

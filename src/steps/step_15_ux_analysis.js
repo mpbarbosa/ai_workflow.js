@@ -200,7 +200,16 @@ export function groupUiFilesByType(files) {
 
 /**
  * Select the most informative UI files for content sampling.
- * Prioritizes HTML files (highest accessibility/usability signal) then CSS.
+ *
+ * Priority order:
+ *   1. HTML files  — highest accessibility/usability signal for web projects
+ *   2. CSS files   — visual design signal for web projects
+ *   3. Framework files (react/vue/svelte) — required for TUI/Ink projects so that
+ *      `isTuiProject()` can detect Ink imports in the sampled content.
+ *      Without this tier, TUI-only projects (which have no HTML/CSS) would return
+ *      an empty `fileContents`, causing `isTuiProject()` to return false and the
+ *      analysis to fall back to the generic web-oriented prompt.
+ *
  * @param {Array<string>} uiFiles - All discovered UI file paths
  * @param {Object} fileGroups - UI files grouped by type from groupUiFilesByType
  * @param {number} [maxFiles=10] - Maximum number of files to select
@@ -215,7 +224,72 @@ export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
   // If HTML underflows its budget, give the unused slots to CSS.
   const cssAvail = cssReserved + Math.max(0, htmlAvail - htmlFiles.length);
   const selected = [...htmlFiles.slice(0, htmlAvail), ...cssFiles.slice(0, cssAvail)];
+
+  // Fill any remaining slots with framework files (react/vue/svelte).
+  // This is critical for TUI/Ink projects that have no HTML or CSS: without at
+  // least one framework file in the sample, isTuiProject() always returns false.
+  if (selected.length < maxFiles) {
+    const frameworkFiles = [
+      ...(fileGroups.react || []),
+      ...(fileGroups.vue || []),
+      ...(fileGroups.svelte || []),
+    ];
+    const remaining = maxFiles - selected.length;
+    selected.push(...frameworkFiles.slice(0, remaining));
+  }
+
   return selected.slice(0, maxFiles);
+}
+
+// ============================================================================
+// PURE FUNCTIONS - TUI Detection
+// ============================================================================
+
+/**
+ * Ink import patterns that identify a terminal UI (TUI) project.
+ * Matches both single-quote and double-quote variants.
+ */
+const INK_IMPORT_PATTERNS = Object.freeze([
+  /from ['"]ink['"]/,
+  /require\(['"]ink['"]\)/,
+  /from ['"]@inkjs\//,
+]);
+
+/**
+ * Determine whether the project is an Ink TUI project.
+ *
+ * Detection is attempted in two stages so that a silent file-read failure
+ * (which leaves `fileContents` empty) does not cause a TUI project to fall
+ * back to the generic web-oriented prompt:
+ *
+ *   1. **package.json fallback** (fast path): if `packageJsonContent` is
+ *      provided and `"ink"` appears in any of `dependencies`,
+ *      `devDependencies`, or `peerDependencies`, return `true` immediately.
+ *   2. **Source-file scan**: check sampled file contents for Ink import
+ *      patterns (used when package.json is unavailable).
+ *
+ * @param {Array<{file: string, content: string}>} fileContents - Sampled file contents
+ * @param {string|null} [packageJsonContent=null] - Raw package.json text (optional)
+ * @returns {boolean}
+ */
+export function isTuiProject(fileContents, packageJsonContent = null) {
+  if (packageJsonContent) {
+    try {
+      const pkg = JSON.parse(packageJsonContent);
+      const allDeps = {
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+        ...pkg.peerDependencies,
+      };
+      if ('ink' in allDeps) return true;
+    } catch {
+      /* ignore malformed package.json — fall through to source scan */
+    }
+  }
+  if (!fileContents || fileContents.length === 0) return false;
+  return fileContents.some(({ content }) =>
+    INK_IMPORT_PATTERNS.some((pattern) => pattern.test(content))
+  );
 }
 
 // ============================================================================
@@ -223,37 +297,141 @@ export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
 // ============================================================================
 
 /**
- * Build UX analysis prompt for AI
- * @param {Object} context - Analysis context
- * @param {string} context.projectType - Project kind
- * @param {number} context.fileCount - Number of UI files
- * @param {Array<string>} context.fileSample - Sample of UI file paths
- * @param {Object} context.fileGroups - UI files grouped by type
- * @param {Array<{file: string, content: string}>} [context.fileContents] - Sampled file contents
- * @returns {string} - Formatted prompt for AI analysis
+ * Build a TUI-specific UX analysis prompt for Ink component libraries.
+ * @param {Object} params
+ * @param {string} params.projectType
+ * @param {number} params.fileCount
+ * @param {string} params.fileSummary
+ * @param {string} params.moreFiles
+ * @param {string} params.typeBreakdown
+ * @param {string} params.contentSection
+ * @returns {string}
  */
-export function buildUxAnalysisPrompt(context) {
-  const { projectType, fileCount, fileSample, fileGroups, fileContents } = context;
+function buildTuiAnalysisPrompt({
+  projectType,
+  fileCount,
+  fileSummary,
+  moreFiles,
+  typeBreakdown,
+  contentSection,
+}) {
+  return `**Role**: You are a senior TUI (terminal user interface) designer specialising in Ink (React for CLIs), keyboard interaction design, terminal color support, and accessible terminal experiences.
 
-  // Build file summary
-  const fileSummary = fileSample.map((f) => `  - ${f}`).join('\n');
-  const moreFiles =
-    fileCount > fileSample.length ? `\n  ... and ${fileCount - fileSample.length} more files` : '';
+**Task**: Analyse the TUI component code for keyboard accessibility issues, terminal compatibility problems, focus management gaps, and text-based usability concerns.
 
-  // Build file type breakdown
-  const typeBreakdown = Object.entries(fileGroups)
-    .filter(([_type, files]) => files.length > 0)
-    .map(([type, files]) => `  - ${type}: ${files.length} files`)
-    .join('\n');
+**Project Context**:
+- Project Type: ${projectType} (Terminal UI / Ink component library)
+- UI Files Found: ${fileCount}
+- File Type Breakdown:
+${typeBreakdown}
 
-  // Build file content section (grounding data for the AI)
-  const contentSection =
-    fileContents && fileContents.length > 0
-      ? `\n**Sample File Contents** (actual source code — base your analysis on this):\n\n${fileContents
-          .map(({ file, content }) => `\`\`\`\n// ${file}\n${content}\n\`\`\``)
-          .join('\n\n')}\n`
-      : '';
+**Sample Files**:
+${fileSummary}${moreFiles}
+${contentSection}
+**Your Analysis Should Cover**:
+1. **Keyboard Accessibility**
+   - Arrow key, Enter, Escape, Tab, and vi-key (j/k) navigation
+   - \`isFocused\` prop wires \`useInput\` with \`{ isActive: isFocused }\` so only the focused panel consumes events
+   - All interactive operations reachable by keyboard alone
+   - No conflicting key bindings across focusable panels
 
+2. **Terminal Color & Rendering**
+   - 16-color fallback works (no reliance on true-color-only values)
+   - Graceful degradation when color support is absent
+   - \`dimColor\`, bold, and named-color usage for visual hierarchy
+   - Status icons and Unicode symbols render in common emulators (xterm, iTerm2, Windows Terminal, tmux)
+
+3. **Focus & Selection Indicators**
+   - Visible, unambiguous focus indicator on the selected/active item (border color, prefix glyph, or reverse-video)
+   - \`isFocused\` border/highlight correctly reflects panel focus state
+   - User never loses track of which component or item is focused
+
+4. **Text-Based Affordances & Discoverability**
+   - Key-hint legend or label visible in the UI (e.g., \`↑↓ navigate · Enter select · Esc cancel\`)
+   - Status icons (\`formatStepIcon\`, \`statusColor\`) are consistent and readable without color context
+   - Labels are descriptive enough without graphical context
+
+5. **Ink Component API**
+   - Props interface is complete (required vs optional clearly typed)
+   - \`isFocused\` prop is present and wired correctly
+   - Event callbacks (\`onSelect\`, \`onChange\`) are appropriately typed
+   - Sensible default props so the component works out-of-the-box
+
+6. **Consistency with Shared Helpers**
+   - \`statusColor\` and \`formatStepIcon\` from helpers/ are used (not inline color/icon logic)
+   - Consistent column padding and alignment across item rows
+
+7. **Screen Reader & Assistive Terminal Compatibility**
+   - Information is not conveyed by color alone (icons or text prefix back up color coding)
+   - Descriptive text labels present for screen reader / braille terminal users where feasible
+
+**Approach**:
+- Identify keyboard accessibility issues first (highest impact in TUI)
+- Check focus wiring against Ink's \`useInput({ isActive })\` contract
+- Review terminal color usage for portability across color tiers
+- Assess text affordances and discoverability
+- Verify component API completeness and defaults
+- Prioritise improvements by user impact in terminal contexts
+
+**Output Format**:
+Provide your analysis in the following markdown format:
+
+# TUI Analysis Report
+
+## Executive Summary
+[Brief overview of findings with counts: X critical issues, Y warnings, Z recommendations]
+
+## Critical Issues
+[Issues that severely impact terminal usability - must fix]
+
+### Issue 1: [Title]
+- **Category**: [Keyboard/Color/Focus/Affordance/API/Consistency/ScreenReader]
+- **Severity**: Critical
+- **Location**: [File path and line number if possible]
+- **Description**: [What's wrong]
+- **Impact**: [How it affects terminal users]
+- **Recommendation**: [How to fix it]
+
+## Warnings
+[Issues that should be addressed but aren't blocking]
+
+## Improvement Suggestions
+[Nice-to-have enhancements ranked by impact]
+
+## Next Development Steps
+[Prioritised list of recommended actions]
+
+1. **Quick Wins** (1-2 hours): [List]
+2. **Short Term** (1 week): [List]
+3. **Long Term** (1 month+): [List]
+
+## TUI Patterns to Consider
+[Terminal UI patterns that could improve the experience]
+
+---
+
+Please analyse the TUI component files and provide your detailed assessment.`;
+}
+
+/**
+ * Build a web UI analysis prompt for browser-based projects.
+ * @param {Object} params
+ * @param {string} params.projectType
+ * @param {number} params.fileCount
+ * @param {string} params.fileSummary
+ * @param {string} params.moreFiles
+ * @param {string} params.typeBreakdown
+ * @param {string} params.contentSection
+ * @returns {string}
+ */
+function buildWebAnalysisPrompt({
+  projectType,
+  fileCount,
+  fileSummary,
+  moreFiles,
+  typeBreakdown,
+  contentSection,
+}) {
   return `**Role**: You are a senior UX/UI Designer and Frontend Specialist with expertise in user experience design, accessibility standards (WCAG 2.1 AA/AAA), responsive design, and modern frontend frameworks.
 
 **Task**: Analyze the UI code for usability issues, accessibility violations, visual design inconsistencies, and provide actionable improvement recommendations.
@@ -342,6 +520,54 @@ Provide your analysis in the following markdown format:
 ---
 
 Please analyze the UI files and provide your detailed assessment.`;
+}
+
+/**
+ * Build UX analysis prompt for AI. Automatically selects a TUI-specific prompt
+ * when file contents indicate an Ink terminal project; falls back to the standard
+ * web UI prompt for browser-based projects.
+ * @param {Object} context - Analysis context
+ * @param {string} context.projectType - Project kind
+ * @param {number} context.fileCount - Number of UI files
+ * @param {Array<string>} context.fileSample - Sample of UI file paths
+ * @param {Object} context.fileGroups - UI files grouped by type
+ * @param {Array<{file: string, content: string}>} [context.fileContents] - Sampled file contents
+ * @param {string|null} [context.packageJsonContent] - Raw package.json text for TUI detection fallback
+ * @returns {string} - Formatted prompt for AI analysis
+ */
+export function buildUxAnalysisPrompt(context) {
+  const {
+    projectType,
+    fileCount,
+    fileSample,
+    fileGroups,
+    fileContents,
+    packageJsonContent = null,
+  } = context;
+
+  // Build file summary
+  const fileSummary = fileSample.map((f) => `  - ${f}`).join('\n');
+  const moreFiles =
+    fileCount > fileSample.length ? `\n  ... and ${fileCount - fileSample.length} more files` : '';
+
+  // Build file type breakdown
+  const typeBreakdown = Object.entries(fileGroups)
+    .filter(([_type, files]) => files.length > 0)
+    .map(([type, files]) => `  - ${type}: ${files.length} files`)
+    .join('\n');
+
+  // Build file content section (grounding data for the AI)
+  const contentSection =
+    fileContents && fileContents.length > 0
+      ? `\n**Sample File Contents** (actual source code — base your analysis on this):\n\n${fileContents
+          .map(({ file, content }) => `\`\`\`\n// ${file}\n${content}\n\`\`\``)
+          .join('\n\n')}\n`
+      : '';
+
+  const params = { projectType, fileCount, fileSummary, moreFiles, typeBreakdown, contentSection };
+  return isTuiProject(fileContents, packageJsonContent)
+    ? buildTuiAnalysisPrompt(params)
+    : buildWebAnalysisPrompt(params);
 }
 
 /**
@@ -589,27 +815,61 @@ export class Step15UxAnalysis {
         `${colors.blue}Phase 2:${colors.reset} Reading ${keyFiles.length} key files for AI grounding...`
       );
       const fileContents = await this.readFilesSample(keyFiles, this.projectRoot);
+
+      // Read package.json for TUI detection fallback: if file-content sampling
+      // silently fails (empty fileContents), package.json still identifies Ink projects.
+      let packageJsonContent = null;
+      try {
+        packageJsonContent = await this.fileOps.readFile(
+          path.join(this.projectRoot, 'package.json')
+        );
+      } catch {
+        /* optional — no-op if absent */
+      }
+
       const analysisContext = {
         projectType,
         fileCount: uiFiles.length,
         fileSample,
         fileGroups,
         fileContents,
+        packageJsonContent,
       };
 
       // Phase 3: Build UX analysis prompt
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Building UX analysis prompt...`);
+      const tuiProject = isTuiProject(fileContents, packageJsonContent);
       let prompt = buildUxAnalysisPrompt(analysisContext);
-      // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
+
+      // Read project metadata from .workflow-config.yaml if not supplied in context
+      let configTargetUsers = '';
+      let configDesignSystem = '';
+      let configProjectDescription = '';
+      try {
+        const wfCfgPath = path.join(this.projectRoot, '.workflow-config.yaml');
+        const wfCfgRaw = await this.fileOps.readFile(wfCfgPath);
+        const wfCfg = yaml.load(wfCfgRaw);
+        configTargetUsers = wfCfg?.project?.target_users || '';
+        configDesignSystem = wfCfg?.project?.design_system || '';
+        configProjectDescription = wfCfg?.project?.description || '';
+      } catch {
+        /* optional — no-op if file is absent */
+      }
+
+      // Enrich with YAML persona prompt. Use tui_ux_designer_prompt for Ink/TUI projects so
+      // the analysis criteria focus on keyboard navigation, terminal color tiers, and focus
+      // management rather than WCAG pixel metrics, touch targets, and mobile breakpoints.
+      const yamlPromptKey = tuiProject ? 'tui_ux_designer_prompt' : 'ui_ux_designer_prompt';
       try {
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-        const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
+        const uiUxPrompt = buildYamlStepPrompt(parsedYaml, yamlPromptKey, {
           project_name: path.basename(this.projectRoot),
-          project_description: context.projectDescription || context.description || '',
+          project_description:
+            context.projectDescription || context.description || configProjectDescription || '',
           file_count: String(uiFiles.length),
           project_type: projectType,
-          target_audience: context.targetAudience || 'Application developers',
-          design_system_status: context.designSystemStatus || '',
+          target_audience: context.targetAudience || configTargetUsers || 'Application developers',
+          design_system_status: context.designSystemStatus || configDesignSystem || '',
           modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
         });
         if (uiUxPrompt) {
