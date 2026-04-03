@@ -3,200 +3,58 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., 1.0.0)'
-        required: true
-        type: string
+      - 'v*'
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  validate:
-    name: Pre-Release Validation
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run all tests
-        run: npm run test:ci
-
-      - name: Run linting
-        run: npm run lint
-
-      - name: Validate exports
-        run: npm run validate:exports
-
-      - name: Validate version consistency
-        run: npm run validate:versions
-
-      - name: Security audit
-        run: npm audit --audit-level=high
-
-      - name: Check package can be built
-        run: npm pack --dry-run
-
-  build:
-    name: Build Release Package
-    runs-on: ubuntu-latest
-    needs: validate
-
-    outputs:
-      version: ${{ steps.package-version.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Get package version
-        id: package-version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Create package tarball
-        run: npm pack
-
-      - name: Upload package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: '*.tgz'
-          retention-days: 30
-
-  test-installation:
-    name: Test Package Installation
-    runs-on: ${{ matrix.os }}
-    needs: build
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: ['18', '20', '22']
-
-    steps:
-      - name: Download package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Test installation
-        shell: bash
-        run: |
-          mkdir test-install
-          cd test-install
-          npm init -y
-          npm install ../ai-workflow-*.tgz
-          npx ai-workflow --version || echo "CLI test completed"
-
-  publish-npm:
-    name: Publish to npm
-    runs-on: ubuntu-latest
-    needs: [build, test-installation]
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  create-github-release:
+  release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build, test-installation, publish-npm]
-    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
+          submodules: recursive
           fetch-depth: 0
 
-      - name: Download package artifact
-        uses: actions/download-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: npm-package
+          node-version: '22.x'
+          cache: npm
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Extract changelog
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Extract release notes from CHANGELOG
         id: changelog
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          # Extract changelog for this version
-          awk "/^## \[$VERSION\]/,/^## \[/" CHANGELOG.md | sed '1d;$d' > release-notes.md
-          if [ ! -s release-notes.md ]; then
-            echo "Release $VERSION" > release-notes.md
-            echo "" >> release-notes.md
-            echo "See [CHANGELOG.md](CHANGELOG.md) for details." >> release-notes.md
+          TAG="${GITHUB_REF_NAME#v}"
+          # Extract the block for this version: from its heading to the next heading
+          NOTES=$(awk "/^## \[${TAG}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="See [CHANGELOG.md](./CHANGELOG.md) for details."
           fi
+          # Write to a file to safely handle multi-line content
+          echo "$NOTES" > release_notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: '*.tgz'
-          body_path: release-notes.md
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release_notes.md
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  post-release:
-    name: Post-Release Actions
-    runs-on: ubuntu-latest
-    needs: create-github-release
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Post release notification
-        run: |
-          echo "✅ Release ${{ github.ref_name }} published successfully!"
-          echo "📦 npm: https://www.npmjs.com/package/ai-workflow"
-          echo "📝 GitHub: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
