@@ -678,7 +678,7 @@ describe('Step 15: UX Analysis', () => {
 
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
-      expect(result.reason).toBe('project type not eligible');
+      expect(result.reason).toBe('non-web project kind: nodejs_api');
       expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
         '15',
         'UX_Analysis',

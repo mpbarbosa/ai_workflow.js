@@ -465,6 +465,27 @@ export function normalizeLanguageName(lang) {
 }
 
 /**
+ * Resolve the primary language for a project using a TechStackDetector instance.
+ *
+ * Single canonical entry point that replaces the per-step `detectLanguage()`
+ * implementations. All steps should call this instead of reading
+ * `detection.primaryLanguage` directly.
+ *
+ * @param {TechStackDetector} detector - Injected TechStackDetector instance
+ * @param {string} projectRoot - Absolute path to project root
+ * @param {string} [fallback='javascript'] - Returned when detection fails or yields empty
+ * @returns {Promise<string>} Resolved primary language name (normalised)
+ */
+export async function getPrimaryLanguage(detector, projectRoot, fallback = 'javascript') {
+  try {
+    const detection = await detector.detectTechStack(projectRoot);
+    return detection.primaryLanguage || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Tech Stack Detector
  * Analyzes project to detect languages, frameworks, and tools
  */
@@ -562,9 +583,15 @@ export class TechStackDetector {
           techStack.languages.unshift(configLang);
         } else {
           // Move config language to front so languages[0] returns the right value
-          techStack.languages = [configLang, ...techStack.languages.filter((l) => l !== configLang)];
+          techStack.languages = [
+            configLang,
+            ...techStack.languages.filter((l) => l !== configLang),
+          ];
         }
       }
+
+      // camelCase alias consumed by step_02, step_03, step_05, and step_00
+      techStack.primaryLanguage = techStack.primary_language;
 
       // Cache result
       this.cache.set(cacheKey, techStack);
@@ -579,6 +606,7 @@ export class TechStackDetector {
       return {
         error: error.message,
         primary_language: null,
+        primaryLanguage: null,
         languages: [],
         frameworks: [],
         build_system: 'none',

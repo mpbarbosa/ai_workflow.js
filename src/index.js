@@ -327,6 +327,11 @@ export {
   buildCodeQualityPrompt,
   buildTechnicalWriterPrompt,
   PromptBuilder,
+  resolveRoleRef,
+  resolveAllRoleRefs,
+  loadResolvedAiHelpers,
+  AI_HELPERS_PATH,
+  PROMPT_ROLES_PATH,
 } from './lib/ai_prompt_builder.js';
 
 export {

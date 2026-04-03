@@ -17,14 +17,13 @@ import path from 'path';
 import fs from 'fs/promises';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -447,9 +446,8 @@ export class Step5DirectoryAnalyzer {
       if (aiAvailable) {
         await this.aiCache.init();
         let prompt;
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
           const language = options.language || (await this.detectLanguage(projectRoot));
           const issueLines =
             structureResults.issues?.length > 0
@@ -501,34 +499,33 @@ export class Step5DirectoryAnalyzer {
         let requirementsContent = '';
         try {
           // Detect existing requirements documents so the AI doesn't hallucinate a gap
-          const REQUIREMENTS_PATTERN = /requirements|[-_]frs\b|FRS\b|[-_]brd\b|BRD\b|[-_]srs\b|SRS\b|func.spec|FUNC.SPEC|user.stor/i;
+          const REQUIREMENTS_PATTERN =
+            /requirements|[-_]frs\b|FRS\b|[-_]brd\b|BRD\b|[-_]srs\b|SRS\b|func.spec|FUNC.SPEC|user.stor/i;
           let requirementsDocsCount = 0;
           try {
             const docsDir = path.join(projectRoot, 'docs');
             const docsEntries = await fs.readdir(docsDir).catch(() => []);
             requirementsDocsCount = docsEntries.filter((f) => REQUIREMENTS_PATTERN.test(f)).length;
-          } catch { /* docs dir may not exist */ }
+          } catch {
+            /* docs dir may not exist */
+          }
 
-          const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml2 = yaml.load(yamlContent2);
-          const reqPrompt = buildYamlStepPrompt(
-            parsedYaml2,
-            'requirements_engineer_prompt',
-            {
-              project_name: projectRoot,
-              project_description: options?.projectDescription ?? '',
-              primary_language: options?.primaryLanguage ?? options?.language ?? language ?? '',
-              source_files: (structureResults.existingDirs ?? []).join(', '),
-              requirements_docs_count: String(requirementsDocsCount),
-              stakeholder_count: '1',
-            }
-          );
+          const reqPrompt = buildYamlStepPrompt(parsedYaml, 'requirements_engineer_prompt', {
+            project_name: projectRoot,
+            project_description: options?.projectDescription ?? '',
+            primary_language:
+              options?.primaryLanguage ??
+              options?.language ??
+              (await this.detectLanguage(projectRoot)),
+            source_files: (structureResults.existingDirs ?? []).join(', '),
+            requirements_docs_count: String(requirementsDocsCount),
+            stakeholder_count: '1',
+          });
           if (reqPrompt) {
             const reqResult = await this.aiCache.withFileChangeGuard(
               'step_05_req',
               dirHashEntries,
-              () =>
-                this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
+              () => this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
             );
             requirementsContent = reqResult?.content ?? '';
           }
@@ -687,12 +684,7 @@ export class Step5DirectoryAnalyzer {
   }
 
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectTechStack(projectRoot);
-      return detection.primaryLanguage || 'javascript';
-    } catch {
-      return 'javascript';
-    }
+    return getPrimaryLanguage(this.techStack, projectRoot, 'javascript');
   }
 }
 

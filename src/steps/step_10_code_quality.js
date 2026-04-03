@@ -19,7 +19,7 @@ import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
 import {
   buildCodeQualityPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -668,7 +668,7 @@ export class Step10CodeQualityAnalyzer {
 
         // Fall back to single-language report for backward compat
         const primaryLanguage =
-          techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+          techStackResult.primaryLanguage || detectedLanguages[0] || 'javascript';
         const sourceFiles = await this.countSourceFiles(projectRoot, primaryLanguage);
         const sourceFileCount = sourceFiles.length;
         logger.info(`Found ${sourceFileCount} source file(s)`);
@@ -742,7 +742,7 @@ export class Step10CodeQualityAnalyzer {
       if (perLanguageResults.length === 0) {
         logger.warn('No source files found for any configured language');
         const primaryLanguage =
-          techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+          techStackResult.primaryLanguage || detectedLanguages[0] || 'javascript';
         const report = formatQualityReport({
           language: primaryLanguage,
           sourceFileCount: 0,
@@ -781,7 +781,7 @@ export class Step10CodeQualityAnalyzer {
 
       // Phase 8: AI-powered code quality review (partition + rotate strategy)
       const primaryLanguage =
-        techStackResult.primary_language || detectedLanguages[0] || 'javascript';
+        techStackResult.primaryLanguage || detectedLanguages[0] || 'javascript';
       let stepAlternatives = { alternatives: [], recommended: null };
       let erContent = '';
       try {
@@ -833,8 +833,7 @@ export class Step10CodeQualityAnalyzer {
           let sharedParsedYaml = null;
           let sharedRoleOverride = '';
           try {
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            sharedParsedYaml = yaml.load(yamlContent);
+            sharedParsedYaml = await loadResolvedAiHelpers(this.fileOps);
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
               const parsedPk = yaml.load(pkYaml);
@@ -1130,6 +1129,9 @@ export class Step10CodeQualityAnalyzer {
               '**/dist/**',
               '**/build/**',
               '**/.git/**',
+              '**/.ai_workflow/**',
+              '**/.github/**',
+              '**/.husky/**',
               '**/venv/**',
               '**/.venv/**',
               '**/coverage/**',

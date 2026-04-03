@@ -290,11 +290,44 @@ ai-workflow run
 - **Usage Guide**: [CLI_USAGE_GUIDE.md](./docs/guides/CLI_USAGE_GUIDE.md) - Complete CLI documentation
 - **Quick Reference**: [CLI_QUICK_REFERENCE.md](./docs/guides/CLI_QUICK_REFERENCE.md) - Command cheat sheet
 
+### Auto-Resume on Startup
+
+When you run `ai-workflow run`, the CLI automatically checks whether the **most recent workflow execution was incomplete** (e.g. it was killed by Ctrl+C, a crash, or a power loss). If so, it locates the latest valid checkpoint for that run and resumes from where it left off — no manual intervention required.
+
+**How it works:**
+
+1. The CLI scans `.ai_workflow/logs/` for the most recently-dated execution directory (format: `workflow_YYYYMMDD_HHMMSS`).
+2. It reads `workflow.log` inside that directory and looks for completion markers (`✓ Workflow completed successfully` / `⚠ Workflow completed with failures`).
+3. If no completion marker is found the run is considered **incomplete**.
+4. The CLI then finds the latest valid checkpoint for that run under `.ai_workflow/checkpoints/` and calls `resume` automatically.
+5. If no checkpoint is found (e.g. the run was interrupted before the first checkpoint was saved) the CLI falls through to a normal fresh execution.
+
+**Opt out** of auto-resume with the `--no-auto-resume` flag:
+
+```bash
+# Always start a fresh run, regardless of prior incomplete executions
+ai-workflow run --no-auto-resume
+```
+
+**Manual resume** is still available via the dedicated `resume` command:
+
+```bash
+# Resume from the latest checkpoint explicitly
+ai-workflow resume --latest
+
+# Resume from a specific checkpoint
+ai-workflow resume <checkpointId>
+
+# List all available checkpoints
+ai-workflow resume --list
+```
+
 ### CLI Features
 
 - ✅ **Interactive Prompts**: Configuration wizard with validation
 - ✅ **Progress Indicators**: Real-time spinners and progress bars
 - ✅ **Colored Output**: Clear visual feedback (green=success, red=error)
+- ✅ **Auto-Resume**: Automatically resumes incomplete workflows on next startup
 - ✅ **Checkpoint Management**: Resume workflows from interruptions
 - ✅ **Help System**: Built-in examples and use cases
 - ✅ **Dry Run Mode**: Preview operations without execution

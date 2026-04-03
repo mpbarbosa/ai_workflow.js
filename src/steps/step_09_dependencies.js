@@ -14,7 +14,7 @@ import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { DependencyCache, CACHE_TYPE, generateCacheKey } from '../lib/dependency_cache.js';
@@ -22,9 +22,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -948,9 +947,8 @@ export class Step9DependencyValidator {
             ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
           ];
           let prompt;
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
           try {
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml = yaml.load(yamlContent);
             const pkgMgrMap = {
               javascript: 'npm',
               typescript: 'npm',
@@ -986,7 +984,7 @@ export class Step9DependencyValidator {
               dep_count: String(dependencyCounts.production ?? 0),
               dev_dep_count: String(dependencyCounts.development ?? 0),
               total_deps: String(dependencyCounts.total ?? 0),
-              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.dev ?? 0} dev)`,
+              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.development ?? 0} dev)`,
               dependency_report_content: report.slice(0, 1500) || 'none',
               prod_deps: prodList,
               dev_deps: devList,
@@ -999,7 +997,7 @@ export class Step9DependencyValidator {
           if (!prompt) {
             const role = `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`;
             const task = `Analyze the dependency health report for a ${language} project:
-- Total dependencies: ${dependencyCounts.total} (${dependencyCounts.dev || 0} dev, ${dependencyCounts.production || 0} production)
+- Total dependencies: ${dependencyCounts.total} (${dependencyCounts.development || 0} dev, ${dependencyCounts.production || 0} production)
 - Vulnerabilities: ${vuln} total (${vulnerabilities.summary?.critical || 0} critical, ${vulnerabilities.summary?.high || 0} high)
 - Outdated packages: ${outdated}`;
             const approach = `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`;
@@ -1024,9 +1022,7 @@ export class Step9DependencyValidator {
                 /* file may not exist */
               }
 
-              const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-              const parsedYaml2 = yaml.load(yamlContent2);
-              const jsPrompt = buildYamlStepPrompt(parsedYaml2, 'javascript_developer_prompt', {
+              const jsPrompt = buildYamlStepPrompt(parsedYaml, 'javascript_developer_prompt', {
                 project_name: path.basename(projectRoot),
                 project_description: options?.projectDescription ?? 'N/A',
                 project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
@@ -1124,15 +1120,7 @@ export class Step9DependencyValidator {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
-    } catch {
-      // Fallback
-    }
-    return 'javascript';
+    return getPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

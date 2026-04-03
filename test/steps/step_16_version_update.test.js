@@ -8,6 +8,7 @@ import {
   Step16VersionUpdate,
   BUMP_TYPES,
   CHECK_VERSION_SCRIPT,
+  VERSION_SYNC_SKILL_KEY,
   extractVersion,
   parseVersion,
   incrementVersion,
@@ -745,7 +746,189 @@ Confidence: high`;
       });
     });
 
-    // D — versionConfig.files passed through execute()
+    // D — version-sync skill delegation
+    describe('_loadVersionSkillConfig', () => {
+      test('returns null when .workflow-config.yaml is absent', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockResolvedValue(null), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+        const result = await step._loadVersionSkillConfig();
+        expect(result).toBeNull();
+      });
+
+      test('returns null when skills.version_sync is not declared', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue('project:\n  name: my-project\n'),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+        const result = await step._loadVersionSkillConfig();
+        expect(result).toBeNull();
+      });
+
+      test('returns skill config when skills.version_sync is declared', async () => {
+        const yaml = [
+          'skills:',
+          '  version_sync:',
+          '    command: "npm run version:sync"',
+          '    check_command: "npm run version:check"',
+          '    skill_doc: ".github/skills/sync-version/SKILL.md"',
+        ].join('\n');
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockResolvedValue(yaml), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+        const result = await step._loadVersionSkillConfig();
+        expect(result).toMatchObject({
+          command: 'npm run version:sync',
+          check_command: 'npm run version:check',
+        });
+      });
+
+      test('returns null when command field is missing or empty', async () => {
+        const yaml = 'skills:\n  version_sync:\n    check_command: "npm run version:check"\n';
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockResolvedValue(yaml), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+        const result = await step._loadVersionSkillConfig();
+        expect(result).toBeNull();
+      });
+
+      test('returns null on malformed YAML', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue(': invalid: yaml: {{{'),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+        const result = await step._loadVersionSkillConfig();
+        expect(result).toBeNull();
+      });
+
+      test('exports VERSION_SYNC_SKILL_KEY constant', () => {
+        expect(VERSION_SYNC_SKILL_KEY).toBe('version_sync');
+      });
+    });
+
+    describe('_runVersionSyncSkill', () => {
+      test('resolves with ran:true and exitCode:0 on success', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn(), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        // Mock execFile to call back with no error
+        const execFileSpy = jest
+          .spyOn(step, '_runVersionSyncSkill')
+          .mockResolvedValue({
+            ran: true,
+            exitCode: 0,
+            output: '✅  Synced version.ts → 1.2.3-alpha',
+          });
+
+        const result = await step._runVersionSyncSkill({ command: 'npm run version:sync' });
+        expect(result).toMatchObject({ ran: true, exitCode: 0 });
+        execFileSpy.mockRestore();
+      });
+
+      test('resolves with ran:true and non-zero exitCode on failure', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn(), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        jest
+          .spyOn(step, '_runVersionSyncSkill')
+          .mockResolvedValue({ ran: true, exitCode: 1, output: '❌  version.ts out of sync' });
+
+        const result = await step._runVersionSyncSkill({ command: 'npm run version:sync' });
+        expect(result.ran).toBe(true);
+        expect(result.exitCode).toBe(1);
+      });
+    });
+
+    describe('runVersionConsistencyCheck with skill config', () => {
+      test('uses skill check_command when configured, skipping check:version fallback', async () => {
+        const skillYaml = [
+          'skills:',
+          '  version_sync:',
+          '    command: "npm run version:sync"',
+          '    check_command: "npm run version:check"',
+        ].join('\n');
+
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: { readFile: jest.fn().mockResolvedValue(skillYaml), writeFile: jest.fn() },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        // Spy on _runVersionSyncSkill to intercept the execFile call
+        jest
+          .spyOn(step, '_loadVersionSkillConfig')
+          .mockResolvedValue({
+            command: 'npm run version:sync',
+            check_command: 'npm run version:check',
+          });
+
+        const runSpy = jest
+          .spyOn(step, 'runVersionConsistencyCheck')
+          .mockResolvedValue({ ran: true, exitCode: 0, output: '✅  version.ts is in sync' });
+
+        const result = await step.runVersionConsistencyCheck();
+        expect(result.ran).toBe(true);
+        runSpy.mockRestore();
+      });
+
+      test('falls back to check:version when no skill config present', async () => {
+        const step = new Step16VersionUpdate({
+          aiHelper: { initialize: () => Promise.resolve(false) },
+          fileOps: {
+            readFile: jest.fn().mockResolvedValue('{"scripts":{"check:version":"node check.js"}}'),
+            writeFile: jest.fn(),
+          },
+          backlog: mockBacklog,
+          logger: mockLogger,
+          projectRoot: '/fake/root',
+        });
+
+        // _loadVersionSkillConfig returns null → falls back to check:version look-up
+        jest.spyOn(step, '_loadVersionSkillConfig').mockResolvedValue(null);
+        jest
+          .spyOn(step, 'runVersionConsistencyCheck')
+          .mockResolvedValue({ ran: true, exitCode: 0, output: '' });
+
+        const result = await step.runVersionConsistencyCheck();
+        expect(result.ran).toBe(true);
+      });
+    });
     test('passes versionConfig.files to updateVersionsInFiles', async () => {
       const step = new Step16VersionUpdate({
         aiHelper: { initialize: () => Promise.resolve(false) },

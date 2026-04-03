@@ -30,9 +30,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -865,8 +864,7 @@ export class Step12GitFinalization {
 
         let prompt;
         try {
-          const yamlContent = await fsPromises.readFile(AI_HELPERS_PATH, 'utf-8');
-          const parsedYaml = yaml.load(yamlContent);
+          const parsedYaml = await loadResolvedAiHelpers(null);
           const gitCtx = await this._gatherGitContext(gitState);
           // commit_types comes from the YAML config block itself
           const commitTypesText = parsedYaml?.step11_git_commit_prompt?.commit_types || '';

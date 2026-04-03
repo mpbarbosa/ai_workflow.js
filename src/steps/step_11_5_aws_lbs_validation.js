@@ -19,15 +19,13 @@
 
 import path from 'path';
 import fs from 'fs/promises';
-import yaml from 'js-yaml';
 
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { AI_HELPERS_PATH, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -342,7 +340,7 @@ export class Step11_5AwsLbsValidator {
     this.backlog = deps.backlog || new Backlog();
     // AI is opt-in: only enabled when aiHelper is explicitly injected
     this.aiHelper = deps.aiHelper || null;
-    this.aiCache = deps.aiHelper ? (deps.aiCache || new AiCache()) : null;
+    this.aiCache = deps.aiHelper ? deps.aiCache || new AiCache() : null;
     this.projectKindConfig = deps.projectKindConfig || null;
   }
 
@@ -462,8 +460,7 @@ export class Step11_5AwsLbsValidator {
           const aiAvailable = await this.aiHelper.initialize();
           if (aiAvailable) {
             await this.aiCache.init();
-            const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml = yaml.load(yamlContent);
+            const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
             const archPrompt = buildYamlStepPrompt(parsedYaml, 'aws_cloud_architect_prompt', {
               project_name: projectRoot,
               shell_script_count: String(shellScripts.length),
@@ -485,7 +482,9 @@ export class Step11_5AwsLbsValidator {
             }
           }
         }
-      } catch { /* AI analysis is optional */ }
+      } catch {
+        /* AI analysis is optional */
+      }
 
       if (summary.passed) {
         logger.success('Step 11.5 passed — AWS LBS backend is well-structured');

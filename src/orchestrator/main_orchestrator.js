@@ -68,6 +68,9 @@ import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
 import { Step18Debugging } from '../steps/step_18_debugging.js';
 import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
 import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
+import { DocConsolidationStep } from '../steps/step_21_doc_consolidation.js';
+import { Step22AccessibilityReview } from '../steps/step_22_accessibility_review.js';
+import { Step23PerfReview } from '../steps/step_23_perf_review.js';
 
 // ============================================================================
 // CONSTANTS
@@ -151,6 +154,7 @@ export function getStepsForStage(stage) {
       'step_01',
       'step_02',
       'step_02_5', // Doc optimization
+      'step_21', // Doc consolidation
       'step_03', // Script refs
       'step_04',
       'step_05',
@@ -166,6 +170,7 @@ export function getStepsForStage(stage) {
       'step_01',
       'step_02',
       'step_02_5',
+      'step_21', // Doc consolidation
       'step_03',
       'step_04',
       'step_05',
@@ -184,6 +189,8 @@ export function getStepsForStage(stage) {
       'step_18', // Debugging analysis
       'step_19', // TypeScript review (Strider)
       'step_20', // Async performance review
+      'step_22', // Accessibility review
+      'step_23', // Performance review
       'step_17', // Summary
       'step_0f', // Commit artifacts
       'step_12', // Git finalization (must run last)
@@ -304,7 +311,9 @@ export class MainOrchestrator {
     // Initialize components
     this.configManager = new Config(this.projectRoot);
     this.metricsCollector = new Metrics(this.configManager);
-    this.checkpointManager = new CheckpointManager(this.workflowDir);
+    this.checkpointManager = new CheckpointManager({
+      checkpointDir: path.join(this.workflowDir, 'checkpoints'),
+    });
     this.stepRegistry = new StepRegistry();
     this.workflowEngine = new WorkflowEngine({
       projectRoot: this.projectRoot,
@@ -376,6 +385,14 @@ export class MainOrchestrator {
         description: 'Optimize documentation size and quality',
         class: DocumentationOptimizer,
         dependencies: ['step_02'],
+      },
+      {
+        id: 'step_21',
+        name: 'Doc Consolidation',
+        description:
+          'Find similar markdown docs via Cosine Similarity/TF-IDF and AI-merge them into canonical documents',
+        class: DocConsolidationStep,
+        dependencies: ['step_02_5'],
       },
       {
         id: 'step_03',
@@ -507,11 +524,27 @@ export class MainOrchestrator {
         dependencies: ['step_19'],
       },
       {
+        id: 'step_22',
+        name: 'Accessibility Review',
+        description:
+          'AI-powered WCAG 2.1 AA/AAA accessibility review (ARIA, keyboard navigation, colour contrast, reduced-motion)',
+        class: Step22AccessibilityReview,
+        dependencies: ['step_21'],
+      },
+      {
+        id: 'step_23',
+        name: 'Performance Review',
+        description:
+          'AI-powered performance review (algorithmic complexity, sync I/O, memory hotspots, missing memoization)',
+        class: Step23PerfReview,
+        dependencies: ['step_22'],
+      },
+      {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
         class: WorkflowSummary,
-        dependencies: ['step_20'],
+        dependencies: ['step_20', 'step_23'],
       },
       {
         id: 'step_0f',
@@ -591,6 +624,15 @@ export class MainOrchestrator {
   async execute(context = {}) {
     try {
       this.startTime = Date.now();
+
+      // Guard: project root must exist before any I/O (metrics, logs, etc.).
+      // fs.mkdir with { recursive: true } would otherwise silently create the
+      // directory, hiding typos / non-existent paths from the caller.
+      try {
+        await fs.access(this.projectRoot);
+      } catch {
+        throw new Error(`Project root does not exist: ${this.projectRoot}`);
+      }
 
       // Open log file for this run so all logger output is persisted.
       // Use this.workflowDir so that tests passing a custom workflowDir
@@ -1164,7 +1206,7 @@ export class MainOrchestrator {
       this.results.endTime = Date.now();
 
       // Save final checkpoint
-      await this.checkpointManager.save(workflow.id, {
+      await this.checkpointManager.save(workflow, {
         workflowId: workflow.id,
         stage: this.stage,
         results: this.results,

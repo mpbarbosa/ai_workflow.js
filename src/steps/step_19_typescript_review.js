@@ -22,14 +22,13 @@ import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   buildYamlStepPrompt,
   buildFileContentBlock,
   formatProjectContextSection,
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -219,11 +218,10 @@ export class Step19TypescriptReview {
       if (aiAvailable) {
         await this.aiCache.init();
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const tsconfigs = await this._discoverTsConfigFiles(projectRoot);
           const contextProfile = await this._loadContextProfile(projectRoot);
           const projectContextContent = await this._readProjectContextFile(projectRoot);
-          const parsedYaml = yaml.load(yamlContent);
 
           const cfg = parsedYaml['typescript_developer_prompt'];
           let tsPrompt = null;
@@ -436,7 +434,16 @@ export class Step19TypescriptReview {
    */
   async _discoverTypeScriptFiles(projectRoot) {
     const patterns = ['**/*.ts', '**/*.tsx'];
-    const exclude = ['node_modules', '.git', 'dist', 'build', 'coverage', 'test', '__tests__', 'docs'];
+    const exclude = [
+      'node_modules',
+      '.git',
+      'dist',
+      'build',
+      'coverage',
+      'test',
+      '__tests__',
+      'docs',
+    ];
     const found = [];
     for (const pattern of patterns) {
       try {

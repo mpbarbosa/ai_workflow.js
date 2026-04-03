@@ -23,9 +23,8 @@ import {
   buildStructuredPrompt,
   injectProjectContext,
   buildYamlStepPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
 
 // ============================================================================
 // CONSTANTS
@@ -625,10 +624,7 @@ export class Step14PromptEngineer {
       await this.aiCache.init();
       let prompt;
       try {
-        const yamlContent =
-          (await this.fileOps?.readFile(AI_HELPERS_PATH)) ??
-          (await import('fs').then((m) => m.promises.readFile(AI_HELPERS_PATH, 'utf-8')));
-        const parsedYaml = yaml.load(yamlContent);
+        const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
         prompt = buildYamlStepPrompt(parsedYaml, 'step13_prompt_engineer_prompt', {
           total_prompts: String(stats.totalPrompts),
           average_score: String(stats.averageScore),

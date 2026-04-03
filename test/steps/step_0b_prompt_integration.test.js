@@ -38,6 +38,7 @@ import {
   Step0bBootstrapDocs,
   buildTechnicalWriterPrompt,
 } from '../../src/steps/step_0b_bootstrap_docs.js';
+import { resolveAllRoleRefs } from '../../src/lib/ai_prompt_builder.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -146,10 +147,19 @@ function buildAiHelperStub(responseContent = '') {
   };
 }
 
-/** Load and parse the real ai_helpers.yaml. */
+/** Load, parse, and resolve role refs in the real ai_helpers.yaml. */
 async function loadRealAiHelpersYaml() {
+  const PROMPT_ROLES_PATH = path.join(
+    PROJECT_ROOT,
+    '.workflow_core',
+    'config',
+    'prompt_roles.yaml'
+  );
   const content = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');
-  return { content, parsed: yaml.load(content) };
+  const raw = yaml.load(content);
+  const rolesContent = await fs.readFile(PROMPT_ROLES_PATH, 'utf8');
+  const roles = yaml.load(rolesContent);
+  return { content, parsed: resolveAllRoleRefs(raw, roles) };
 }
 
 // ---------------------------------------------------------------------------
@@ -270,15 +280,16 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
   // =========================================================================
 
   describe('Layer 2: Prompt construction (buildTechnicalWriterPrompt)', () => {
-    let realYamlContent;
+    let realResolvedYaml;
 
     beforeAll(async () => {
-      realYamlContent = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');
+      const { parsed } = await loadRealAiHelpersYaml();
+      realResolvedYaml = parsed;
     });
 
     // ---- Yaml-template path ------------------------------------------------
 
-    describe('With yaml promptConfig (ai_helpers.yaml template)', () => {
+    describe('With yaml resolvedAiHelpers (ai_helpers.yaml template)', () => {
       function buildContext(overrides = {}) {
         return {
           projectName: 'TestProject',
@@ -287,7 +298,7 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
           docCount: 2,
           sourceCount: 45,
           missingDocs: ['CHANGELOG.md', 'CONTRIBUTING.md', 'docs/API.md'],
-          promptConfig: realYamlContent,
+          resolvedAiHelpers: realResolvedYaml,
           ...overrides,
         };
       }
@@ -374,7 +385,7 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
 
     // ---- Inline-fallback path ----------------------------------------------
 
-    describe('Without yaml promptConfig (inline fallback template)', () => {
+    describe('Without yaml resolvedAiHelpers (inline fallback template)', () => {
       function buildContext(overrides = {}) {
         return {
           projectName: 'FallbackProject',
@@ -383,7 +394,7 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
           docCount: 1,
           sourceCount: 20,
           missingDocs: ['README.md', 'CHANGELOG.md'],
-          promptConfig: null,
+          resolvedAiHelpers: null,
           ...overrides,
         };
       }

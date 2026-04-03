@@ -16,12 +16,12 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
   buildConsistencyPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
 } from '../lib/ai_prompt_builder.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 
 // ============================================================================
 // CONSTANTS
@@ -323,6 +323,80 @@ export function formatConsistencyReport(results) {
 // ============================================================================
 
 /**
+ * Map a relative file path to a human-readable category label for prompt display.
+ * @pure
+ * @param {string} filePath - Relative path from project root
+ * @returns {string} Category label
+ */
+function getFileCategory(filePath) {
+  const p = filePath.replace(/\\/g, '/');
+  if (!p.includes('/')) return 'Root';
+
+  if (p.startsWith('.github/')) {
+    const rest = p.slice('.github/'.length);
+    if (!rest.includes('/')) return '.github/ — Guides & Policies';
+    if (rest.startsWith('ISSUE_TEMPLATE/')) return '.github/ISSUE_TEMPLATE/ — Issue Templates';
+    if (rest.startsWith('actions/')) return '.github/actions/ — GitHub Actions';
+    if (rest.startsWith('skills/')) return '.github/skills/ — Skills';
+    if (rest.startsWith('workflows/')) return '.github/workflows/ — Workflows';
+    if (rest.startsWith('scripts/')) return '.github/scripts/ — Scripts';
+    return `.github/${rest.split('/')[0]}/`;
+  }
+
+  const topDir = p.split('/')[0];
+  if (topDir === 'docs') return 'docs/ — Documentation';
+  if (topDir === 'src') return 'src/ — Source';
+  if (topDir === '__tests__') return '__tests__/ — Tests';
+  return `${topDir}/`;
+}
+
+/** Defined ordering of well-known category labels. */
+const CATEGORY_ORDER = [
+  'Root',
+  '.github/ — Guides & Policies',
+  '.github/ISSUE_TEMPLATE/ — Issue Templates',
+  '.github/actions/ — GitHub Actions',
+  '.github/skills/ — Skills',
+  '.github/workflows/ — Workflows',
+  '.github/scripts/ — Scripts',
+  'docs/ — Documentation',
+  'src/ — Source',
+  '__tests__/ — Tests',
+];
+
+/**
+ * Group an array of relative file paths into ordered categories for prompt display.
+ * Returns an array of [label, paths[]] pairs in a consistent category order.
+ * Unknown categories (e.g. dynamic .github subdirs, other top-level dirs) are
+ * appended in alphabetical order after the well-known ones.
+ *
+ * @pure
+ * @param {string[]} partFiles - Relative doc-file paths in the partition
+ * @returns {Array<[string, string[]]>} Ordered [label, filePaths[]] pairs
+ */
+export function categorizeFiles(partFiles) {
+  const map = new Map();
+  for (const f of partFiles) {
+    const label = getFileCategory(f);
+    if (!map.has(label)) map.set(label, []);
+    map.get(label).push(f);
+  }
+
+  const result = [];
+  for (const label of CATEGORY_ORDER) {
+    if (map.has(label)) {
+      result.push([label, map.get(label)]);
+      map.delete(label);
+    }
+  }
+  // Remaining categories in alphabetical order
+  for (const [label, files] of [...map.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    result.push([label, files]);
+  }
+  return result;
+}
+
+/**
  * Partition an array into chunks of at most `chunkSize` elements.
  * @pure
  * @param {Array} files - Array to split
@@ -339,6 +413,34 @@ export function partitionFiles(files, chunkSize) {
 }
 
 /**
+ * Build a compact two-level directory tree from a file-index Set.
+ *
+ * Produces a fenced Markdown block listing unique top-two-level directory
+ * paths (e.g. `src/`, `src/patterns/`) derived from the absolute paths in
+ * `fileSet`. Root-level files are omitted; only paths that have at least one
+ * child appear. Returns an empty string when no directories are found.
+ *
+ * @param {Set<string>} fileSet - Absolute paths (files + ancestor dirs) from buildFileIndex
+ * @param {string} projectRoot - Absolute path to the project root
+ * @returns {string} Fenced markdown block headed "**Directory Tree:**", or ''
+ */
+export function buildCompactDirectoryTree(fileSet, projectRoot) {
+  const dirs = new Set();
+  for (const absPath of fileSet) {
+    const rel = path.relative(projectRoot, absPath);
+    if (!rel || rel.startsWith('..')) continue;
+    const parts = rel.split(path.sep).filter(Boolean);
+    if (parts.length >= 2) {
+      dirs.add(parts[0] + '/');
+      dirs.add(parts[0] + '/' + parts[1] + '/');
+    }
+  }
+  const sorted = Array.from(dirs).sort();
+  if (sorted.length === 0) return '';
+  return `**Directory Tree:**\n\`\`\`\n${sorted.join('\n')}\n\`\`\``;
+}
+
+/**
  * Build the prompt context strings for a single partition.
  * Returns the doc-file list string and broken-refs string, both already
  * size-bounded so the resulting prompt stays within MAX_PROMPT_CHARS.
@@ -348,10 +450,26 @@ export function partitionFiles(files, chunkSize) {
  * @param {Object[]} brokenLinks - All broken-link issues (full set); each has {file, line, link}
  * @param {number} partIndex - 0-based partition index
  * @param {number} totalParts - Total number of partitions
+ * @param {number} [totalDocCount=0] - Total markdown files in the project (used for the
+ *   completeness note shown to the AI; 0 suppresses the "X of Y" preamble)
  * @returns {{ docFilesList: string, brokenRefsList: string, header: string }}
  */
-export function buildPartitionContext(partFiles, brokenLinks, partIndex, totalParts) {
-  const docFilesList = partFiles.join(', ');
+export function buildPartitionContext(
+  partFiles,
+  brokenLinks,
+  partIndex,
+  totalParts,
+  totalDocCount = 0
+) {
+  const groups = categorizeFiles(partFiles);
+  const groupLines = groups.map(
+    ([label, files]) => `**${label}** (${files.length}): ${files.join(', ')}`
+  );
+  const preamble =
+    totalDocCount > partFiles.length
+      ? `_(This partition covers ${partFiles.length} of ${totalDocCount} total markdown files in the project — other files may exist but are not listed here.)_`
+      : `_(${partFiles.length} file${partFiles.length !== 1 ? 's' : ''} in this partition.)_`;
+  const docFilesList = `${preamble}\n${groupLines.join('\n')}`;
 
   // Filter broken links to those whose SOURCE file is in this partition
   const matchingBroken = brokenLinks.filter((l) => {
@@ -507,6 +625,9 @@ export class Step2ConsistencyAnalyzer {
       const brokenLinks = await this.checkLinks(docFiles, existingFiles, projectRoot);
       logger.info(`Link check: ${brokenLinks.length} broken link(s) found`);
 
+      // Phase 4b: Build compact directory tree for architecture consistency analysis
+      const directoryTree = buildCompactDirectoryTree(existingFiles, projectRoot);
+
       // Phase 5: Generate report
       const totalIssues = versionIssues.length + brokenLinks.length;
       const results = {
@@ -529,8 +650,7 @@ export class Step2ConsistencyAnalyzer {
         let parsedYaml = null;
         let roleOverride = '';
         try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          parsedYaml = yaml.load(yamlContent);
+          parsedYaml = await loadResolvedAiHelpers(this.fileOps);
         } catch {
           /* YAML unavailable, will use fallback builder */
         }
@@ -555,6 +675,19 @@ export class Step2ConsistencyAnalyzer {
           `[step_02] Running AI analysis in ${totalParts} partition(s) of ≤${PARTITION_SIZE} files`
         );
 
+        // Count TypeScript source files (excluding .d.ts) for prompt context
+        let tsSourceCount = 'unknown';
+        try {
+          const tsFiles = await this.fileOps.glob('src/**/*.ts', {
+            cwd: projectRoot,
+            ignore: ['src/**/*.d.ts'],
+            absolute: false,
+          });
+          tsSourceCount = String(tsFiles.length);
+        } catch {
+          /* non-fatal — leave as 'unknown' */
+        }
+
         const aiParts = [];
         for (let i = 0; i < totalParts; i++) {
           const partFiles = partitions[i];
@@ -562,7 +695,8 @@ export class Step2ConsistencyAnalyzer {
             partFiles,
             brokenLinks,
             i,
-            totalParts
+            totalParts,
+            docFiles.length
           );
 
           let prompt;
@@ -574,9 +708,11 @@ export class Step2ConsistencyAnalyzer {
                 primary_language: language,
                 change_scope: options.scope || '',
                 doc_count: String(docFiles.length),
+                ts_source_count: tsSourceCount,
                 modified_count: String(partFiles.length),
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
+                directory_tree: directoryTree,
               });
               if (prompt && roleOverride) {
                 prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
@@ -599,7 +735,10 @@ export class Step2ConsistencyAnalyzer {
               docDirectory: projectRoot,
               docFiles: partFiles,
               scanResults: results,
-              projectInfo: { project_name: projectRoot },
+              projectInfo: {
+                project_name: projectRoot,
+                description: options.projectDescription || '',
+              },
             });
             if (header) prompt = `${header}\n\n${prompt}`;
             if (archiveContext) prompt = `${prompt}\n\n${archiveContext}`;
@@ -924,12 +1063,7 @@ export class Step2ConsistencyAnalyzer {
   }
 
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectTechStack(projectRoot);
-      return detection.primaryLanguage || 'javascript';
-    } catch {
-      return 'javascript';
-    }
+    return getPrimaryLanguage(this.techStack, projectRoot, 'javascript');
   }
 }
 

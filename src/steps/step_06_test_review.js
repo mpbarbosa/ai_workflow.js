@@ -10,11 +10,17 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import path from 'path';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import { buildTestReviewPrompt, AI_HELPERS_PATH, AI_PROJECT_KINDS_PATH, buildYamlStepPrompt, buildProjectKindPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  buildTestReviewPrompt,
+  AI_HELPERS_PATH,
+  AI_PROJECT_KINDS_PATH,
+  buildYamlStepPrompt,
+  buildProjectKindPrompt,
+} from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
@@ -421,9 +427,11 @@ export class Step6TestReviewer {
         if (aiAvailable) {
           await this.aiCache.init();
 
-          const uniqueTestFiles = [...new Set(
-            testFiles.map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f))
-          )];
+          const uniqueTestFiles = [
+            ...new Set(
+              testFiles.map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f))
+            ),
+          ];
 
           const partitionCache = new Step10PartitionCache({
             cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
@@ -450,7 +458,9 @@ export class Step6TestReviewer {
                 let content = await this.fileOps.readFile(abs);
                 if (content.length > 5000) content = content.slice(0, 5000) + '\n... (truncated)';
                 fileContents[relPath] = content;
-              } catch { /* skip unreadable */ }
+              } catch {
+                /* skip unreadable */
+              }
             })
           );
 
@@ -466,83 +476,110 @@ export class Step6TestReviewer {
           let sharedParsedYaml = null;
           let sharedRoleOverride = '';
           const testCmdMap = {
-            javascript: 'npm test', typescript: 'npm test',
-            python: 'pytest', go: 'go test ./...', ruby: 'rspec', rust: 'cargo test',
+            javascript: 'npm test',
+            typescript: 'npm test',
+            python: 'pytest',
+            go: 'go test ./...',
+            ruby: 'rspec',
+            rust: 'cargo test',
           };
           const covCmdMap = {
-            javascript: 'npm run coverage', typescript: 'npm run coverage',
-            python: 'pytest --cov', go: 'go test -cover ./...', ruby: 'rspec --format progress', rust: 'cargo tarpaulin',
+            javascript: 'npm run coverage',
+            typescript: 'npm run coverage',
+            python: 'pytest --cov',
+            go: 'go test -cover ./...',
+            ruby: 'rspec --format progress',
+            rust: 'cargo tarpaulin',
           };
           const testFrameworkMap = {
-            javascript: 'jest', typescript: 'jest',
-            python: 'pytest', go: 'go test', ruby: 'rspec', rust: 'cargo test', bash: 'bats',
+            javascript: 'jest',
+            typescript: 'jest',
+            python: 'pytest',
+            go: 'go test',
+            ruby: 'rspec',
+            rust: 'cargo test',
+            bash: 'bats',
           };
-          const testFramework = ctx.config?.tech_stack?.test_runner
-            ?? ctx.techStack?.testRunner
-            ?? testFrameworkMap[language]
-            ?? language;
+          const testFramework =
+            ctx.config?.tech_stack?.test_runner ??
+            ctx.techStack?.testRunner ??
+            testFrameworkMap[language] ??
+            language;
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
             sharedParsedYaml = yaml.load(yamlContent);
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
               const parsedPk = yaml.load(pkYaml);
-              const pk = buildProjectKindPrompt(parsedPk, options?.projectKind ?? 'default', 'test_engineer');
+              const pk = buildProjectKindPrompt(
+                parsedPk,
+                options?.projectKind ?? 'default',
+                'test_engineer'
+              );
               if (pk?.role) sharedRoleOverride = pk.role;
-            } catch { /* optional */ }
-          } catch { /* fallback to hardcoded builder */ }
+            } catch {
+              /* optional */
+            }
+          } catch {
+            /* fallback to hardcoded builder */
+          }
 
           // Run all slices in parallel — each is a self-contained review of 5 files
-          const aiSectionResults = await Promise.all(slices.map(async (sliceFiles, si) => {
-            const sliceContents = {};
-            for (const f of sliceFiles) {
-              if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
-                sliceContents[f] = fileContents[f];
-              }
-            }
-            const fileContentSections = sliceFiles.map((rel) => {
-              const content = sliceContents[rel] ?? '(unavailable)';
-              return `### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``;
-            });
-            const testFileContents = fileContentSections.join('\n\n');
-            const testsInTestsDir = sliceFiles.filter((f) =>
-              /\/__tests__\/|\/test\//.test(f)
-            ).length;
-
-            let prompt;
-            if (sharedParsedYaml) {
-              try {
-                prompt = buildYamlStepPrompt(sharedParsedYaml, 'step5_test_review_prompt', {
-                  project_name: path.basename(projectRoot),
-                  project_description: ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
-                  primary_language: language,
-                  test_framework: testFramework,
-                  test_env: testCmdMap[language] ?? 'npm test',
-                  test_command: testCmdMap[language] ?? 'npm test',
-                  coverage_command: covCmdMap[language] ?? 'npm run coverage',
-                  test_count: String(testFiles.length),
-                  tests_in_tests_dir: String(testsInTestsDir),
-                  tests_colocated: String(sliceFiles.length - testsInTestsDir),
-                  test_files: sliceFiles.join(', '),
-                  test_file_contents: testFileContents,
-                });
-                if (prompt && sharedRoleOverride) {
-                  prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
+          const aiSectionResults = await Promise.all(
+            slices.map(async (sliceFiles, si) => {
+              const sliceContents = {};
+              for (const f of sliceFiles) {
+                if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
+                  sliceContents[f] = fileContents[f];
                 }
-              } catch { /* fallback */ }
-            }
-            if (!prompt) {
-              prompt = buildTestReviewPrompt({ testFiles: sliceFiles, framework: language });
-            }
+              }
+              const fileContentSections = sliceFiles.map((rel) => {
+                const content = sliceContents[rel] ?? '(unavailable)';
+                return `### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``;
+              });
+              const testFileContents = fileContentSections.join('\n\n');
+              const testsInTestsDir = sliceFiles.filter((f) =>
+                /\/__tests__\/|\/test\//.test(f)
+              ).length;
 
-            const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
-            const aiResult = await this.aiCache.withFileChangeGuard(
-              `step_06_p${partition.index}_s${si}`,
-              fileHashEntries,
-              () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
-            );
-            return aiResult?.content ?? '';
-          }));
+              let prompt;
+              if (sharedParsedYaml) {
+                try {
+                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step5_test_review_prompt', {
+                    project_name: path.basename(projectRoot),
+                    project_description:
+                      ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
+                    primary_language: language,
+                    test_framework: testFramework,
+                    test_env: testCmdMap[language] ?? 'npm test',
+                    test_command: testCmdMap[language] ?? 'npm test',
+                    coverage_command: covCmdMap[language] ?? 'npm run coverage',
+                    test_count: String(testFiles.length),
+                    tests_in_tests_dir: String(testsInTestsDir),
+                    tests_colocated: String(sliceFiles.length - testsInTestsDir),
+                    test_files: sliceFiles.join(', '),
+                    test_file_contents: testFileContents,
+                  });
+                  if (prompt && sharedRoleOverride) {
+                    prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
+                  }
+                } catch {
+                  /* fallback */
+                }
+              }
+              if (!prompt) {
+                prompt = buildTestReviewPrompt({ testFiles: sliceFiles, framework: language });
+              }
+
+              const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
+              const aiResult = await this.aiCache.withFileChangeGuard(
+                `step_06_p${partition.index}_s${si}`,
+                fileHashEntries,
+                () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+              );
+              return aiResult?.content ?? '';
+            })
+          );
 
           const aiSections = aiSectionResults.filter((c) => c);
           const aiContent = aiSections.join('\n\n---\n\n');
@@ -581,15 +618,7 @@ export class Step6TestReviewer {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
-    } catch {
-      // Fallback
-    }
-    return 'javascript';
+    return getPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

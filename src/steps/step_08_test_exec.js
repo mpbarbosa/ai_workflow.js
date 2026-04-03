@@ -12,7 +12,7 @@ import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
@@ -579,11 +579,11 @@ export class Step8TestExecutor {
       const runnerCrashed = !!testResult.runnerCrashed;
       const noTestsFound =
         testResults.total === 0 &&
-        testResults.suitesFailed === 0 &&
+        (testResults.suitesFailed ?? 0) === 0 &&
         (testResult.exitCode === 0 || noTestsMessageInOutput || runnerCrashed);
       const anyFailure =
         testResults.failed > 0 ||
-        testResults.suitesFailed > 0 ||
+        (testResults.suitesFailed ?? 0) > 0 ||
         (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
 
@@ -631,12 +631,18 @@ export class Step8TestExecutor {
             test_framework:
               this.configManager?.getConfig?.()?.tech_stack?.test_framework || language,
             test_command: testCommand,
-            test_exit_code: String(testResult.exitCode),
+            test_exit_code: noTestsFound
+              ? `${testResult.exitCode} (no tests discovered — runner exited without output${runnerCrashed ? ', possible crash or OOM kill' : ''}; treated as no-tests-found, not a test failure)`
+              : String(testResult.exitCode),
             tests_total: String(testResults.total ?? 0),
             tests_passed: String(testResults.passed ?? 0),
             tests_failed: String(testResults.failed ?? 0),
-            execution_summary: `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
-            test_output: (testResult.output ?? '').slice(0, 2000) || 'none',
+            execution_summary: noTestsFound
+              ? `No tests were discovered or executed (runner produced no output in ${duration}ms)`
+              : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
+            test_output: noTestsFound
+              ? `none — test runner produced no output (exit code ${testResult.exitCode}${runnerCrashed ? ', runner likely crashed before writing' : ''}; workflow treated this as no-tests-found)`
+              : (testResult.output ?? '').slice(0, 2000) || 'none',
             failed_test_list: anyFailure ? (testResult.output ?? '').slice(0, 1000) : 'none',
             coverage_threshold: String(coverageThreshold),
             coverage_gaps: coverageGapsText,
@@ -766,15 +772,7 @@ export class Step8TestExecutor {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    try {
-      const detection = await this.techStack.detectAll(projectRoot);
-      if (detection.languages && detection.languages.length > 0) {
-        return detection.languages[0];
-      }
-    } catch {
-      // Fallback
-    }
-    return 'javascript';
+    return getPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

@@ -18,6 +18,7 @@ export const AI_HELPERS_PATH = path.resolve(
   '../../.workflow_core/config/ai_helpers.yaml'
 );
 import { FileOperations } from '../lib/file_operations.js';
+import { loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
@@ -227,7 +228,7 @@ export function parseAiDocResponse(responseText) {
  * @param {number} context.docCount - Current documentation count
  * @param {number} context.sourceCount - Source file count
  * @param {Array<string>} context.missingDocs - List of missing docs
- * @param {string|null} context.promptConfig - Raw yaml content of ai_helpers.yaml (optional)
+ * @param {Object|null} context.resolvedAiHelpers - Fully resolved ai_helpers YAML object (optional)
  * @returns {string} - Formatted AI prompt
  */
 export function buildTechnicalWriterPrompt(context) {
@@ -238,16 +239,15 @@ export function buildTechnicalWriterPrompt(context) {
     docCount,
     sourceCount,
     missingDocs,
-    promptConfig,
+    resolvedAiHelpers,
   } = context;
 
   const missingList = missingDocs.map((d) => `  - ${d}`).join('\n');
 
-  // Try to build prompt from yaml config
-  if (promptConfig) {
+  // Try to build prompt from resolved yaml config
+  if (resolvedAiHelpers) {
     try {
-      const parsed = yaml.load(promptConfig);
-      const twPrompt = parsed?.technical_writer_prompt;
+      const twPrompt = resolvedAiHelpers?.technical_writer_prompt;
       if (twPrompt?.role_prefix && twPrompt?.task_template) {
         const variables = {
           project_name: projectName,
@@ -597,11 +597,10 @@ export class Step0bBootstrapDocs {
         } else {
           this.logger.debug('AI Helper is initialized.');
 
-          // Load ai_helpers.yaml from the ai_workflow.js package .workflow_core directory
-          const aiHelpersPath = AI_HELPERS_PATH;
-          let promptConfig = null;
+          // Load and resolve ai_helpers.yaml (resolves role_ref pointers added in v1.2.0)
+          let resolvedAiHelpers = null;
           try {
-            promptConfig = await this.fileOps.readFile(aiHelpersPath);
+            resolvedAiHelpers = await loadResolvedAiHelpers(this.fileOps);
           } catch {
             this.logger.debug('ai_helpers.yaml not found — using inline prompt template');
           }
@@ -630,7 +629,7 @@ export class Step0bBootstrapDocs {
             docCount: stats.docCount,
             sourceCount: stats.sourceCount,
             missingDocs,
-            promptConfig,
+            resolvedAiHelpers,
           };
           const prompt = buildTechnicalWriterPrompt(context);
           this.logger.debug(prompt);

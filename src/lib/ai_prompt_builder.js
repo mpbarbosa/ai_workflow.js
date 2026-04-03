@@ -14,6 +14,7 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 // Resolves to: ai_workflow.js/.workflow_core/config/ai_helpers.yaml
@@ -27,6 +28,70 @@ export const AI_PROJECT_KINDS_PATH = path.resolve(
   path.dirname(__filename),
   '../../.workflow_core/config/ai_prompts_project_kinds.yaml'
 );
+
+// Resolves to: ai_workflow.js/.workflow_core/config/prompt_roles.yaml
+export const PROMPT_ROLES_PATH = path.resolve(
+  path.dirname(__filename),
+  '../../.workflow_core/config/prompt_roles.yaml'
+);
+
+// ==============================================================================
+// PURE FUNCTIONS - Role Reference Resolution
+// ==============================================================================
+
+/**
+ * Resolve a single persona's `role_ref` to the full `role_prefix` text.
+ *
+ * If the persona already has an inline `role_prefix`, it is returned unchanged.
+ * If it has a `role_ref`, the corresponding entry in `roles.roles` is looked up
+ * and `role_prefix` is populated from there.
+ *
+ * Mirrors the logic in `.workflow_core/src/loader.ts → resolvePersona()`.
+ *
+ * @param {Object} persona - A single parsed persona object from ai_helpers.yaml
+ * @param {Object} roles   - Parsed prompt_roles.yaml object (must have a `roles` key)
+ * @returns {Object} A new persona object with `role_prefix` populated
+ * @throws {Error} If `role_ref` is present but not found in roles
+ * @pure
+ */
+export function resolveRoleRef(persona, roles) {
+  if (!persona || typeof persona !== 'object') return persona;
+  if (!persona.role_ref) return { ...persona };
+
+  const roleEntry = roles?.roles?.[persona.role_ref];
+  if (!roleEntry) {
+    throw new Error(`role_ref "${persona.role_ref}" not found in prompt_roles.yaml`);
+  }
+  const { role_ref: _unusedRoleRef, ...rest } = persona; // eslint-disable-line no-unused-vars
+  return { ...rest, role_prefix: roleEntry.role_prefix };
+}
+
+/**
+ * Resolve all `role_ref` pointers in a parsed ai_helpers.yaml object.
+ *
+ * Iterates every top-level key; for entries that are objects with a `role_ref`,
+ * replaces `role_ref` with the full `role_prefix` from `roles`. Non-persona
+ * entries (lookup tables, metadata) are passed through unchanged.
+ *
+ * Mirrors `.workflow_core/src/loader.ts → resolveAllPersonas()`.
+ *
+ * @param {Object} parsedYaml - Parsed ai_helpers.yaml object
+ * @param {Object} roles      - Parsed prompt_roles.yaml object
+ * @returns {Object} New object with all role_refs resolved to role_prefix strings
+ * @pure
+ */
+export function resolveAllRoleRefs(parsedYaml, roles) {
+  if (!parsedYaml || typeof parsedYaml !== 'object') return parsedYaml;
+  const resolved = {};
+  for (const [key, value] of Object.entries(parsedYaml)) {
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.role_ref) {
+      resolved[key] = resolveRoleRef(value, roles);
+    } else {
+      resolved[key] = value;
+    }
+  }
+  return resolved;
+}
 
 // ==============================================================================
 // PURE FUNCTIONS - Template Processing
@@ -90,6 +155,7 @@ export function buildPromptFromTemplate(template, context = {}) {
  *
  * @param {string} prompt - Base prompt text
  * @param {Object} projectInfo - Project information
+ * @param {string} [projectInfo.description] - Human-readable project description
  * @param {string} [projectInfo.language] - Primary language
  * @param {string} [projectInfo.projectKind] - Project type
  * @param {string[]} [projectInfo.techStack] - Technologies used
@@ -98,6 +164,7 @@ export function buildPromptFromTemplate(template, context = {}) {
  *
  * @example
  * const enhanced = injectProjectContext(prompt, {
+ *   description: 'Interactive TUI tool to analyze ai_workflow.js execution logs',
  *   language: 'JavaScript',
  *   projectKind: 'nodejs_api',
  *   framework: 'Express'
@@ -113,6 +180,10 @@ export function injectProjectContext(prompt, projectInfo = {}) {
   // Add project context section
   if (Object.keys(projectInfo).length > 0) {
     const contextLines = ['', '**Project Context**:'];
+
+    if (projectInfo.description) {
+      contextLines.push(`- **Description**: ${projectInfo.description}`);
+    }
 
     if (projectInfo.language) {
       contextLines.push(`- **Language**: ${projectInfo.language}`);
@@ -400,6 +471,61 @@ export function buildProjectKindPrompt(parsedProjectKinds, projectKind, personaK
 }
 
 // ==============================================================================
+// ASYNC LOADER - Role-Ref Resolution
+// ==============================================================================
+
+/**
+ * Load and fully resolve ai_helpers.yaml — replacing all `role_ref` pointers
+ * with the inline `role_prefix` text from prompt_roles.yaml.
+ *
+ * This is the recommended entry point for any code that needs to call
+ * `buildYamlStepPrompt`. It replaces the three-step pattern:
+ *   ```
+ *   const content  = await fileOps.readFile(AI_HELPERS_PATH);
+ *   const parsed   = yaml.load(content);
+ *   ```
+ * with a single call that also resolves role references:
+ *   ```
+ *   const parsed = await loadResolvedAiHelpers(this.fileOps);
+ *   ```
+ *
+ * When `fileOps` is null/undefined, falls back to `fs.promises.readFile` so the
+ * function is safe to call from steps that have an optional fileOps reference.
+ *
+ * If `prompt_roles.yaml` cannot be read or parsed, returns the raw (unresolved)
+ * ai_helpers.yaml object so callers that don't rely on role text still work.
+ *
+ * @param {Object|null} fileOps      - FileOperations instance (optional, falls back to fs)
+ * @param {string} [aiHelpersPath]   - Override path to ai_helpers.yaml
+ * @param {string} [promptRolesPath] - Override path to prompt_roles.yaml
+ * @returns {Promise<Object|null>} Resolved YAML object, or null on hard failure
+ */
+export async function loadResolvedAiHelpers(
+  fileOps,
+  aiHelpersPath = AI_HELPERS_PATH,
+  promptRolesPath = PROMPT_ROLES_PATH
+) {
+  const fsRead = async (p) => {
+    if (fileOps?.readFile) return fileOps.readFile(p);
+    const { promises: fsp } = await import('fs');
+    return fsp.readFile(p, 'utf-8');
+  };
+
+  const rawHelpers = await fsRead(aiHelpersPath);
+  const parsedHelpers = yaml.load(rawHelpers);
+  if (!parsedHelpers || typeof parsedHelpers !== 'object') return null;
+
+  try {
+    const rawRoles = await fsRead(promptRolesPath);
+    const parsedRoles = yaml.load(rawRoles);
+    return resolveAllRoleRefs(parsedHelpers, parsedRoles);
+  } catch {
+    // prompt_roles.yaml missing or unreadable — return unresolved helpers
+    return parsedHelpers;
+  }
+}
+
+// ==============================================================================
 // SPECIALIZED PROMPT BUILDERS
 // ==============================================================================
 
@@ -460,7 +586,7 @@ ${docList}`;
 export function buildConsistencyPrompt(options) {
   const { docDirectory, docFiles = [], scanResults = {}, projectInfo = {} } = options;
 
-  const role = `You are a senior technical documentation specialist and information architect with expertise in documentation quality assurance, technical writing standards, and cross-reference validation.
+  const role = `You are a senior technical documentation specialist and information architect reviewing the human-readable documentation of a software project. Your expertise covers documentation quality assurance, technical writing standards, and cross-reference validation across project artefacts such as README files, architecture documents, changelogs, and API references.
 
 **Critical Behavioral Guidelines**:
 - ONLY report issues that are verifiable from the provided file list and scan results below

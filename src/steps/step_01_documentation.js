@@ -13,7 +13,7 @@ import { AiCache } from '../lib/ai_cache.js';
 import {
   PromptBuilder,
   buildDocAnalysisPrompt,
-  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
@@ -405,8 +405,7 @@ export class Step1DocumentationAnalyzer {
               // Content injection is best-effort; proceed without it if anything fails
             }
             try {
-              const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-              const parsedYaml = yaml.load(yamlContent);
+              const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
               prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {
                 project_name: projectInfo.projectKind ?? projectRoot,
                 primary_language: projectInfo.language ?? 'unknown',

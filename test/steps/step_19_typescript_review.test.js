@@ -439,6 +439,7 @@ describe('Step19TypescriptReview', () => {
       .mockResolvedValueOnce(
         'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
       ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // prompt_roles.yaml (not present)
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
@@ -545,6 +546,7 @@ describe('Step19TypescriptReview', () => {
       .mockResolvedValueOnce(
         'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
       ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // prompt_roles.yaml (not present)
       .mockResolvedValueOnce(tsConfigContent) // tsconfig.json
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
       .mockRejectedValueOnce(new Error('ENOENT')); // tsconfig.base.json
@@ -576,6 +578,7 @@ describe('Step19TypescriptReview', () => {
       .mockResolvedValueOnce(
         'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task for {project_name}"\n  approach: "Type-first"'
       ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // prompt_roles.yaml (not present)
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
       .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
