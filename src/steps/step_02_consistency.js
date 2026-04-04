@@ -72,6 +72,17 @@ export const MAX_ISSUES_PER_PROMPT = 30;
  */
 export const MAX_PROMPT_CHARS = 60_000;
 
+/**
+ * Human-readable labels for workflow scope keys.
+ * Used to expand terse internal identifiers into descriptive context for AI prompts.
+ */
+export const SCOPE_DESCRIPTIONS = {
+  code_changes: 'code_changes — source code modifications',
+  docs_only: 'docs_only — documentation changes only',
+  test_changes: 'test_changes — test file modifications',
+  full_changes: 'full_changes — all file types modified',
+};
+
 // ============================================================================
 // PURE FUNCTIONS - Version Validation
 // ============================================================================
@@ -706,7 +717,7 @@ export class Step2ConsistencyAnalyzer {
                 project_name: projectRoot,
                 project_description: options.projectDescription || '',
                 primary_language: language,
-                change_scope: options.scope || '',
+                change_scope: SCOPE_DESCRIPTIONS[options.scope] || options.scope || '',
                 doc_count: String(docFiles.length),
                 ts_source_count: tsSourceCount,
                 modified_count: String(partFiles.length),
