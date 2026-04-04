@@ -473,7 +473,7 @@ describe('Step 9: Dependency Validation', () => {
           Version: 'v0.9.0',
           Update: { Version: 'v0.9.1' },
         }),
-        JSON.stringify({ Path: 'github.com/stretchr/testify', Version: 'v1.9.0' }),
+        JSON.stringify({ Path: 'github.com/stretchr/testify', Version: 'v1.9.1' }),
       ].join('\n');
       const result = parseGoOutdated(output);
       expect(result).toHaveLength(1);

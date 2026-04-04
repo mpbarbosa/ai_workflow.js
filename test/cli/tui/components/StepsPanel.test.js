@@ -1,24 +1,16 @@
 /**
  * @file StepsPanel.test.js
- * @description Tests for StepsPanel — step list with keyboard selection
+ * @description Tests for StepsPanel — backward-compatible adapter over ListPanel
+ *
+ * StepsPanel now delegates to ListPanel from pajussara_tui_comp, so icons and
+ * duration formatting follow that package's helpers:
+ *   done → '✔', running → '●', pending → '○', error → '✘'
+ *   duration 1000ms → '1.0s'
  */
 
 import { jest } from '@jest/globals';
 import React from 'react';
 import { render } from 'ink-testing-library';
-
-const mockFormatStepIcon = jest.fn((status) => {
-  const icons = { running: '⚡', done: '✅', skipped: '⊘', error: '❌', pending: '⏳' };
-  return icons[status] ?? '⏳';
-});
-const mockStatusColor = jest.fn(() => 'white');
-const mockFormatDuration = jest.fn((ms) => `${Math.round(ms / 1000)}s`);
-
-jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
-  formatStepIcon: mockFormatStepIcon,
-  statusColor: mockStatusColor,
-  formatDuration: mockFormatDuration,
-}));
 
 let StepsPanel;
 beforeAll(async () => {
@@ -30,10 +22,6 @@ describe('StepsPanel Component', () => {
     step1: { id: 'step1', name: 'Project Detection', status: 'done', duration: 1000 },
     step2: { id: 'step2', name: 'Doc Validation', status: 'running', duration: null },
     step3: { id: 'step3', name: 'Test Generation', status: 'pending', duration: null },
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
   });
 
   it('renders "Waiting for steps…" when steps are empty (happy path)', () => {
@@ -51,9 +39,9 @@ describe('StepsPanel Component', () => {
     expect(lastFrame()).toContain('Project Detection');
     expect(lastFrame()).toContain('Doc Validation');
     expect(lastFrame()).toContain('Test Generation');
-    expect(lastFrame()).toContain('✅');
-    expect(lastFrame()).toContain('⚡');
-    expect(lastFrame()).toContain('⏳');
+    expect(lastFrame()).toContain('✔');
+    expect(lastFrame()).toContain('●');
+    expect(lastFrame()).toContain('○');
   });
 
   it('shows cursor (>) for selected step when isFocused', () => {
@@ -135,6 +123,6 @@ describe('StepsPanel Component', () => {
     const { lastFrame } = render(
       React.createElement(StepsPanel, { steps: makeSteps(), currentStepId: 'step2', width: 40 })
     );
-    expect(lastFrame()).toContain('1s');
+    expect(lastFrame()).toContain('1.0s');
   });
 });
