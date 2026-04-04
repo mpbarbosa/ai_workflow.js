@@ -403,11 +403,11 @@ See @3.1.0 for details
     test('detectProjectVersion falls back to pyproject.toml', async () => {
       mockFileOps.readFile
         .mockRejectedValueOnce(new Error('Not found'))
-        .mockResolvedValueOnce('version = "1.9.2"');
+        .mockResolvedValueOnce('version = "1.9.3"');
 
       const version = await analyzer.detectProjectVersion('/project');
 
-      expect(version).toBe('1.9.2');
+      expect(version).toBe('1.9.3');
     });
 
     test('detectProjectVersion falls back to CHANGELOG.md', async () => {

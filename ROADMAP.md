@@ -679,9 +679,9 @@ This project follows [Semantic Versioning](https://semver.org/):
 
 | Milestone                    | Target Version | Key Deliverables                                                         |
 | ---------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Phase 12 complete            | 1.9.2          | Integration tests, full API docs                                         |
-| Phase 13 complete            | 1.9.2          | npm public, CI/CD, release automation                                    |
-| TUI Phase T1+T2 complete     | 1.9.2          | Interactive TUI                                                          |
+| Phase 12 complete            | 1.9.3          | Integration tests, full API docs                                         |
+| Phase 13 complete            | 1.9.3          | npm public, CI/CD, release automation                                    |
+| TUI Phase T1+T2 complete     | 1.9.3          | Interactive TUI                                                          |
 | TUI Phase T3+T4 complete     | 1.10.0         | Rich visualizations, TUI-first workflows                                 |
 | Phase 14 complete            | 1.11.0         | Reflection, Cognitive Verifier, Alternative Approaches, Output Automater |
 | Phase W1+W2 complete         | 1.12.0         | Web API server, live dashboard, SSE streaming                            |
