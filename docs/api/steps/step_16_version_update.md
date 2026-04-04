@@ -170,7 +170,7 @@ Increment a semantic version string.
 ```javascript
 bumpVersion('1.4.2', 'patch');  // '1.4.3'
 <<<<<<< HEAD
-bumpVersion('1.4.2', 'minor');  // '1.9.2'
+bumpVersion('1.4.2', 'minor');  // '1.9.3'
 =======
 bumpVersion('1.4.2', 'minor');  // '1.6.1'
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
@@ -196,9 +196,9 @@ const updated = replaceVersionInContent(
   '{"version": "1.4.2"}',
   '1.4.2',
 <<<<<<< HEAD
-  '1.9.2'
+  '1.9.3'
 );
-// '{"version": "1.9.2"}'
+// '{"version": "1.9.3"}'
 =======
   '1.6.1'
 );
@@ -282,7 +282,7 @@ const result = await step.execute('/path/to/project');
 
 console.log(`${result.oldVersion} → ${result.newVersion} (${result.bumpType})`);
 <<<<<<< HEAD
-// '1.4.2 → 1.9.2 (minor)'
+// '1.4.2 → 1.9.3 (minor)'
 =======
 // '1.4.2 → 1.6.1 (minor)'
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])

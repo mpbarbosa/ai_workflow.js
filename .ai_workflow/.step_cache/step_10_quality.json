@@ -330,6 +330,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-04T01:21:24.772Z"
+    },
+    ".workflow_core/eslint.config.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T14:42:53.492Z"
+    },
+    ".workflow_core/.validation_analysis_results.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T14:42:53.492Z"
+    },
+    ".workflow_core/.workflow_session_cloc_cache.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T14:42:53.492Z"
+    },
+    ".workflow_core/package-lock.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T14:42:53.492Z"
+    },
+    ".workflow_core/package.json": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T14:42:53.492Z"
     }
   }
 }

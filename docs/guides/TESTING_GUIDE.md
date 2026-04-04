@@ -1,6 +1,6 @@
 # Testing Guide
 
-**AI Workflow Automation v1.9.2**
+**AI Workflow Automation v1.9.3**
 **Last Updated:** 2026-02-01
 **Audience:** Developers writing tests
 
@@ -855,4 +855,4 @@ jobs:
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.2
+**Version:** 1.9.3
