@@ -155,4 +155,15 @@ Detailed specifications for each module are provided in the sections below.
 
 #### Phase 2: Configuration & State Management Modules
 
-| Module                       | Version | Lines of Code | Purpose
+| Module | Version | Lines of Code | Purpose
+
+## Roadmap — Minor Issues
+
+> Populated by the `fix-log-issues` skill. Each item was verified against
+> the live codebase before being marked done.
+
+| ID     | Source step                 | Description                                                                                        | File / Path                             | Priority | Status |
+| ------ | --------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- | -------- | ------ |
+| RI-001 | step_20 / step_22 / step_23 | AI cache keys containing absolute paths caused ENOENT errors — added `_safeKey()` to sanitize keys | `src/lib/ai_cache.js`                   | Medium   | done   |
+| RI-002 | step_05                     | `test/integration/cross-step/` had no README explaining its purpose                                | `test/integration/cross-step/README.md` | Low      | done   |
+| RI-003 | step_05                     | `.github/skills/` had no README documenting the skills system                                      | `.github/skills/README.md`              | Low      | done   |
