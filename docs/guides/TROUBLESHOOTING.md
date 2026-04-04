@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-**Version:** 1.9.3
+**Version:** 1.9.4
 **Last Updated:** 2026-02-11
 
 This guide helps you diagnose and resolve common issues with ai_workflow.js.

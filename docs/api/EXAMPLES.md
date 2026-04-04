@@ -1,6 +1,6 @@
 # API Usage Examples
 
-**Version:** 1.9.3
+**Version:** 1.9.4
 **Last Updated:** February 2, 2026
 **Status:** Complete
 
@@ -220,7 +220,7 @@ import { parseVersion, compareVersions } from 'ai-workflow';
 
 const v1 = parseVersion('1.2.3');
 <<<<<<< HEAD
-const v2 = parseVersion('1.9.3');
+const v2 = parseVersion('1.9.4');
 =======
 const v2 = parseVersion('1.6.1');
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
@@ -234,7 +234,7 @@ console.log(compareVersions(v2, v1)); // 1 (v2 > v1)
 ```javascript
 import { isGreaterThan, isLessThan, isEqual } from 'ai-workflow';
 
-if (isGreaterThan('2.0.0', '1.9.3')) {
+if (isGreaterThan('2.0.0', '1.9.4')) {
   console.log('Version 2.0.0 is newer');
 }
 
@@ -253,7 +253,7 @@ if (isEqual('1.2.3', '1.2.3')) {
 import { getLatestVersion } from 'ai-workflow';
 
 <<<<<<< HEAD
-const versions = ['1.0.0', '1.2.3', '2.0.0', '1.9.3'];
+const versions = ['1.0.0', '1.2.3', '2.0.0', '1.9.4'];
 =======
 const versions = ['1.0.0', '1.2.3', '2.0.0', '1.6.1'];
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
