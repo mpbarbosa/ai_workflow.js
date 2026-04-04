@@ -40,6 +40,7 @@ export const DOC_TYPES = Object.freeze({
 export const DOC_THRESHOLDS = Object.freeze({
   minReadmeSize: 500, // bytes
   minDocsCount: 2, // minimum docs files
+  sufficientDocsCount: 5, // project with this many docs is considered well-documented
 });
 
 export const SOURCE_EXTENSIONS = Object.freeze([
@@ -541,6 +542,25 @@ export class Step0bBootstrapDocs {
           success: true,
           skipped: true,
           reason: 'all catalog documentation files present',
+        };
+      }
+
+      if (stats.docCount >= DOC_THRESHOLDS.sufficientDocsCount) {
+        this.logger.info(
+          `Step 0b: Project has ${stats.docCount} documentation files — sufficient coverage, skipping generation`
+        );
+
+        await this.backlog.saveStepSummary(
+          '0b',
+          'Bootstrap_Docs',
+          `Skipped: Project has sufficient documentation coverage (${stats.docCount} files)`,
+          '⏭️'
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          reason: 'sufficient_docs',
         };
       }
 

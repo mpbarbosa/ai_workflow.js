@@ -707,6 +707,7 @@ describe('Step 15: UX Analysis', () => {
       const step = new Step15UxAnalysis({
         backlog: mockBacklog,
         logger: mockLogger,
+        aiHelper: { initialize: () => Promise.resolve(true) },
       });
 
       // Mock discoverFiles to return UI files
