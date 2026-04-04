@@ -71,7 +71,8 @@ export async function runSmokeTest() {
 
   try {
     const status = await withTimeout(client.getAuthStatus(), TIMEOUT_MS, 'getAuthStatus()');
-    const authOk = status?.isAuthenticated === true || status?.status === 'ok' || status?.authenticated === true;
+    const authOk =
+      status?.isAuthenticated === true || status?.status === 'ok' || status?.authenticated === true;
     check('Authentication status', authOk, JSON.stringify(status ?? 'no response'));
   } catch (err) {
     check('Authentication status', false, err.message);
@@ -79,11 +80,15 @@ export async function runSmokeTest() {
 
   // ── 4. List models ───────────────────────────────────────────────────────────
   console.log('\n4. Model availability');
-  let models = [];
+  let models;
   try {
     models = await withTimeout(client.listModels(), TIMEOUT_MS, 'listModels()');
     check('listModels() succeeded', Array.isArray(models), `${models.length} model(s)`);
-    check('At least one model available', models.length > 0, models.map(m => m.id ?? m).join(', ') || 'none');
+    check(
+      'At least one model available',
+      models.length > 0,
+      models.map((m) => m.id ?? m).join(', ') || 'none'
+    );
   } catch (err) {
     check('listModels() succeeded', false, err.message);
   }
@@ -118,7 +123,11 @@ export async function runSmokeTest() {
     await withTimeout(session.send({ prompt: PROMPT }), TIMEOUT_MS, 'session.send()');
     await done;
 
-    check('Response received', responseContent.trim().length > 0, `"${responseContent.trim().slice(0, 80)}"`);
+    check(
+      'Response received',
+      responseContent.trim().length > 0,
+      `"${responseContent.trim().slice(0, 80)}"`
+    );
   } catch (err) {
     check('Session round-trip', false, err.message);
   }

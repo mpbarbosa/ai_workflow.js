@@ -132,7 +132,7 @@ export function categorizeCodeFile(filePath) {
 
   for (const [category, patterns] of Object.entries(CODE_PATTERNS)) {
     for (const pattern of patterns) {
-      let matches = false;
+      let matches;
 
       // Check extension patterns (must start with single '.')
       if (pattern.startsWith('.') && !pattern.slice(1).includes('.') && !pattern.endsWith('/')) {

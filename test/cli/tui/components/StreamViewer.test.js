@@ -3,7 +3,6 @@
  * @description Unit tests for StreamViewer — live AI token stream panel component.
  */
 
-import { jest } from '@jest/globals';
 import React from 'react';
 import { render } from 'ink-testing-library';
 

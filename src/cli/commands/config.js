@@ -139,7 +139,7 @@ async function showConfig(configManager, options) {
       console.log();
     }
   } catch (error) {
-    throw new Error(`Failed to show config: ${error.message}`);
+    throw new Error(`Failed to show config: ${error.message}`, { cause: error });
   }
 }
 
@@ -164,7 +164,7 @@ async function validateConfig(configManager) {
 
     process.exit(result.isValid ? 0 : 1);
   } catch (error) {
-    throw new Error(`Failed to validate config: ${error.message}`);
+    throw new Error(`Failed to validate config: ${error.message}`, { cause: error });
   }
 }
 
@@ -187,7 +187,7 @@ async function getConfigKey(configManager, key) {
     }
     console.log();
   } catch (error) {
-    throw new Error(`Failed to get config value: ${error.message}`);
+    throw new Error(`Failed to get config value: ${error.message}`, { cause: error });
   }
 }
 
@@ -220,7 +220,7 @@ async function setConfigKey(configManager, key, value) {
     console.log(chalk.green(`✓ Set ${key} = ${formatConfigValue(parsedValue)}`));
     console.log();
   } catch (error) {
-    throw new Error(`Failed to set config value: ${error.message}`);
+    throw new Error(`Failed to set config value: ${error.message}`, { cause: error });
   }
 }
 

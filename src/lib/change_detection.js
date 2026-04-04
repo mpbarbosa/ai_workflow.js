@@ -305,7 +305,7 @@ export function calculateCoverageImpact(changes) {
   const affected = [...codeFiles];
 
   // Calculate confidence based on test/code ratio
-  let confidence = 0;
+  let confidence;
   if (codeFiles.length > 0) {
     const ratio = testFiles.length / codeFiles.length;
     confidence = Math.min(ratio, 1.0);

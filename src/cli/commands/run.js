@@ -188,8 +188,7 @@ export async function runCommand(options) {
       try {
         const cpList = await startupEvaluator.checkpointManager.list();
         latestCheckpointMeta = cpList.find((c) => c.id === startupDecision.checkpointId) ?? null;
-      } catch (_err) {
-        // eslint-disable-line no-unused-vars
+      } catch {
         // ignore — status display is best-effort
       }
     }

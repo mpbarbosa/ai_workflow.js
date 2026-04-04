@@ -7,7 +7,7 @@
  */
 
 import { jest } from '@jest/globals';
-import React, { useState } from 'react';
+import React from 'react';
 import { EventEmitter } from 'events';
 import { render } from 'ink-testing-library';
 import { Text, Box } from 'ink';
