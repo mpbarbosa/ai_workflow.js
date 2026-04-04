@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -106,7 +106,7 @@
     "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.9.tar.gz",
     "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9",
     "ora": "^9.3.0",
-    "pajussara_tui_comp": "https://github.com/mpbarbosa/pajussara_tui_comp/archive/refs/tags/v1.1.4.tar.gz",
+    "pajussara_tui_comp": "file:../pajussara_tui_comp",
     "react": "^19.2.4"
   },
   "devDependencies": {

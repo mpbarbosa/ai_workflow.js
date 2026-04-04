@@ -192,6 +192,20 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
   const leftWidth = stepsPanelWidth(cols);
   const rightWidth = cols - leftWidth;
   const contentHeight = Math.max(5, rows - 9);
+
+  // Derive Copilot SDK execution status for StatusBadge in StepsPanel.
+  // Priority: error > done > streaming > loading > idle
+  const copilotStatus = lastError
+    ? 'error'
+    : isComplete
+      ? 'done'
+      : streamChunks?.liveText
+        ? 'streaming'
+        : currentStepId != null
+          ? 'loading'
+          : 'idle';
+  const copilotErrorMessage = lastError?.message ?? null;
+
   // When the stream viewer is shown, split the right panel vertically.
   // LogPanel gets 60%, StreamViewer gets 40% (min 8 lines each).
   const logHeight = showStream ? Math.max(8, Math.floor(contentHeight * 0.6)) : contentHeight;
@@ -231,6 +245,8 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
         isFocused: focusedPanel === 'steps',
         selectedStepId,
         onSelectStep: setSelectedStepId,
+        copilotStatus,
+        copilotErrorMessage,
       }),
       React.createElement(
         Box,

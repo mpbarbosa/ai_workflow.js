@@ -430,7 +430,7 @@ describe('Step 9: Dependency Validation', () => {
 
   describe('parseGoDependencies', () => {
     test('counts dependencies from go.mod block syntax', () => {
-      const content = `module example.com/mymod\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.3\n\tgithub.com/stretchr/testify v1.8.4\n)\n`;
+      const content = `module example.com/mymod\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.4\n\tgithub.com/stretchr/testify v1.8.4\n)\n`;
       const result = parseGoDependencies(content);
       expect(result.total).toBe(2);
       expect(result.production).toBe(2);
@@ -473,7 +473,7 @@ describe('Step 9: Dependency Validation', () => {
           Version: 'v0.9.0',
           Update: { Version: 'v0.9.1' },
         }),
-        JSON.stringify({ Path: 'github.com/stretchr/testify', Version: 'v1.9.3' }),
+        JSON.stringify({ Path: 'github.com/stretchr/testify', Version: 'v1.9.4' }),
       ].join('\n');
       const result = parseGoOutdated(output);
       expect(result).toHaveLength(1);
@@ -854,7 +854,7 @@ describe('Step 9: Dependency Validation', () => {
       mockTechStack.detectTechStack = async () => ({ primaryLanguage: 'go', languages: ['go'] });
       mockFileOps.exists = async () => true;
       mockFileOps.readFile = async () =>
-        `module example.com/mymod\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.3\n)\n`;
+        `module example.com/mymod\n\ngo 1.21\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.4\n)\n`;
 
       mockExecutor.execute = async () => ({ stdout: '' });
 

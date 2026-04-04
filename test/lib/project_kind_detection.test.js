@@ -128,7 +128,7 @@ describe('Project Kind Detection - Pure Functions', () => {
     it('should detect Location-Based Service from LBS dependency (leaflet)', () => {
       const packageJson = {
         name: 'my-map-app',
-        dependencies: { leaflet: '^1.9.3' },
+        dependencies: { leaflet: '^1.9.4' },
       };
 
       const result = analyzePackageJson(packageJson);
