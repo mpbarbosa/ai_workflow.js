@@ -1,6 +1,6 @@
 # Advanced Examples
 
-**AI Workflow Automation v1.9.1**
+**AI Workflow Automation v1.9.2**
 **Last Updated:** 2026-02-01
 
 ---
@@ -391,4 +391,4 @@ ai-workflow run --dry-run advanced-workflow.yaml
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.1
+**Version:** 1.9.2

@@ -69,7 +69,7 @@
     "src/steps/step_02_consistency.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-11T22:53:07.387Z"
+      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
     },
     "src/steps/step_03_script_refs.js": {
       "score": 100,
@@ -310,6 +310,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-04T00:34:49.734Z"
+    },
+    "src/steps/step_02_5_lib/consolidation.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
+    },
+    "src/steps/step_02_5_lib/git_analysis.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
+    },
+    "src/steps/step_02_5_lib/heuristics.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
+    },
+    "src/steps/step_02_5_lib/reporting.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
     }
   }
 }
