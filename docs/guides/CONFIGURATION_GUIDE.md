@@ -1,6 +1,6 @@
 # Configuration Guide
 
-**AI Workflow Automation v1.9.0**
+**AI Workflow Automation v1.9.1**
 **Last Updated:** 2026-02-01
 **Audience:** Users setting up workflows
 
@@ -629,7 +629,7 @@ project:
   type: 'python-application'
   kind: 'python_app'
 <<<<<<< HEAD
-  version: '1.9.0'
+  version: '1.9.1'
 =======
   version: '1.6.1'
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
@@ -908,4 +908,4 @@ project:
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.0
+**Version:** 1.9.1

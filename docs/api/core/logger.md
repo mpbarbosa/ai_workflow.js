@@ -1,7 +1,9 @@
+## logger
+
 # logger.js API Documentation
 
 **Module:** `core/logger`
-**Version:** 1.9.0
+**Version:** 1.9.1
 **Architecture:** Class-based
 
 ## Overview
@@ -218,188 +220,208 @@ logger.info('Step 1: Validate documentation');
 ### Error Handling
 
 ```javascript
-const logger = new Logger();
+const l
 
-async function loadConfig(filePath) {
-  try {
-    const config = await readConfigFile(filePath);
-    logger.success(`Configuration loaded: ${filePath}`);
-    return config;
-  } catch (err) {
-    logger.error(`Failed to load configuration: ${filePath}`, err);
-    throw err;
-  }
-}
-```
+---
 
-### Multi-Level Logging
+## logger
+
+# logger - Logging Module
+
+**Module:** `core/logger`
+**Version:** 1.9.1
+**Type:** Class-based with singleton instance
+
+## Overview
+
+Provides colored console output and logging utilities with multiple log levels, prefix support, and quiet/verbose modes. Built on top of the `colors` module for automatic color support detection.
+
+---
+
+## Exports
+
+### `LogLevel` Enum
+
+Log level constants for categorizing messages.
+
+**Type:** `Object<string, string>`
+
+**Values:**
+
+| Level     | Value       | Description           | Color    |
+| --------- | ----------- | --------------------- | -------- |
+| `DEBUG`   | `'debug'`   | Debugging information | Dim gray |
+| `INFO`    | `'info'`    | General information   | Cyan     |
+| `SUCCESS` | `'success'` | Success messages      | Green    |
+| `WARN`    | `'warn'`    | Warning messages      | Yellow   |
+| `ERROR`   | `'error'`   | Error messages        | Red      |
+
+---
+
+### `Logger` Class
+
+Main logger class with configurable output formatting.
+
+#### Constructor
 
 ```javascript
-const logger = new Logger({ verbose: true });
-
-function processWorkflow() {
-  logger.info('Starting workflow processing');
-
-  try {
-    logger.debug('Loading configuration');
-    const config = loadConfig();
-
-    logger.debug('Validating inputs');
-    validateInputs(config);
-
-    logger.debug('Running steps');
-    runSteps(config);
-
-    logger.success('Workflow completed successfully');
-  } catch (err) {
-    logger.error('Workflow failed', err);
-    throw err;
-  }
-}
+new Logger(options?)
 ```
-
-### Conditional Logging
-
-```javascript
-const logger = new Logger();
-
-function processData(items) {
-  if (items.length === 0) {
-    logger.warn('No items to process');
-    return;
-  }
-
-  logger.info(`Processing ${items.length} items`);
-
-  const processed = items
-    .map((item) => {
-      try {
-        return processItem(item);
-      } catch (err) {
-        logger.error(`Failed to process item ${item.id}`, err);
-        return null;
-      }
-    })
-    .filter(Boolean);
-
-  logger.success(`Processed ${processed.length}/${items.length} items`);
-}
-```
-
-## Terminal Support
-
-The logger automatically detects terminal capabilities:
-
-- **Color Support:** Uses ANSI colors if terminal supports them
-- **No Color:** Falls back to plain text if `NO_COLOR` environment variable is set
-- **Emoji Support:** Uses Unicode symbols (✓, ⚠, ✗) for success, warn, error
-
-## Color Scheme
-
-| Level   | Color  | Symbol | Use Case                  |
-| ------- | ------ | ------ | ------------------------- |
-| DEBUG   | Dim    | (none) | Verbose debugging         |
-| INFO    | Blue   | (none) | General information       |
-| SUCCESS | Green  | ✓      | Successful operations     |
-| WARN    | Yellow | ⚠      | Warnings and deprecations |
-| ERROR   | Red    | ✗      | Errors and failures       |
-| PLAIN   | None   | (none) | Unformatted output        |
-
-## Internal Methods
-
-### `_format(message, level)`
-
-Internal method for message formatting (not part of public API).
 
 **Parameters:**
 
-- `message` (string) - Message to format
-- `level` (string) - Log level ('debug', 'info', 'success', 'warn', 'error')
+| Name              | Type      | Default | Description                   |
+| ----------------- | --------- | ------- | ----------------------------- |
+| `options`         | `Object`  | `{}`    | Logger configuration          |
+| `options.quiet`   | `boolean` | `false` | Suppress all non-error output |
+| `options.verbose` | `boolean` | `false` | Enable debug messages         |
+| `options.prefix`  | `string`  | `''`    | Prefix for all messages       |
 
-**Returns:** (string) Formatted message with color and prefix
-
-## Best Practices
-
-### 1. Use Appropriate Log Levels
-
-```javascript
-// Good
-logger.debug('Variable value:', value); // For debugging
-logger.info('Starting process'); // For information
-logger.success('File saved'); // For success
-logger.warn('Using default config'); // For warnings
-logger.error('Failed to connect', err); // For errors
-
-// Bad
-logger.info('Error occurred'); // Use error() instead
-logger.error('Processing complete'); // Use success() instead
-```
-
-### 2. Include Context in Messages
+**Example:**
 
 ```javascript
-// Good
-logger.error(`Failed to load config: ${filePath}`, err);
-logger.success(`Processed ${count} files in ${duration}ms`);
+import { Logger } from './core/logger.js';
 
-// Bad
-logger.error('Error', err);
-logger.success('Done');
-```
-
-### 3. Use Verbose Mode for Debugging
-
-```javascript
 const logger = new Logger({
-  verbose: process.env.DEBUG === 'true',
+  quiet: false,
+  verbose: true,
+  prefix: '[Workflow]',
 });
-
-logger.debug('Detailed debugging information'); // Only in DEBUG mode
-logger.info('Always visible information'); // Always visible
 ```
 
-### 4. Respect Quiet Mode
+---
+
+#### Methods
+
+### `debug(message)`
+
+Log debug message (only shown in verbose mode).
+
+**Parameters:**
+
+| Name      | Type     | Description    |
+| --------- | -------- | -------------- |
+| `message` | `string` | Message to log |
+
+**Output:** `[DEBUG] {prefix} {message}` (dim gray, only if `verbose` enabled)
+
+**Example:**
 
 ```javascript
-// Quiet mode should suppress all output
-const logger = new Logger({
-  quiet: process.argv.includes('--quiet'),
-});
-
-// All logger calls respect quiet mode automatically
-logger.info('This respects quiet mode');
+logger.debug('Variable value: 42');
+// Output (if verbose): [DEBUG] [Workflow] Variable value: 42
 ```
 
-## Error Handling
+---
 
-The logger itself does not throw errors. If console methods fail (rare), errors are silently ignored.
+### `info(message)`
 
-## Performance Considerations
+Log informational message.
 
-- Message formatting only occurs if the message will be displayed
-- Minimal overhead in quiet mode (early return)
-- No file I/O - all output goes to console
+**Parameters:**
 
-## Related Modules
+| Name      | Type     | Description    |
+| --------- | -------- | -------------- |
+| `message` | `string` | Message to log |
 
-- **[colors](./colors.md)** - ANSI color codes used by logger
-- **[errors](../utils/errors.md)** - Custom error classes that work with logger
+**Output:** `{prefix} {message}` (cyan)
 
-## Migration from v0.x
-
-If upgrading from a previous version:
+**Example:**
 
 ```javascript
-// v0.x
-log('info', 'Message');
-
-// v1.0.0
-const logger = new Logger();
-logger.info('Message');
+logger.info('Processing files...');
+// Output: [Workflow] Processing files...
 ```
 
-## See Also
+---
 
-- [Colors API Documentation](./colors.md)
-- [Architecture Overview](../../architecture/OVERVIEW.md)
-- [Developer Guide](../../guides/DEVELOPER_GUIDE.md)
+### `success(message)`
+
+Log success message.
+
+**Parameters:**
+
+| Name      | Type     | Description    |
+| --------- | -------- | -------------- |
+| `message` | `string` | Message to log |
+
+**Output:** `✓ {prefix} {message}` (green)
+
+**Example:**
+
+```javascript
+logger.success('Build completed');
+// Output: ✓ [Workflow] Build completed
+```
+
+---
+
+### `warn(message)`
+
+Log warning message (not suppressed by quiet mode).
+
+**Parameters:**
+
+| Name      | Type     | Description    |
+| --------- | -------- | -------------- |
+| `message` | `string` | Message to log |
+
+**Output:** `⚠ {prefix} {message}` (yellow)
+
+**Example:**
+
+```javascript
+logger.warn('Deprecated API usage');
+// Output: ⚠ [Workflow] Deprecated API usage
+```
+
+---
+
+### `error(message)`
+
+Log error message (never suppressed).
+
+**Parameters:**
+
+| Name      | Type     | Description    |
+| --------- | -------- | -------------- |
+| `message` | `string` | Message to log |
+
+**Output:** `✗ {prefix} {message}` (red)
+
+**Example:**
+
+```javascript
+logger.error('Failed to read file');
+// Output: ✗ [Workflow] Failed to read file
+```
+
+---
+
+### Default Logger Instance
+
+A pre-configured logger instance for convenience.
+
+**Import:**
+
+```javascript
+import { logger } from './core/logger.js';
+```
+
+**Configuration:**
+
+- No prefix
+- Quiet: `false`
+- Verbose: `false`
+
+**Example:**
+
+```javascript
+import { logger } from './core/logger.js';
+
+logger.info('Application started');
+logger.success('Configuration loaded');
+logger.warn('Using default settings');
+```
+
+---

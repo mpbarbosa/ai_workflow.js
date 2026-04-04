@@ -17,4 +17,4 @@ const engine = new WorkflowEngine();
 engine.run();
 ```
 
-## For full API details, see the JSDoc in each module and `docs/api/`.
+## For full API details, see the JSDoc in each module and `docs/api/`

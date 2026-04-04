@@ -217,7 +217,7 @@ Lines 150-164 show planned architecture but doesn't reflect current structure:
 - **package.json:** version "1.0.0"
 - **README:** Project version "1.2.0"
 <<<<<<< HEAD
-- **README Document version:** "1.9.0"
+- **README Document version:** "1.9.1"
 =======
 - **README Document version:** "1.6.1"
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])

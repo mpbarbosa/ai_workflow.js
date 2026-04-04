@@ -124,7 +124,7 @@
     "src/cli/tui/components/StreamViewer.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-10T02:25:15.399Z"
+      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
     },
     "src/cli/tui/helpers.js": {
       "score": 100,
@@ -290,6 +290,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+    },
+    "src/cli/tui/components/StepsPanel.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
+    },
+    "src/cli/commands/status.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
+    },
+    "src/cli/output.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
+    },
+    "src/cli/progress.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
     }
   }
 }

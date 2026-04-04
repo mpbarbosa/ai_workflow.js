@@ -1,3 +1,5 @@
+## CLI_USAGE_GUIDE
+
 # AI Workflow CLI Usage Guide
 
 ## Quick Reference
@@ -195,198 +197,182 @@ ai-workflow clean --cache
 ai-workflow clean --checkpoints
 
 # Clean old files (older than N days)
-ai-workflow clean --older-than-days 7
+ai-workflow
 
-# Keep only last N checkpoints
-ai-workflow clean --checkpoints --keep-last 3
+---
 
-# Preview without deleting
-ai-workflow clean --all --dry-run
+## CLI_ENHANCEMENT_SUMMARY
+
+# CLI Enhancement - Add --project-root and --workflow-dir Options
+
+**Date:** 2026-02-17
+**Status:** ✅ Complete
+**Impact:** Major usability improvement
+
+## Summary
+
+Added `--project-root` and `--workflow-dir` options to the `run` command, enabling workflow execution on any project from any location.
+
+## Changes Made
+
+### 1. CLI Command Enhancement
+
+**File:** `src/cli/index.js`
+
+**Added Options:**
+
+```javascript
+.option('--project-root <path>', 'Project root directory')
+.option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
 ```
 
-## Examples by Scenario
+**Impact:**
 
-### Scenario 1: Daily Development Workflow
+- Users can now run workflows on any project without navigating to its directory
+- Custom workflow artifact directories are supported
+- Enables batch processing of multiple projects
+- Facilitates CI/CD integration
+
+### 2. Usage Examples
+
+**Before (current directory only):**
 
 ```bash
-# Morning: Check what changed
-ai-workflow status
-
-# Before commit: Quick validation
-ai-workflow run --stage quick --auto
-
-# Before push: Full validation
-ai-workflow run --stage full
+cd /path/to/project
+ai-workflow run --stage quick
 ```
 
-### Scenario 2: CI/CD Pipeline
+**After (from anywhere):**
 
 ```bash
-#!/bin/bash
-# In your CI/CD script
+# Run on any project
+ai-workflow run --project-root /path/to/project --stage quick
 
-# Run workflow
+# Custom workflow directory
+ai-workflow run --project-root /path/to/project --workflow-dir .custom_workflow
+
+# Batch process multiple projects
+for project in ~/projects/*/; do
+  ai-workflow run --project-root "$project" --stage quick --auto
+done
+```
+
+### 3. Tests Added
+
+**File:** `test/cli/commands/run.test.js`
+
+**New Tests (5):**
+
+1. ✅ should handle custom project root path
+2. ✅ should handle custom workflow directory
+3. ✅ should handle both custom project root and workflow dir
+4. ✅ should handle relative project root paths
+5. ✅ should handle absolute workflow directory paths
+
+**Test Results:**
+
+```
+Tests: 15 passed, 15 total (was 10 total)
+All tests passing
+```
+
+### 4. Documentation Created
+
+**File:** `docs/CLI_USAGE_GUIDE.md`
+
+**Contents:**
+
+- Complete CLI reference
+- All command options documented
+- Common use cases with examples
+- CI/CD integration patterns
+- Batch processing examples
+- Troubleshooting guide
+- Best practices
+
+## Verification
+
+### Help Text
+
+```bash
+$ ai-workflow run --help
+Usage: ai-workflow run [options]
+
+Run the AI workflow
+
+Options:
+  --stage <stage>        Workflow stage (quick, medium, full) (default: "full")
+  --auto                 Run in automatic mode without prompts (default: false)
+  --dry-run              Preview execution without running (default: false)
+  --project-root <path>  Project root directory
+  --workflow-dir <path>  Workflow directory (default: ".ai_workflow")
+  -h, --help             display help for command
+```
+
+### Functional Test
+
+```bash
+# From /tmp, run workflow on ai_workflow.js project
+$ cd /tmp
+$ ai-workflow run --project-root /home/mpb/Documents/GitHub/ai_workflow.js --stage quick --dry-run
+
+✓ Health checks passed
+✓ Registered 20 workflow steps
+✓ Workflow loaded: AI Workflow Automation v2.0.0
+```
+
+## Use Cases Enabled
+
+### 1. CI/CD Integration
+
+```bash
 ai-workflow run \
   --project-root $CI_PROJECT_DIR \
   --stage full \
   --auto \
   --quiet
-
-# Check exit code
-if [ $? -eq 0 ]; then
-  echo "Workflow passed"
-else
-  echo "Workflow failed"
-  exit 1
-fi
 ```
 
-### Scenario 3: Batch Processing Multiple Projects
+### 2. Batch Processing
 
 ```bash
-#!/bin/bash
-# Process all projects in a directory
-
 for project in ~/projects/*/; do
-  echo "Processing: $project"
-  ai-workflow run \
-    --project-root "$project" \
-    --stage quick \
-    --auto \
-    || echo "Failed: $project"
+  ai-workflow run --project-root "$project" --stage quick --auto
 done
 ```
 
-### Scenario 4: Pre-commit Hook
+### 3. Pre-commit Hooks
 
 ```bash
 #!/bin/bash
-# .git/hooks/pre-commit
-
-# Run quick validation before commit
-ai-workflow run --stage quick --auto --quiet
-
-# Prevent commit if workflow fails
-exit $?
+ai-workflow run --project-root $(git rev-parse --show-toplevel) --stage quick --auto
 ```
 
-## Environment Variables
+### 4. Multi-Project Validation
 
 ```bash
-# Override default config location
-export AI_WORKFLOW_CONFIG=/path/to/config.yaml
-
-# Set log level
-export AI_WORKFLOW_LOG_LEVEL=debug
-
-# Disable colors
-export NO_COLOR=1
-
-# Run with environment
-AI_WORKFLOW_CONFIG=custom.yaml ai-workflow run
+ai-workflow run --project-root ~/api --stage quick
+ai-workflow run --project-root ~/frontend --stage quick
+ai-workflow run --project-root ~/backend --stage full
 ```
 
-## Exit Codes
-
-- `0` - Workflow completed successfully
-- `1` - Workflow failed (errors during execution)
-- `2` - Invalid command or options
-- `3` - Configuration error
-
-## Output and Artifacts
-
-### Workflow Directory Structure
-
-```
-.ai_workflow/
-├── backlog/              # Execution reports
-│   └── workflow_*.json
-├── summaries/            # AI summaries
-│   └── workflow_*/
-├── logs/                 # Execution logs
-│   └── workflow_*.log
-├── metrics/              # Performance data
-│   └── metrics_*.json
-├── checkpoints/          # Resume points
-│   └── checkpoint_*.json
-└── prompts/              # AI prompts (debugging)
-    └── prompt_*.txt
-```
-
-### Generated Files
-
-```
-.workflow-config.yaml     # Project configuration
-.ai_workflow/             # Workflow artifacts
-```
-
-## Tips and Best Practices
-
-1. **Start with Quick Stage**: Use `--stage quick` for fast iterations
-2. **Use Auto Mode in CI/CD**: Add `--auto` to prevent interactive prompts
-3. **Dry Run First**: Test with `--dry-run` before actual execution
-4. **Specify Project Root**: Use `--project-root` for clarity in scripts
-5. **Resume from Checkpoints**: Long workflows can be resumed if interrupted
-6. **Clean Regularly**: Use `ai-workflow clean` to manage artifact size
-7. **Check Status**: Run `ai-workflow status` to see recent activity
-
-## Troubleshooting
-
-### Workflow Fails to Start
+### 5. Custom Artifact Directories
 
 ```bash
-# Check configuration
-ai-workflow config validate
-
-# Check with verbose logging
-ai-workflow run --verbose
-
-# Try with dry-run
-ai-workflow run --dry-run
+# Separate artifacts by environment
+ai-workflow run --workflow-dir .ai_workflow_dev
+ai-workflow run --workflow-dir .ai_workflow_staging
 ```
 
-### "No configuration found"
+## Benefits
 
-```bash
-# Initialize configuration
-ai-workflow init --project-root /path/to/project
-```
+1. **Flexibility**: Run workflows from anywhere on any project
+2. **Automation**: Enable scripting and batch processing
+3. **CI/CD**: Seamless integration with build pipelines
+4. **Organization**: Custom artifact directory per environment
+5. **Usability**: No need to navigate to project directory
 
-### Permission Issues
+## Breaking Changes
 
-```bash
-# Check workflow directory permissions
-ls -la .ai_workflow
+None. The changes are backward compatible:
 
-# Create directory if missing
-mkdir -p .ai_workflow
-```
-
-### Resume Not Working
-
-```bash
-# List available checkpoints
-ai-workflow resume --list
-
-# Check checkpoint file
-cat .ai_workflow/checkpoints/checkpoint_*.json
-```
-
-## Related Documentation
-
-- [Installation Guide](./getting-started/INSTALLATION.md)
-- [Configuration Guide](./guides/CONFIGURATION_GUIDE.md)
-- [API Reference](./api/README.md)
-- [Developer Guide](./guides/DEVELOPER_GUIDE.md)
-
----
-
-**Last Updated:** 2026-02-20
-<<<<<<< HEAD
-**Version:** 1.9.0
-**For:** ai_workflow.js v1.9.0+
-=======
-**Version:** 1.9.0
-**For:** ai_workflow.js v1.6.1+
-
-> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])

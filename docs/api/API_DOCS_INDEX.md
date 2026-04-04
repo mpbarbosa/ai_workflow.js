@@ -1,3 +1,5 @@
+## API_DOCS_INDEX
+
 # API Documentation Index
 
 **AI Workflow Automation v2.0.0**
@@ -91,185 +93,184 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 **4 Modules | Pure Functions + Wrappers**
 
 | Module                                  | Purpose       | Key Features                             |
-| --------------------------------------- | ------------- | ---------------------------------------- |
-| [config](./lib/config.md)                   | Configuration | Path calculation, metadata generation    |
-| [backlog](./lib/backlog.md)                 | Reporting     | Workflow summaries, markdown generation  |
-| [session_manager](./lib/session_manager.md) | Session mgmt  | Session tracking, cleanup queues         |
-| [metrics](./metrics.md)                 | Metrics       | Duration tracking, step timing, counters |
-
-### File Operations & Utilities (Phase 3)
-
-**5 Modules | Pure Functions + Wrappers**
-
-| Module                                    | Purpose      | Key Features                          |
-| ----------------------------------------- | ------------ | ------------------------------------- |
-| [file_operations](./lib/file_operations.md)   | File system  | Read, write, list, filter, validation |
-| [edit_operations](./lib/edit_operations.md)   | File editing | Find, replace, insert, extract        |
-| [utils](./utils.md)                       | Utilities    | String, array, object, date utilities |
-| [argument_parser](./lib/argument_parser.md)   | CLI parsing  | Flag/option parsing, validation       |
-| [cleanup_handlers](./cleanup_handlers.md) | Cleanup      | Age-based, size-based file cleanup    |
-
-### Project Detection (Phase 4)
-
-**4 Modules | Pure Functions + Wrappers (v1.0.0)**
-
-| Module                                                    | Purpose             | Key Features                              |
-| --------------------------------------------------------- | ------------------- | ----------------------------------------- |
-| [project_kind_detection](./lib/project_kind_detection.md) | Project detection   | Auto-detect from files, 8 project kinds   |
-| [project_kind_config](./lib/project_kind_config.md)       | Config management   | Load YAML configs, merge overrides        |
-| [tech_stack](./lib/tech_stack.md)                         | Tech stack analysis | Detect languages, frameworks, build tools |
-| [third_party_exclusion](./lib/third_party_exclusion.md)   | File filtering      | Exclude third-party code, .gitignore      |
-
-### AI Integration (Phase 6)
-
-**6 Modules | Pure Functions + Wrappers (v2.0.0)**
-
-| Module                                          | Purpose             | Key Features                             |
-| ----------------------------------------------- | ------------------- | ---------------------------------------- |
-| [jq_wrapper](./lib/jq_wrapper.md)               | JSON processing     | Safe jq execution, validation, parsing   |
-| [ai_personas](./lib/ai_personas.md)             | Persona management  | 14 personas, lookup, validation          |
-| [ai_validation](./lib/ai_validation.md)         | Response validation | Confidence scoring, fallback strategies  |
-| [ai_cache](./lib/ai_cache.md)                   | Response caching    | TTL, disk storage, 60-80% token savings  |
-| [ai_prompt_builder](./lib/ai_prompt_builder.md) | Prompt construction | Templates, context injection, structured |
-| [ai_helpers](./lib/ai_helpers.md)               | AI orchestration    | SDK integration, retry, batch processing |
-
-### Workflow Orchestration (Phase 7)
-
-**6 Modules | Pure Functions + Wrappers (v2.0.0)**
-
-| Module                                                         | Purpose                | Key Features                                    |
-| -------------------------------------------------------------- | ---------------------- | ----------------------------------------------- |
-| [workflow_engine](./orchestrator/workflow_engine.md)           | Workflow orchestration | Execution, dependency management, checkpoints   |
-| [step_registry](./orchestrator/step_registry.md)               | Step management        | Registration, validation, filtering             |
-| [dependency_resolver](./orchestrator/dependency_resolver.md)   | Dependency resolution  | Topological sort, parallel grouping, validation |
-| [step_executor](./orchestrator/step_executor.md)               | Step execution         | Timeout, retry, validation, event emission      |
-| [conditional_executor](./orchestrator/conditional_executor.md) | Conditional logic      | Change detection, impact analysis, smart skip   |
-| [checkpoint_manager](./orchestrator/checkpoint_manager.md)     | State management       | Save/resume, cleanup, validation                |
+| --------------------------------------- | ------------- | ----------------------------------
 
 ---
 
-## Architecture Patterns
+## README
 
-### Pure Functions (Referential Transparency)
+# API Reference
 
-All modules follow **pure functional** design principles:
+**Version:** 2.0.0
+**Last Updated:** February 7, 2026
 
-- **Deterministic:** Same inputs always produce same outputs
-- **No side effects:** Don't modify external state
-- **Composable:** Functions can be combined easily
-- **Testable:** Easy to unit test in isolation
+Complete API documentation for ai_workflow.js modules (Phase 1-8).
 
-**Example Pattern:**
+**✅ Phase 4 Complete:** Project Detection modules now fully documented!
+**✅ Phase 5 Complete:** Git Integration modules now fully documented!
+**✅ Phase 6 Complete:** AI Integration modules now fully documented!
+**✅ Phase 7 Complete:** Orchestrator modules now fully documented!
+**🚧 Phase 8 In Progress:** Performance Optimization (step1_parallel)
 
-```javascript
-// Pure function (Phase 1-3 modules)
-export function calculateDuration(startTime, endTime) {
-  return endTime - startTime;
-}
+## 📦 Module Categories
 
-// I/O wrapper class (Phase 2-5 modules)
-export class Metrics {
-  constructor(fileOps) {
-    this.fileOps = fileOps;
-  }
+### Core Modules (Phase 1 - v1.0.0)
 
-  async saveDuration(start, end) {
-    const duration = calculateDuration(start, end);
-    await this.fileOps.writeFile('metrics.json', JSON.stringify({ duration }));
-  }
-}
-```
+Foundation utilities providing basic functionality:
 
-### Module Structure
+- **[colors](./core/colors.md)** - ANSI color codes with terminal support detection
+- **[logger](./core/logger.md)** - Colored logging system with multiple severity levels
+- **[system](./core/system.md)** - OS detection and system configuration
+- **[version](./core/version.md)** - Semantic version parsing and comparison
+- **[executor](./core/executor.md)** - Command execution with async/streaming support
 
-Modules are organized into two layers:
+### Library Modules (Phase 2-5 - v2.0.0 or v1.0.0)
 
-1. **Pure Functions** (lines ~15-200)
-  - Core business logic
-  - No I/O operations
-  - 100% testable
+Core libraries implementing business logic:
 
-2. **Wrapper Classes** (lines ~200-end)
-  - Handle I/O operations
-  - Integrate with file system, logger, etc.
-  - Compose pure functions
+#### Configuration & State Management (Phase 2)
 
----
+- **[config](./lib/config.md)** - Configuration file management with validation
+- **[backlog](./lib/backlog.md)** - Workflow summary and backlog reporting
+- **[session_manager](./lib/session_manager.md)** - Session lifecycle management
+- **[metrics](./lib/metrics.md)** - Performance metrics collection and reporting
 
-## Module Relationships
+#### File Operations (Phase 3)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Application Layer                        │
-│                    (Your Workflow Code)                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Phase 3 Modules                         │
-│  file_operations  edit_operations  utils  argument_parser   │
-│                   cleanup_handlers                           │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Phase 2 Modules                         │
-│    config  backlog  session_manager  metrics                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Phase 1 Modules                         │
-│  colors  logger  system  version  executor  errors          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Node.js Built-ins                         │
-│        fs  path  os  child_process  crypto  util            │
-└─────────────────────────────────────────────────────────────┘
-```
+- **[file_operations](./lib/file_operations.md)** - File system operations (read, write, copy, etc.)
+- **[edit_operations](./lib/edit_operations.md)** - File editing utilities (find, replace, diff, etc.)
+- **[utils](./lib/utils.md)** - General utility functions (string, array, object helpers)
+- **[argument_parser](./lib/argument_parser.md)** - CLI argument parsing with validation
+- **[cleanup_handlers](./lib/cleanup_handlers.md)** - Cleanup operations (temp files, cache, etc.)
 
----
+### Utility Modules (Phase 1 - v1.0.0)
 
-## Version History
+Helper utilities:
 
-| Version | Date       | Changes                                          |
-| ------- | ---------- | ------------------------------------------------ |
-| 2.2.0   | 2026-02-07 | Added Phase 6 AI integration modules (6 docs)    |
-| 2.1.0   | 2026-02-07 | Added Phase 4 project detection modules (4 docs) |
-| 2.0.0   | 2026-02-07 | Added Phase 7 orchestrator modules (6 docs)      |
-| 1.0.0   | 2026-02-01 | Initial API documentation release                |
+- **[errors](./utils/errors.md)** - Custom error class hierarchy for workflow errors
+
+#### Project Detection (Phase 4 - v1.0.0)
+
+- **[project_kind_detection](./lib/project_kind_detection.md)** - Auto-detect project type from file patterns
+- **[project_kind_config](./lib/project_kind_config.md)** - Load/parse project configs from YAML
+- **[tech_stack](./lib/tech_stack.md)** - Detect languages, frameworks, tools
+- **[third_party_exclusion](./lib/third_party_exclusion.md)** - Filter third-party files from analysis
+
+#### Git Integration (Phase 5 - v2.0.0)
+
+- **[git_automation](./lib/git_automation.md)** - Git operations (status, diff, commit)
+- **[git_cache](./lib/git_cache.md)** - Git operation caching with invalidation
+- **[auto_commit](./lib/auto_commit.md)** - Automatic artifact commits
+- **[change_detection](./lib/change_detection.md)** - File change detection and categorization
+
+#### AI Integration (Phase 6 - v2.0.0)
+
+- **[jq_wrapper](./lib/jq_wrapper.md)** - JSON processing with jq CLI
+- **[ai_personas](./lib/ai_personas.md)** - AI persona management
+- **[ai_validation](./lib/ai_validation.md)** - AI response validation
+- **[ai_cache](./lib/ai_cache.md)** - AI response caching
+- **[ai_prompt_builder](./lib/ai_prompt_builder.md)** - AI prompt construction
+- **[ai_helpers](./lib/ai_helpers.md)** - AI helper utilities
+
+#### Performance Optimization (Phase 8 - v2.0.0) 🚧
+
+- **[step1_parallel](./lib/step1_parallel.md)** - Parallel documentation validation for Step 1
+
+### Orchestrator Modules (Phase 7 - v2.0.0)
+
+Workflow orchestration and execution management:
+
+- **[workflow_engine](./orchestrator/workflow_engine.md)** - Core workflow orchestration engine
+- **[step_registry](./orchestrator/step_registry.md)** - Step definition and registration
+- **[dependency_resolver](./orchestrator/dependency_resolver.md)** - Dependency graph and topological sort
+- **[step_executor](./orchestrator/step_executor.md)** - Step execution
 
 ---
 
-## Documentation Standards
+## README
 
-All API documentation files follow these conventions:
+# API Reference
 
-- **Module header:** Name, version, type
-- **Overview:** Brief description and purpose
-- **Exports:** All exported members
-- **Functions:** Detailed parameters, returns, examples
-- **Usage examples:** Real-world code samples
-- **Related modules:** Cross-references
-- **Best practices:** Recommended patterns
+**Version:** 2.0.0
+**Last Updated:** February 7, 2026
 
----
+Complete API documentation for ai_workflow.js modules (Phase 1-8).
 
-## Contributing
+**✅ Phase 4 Complete:** Project Detection modules now fully documented!
+**✅ Phase 5 Complete:** Git Integration modules now fully documented!
+**✅ Phase 6 Complete:** AI Integration modules now fully documented!
+**✅ Phase 7 Complete:** Orchestrator modules now fully documented!
+**🚧 Phase 8 In Progress:** Performance Optimization (step1_parallel)
 
-When adding new modules or updating existing ones:
+## 📦 Module Categories
 
-1. Follow the existing documentation structure
-2. Include code examples for all public APIs
-3. Document parameters, return values, and types
-4. Add usage examples and best practices
-5. Update this index file
+### Core Modules (Phase 1 - v1.0.0)
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for full guidelines.
+Foundation utilities providing basic functionality:
 
----
+- **[colors](./core/colors.md)** - ANSI color codes with terminal support detection
+- **[logger](./core/logger.md)** - Colored logging system with multiple severity levels
+- **[system](./core/system.md)** - OS detection and system configuration
+- **[version](./core/version.md)** - Semantic version parsing and comparison
+- **[executor](./core/executor.md)** - Command execution with async/streaming support
 
-**Last Updated:** 2026-02-07
-**Part of:** AI Workflow Automation v2.0.0
+### Library Modules (Phase 2-5 - v2.0.0 or v1.0.0)
+
+Core libraries implementing business logic:
+
+#### Configuration & State Management (Phase 2)
+
+- **[config](./lib/config.md)** - Configuration file management with validation
+- **[backlog](./lib/backlog.md)** - Workflow summary and backlog reporting
+- **[session_manager](./lib/session_manager.md)** - Session lifecycle management
+- **[metrics](./lib/metrics.md)** - Performance metrics collection and reporting
+
+#### File Operations (Phase 3)
+
+- **[file_operations](./lib/file_operations.md)** - File system operations (read, write, copy, etc.)
+- **[edit_operations](./lib/edit_operations.md)** - File editing utilities (find, replace, diff, etc.)
+- **[utils](./lib/utils.md)** - General utility functions (string, array, object helpers)
+- **[argument_parser](./lib/argument_parser.md)** - CLI argument parsing with validation
+- **[cleanup_handlers](./lib/cleanup_handlers.md)** - Cleanup operations (temp files, cache, etc.)
+
+### Utility Modules (Phase 1 - v1.0.0)
+
+Helper utilities:
+
+- **[errors](./utils/errors.md)** - Custom error class hierarchy for workflow errors
+
+#### Project Detection (Phase 4 - v1.0.0)
+
+- **[project_kind_detection](./lib/project_kind_detection.md)** - Auto-detect project type from file patterns
+- **[project_kind_config](./lib/project_kind_config.md)** - Load/parse project configs from YAML
+- **[tech_stack](./lib/tech_stack.md)** - Detect languages, frameworks, tools
+- **[third_party_exclusion](./lib/third_party_exclusion.md)** - Filter third-party files from analysis
+
+#### Git Integration (Phase 5 - v2.0.0)
+
+- **[git_automation](./lib/git_automation.md)** - Git operations (status, diff, commit)
+- **[git_cache](./lib/git_cache.md)** - Git operation caching with invalidation
+- **[auto_commit](./lib/auto_commit.md)** - Automatic artifact commits
+- **[change_detection](./lib/change_detection.md)** - File change detection and categorization
+
+#### AI Integration (Phase 6 - v2.0.0)
+
+- **[jq_wrapper](./lib/jq_wrapper.md)** - JSON processing with jq CLI
+- **[ai_personas](./lib/ai_personas.md)** - AI persona management
+- **[ai_validation](./lib/ai_validation.md)** - AI response validation
+- **[ai_cache](./lib/ai_cache.md)** - AI response caching
+- **[ai_prompt_builder](./lib/ai_prompt_builder.md)** - AI prompt construction
+- **[ai_helpers](./lib/ai_helpers.md)** - AI helper utilities
+
+#### Performance Optimization (Phase 8 - v2.0.0) 🚧
+
+- **[step1_parallel](./lib/step1_parallel.md)** - Parallel documentation validation for Step 1
+
+### Orchestrator Modules (Phase 7 - v2.0.0)
+
+Workflow orchestration and execution management:
+
+- **[workflow_engine](./orchestrator/workflow_engine.md)** - Core workflow orchestration engine
+- **[step_registry](./orchestrator/step_registry.md)** - Step definition and registration
+- **[dependency_resolver](./orchestrator/dependency_resolver.md)** - Dependency graph and topological sort
+- **[step_executor](./orchestrator/step_executor.md)** - Step execution
