@@ -93,12 +93,12 @@ function matchPattern(file, pattern) {
   // Convert glob pattern to regex using placeholders to prevent double-replacement
   const regexPattern = pattern
     .replace(/\./g, '\\.')
-    .replace(/\*\*\//g, '\x01')   // **/ → placeholder1 (optional intermediate dirs)
-    .replace(/\*\*/g, '\x02')     // ** → placeholder2 (match across dirs)
-    .replace(/\*/g, '[^/]*')      // * → match within a single dir segment
+    .replace(/\*\*\//g, '\x01') // **/ → placeholder1 (optional intermediate dirs)
+    .replace(/\*\*/g, '\x02') // ** → placeholder2 (match across dirs)
+    .replace(/\*/g, '[^/]*') // * → match within a single dir segment
     .replace(/\?/g, '.')
-    .replace(/\x01/g, '(.*/)?')   // restore **/ as optional path prefix
-    .replace(/\x02/g, '.*');      // restore ** as cross-dir match
+    .replace(new RegExp(String.fromCharCode(1), 'g'), '(.*/)?') // restore **/ as optional path prefix
+    .replace(new RegExp(String.fromCharCode(2), 'g'), '.*'); // restore ** as cross-dir match
 
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(file);
@@ -306,4 +306,11 @@ if (process.argv[1] && process.argv[1].endsWith('analyze-change-impact.js')) {
   main();
 }
 
-export { matchPattern, matchesAnyPattern, analyzeChangeImpact, determineExecutionStrategy, STEP_PATTERNS, IMPACT_LEVELS };
+export {
+  matchPattern,
+  matchesAnyPattern,
+  analyzeChangeImpact,
+  determineExecutionStrategy,
+  STEP_PATTERNS,
+  IMPACT_LEVELS,
+};

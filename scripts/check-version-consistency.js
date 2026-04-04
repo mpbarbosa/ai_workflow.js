@@ -42,7 +42,9 @@ export function getPackageVersion() {
     const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
     return pkg.version;
   } catch (err) {
-    throw new Error(`Failed to read package.json at ${packagePath}: ${err.message}`);
+    throw new Error(`Failed to read package.json at ${packagePath}: ${err.message}`, {
+      cause: err,
+    });
   }
 }
 
@@ -214,8 +216,14 @@ export function autoFixInconsistencies(inconsistencies, packageVersion) {
           `  ${colors.green}✓ Fixed${colors.reset} ${item.file} (${item.versions.join(', ')} → ${packageVersion})`
         );
       } else {
-        results.push({ file: item.file, fixed: false, error: 'version string not found in file content' });
-        console.log(`  ${colors.yellow}⚠ Skipped${colors.reset} ${item.file} — version string not replaceable`);
+        results.push({
+          file: item.file,
+          fixed: false,
+          error: 'version string not found in file content',
+        });
+        console.log(
+          `  ${colors.yellow}⚠ Skipped${colors.reset} ${item.file} — version string not replaceable`
+        );
       }
     } catch (err) {
       results.push({ file: item.file, fixed: false, error: err.message });
@@ -228,43 +236,49 @@ export function autoFixInconsistencies(inconsistencies, packageVersion) {
 
 // Run check (only when executed directly, not when imported as a module)
 if (process.argv[1] === __filename) {
-try {
-  const autoFix = process.argv.includes('--auto-fix') || process.argv.includes('--fix');
-  const exitCode = checkVersionConsistency();
+  try {
+    const autoFix = process.argv.includes('--auto-fix') || process.argv.includes('--fix');
+    const exitCode = checkVersionConsistency();
 
-  if (exitCode !== 0 && autoFix) {
-    console.log(`\n${colors.cyan}🔧 Auto-fix mode — attempting to correct inconsistencies...${colors.reset}\n`);
+    if (exitCode !== 0 && autoFix) {
+      console.log(
+        `\n${colors.cyan}🔧 Auto-fix mode — attempting to correct inconsistencies...${colors.reset}\n`
+      );
 
-    // Re-run check to collect the inconsistency list for fixing
-    const packageVersion = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf-8')).version;
-    const markdownFiles = findMarkdownFiles(projectRoot);
-    const toFix = [];
-    markdownFiles.forEach((filePath) => {
-      const versions = extractVersionReferences(filePath);
-      const outdated = Array.from(versions).filter((v) => v !== packageVersion);
-      if (outdated.length > 0) {
-        toFix.push({ file: filePath, versions: outdated });
+      // Re-run check to collect the inconsistency list for fixing
+      const packageVersion = JSON.parse(
+        readFileSync(join(projectRoot, 'package.json'), 'utf-8')
+      ).version;
+      const markdownFiles = findMarkdownFiles(projectRoot);
+      const toFix = [];
+      markdownFiles.forEach((filePath) => {
+        const versions = extractVersionReferences(filePath);
+        const outdated = Array.from(versions).filter((v) => v !== packageVersion);
+        if (outdated.length > 0) {
+          toFix.push({ file: filePath, versions: outdated });
+        }
+      });
+
+      const fixResults = autoFixInconsistencies(toFix, packageVersion);
+      const fixed = fixResults.filter((r) => r.fixed).length;
+      const failed = fixResults.filter((r) => !r.fixed).length;
+
+      console.log(
+        `\n${colors.cyan}Auto-fix summary:${colors.reset} ${fixed} fixed, ${failed} could not be fixed`
+      );
+
+      if (failed === 0) {
+        console.log(`${colors.green}✓ All inconsistencies resolved${colors.reset}`);
+        process.exit(0);
+      } else {
+        console.log(`${colors.red}✗ ${failed} file(s) still need manual attention${colors.reset}`);
+        process.exit(1);
       }
-    });
-
-    const fixResults = autoFixInconsistencies(toFix, packageVersion);
-    const fixed = fixResults.filter((r) => r.fixed).length;
-    const failed = fixResults.filter((r) => !r.fixed).length;
-
-    console.log(`\n${colors.cyan}Auto-fix summary:${colors.reset} ${fixed} fixed, ${failed} could not be fixed`);
-
-    if (failed === 0) {
-      console.log(`${colors.green}✓ All inconsistencies resolved${colors.reset}`);
-      process.exit(0);
-    } else {
-      console.log(`${colors.red}✗ ${failed} file(s) still need manual attention${colors.reset}`);
-      process.exit(1);
     }
-  }
 
-  process.exit(exitCode);
-} catch (error) {
-  console.error(`${colors.red}Fatal error:${colors.reset}`, error);
-  process.exit(1);
-}
+    process.exit(exitCode);
+  } catch (error) {
+    console.error(`${colors.red}Fatal error:${colors.reset}`, error);
+    process.exit(1);
+  }
 } // end isMain guard
