@@ -20,6 +20,11 @@ import {
   formatUxAnalysisReport,
   FRAMEWORK_EXTENSIONS,
   EXCLUDED_DIRECTORIES,
+  TUI_PROJECT_KINDS,
+  TUI_DEPENDENCY_PATTERNS,
+  isTuiProjectKind,
+  hasTuiDependencies,
+  filterTuiFiles,
 } from '../../src/steps/step_15_ux_analysis.js';
 
 describe('Step 15: UX Analysis', () => {
@@ -782,6 +787,212 @@ describe('Step 15: UX Analysis', () => {
       });
       expect(step).toBeDefined();
       expect(step.aiHelper).toBeDefined();
+    });
+  });
+
+  // ==========================================================================
+  // TUI DETECTION - Pure Functions
+  // ==========================================================================
+
+  describe('isTuiProjectKind', () => {
+    test('returns true for nodejs_cli', () => {
+      expect(isTuiProjectKind('nodejs_cli')).toBe(true);
+    });
+
+    test('returns true for cli_tool', () => {
+      expect(isTuiProjectKind('cli_tool')).toBe(true);
+    });
+
+    test('returns false for react_spa', () => {
+      expect(isTuiProjectKind('react_spa')).toBe(false);
+    });
+
+    test('returns false for nodejs_api', () => {
+      expect(isTuiProjectKind('nodejs_api')).toBe(false);
+    });
+
+    test('returns false for generic', () => {
+      expect(isTuiProjectKind('generic')).toBe(false);
+    });
+  });
+
+  describe('hasTuiDependencies', () => {
+    test('returns true when ink is in dependencies', () => {
+      expect(hasTuiDependencies({ dependencies: { ink: '^5.0.0' } })).toBe(true);
+    });
+
+    test('returns true when pajussara_tui_comp is in devDependencies', () => {
+      expect(hasTuiDependencies({ devDependencies: { pajussara_tui_comp: '^1.0.0' } })).toBe(true);
+    });
+
+    test('returns true when blessed is in dependencies', () => {
+      expect(hasTuiDependencies({ dependencies: { blessed: '^0.1.81' } })).toBe(true);
+    });
+
+    test('returns false when no TUI deps present', () => {
+      expect(hasTuiDependencies({ dependencies: { express: '^4.0.0', lodash: '^4.0.0' } })).toBe(
+        false
+      );
+    });
+
+    test('returns false for null input', () => {
+      expect(hasTuiDependencies(null)).toBe(false);
+    });
+
+    test('returns false for empty object', () => {
+      expect(hasTuiDependencies({})).toBe(false);
+    });
+
+    test('returns false for non-object input', () => {
+      expect(hasTuiDependencies('invalid')).toBe(false);
+    });
+  });
+
+  describe('filterTuiFiles', () => {
+    test('returns only .tsx and .jsx files', () => {
+      const files = [
+        'src/App.tsx',
+        'src/Button.jsx',
+        'src/styles.css',
+        'src/index.html',
+        'src/utils.ts',
+        'src/Panel.tsx',
+      ];
+      expect(filterTuiFiles(files)).toEqual(['src/App.tsx', 'src/Button.jsx', 'src/Panel.tsx']);
+    });
+
+    test('excludes files in build/node_modules directories', () => {
+      const files = ['src/App.tsx', 'node_modules/ink/src/Panel.tsx', 'dist/App.jsx'];
+      expect(filterTuiFiles(files)).toEqual(['src/App.tsx']);
+    });
+
+    test('returns empty array when no .tsx/.jsx files present', () => {
+      expect(filterTuiFiles(['src/index.ts', 'src/styles.css'])).toEqual([]);
+    });
+  });
+
+  describe('TUI_PROJECT_KINDS and TUI_DEPENDENCY_PATTERNS constants', () => {
+    test('TUI_PROJECT_KINDS contains expected kinds', () => {
+      expect(TUI_PROJECT_KINDS).toContain('nodejs_cli');
+      expect(TUI_PROJECT_KINDS).toContain('cli_tool');
+    });
+
+    test('TUI_DEPENDENCY_PATTERNS contains ink and pajussara_tui_comp', () => {
+      expect(TUI_DEPENDENCY_PATTERNS).toContain('ink');
+      expect(TUI_DEPENDENCY_PATTERNS).toContain('pajussara_tui_comp');
+      expect(TUI_DEPENDENCY_PATTERNS).toContain('blessed');
+    });
+  });
+
+  // ==========================================================================
+  // TUI DETECTION - Integration (execute() routing)
+  // ==========================================================================
+
+  describe('Step15UxAnalysis TUI routing', () => {
+    let mockBacklog;
+    let mockLogger;
+
+    beforeEach(() => {
+      mockBacklog = {
+        saveStepSummary: jest.fn(),
+        saveStepIssues: jest.fn(),
+      };
+      mockLogger = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        success: jest.fn(),
+        step: jest.fn(),
+      };
+    });
+
+    test('skips nodejs_cli with no TUI deps (no package.json)', async () => {
+      const step = new Step15UxAnalysis({ backlog: mockBacklog, logger: mockLogger });
+      step.fileOps = {
+        readFile: jest.fn().mockRejectedValue(new Error('ENOENT')),
+      };
+      step.discoverFiles = jest.fn().mockResolvedValue([]);
+
+      const result = await step.execute({ projectType: 'nodejs_cli' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('non-web project kind: nodejs_cli');
+    });
+
+    test('skips nodejs_cli when package.json has no TUI deps', async () => {
+      const step = new Step15UxAnalysis({ backlog: mockBacklog, logger: mockLogger });
+      step.fileOps = {
+        readFile: jest
+          .fn()
+          .mockResolvedValue(JSON.stringify({ dependencies: { express: '^4.0.0' } })),
+      };
+      step.discoverFiles = jest.fn().mockResolvedValue([]);
+
+      const result = await step.execute({ projectType: 'nodejs_cli' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+    });
+
+    test('skips when TUI deps present but no .tsx/.jsx files found', async () => {
+      const step = new Step15UxAnalysis({ backlog: mockBacklog, logger: mockLogger });
+      step.fileOps = {
+        readFile: jest.fn().mockResolvedValue(JSON.stringify({ dependencies: { ink: '^5.0.0' } })),
+      };
+      // Only .ts files — no .tsx/.jsx
+      step.discoverFiles = jest.fn().mockResolvedValue(['src/index.ts', 'src/utils.ts']);
+
+      const result = await step.execute({ projectType: 'nodejs_cli' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('no UI files found');
+    });
+
+    test('runs TUI analysis using tui_ux_designer_prompt when ink dep is present', async () => {
+      const prompts = [];
+      const step = new Step15UxAnalysis({ backlog: mockBacklog, logger: mockLogger });
+
+      step.fileOps = {
+        readFile: jest.fn().mockImplementation((p) => {
+          if (p.endsWith('package.json')) {
+            return Promise.resolve(JSON.stringify({ dependencies: { ink: '^5.0.0' } }));
+          }
+          // Stub ai_helpers.yaml with a minimal tui_ux_designer_prompt
+          if (p.includes('ai_helpers')) {
+            return Promise.resolve(
+              [
+                'tui_ux_designer_prompt:',
+                '  role_prefix: |',
+                '    You are a TUI engineer.',
+                '  task_template: |',
+                '    Review {project_name} TUI. Kind: {project_kind}. Files: {modified_count}.',
+              ].join('\n')
+            );
+          }
+          return Promise.resolve('// component code');
+        }),
+      };
+      step.discoverFiles = jest.fn().mockResolvedValue(['src/Panel.tsx', 'src/List.jsx']);
+      step.performAnalysis = jest.fn().mockImplementation(async (prompt) => {
+        prompts.push(prompt);
+        return '## TUI findings';
+      });
+      step.aiHelper = { initialize: jest.fn().mockResolvedValue(true) };
+
+      const result = await step.execute({
+        projectType: 'nodejs_cli',
+        projectDescription: 'A CLI tool',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(2);
+      // Prompt must come from tui_ux_designer_prompt (contains TUI-specific text)
+      expect(prompts[0]).toContain('TUI');
+      // Must NOT contain web-UX phrases from buildUxAnalysisPrompt
+      expect(prompts[0]).not.toContain('WCAG');
+      expect(prompts[0]).not.toContain('responsive');
     });
   });
 });

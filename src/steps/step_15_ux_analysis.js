@@ -101,6 +101,30 @@ export const SEVERITY_LEVELS = Object.freeze({
   suggestion: 'suggestion',
 });
 
+/**
+ * Project kinds that may contain terminal UI (Ink/blessed) components.
+ * These are a subset of NON_UI_PROJECT_KINDS and receive TUI-specific analysis
+ * rather than a hard skip, provided TUI dependencies are detected.
+ */
+export const TUI_PROJECT_KINDS = Object.freeze(['nodejs_cli', 'cli_tool']);
+
+/**
+ * Dependency names that indicate the project uses a terminal UI framework.
+ * Checked against both `dependencies` and `devDependencies` in package.json.
+ */
+export const TUI_DEPENDENCY_PATTERNS = Object.freeze([
+  'ink',
+  'pajussara_tui_comp',
+  'blessed',
+  'neo-blessed',
+  'react-blessed',
+  '@inkjs/ui',
+  'terminal-kit',
+  'charm',
+  'clui',
+  'cliffy',
+]);
+
 // ============================================================================
 // PURE FUNCTIONS - UI Detection
 // ============================================================================
@@ -113,6 +137,44 @@ export const SEVERITY_LEVELS = Object.freeze({
 export function shouldRunUxAnalysis(projectType) {
   const normalizedType = projectType.replace(/-/g, '_');
   return Object.values(UI_PROJECT_TYPES).includes(normalizedType);
+}
+
+/**
+ * Check if the project kind is in the TUI-candidate set.
+ * A positive result means the project *may* be a TUI project — it still needs
+ * `hasTuiDependencies()` confirmation before TUI analysis runs.
+ * @pure
+ * @param {string} projectType - Project kind identifier
+ * @returns {boolean} True when the kind could host terminal UI components
+ */
+export function isTuiProjectKind(projectType) {
+  return TUI_PROJECT_KINDS.includes(projectType);
+}
+
+/**
+ * Scan a parsed package.json object for known terminal UI framework dependencies.
+ * Checks both `dependencies` and `devDependencies`.
+ * @pure
+ * @param {Object|null} pkg - Parsed package.json content, or null if unavailable
+ * @returns {boolean} True when at least one TUI dependency is present
+ */
+export function hasTuiDependencies(pkg) {
+  if (!pkg || typeof pkg !== 'object') return false;
+  const all = { ...pkg.dependencies, ...pkg.devDependencies };
+  return TUI_DEPENDENCY_PATTERNS.some((dep) => Object.prototype.hasOwnProperty.call(all, dep));
+}
+
+/**
+ * Filter files to only terminal UI source files (.tsx and .jsx).
+ * Excludes generated/build directories via `shouldExcludeFile`.
+ * Used for TUI projects where web UI files (.html/.css) are irrelevant.
+ * @param {Array<string>} files - List of file paths
+ * @returns {Array<string>} Files with .tsx or .jsx extension only
+ */
+export function filterTuiFiles(files) {
+  return files.filter(
+    (file) => !shouldExcludeFile(file) && (file.endsWith('.tsx') || file.endsWith('.jsx'))
+  );
 }
 
 /**
@@ -510,62 +572,103 @@ export class Step15UxAnalysis {
       // Check if UX analysis should run.
       // Fallback: even when the detected project_kind doesn't imply a UI, the project
       // might contain Vue/React/Svelte files (e.g. location_based_service with Vue 3 SPA).
+      let confirmedTui = false;
       if (!shouldRunUxAnalysis(projectType)) {
-        // Hard-skip for definitively non-web project kinds (libraries, CLI tools, APIs).
-        // Their .tsx/.jsx files are terminal or utility code — the framework-file probe
-        // would incorrectly treat them as web UI and trigger a misleading web UX analysis.
+        // Exception: TUI-candidate kinds (nodejs_cli, cli_tool) may contain Ink/React terminal
+        // components. Check for TUI dependencies before deciding whether to skip.
         if (NON_UI_PROJECT_KINDS.includes(projectType)) {
-          this.logger.info(
-            `Step 15: UX Analysis skipped — project kind '${projectType}' is a non-web library/tool; .tsx/.jsx files are not browser UI`
-          );
-          await this.backlog.saveStepSummary(
-            '15',
-            'UX_Analysis',
-            `Skipped: Non-web project kind '${projectType}'`,
-            '⏭️'
-          );
-          return {
-            success: true,
-            skipped: true,
-            reason: `non-web project kind: ${projectType}`,
-          };
+          if (isTuiProjectKind(projectType)) {
+            // Probe package.json for TUI framework deps before committing to TUI analysis.
+            let pkg = null;
+            try {
+              const pkgContent = await this.fileOps.readFile(
+                path.join(this.projectRoot, 'package.json')
+              );
+              pkg = JSON.parse(pkgContent);
+            } catch {
+              /* package.json absent or unparseable — treat as no TUI deps */
+            }
+            if (hasTuiDependencies(pkg)) {
+              // Fall through to TUI-specific analysis below.
+              confirmedTui = true;
+              this.logger.info(
+                `Step 15: TUI dependencies detected in '${projectType}' project — running terminal UI analysis`
+              );
+            } else {
+              this.logger.info(
+                `Step 15: UX Analysis skipped — project kind '${projectType}' has no TUI framework dependencies`
+              );
+              await this.backlog.saveStepSummary(
+                '15',
+                'UX_Analysis',
+                `Skipped: Non-web project kind '${projectType}' with no TUI deps`,
+                '⏭️'
+              );
+              return {
+                success: true,
+                skipped: true,
+                reason: `non-web project kind: ${projectType}`,
+              };
+            }
+          } else {
+            this.logger.info(
+              `Step 15: UX Analysis skipped — project kind '${projectType}' is a non-web library/tool; .tsx/.jsx files are not browser UI`
+            );
+            await this.backlog.saveStepSummary(
+              '15',
+              'UX_Analysis',
+              `Skipped: Non-web project kind '${projectType}'`,
+              '⏭️'
+            );
+            return {
+              success: true,
+              skipped: true,
+              reason: `non-web project kind: ${projectType}`,
+            };
+          }
         }
 
         // Probe for actual UI *framework* files before giving up.
+        // TUI path already confirmed above — skip the web probe for TUI projects.
         // We intentionally use filterFrameworkUiFiles (not filterUiFiles) here:
         // plain .html/.css files alone are not sufficient evidence of an embedded
         // UI in a non-UI project — they are commonly generated by documentation
         // tools (TypeDoc, JSDoc) or coverage reporters and should not trigger a
         // UX analysis pass.
-        const probeFiles = await this.discoverFiles(this.projectRoot);
-        const uiProbeFiles = filterFrameworkUiFiles(probeFiles);
-        if (uiProbeFiles.length === 0) {
+        if (!confirmedTui) {
+          const probeFiles = await this.discoverFiles(this.projectRoot);
+          const uiProbeFiles = filterFrameworkUiFiles(probeFiles);
+          if (uiProbeFiles.length === 0) {
+            this.logger.info(
+              `Step 15: UX Analysis skipped - project type '${projectType}' has no UI components`
+            );
+
+            await this.backlog.saveStepSummary(
+              '15',
+              'UX_Analysis',
+              `Skipped: No UI components for project type '${projectType}'`,
+              '⏭️'
+            );
+
+            return {
+              success: true,
+              skipped: true,
+              reason: 'project type not eligible',
+            };
+          }
           this.logger.info(
-            `Step 15: UX Analysis skipped - project type '${projectType}' has no UI components`
+            `Step 15: project type '${projectType}' — but found ${uiProbeFiles.length} UI file(s); running UX analysis`
           );
-
-          await this.backlog.saveStepSummary(
-            '15',
-            'UX_Analysis',
-            `Skipped: No UI components for project type '${projectType}'`,
-            '⏭️'
-          );
-
-          return {
-            success: true,
-            skipped: true,
-            reason: 'project type not eligible',
-          };
         }
-        this.logger.info(
-          `Step 15: project type '${projectType}' — but found ${uiProbeFiles.length} UI file(s); running UX analysis`
-        );
       }
+
+      const isTui = confirmedTui || isTuiProjectKind(projectType);
 
       // Phase 1: Discover UI files
       this.logger.info(`${colors.blue}Phase 1:${colors.reset} Discovering UI files...`);
       const allFiles = await this.discoverFiles(this.projectRoot);
-      const uiFiles = filterUiFiles(allFiles);
+      // TUI projects use only .tsx/.jsx source files; web projects use all UI file types.
+      const uiFiles = isTui ? filterTuiFiles(allFiles) : filterUiFiles(allFiles);
 
       if (uiFiles.length === 0) {
         this.logger.warn('No UI files found in project');
@@ -581,10 +684,12 @@ export class Step15UxAnalysis {
 
       this.logger.success(`Found ${uiFiles.length} UI files`);
 
-      // Phase 2: Group files, select key files, and read content for AI grounding
+      // Phase 2: Group files, select key files, and read content for AI grounding.
+      // TUI projects: read all .tsx/.jsx files (up to 20) directly — selectKeyFiles()
+      // prioritises HTML/CSS which don't exist in a TUI project.
       const fileGroups = groupUiFilesByType(uiFiles);
-      const fileSample = uiFiles.slice(0, 20); // Sample for prompt
-      const keyFiles = selectKeyFiles(uiFiles, fileGroups);
+      const fileSample = uiFiles.slice(0, 20);
+      const keyFiles = isTui ? fileSample : selectKeyFiles(uiFiles, fileGroups);
       this.logger.info(
         `${colors.blue}Phase 2:${colors.reset} Reading ${keyFiles.length} key files for AI grounding...`
       );
@@ -597,40 +702,76 @@ export class Step15UxAnalysis {
         fileContents,
       };
 
-      // Phase 3: Build UX analysis prompt
+      // Phase 3: Build UX analysis prompt.
+      // TUI projects: use tui_ux_designer_prompt exclusively (terminal-native heuristics).
+      //   The base buildUxAnalysisPrompt() embeds web/WCAG guidance and is intentionally
+      //   skipped so it doesn't contaminate terminal UI analysis.
+      // Web projects: use the existing ui_ux_designer_prompt + project-kind overlay.
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Building UX analysis prompt...`);
-      let prompt = buildUxAnalysisPrompt(analysisContext);
-      // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
-      try {
-        const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-        const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
-          project_name: path.basename(this.projectRoot),
-          project_description: context.projectDescription || context.description || '',
-          file_count: String(uiFiles.length),
-          project_type: projectType,
-          target_audience: context.targetAudience || 'Application developers',
-          design_system_status: context.designSystemStatus || '',
-          modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
-        });
-        if (uiUxPrompt) {
-          let roleOverride = '';
-          try {
-            const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
-            const parsedPk = yaml.load(pkYaml);
-            const pk = buildProjectKindPrompt(
-              parsedPk,
-              context?.projectType ?? 'default',
-              'ux_designer'
-            );
-            if (pk?.role) roleOverride = pk.role;
-          } catch {
-            /* optional */
+      let prompt;
+
+      if (isTui) {
+        // Build file-content block for grounding (tui_ux_designer_prompt has no {file_content_map})
+        const fileBlock = Object.entries(fileContents)
+          .map(([file, content]) => `### ${file}\n\`\`\`tsx\n${content}\n\`\`\``)
+          .join('\n\n');
+
+        try {
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+          const tuiPrompt = buildYamlStepPrompt(parsedYaml, 'tui_ux_designer_prompt', {
+            project_name: path.basename(this.projectRoot),
+            project_description: context.projectDescription || context.description || '',
+            project_kind: projectType,
+            target_audience: context.targetAudience || 'Terminal application users',
+            design_system_status: context.designSystemStatus || 'Ink/React TUI primitives',
+            modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
+          });
+          if (tuiPrompt) {
+            prompt = fileBlock
+              ? `${tuiPrompt}\n\n---\n\n**Files to Review:**\n\n${fileBlock}`
+              : tuiPrompt;
           }
-          const prefix = roleOverride ? `[Project-Kind Role: ${roleOverride}]\n\n` : '';
-          prompt = `${prefix}${uiUxPrompt}\n\n---\n\n${prompt}`;
+        } catch {
+          /* non-fatal */
         }
-      } catch {
-        /* non-fatal: use base prompt */
+        // Fallback: minimal inline prompt when YAML is unavailable
+        if (!prompt) {
+          prompt = `Review the following terminal UI components for keyboard navigation, focus management, status clarity, and scroll UX.\n\n${fileBlock}`;
+        }
+      } else {
+        prompt = buildUxAnalysisPrompt(analysisContext);
+        // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
+        try {
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+          const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
+            project_name: path.basename(this.projectRoot),
+            project_description: context.projectDescription || context.description || '',
+            file_count: String(uiFiles.length),
+            project_type: projectType,
+            target_audience: context.targetAudience || 'Application developers',
+            design_system_status: context.designSystemStatus || '',
+            modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
+          });
+          if (uiUxPrompt) {
+            let roleOverride = '';
+            try {
+              const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
+              const parsedPk = yaml.load(pkYaml);
+              const pk = buildProjectKindPrompt(
+                parsedPk,
+                context?.projectType ?? 'default',
+                'ux_designer'
+              );
+              if (pk?.role) roleOverride = pk.role;
+            } catch {
+              /* optional */
+            }
+            const prefix = roleOverride ? `[Project-Kind Role: ${roleOverride}]\n\n` : '';
+            prompt = `${prefix}${uiUxPrompt}\n\n---\n\n${prompt}`;
+          }
+        } catch {
+          /* non-fatal: use base prompt */
+        }
       }
 
       // Phase 4: Initialize AI helper and perform analysis
