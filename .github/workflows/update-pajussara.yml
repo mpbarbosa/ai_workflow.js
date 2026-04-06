@@ -277,7 +277,7 @@ jobs:
             fi
 
             echo "🧪  Re-running affected test files…"
-            npx jest --passWithNoTests "${TEST_FILES[@]}"
+            node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests "${TEST_FILES[@]}"
             echo "✅  Affected tests passed after adjustment."
           fi
 
