@@ -363,16 +363,19 @@ export function checkConfigBestPractices(content, type) {
   const issues = [];
 
   if (type === 'json') {
-    // Check for comments in JSON (not allowed) — match // only at line-start or after whitespace, not URLs
-    if (content.match(/^\s*\/\//m) || content.match(/\/\*[\s\S]*?\*\//)) {
+    // Detect comments by comparing stripped vs original content.  Using stripJsonComments (which
+    // uses a string-literal-aware state machine) avoids false positives from glob patterns such as
+    // "src/**/*" or "**/*.test.ts" whose /* and */ sequences would fool a plain regex.
+    const stripped = stripJsonComments(content);
+    if (stripped !== content) {
       issues.push({
         type: CONFIG_ISSUE_TYPE.SYNTAX_ERROR,
         message: 'JSON does not support comments',
       });
     }
 
-    // Check for trailing commas
-    if (content.match(/,\s*[}\]]/)) {
+    // Check for trailing commas (safe to run on stripped content so embedded patterns don't match)
+    if (stripped.match(/,\s*[}\]]/)) {
       issues.push({
         type: CONFIG_ISSUE_TYPE.SYNTAX_ERROR,
         message: 'JSON does not allow trailing commas',
@@ -415,8 +418,11 @@ export function formatConfigReport(results) {
   lines.push(`- **Security findings**: ${results.securityFindings.length}`);
   lines.push(`- **Best practice issues**: ${results.bestPracticeIssues.length}\n`);
 
-  // Status
-  const totalIssues = results.syntaxErrors.length + results.securityFindings.length;
+  // Status — include best practice issues so the badge matches the detailed counts above
+  const totalIssues =
+    results.syntaxErrors.length +
+    results.securityFindings.length +
+    results.bestPracticeIssues.length;
   if (totalIssues === 0) {
     lines.push('✅ **Status**: All configuration files valid\n');
   } else {
@@ -604,7 +610,7 @@ export class Step4ConfigAnalyzer {
       // Phase AI: AI-powered configuration analysis
       let parsedAlternatives = { alternatives: [], recommended: null };
       const aiAvailable = await this.aiHelper.initialize();
-      const totalIssues = syntaxErrors.length + securityFindings.length;
+      const totalIssues = syntaxErrors.length + securityFindings.length + bestPracticeIssues.length;
       if (aiAvailable) {
         await this.aiCache.init();
 

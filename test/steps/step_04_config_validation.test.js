@@ -548,6 +548,22 @@ describe('Step 4: Configuration Validation', () => {
 
       expect(issues).toHaveLength(0);
     });
+
+    test('does not false-positive on glob patterns containing /* */ sequences', () => {
+      // tsconfig.json-style: "src/**/*" contains /**/ which the old regex matched as a block comment
+      const tsconfigLike = JSON.stringify({
+        include: ['src/**/*', 'helpers/**/*'],
+        exclude: ['node_modules', 'dist'],
+      });
+      expect(checkConfigBestPractices(tsconfigLike, 'json')).toHaveLength(0);
+
+      // jest.config.json-style: glob testMatch patterns span across strings when joined
+      const jestLike = JSON.stringify({
+        testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+        collectCoverageFrom: ['src/**/*.{ts,tsx}', 'helpers/**/*.ts'],
+      });
+      expect(checkConfigBestPractices(jestLike, 'json')).toHaveLength(0);
+    });
   });
 
   // ========================================================================
