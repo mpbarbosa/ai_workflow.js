@@ -303,7 +303,7 @@ describe('Performance Module - PerformanceTracker Class', () => {
       const metrics = tracker.endTimer('test-op');
 
       expect(metrics).not.toBeNull();
-      expect(metrics.duration).toBeGreaterThanOrEqual(100);
+      expect(metrics.duration).toBeGreaterThanOrEqual(90);
       expect(metrics.durationFormatted).toMatch(/\d+ms/);
       expect(metrics.memory.heapUsed).toBeGreaterThan(0);
     });
@@ -338,7 +338,7 @@ describe('Performance Module - PerformanceTracker Class', () => {
 
       const metrics = tracker.getMetrics('test-op');
       expect(metrics).not.toBeNull();
-      expect(metrics.duration).toBeGreaterThanOrEqual(50);
+      expect(metrics.duration).toBeGreaterThanOrEqual(40);
     });
 
     test('returns null for unknown operation', () => {

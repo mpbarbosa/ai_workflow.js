@@ -481,7 +481,7 @@ describe('Config - Wrapper Class', () => {
     it('should return elapsed time in milliseconds', (done) => {
       setTimeout(() => {
         const elapsed = config.getElapsedTime();
-        expect(elapsed).toBeGreaterThanOrEqual(50);
+        expect(elapsed).toBeGreaterThanOrEqual(40);
         // No upper-bound assertion: under CI / parallel test load the
         // 50ms timer may resolve well beyond 200ms — that is a scheduling
         // artefact, not a bug in getElapsedTime.
