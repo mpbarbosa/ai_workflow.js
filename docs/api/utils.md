@@ -4,7 +4,7 @@
 > As of ai_workflow.js v1.3.0, the utility functions previously in `src/lib/utils.js` have been moved to the [`olinda_utils.js`](https://github.com/mpbarbosa/olinda_utils.js) package (v0.3.0+).
 
 > **Available via `olinda_shell_interface.js`**
-> As of `olinda_shell_interface.js` v0.5.9, all 26 utility functions are also re-exported from that package's root (and therefore from `ai_workflow.js` itself via `src/lib/utils.js`).
+> As of `olinda_shell_interface.js` v0.5.10, all 26 utility functions are also re-exported from that package's root (and therefore from `ai_workflow.js` itself via `src/lib/utils.js`).
 
 ## Import
 
@@ -42,7 +42,7 @@ import {
 // Or via the lib module directly
 import { camelCase, deepMerge } from './lib/utils.js';
 
-// Or directly from olinda_shell_interface.js (since v0.5.8, updated in v0.5.9)
+// Or directly from olinda_shell_interface.js (since v0.5.10)
 import { camelCase, deepMerge } from 'olinda_shell_interface.js';
 
 // Or from the original source package
