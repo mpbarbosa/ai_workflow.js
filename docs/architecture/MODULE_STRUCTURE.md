@@ -1,6 +1,6 @@
 # Module Structure
 
-**AI Workflow Automation v1.9.6**
+**AI Workflow Automation v1.9.7**
 **Last Updated:** 2026-02-01
 **Audience:** Developers, Architects
 
@@ -193,7 +193,7 @@ if (isWindows()) {
 import { compareVersions, isCompatible } from './core/version.js';
 
 <<<<<<< HEAD
-if (compareVersions('2.0.0', '1.9.6') > 0) {
+if (compareVersions('2.0.0', '1.9.7') > 0) {
 =======
 if (compareVersions('2.0.0', '1.6.1') > 0) {
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
@@ -832,4 +832,4 @@ import { sharedFunc } from './shared.js';
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.6
+**Version:** 1.9.7

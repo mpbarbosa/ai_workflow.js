@@ -1,7 +1,7 @@
 # colors - ANSI Color Codes Module
 
 **Module:** `core/colors`
-**Version:** 1.9.6
+**Version:** 1.9.7
 **Type:** Pure Functional
 
 ## Overview
@@ -234,4 +234,4 @@ console.log(formatMessage('Operation complete', 'success'));
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.9.6
+**Part of:** AI Workflow Automation v1.9.7

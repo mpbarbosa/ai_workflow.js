@@ -109,7 +109,7 @@
     "src/cli/tui/App.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
     },
     "src/cli/commands/deploy.js": {
       "score": 100,
@@ -294,7 +294,7 @@
     "src/cli/tui/components/StepsPanel.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-04T00:34:49.734Z"
+      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
     },
     "src/cli/commands/status.js": {
       "score": 100,
@@ -380,6 +380,21 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-07T03:32:30.794Z"
+    },
+    "src/cli/tui/components/StatusBar.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
+    },
+    "src/cli/prompts.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
+    },
+    "src/cli/tui/components/ErrorDetailPanel.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
     }
   }
 }

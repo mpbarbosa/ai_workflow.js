@@ -1,6 +1,6 @@
 # User Guide
 
-**AI Workflow Automation v1.9.6**
+**AI Workflow Automation v1.9.7**
 **Last Updated:** 2026-02-01
 **Audience:** End users building workflows
 
@@ -594,4 +594,4 @@ More examples coming soon:
 ---
 
 **Last Updated:** 2026-02-08
-**Version:** 1.9.6
+**Version:** 1.9.7
