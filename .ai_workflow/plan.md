@@ -97,4 +97,4 @@
 - **Path:** src/cli/tui/components/ErrorDetailPanel.js:47
 - **Description:** `truncateStackTrace(error.stack, 20)` at line 47 passes `error.stack` directly; when `error` is an object without a `stack` property (e.g., a plain object or DOMException), this passes `undefined` to `truncateStackTrace`, which may throw or produce broken output.
 - **Fix:** Replace `error.stack` with `error?.stack ?? ''` at line 47 so `truncateStackTrace` always receives a string.
-- **Status:** open
+- **Status:** done

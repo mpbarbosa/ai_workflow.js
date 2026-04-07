@@ -44,7 +44,7 @@ export function ErrorDetailPanel({ error, onClose }) {
     );
   }
 
-  const stackLines = truncateStackTrace(error.stack, 20);
+  const stackLines = truncateStackTrace(error?.stack ?? '', 20);
 
   return React.createElement(
     Box,
