@@ -420,6 +420,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-07T16:20:44.781Z"
+    },
+    "src/steps/step_08_test_exec.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+    },
+    "src/steps/step_09_dependencies.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+    },
+    "src/steps/step_10_code_quality.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+    },
+    "src/steps/step_12_git_finalization.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+    },
+    "src/steps/step_14_prompt_engineer.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
     }
   }
 }

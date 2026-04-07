@@ -226,4 +226,4 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 
 **Last Updated:** 2026-03-11
 **Source package:** [`olinda_shell_interface.js` v0.5.10](https://github.com/mpbarbosa/olinda_shell_interface.js)
-**Part of:** AI Workflow Automation v1.9.8
+**Part of:** AI Workflow Automation v1.9.9
