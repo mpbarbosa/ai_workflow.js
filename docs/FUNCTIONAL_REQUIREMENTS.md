@@ -162,8 +162,12 @@ Detailed specifications for each module are provided in the sections below.
 > Populated by the `fix-log-issues` skill. Each item was verified against
 > the live codebase before being marked done.
 
-| ID     | Source step                 | Description                                                                                        | File / Path                             | Priority | Status |
-| ------ | --------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- | -------- | ------ |
-| RI-001 | step_20 / step_22 / step_23 | AI cache keys containing absolute paths caused ENOENT errors — added `_safeKey()` to sanitize keys | `src/lib/ai_cache.js`                   | Medium   | done   |
-| RI-002 | step_05                     | `test/integration/cross-step/` had no README explaining its purpose                                | `test/integration/cross-step/README.md` | Low      | done   |
-| RI-003 | step_05                     | `.github/skills/` had no README documenting the skills system                                      | `.github/skills/README.md`              | Low      | done   |
+| ID     | Source step                 | Description                                                                                          | File / Path                                  | Priority | Status |
+| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------- | ------ |
+| RI-001 | step_20 / step_22 / step_23 | AI cache keys containing absolute paths caused ENOENT errors — added `_safeKey()` to sanitize keys   | `src/lib/ai_cache.js`                        | Medium   | done   |
+| RI-002 | step_05                     | `test/integration/cross-step/` had no README explaining its purpose                                  | `test/integration/cross-step/README.md`      | Low      | done   |
+| RI-003 | step_05                     | `.github/skills/` had no README documenting the skills system                                        | `.github/skills/README.md`                   | Low      | done   |
+| RI-004 | step_02                     | README.md linked to missing `docs/guides/VALIDATE.md` — created stub                                 | `docs/guides/VALIDATE.md`                    | Medium   | done   |
+| RI-005 | step_02                     | README.md linked to missing `docs/guides/PREPARE_RELEASE.md` — created stub                          | `docs/guides/PREPARE_RELEASE.md`             | Medium   | done   |
+| RI-006 | step_02                     | README.md linked to missing `docs/guides/CLEANUP_ARTIFACTS.md` — created stub                        | `docs/guides/CLEANUP_ARTIFACTS.md`           | Medium   | done   |
+| RI-007 | step_10                     | `ErrorDetailPanel.js:47` accessed `error.stack` without null guard — changed to `error?.stack ?? ''` | `src/cli/tui/components/ErrorDetailPanel.js` | Medium   | done   |
