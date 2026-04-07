@@ -98,3 +98,42 @@
 - **Description:** `truncateStackTrace(error.stack, 20)` at line 47 passes `error.stack` directly; when `error` is an object without a `stack` property (e.g., a plain object or DOMException), this passes `undefined` to `truncateStackTrace`, which may throw or produce broken output.
 - **Fix:** Replace `error.stack` with `error?.stack ?? ''` at line 47 so `truncateStackTrace` always receives a string.
 - **Status:** done
+
+---
+
+### RI-008 — Duplicate `error_resilience_prompt` key in ai_helpers.yaml causes YAML parse failure
+
+- **ID:** RI-008
+- **Source step:** step_10, step_0b (workflow_20260407_131748)
+- **Type:** code-bug
+- **Priority:** Medium
+- **Path:** .workflow_core/config/ai_helpers.yaml:6156
+- **Description:** `ai_helpers.yaml` defines `error_resilience_prompt` twice — once at line 2676 (added by commit `bf14bb8` "add error_resilience_prompt") and again at line 6156 (the original definition). `js-yaml` throws `YAMLException: duplicated mapping key` when parsing the file, which causes `loadResolvedAiHelpers()` to return `null` in step_04, step_0b, and step_10 — silently falling back to generic prompts and failing 63+ prompt-integration tests.
+- **Fix:** Remove the second (older) block at line 6156 through end of file. The newer block at line 2676 (added by `bf14bb8`) is more detailed (5 labelled categories, `behavioral_actionable`) and satisfies test requirements for `{project_name}`, `{primary_language}`, `{file_content_map}`. Commit the fix inside the `.workflow_core` submodule, then update the submodule reference in the parent repo.
+- **Status:** done
+
+---
+
+### RI-009 — ROOT_ALLOWED_FILES missing ROADMAP.md and SECURITY.md causes false-positive warnings
+
+- **ID:** RI-009
+- **Source step:** step_05 (workflow_20260407_131748)
+- **Type:** code-quality
+- **Priority:** Low
+- **Path:** src/steps/step_05_directory.js:82
+- **Description:** `ROOT_ALLOWED_FILES` at line 82 lists only `['README.md', 'CHANGELOG.md', 'LICENSE.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md']`. The project root contains `ROADMAP.md` and `SECURITY.md`, both standard GitHub repository files; `SECURITY.md` is specifically required at root for GitHub's security policy feature. Step_05 flags them as "2 misplaced documentation file(s)" every run.
+- **Fix:** Add `'ROADMAP.md'` and `'SECURITY.md'` to the `ROOT_ALLOWED_FILES` array.
+- **Status:** done
+
+---
+
+### RI-010 — step_0d test uses `require()` inside jest.spyOn calls (invalid in ES module context)
+
+- **ID:** RI-010
+- **Source step:** step_08 / test suite (workflow_20260407_131748)
+- **Type:** code-bug
+- **Priority:** Medium
+- **Path:** test/steps/step_0d_docker_preflight.test.js:193,212,228,244,260,277,299
+- **Description:** Seven `jest.spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')` calls use CommonJS `require()` inside an ES module test file. In the project's ES module Jest environment, `require` is not defined, causing `ReferenceError: require is not defined` and 8 test failures in the `Step0dDockerPreflight class` describe block.
+- **Fix:** Replace each `jest.spyOn(require(...), ...)` with `jest.spyOn(step09Module, 'validateLockfileStructure')` where `step09Module` is the namespace import (`import * as step09Module from '../../src/steps/step_09_dependencies.js'`) added at the top of the file alongside the existing imports.
+- **Status:** done
