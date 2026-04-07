@@ -71,7 +71,7 @@
 - **Path:** README.md:354
 - **Description:** README.md line 354 links to `./docs/guides/PREPARE_RELEASE.md` in the Scripts Reference table, but the file does not exist; `scripts/prepare-release.sh` exists but its documentation stub was never created.
 - **Fix:** Create `docs/guides/PREPARE_RELEASE.md` with a brief description of `scripts/prepare-release.sh` (runs tests, bumps version, updates changelog) and usage examples.
-- **Status:** open
+- **Status:** done
 
 ---
 
@@ -84,7 +84,7 @@
 - **Path:** README.md:355
 - **Description:** README.md line 355 links to `./docs/guides/CLEANUP_ARTIFACTS.md` in the Scripts Reference table, but the file does not exist; `scripts/cleanup_artifacts.sh` exists but its documentation stub was never created.
 - **Fix:** Create `docs/guides/CLEANUP_ARTIFACTS.md` with a brief description of `scripts/cleanup_artifacts.sh` (removes workflow artifacts by age/type) and usage examples.
-- **Status:** open
+- **Status:** done
 
 ---
 
