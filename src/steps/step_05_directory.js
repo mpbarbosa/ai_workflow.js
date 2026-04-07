@@ -84,6 +84,8 @@ export const ROOT_ALLOWED_FILES = [
   'LICENSE.md',
   'CONTRIBUTING.md',
   'CODE_OF_CONDUCT.md',
+  'ROADMAP.md',
+  'SECURITY.md',
 ];
 
 /**
