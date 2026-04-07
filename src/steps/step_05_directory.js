@@ -480,7 +480,7 @@ export class Step5DirectoryAnalyzer {
             (structureResults.existingDirs ?? []).length > 0
               ? structureResults.existingDirs.slice(0, 50).join('\n')
               : 'none';
-          prompt = buildYamlStepPrompt(parsedYaml, 'step4_directory_prompt', {
+          prompt = buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
             project_name: projectRoot,
             project_description: options.projectDescription || '',
             primary_language: language,

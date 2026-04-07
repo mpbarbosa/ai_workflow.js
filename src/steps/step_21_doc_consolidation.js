@@ -604,7 +604,7 @@ export class DocConsolidationStep {
 
       const aiContent = await this.aiHelper.callAI(prompt, {
         cache: this.aiCache,
-        persona: 'technical_writer_prompt',
+        persona: 'technical_writer',
       });
 
       return aiContent || this._concatenateFallback(relPaths, contents);

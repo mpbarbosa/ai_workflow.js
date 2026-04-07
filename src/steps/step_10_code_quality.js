@@ -885,7 +885,7 @@ export class Step10CodeQualityAnalyzer {
                   const totalFiles = aggregateTotals.fileCount ?? sliceFiles.length;
                   const languageBreakdown =
                     detectedLanguages.map((l) => `${l}`).join(', ') || primaryLanguage;
-                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step9_code_quality_prompt', {
+                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step10_code_quality_prompt', {
                     project_name: projectName,
                     project_description: projectDescription,
                     primary_language: primaryLanguage,
@@ -960,7 +960,7 @@ export class Step10CodeQualityAnalyzer {
 
               const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
               // Use 'code_quality_analyst' persona: Step 10 performs code quality review
-              // (maintainability, anti-patterns, technical debt) using the step9_code_quality_prompt
+              // (maintainability, anti-patterns, technical debt) using the step10_code_quality_prompt
               // YAML template, which defines a "comprehensive software quality engineer" role.
               // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
               // a misleading mismatch between the logged persona and the actual prompt content.

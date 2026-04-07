@@ -558,6 +558,31 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('consistency');
     });
 
+    test('specifies markdown documentation types in scope', () => {
+      const result = buildConsistencyPrompt({ docDirectory: '/proj' });
+
+      expect(result).toContain('markdown documentation files');
+      expect(result).toContain('CONTRIBUTING.md');
+      expect(result).toContain('docs/');
+      expect(result).toContain('JSDoc source coverage');
+    });
+
+    test('defines what consistency means', () => {
+      const result = buildConsistencyPrompt({ docDirectory: '/proj' });
+
+      expect(result).toContain('uniform naming conventions');
+      expect(result).toContain('up-to-date examples');
+      expect(result).toContain('intact\ncross-references');
+      expect(result).toContain('style uniformity');
+    });
+
+    test('references project-specific style standards', () => {
+      const result = buildConsistencyPrompt({ docDirectory: '/proj' });
+
+      expect(result).toContain('copilot-instructions.md');
+      expect(result).toContain('authoritative style reference');
+    });
+
     test('includes project context', () => {
       const options = {
         docDirectory: 'docs/',

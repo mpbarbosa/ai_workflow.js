@@ -867,8 +867,8 @@ export class Step12GitFinalization {
           const parsedYaml = await loadResolvedAiHelpers(null);
           const gitCtx = await this._gatherGitContext(gitState);
           // commit_types comes from the YAML config block itself
-          const commitTypesText = parsedYaml?.step11_git_commit_prompt?.commit_types || '';
-          prompt = buildYamlStepPrompt(parsedYaml, 'step11_git_commit_prompt', {
+          const commitTypesText = parsedYaml?.step12_git_commit_prompt?.commit_types || '';
+          prompt = buildYamlStepPrompt(parsedYaml, 'step12_git_commit_prompt', {
             project_name: projectName,
             project_description: projectDescription,
             script_version: projectVersion,

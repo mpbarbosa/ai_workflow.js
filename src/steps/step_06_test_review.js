@@ -506,7 +506,8 @@ export class Step6TestReviewer {
             ctx.techStack?.testRunner ??
             testFrameworkMap[language] ??
             language;
-          const configTestCommand = ctx.config?.tech_stack?.test_command ?? testCmdMap[language] ?? 'npm test';
+          const configTestCommand =
+            ctx.config?.tech_stack?.test_command ?? testCmdMap[language] ?? 'npm test';
           const configCovCommand = covCmdMap[language] ?? 'npm run coverage';
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
@@ -548,7 +549,7 @@ export class Step6TestReviewer {
               let prompt;
               if (sharedParsedYaml) {
                 try {
-                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step5_test_review_prompt', {
+                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step6_test_review_prompt', {
                     project_name: path.basename(projectRoot),
                     project_description:
                       ctx.projectDescription ?? options?.projectDescription ?? 'N/A',

@@ -602,7 +602,18 @@ export function buildConsistencyPrompt(options) {
   const versionCount = scanResults.versionIssues?.length ?? 0;
   const totalIssues = scanResults.totalIssues ?? 0;
 
-  const task = `Review documentation consistency for project: ${docDirectory}
+  const task = `Perform a comprehensive documentation consistency analysis for project: ${docDirectory}
+
+"Consistency" covers: uniform naming conventions, up-to-date examples and version numbers, intact
+cross-references, and style uniformity across all **markdown documentation files** (\`.md\`) —
+e.g., consistent heading levels, bullet list styles, and fenced code-block language tags.
+Where project-specific conventions are documented (e.g., in \`CONTRIBUTING.md\` or
+\`.github/copilot-instructions.md\`), treat those as the authoritative style reference and let them
+take precedence over generic defaults.
+
+**Documentation types in scope:** root-level \`.md\` files (README, CHANGELOG, CONTRIBUTING, etc.),
+\`docs/\` subdirectory (API reference, architecture, guides), and \`.github/\` metadata files.
+JSDoc source coverage is a separate concern and is NOT part of this step.
 
 **Programmatic scan already completed — do not re-derive these results:**
 - Files checked: ${fileCount}
@@ -658,7 +669,9 @@ export function buildTestReviewPrompt(options) {
   const covCmd = typeof coverageCommand === 'string' ? coverageCommand.trim() : '';
 
   const effectiveFramework = runner || lang;
-  const frameworkContext = effectiveFramework ? ` When reviewing ${effectiveFramework} tests, use ${effectiveFramework}-specific matchers, patterns, and APIs in all recommendations.` : '';
+  const frameworkContext = effectiveFramework
+    ? ` When reviewing ${effectiveFramework} tests, use ${effectiveFramework}-specific matchers, patterns, and APIs in all recommendations.`
+    : '';
   const role = `You are a senior test architect specializing in test quality, coverage analysis, and testing best practices.
 
 **Critical Behavioral Guidelines**:

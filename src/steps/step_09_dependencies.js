@@ -973,7 +973,7 @@ export class Step9DependencyValidator {
                   .map((p) => `${p.name}: ${p.current} → ${p.latest}`)
                   .join(', ')
               : 'none';
-            prompt = buildYamlStepPrompt(parsedYaml, 'step8_dependencies_prompt', {
+            prompt = buildYamlStepPrompt(parsedYaml, 'step9_dependencies_prompt', {
               project_name: path.basename(projectRoot),
               project_description: options?.projectDescription ?? 'N/A',
               primary_language: language,

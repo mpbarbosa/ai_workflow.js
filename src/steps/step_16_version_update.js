@@ -14,13 +14,13 @@ import { colors } from '../core/colors.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
-  buildStructuredPrompt,
+  buildYamlStepPrompt,
   injectProjectContext,
   loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { execFile } from 'child_process';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { readdirSync, statSync } from 'fs';
 
 // Constants
@@ -766,54 +766,47 @@ export class Step16VersionUpdate {
           const cats = gitStats.categories || {};
           const gitCtx = await this._gatherGitContext();
 
-          // version_manager_prompt uses `role_prefix` (not `role`) and has no `task_template`,
-          // so buildYamlStepPrompt produces a hollow prompt (empty role + empty task).
-          // Build the prompt directly with real git data instead.
-          let yamlExpertise = '';
-          let yamlApproach = '';
-          let yamlOutputFormat = '';
-          try {
-            const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-            const cfg = parsedYaml?.version_manager_prompt || {};
-            yamlExpertise = cfg.specific_expertise || '';
-            yamlApproach = cfg.approach || '';
-            yamlOutputFormat = cfg.output_format || '';
-          } catch {
-            /* use generic strings below */
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+          const cfg = parsedYaml?.version_manager_prompt || {};
+
+          // Compose rich changed_files block: file list + per-category counts
+          const changedFilesBlock = [
+            ...modifiedFiles,
+            '',
+            `Documentation: ${cats.documentation || 0}, Tests: ${cats.tests || 0}, Code: ${cats.code || 0}, Config: ${cats.config || 0}`,
+            `Insertions: ${gitCtx.insertions}, Deletions: ${gitCtx.deletions}`,
+          ]
+            .join('\n')
+            .trim();
+
+          // Compose git_context: log + diff stats + diff sample
+          const gitContextBlock = [
+            'Recent git log:',
+            gitCtx.gitLog,
+            '',
+            'Diff statistics:',
+            gitCtx.diffSummary,
+            '',
+            'Diff sample (first 80 lines):',
+            gitCtx.diffSample,
+          ].join('\n');
+
+          let prompt = buildYamlStepPrompt(parsedYaml, 'version_manager_prompt', {
+            project_name: basename(this.projectRoot),
+            project_description: '',
+            current_version: currentVersion,
+            heuristic_recommendation: bumpType,
+            changed_files: changedFilesBlock,
+            git_context: gitContextBlock,
+          });
+
+          // output_format is not handled by buildYamlStepPrompt; append if present
+          const outputFormat = cfg.output_format?.trim();
+          if (outputFormat) {
+            prompt = `${prompt}\n\n${outputFormat}`;
           }
 
-          const role = `You are a Version Manager and Semantic Versioning Expert.
-${yamlExpertise}`.trim();
-
-          const task = `Determine the correct semantic version bump type for this project.
-
-**Current version:** ${currentVersion}
-**Heuristic recommendation:** ${bumpType}
-
-**Change statistics:**
-- Total modified files: ${modifiedFiles.length}
-- Documentation files: ${cats.documentation || 0}
-- Test files: ${cats.tests || 0}
-- Code files: ${cats.code || 0}
-- Config files: ${cats.config || 0}
-- Insertions: ${gitCtx.insertions}, Deletions: ${gitCtx.deletions}
-
-**Recent git log:**
-${gitCtx.gitLog}
-
-**Diff statistics:**
-${gitCtx.diffSummary}
-
-**Diff sample (first 80 lines):**
-${gitCtx.diffSample}
-${yamlOutputFormat}`.trim();
-
-          const approach =
-            yamlApproach ||
-            `Review the git diff and change statistics to determine the minimum required semver bump.
-Reply with ONLY one word: major, minor, or patch.`;
-
-          const prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+          prompt = injectProjectContext(prompt, {});
           const cacheKey = `step_16|${currentVersion}|${bumpType}|${modifiedFiles.length}|${gitCtx.insertions}|${gitCtx.deletions}`;
           const response = await this.aiCache.withCache(prompt, cacheKey, () =>
             this.aiHelper.executeRequest(prompt, { persona: 'devops_engineer' })

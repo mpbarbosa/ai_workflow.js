@@ -625,7 +625,7 @@ export class Step14PromptEngineer {
       let prompt;
       try {
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
-        prompt = buildYamlStepPrompt(parsedYaml, 'step13_prompt_engineer_prompt', {
+        prompt = buildYamlStepPrompt(parsedYaml, 'step14_prompt_engineer_prompt', {
           total_prompts: String(stats.totalPrompts),
           average_score: String(stats.averageScore),
           total_improvements: String(stats.totalImprovements),

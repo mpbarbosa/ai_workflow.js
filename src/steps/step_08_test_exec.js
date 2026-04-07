@@ -624,7 +624,7 @@ export class Step8TestExecutor {
         try {
           const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
           const parsedYaml = yaml.load(yamlContent);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step7_test_exec_prompt', {
+          prompt = buildYamlStepPrompt(parsedYaml, 'step8_test_exec_prompt', {
             project_name: path.basename(projectRoot),
             project_description: options?.projectDescription ?? 'N/A',
             primary_language: language,
