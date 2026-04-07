@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Version:** 1.9.4
+**Version:** 1.9.5
 **Last Updated:** February 8, 2026
 
 This document provides a high-level overview of the ai_workflow.js architecture, design patterns, and module organization.

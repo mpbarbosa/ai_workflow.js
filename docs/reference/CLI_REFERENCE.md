@@ -1,6 +1,6 @@
 # CLI Reference
 
-**AI Workflow Automation v1.9.4**
+**AI Workflow Automation v1.9.5**
 **Last Updated:** 2026-02-01
 **Audience:** End Users, Developers
 
@@ -643,4 +643,4 @@ ai-workflow clean --all
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.4
+**Version:** 1.9.5

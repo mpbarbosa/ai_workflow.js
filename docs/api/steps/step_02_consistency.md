@@ -353,7 +353,7 @@ if (!result.success) {
 ```javascript
 const result = await analyzer.execute({
 <<<<<<< HEAD
-  expectedVersion: '1.9.4',
+  expectedVersion: '1.9.5',
 =======
   expectedVersion: '1.6.1',
 >>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])

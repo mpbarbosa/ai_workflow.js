@@ -1,6 +1,6 @@
 # Basic Examples
 
-**AI Workflow Automation v1.9.4**
+**AI Workflow Automation v1.9.5**
 **Last Updated:** 2026-02-01
 
 ---
@@ -383,4 +383,4 @@ ai-workflow run my-quality-check.yaml
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.4
+**Version:** 1.9.5

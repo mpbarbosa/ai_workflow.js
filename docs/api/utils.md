@@ -66,7 +66,7 @@ See [`olinda_utils.js` — utils.md](https://github.com/mpbarbosa/olinda_utils.j
 ---
 
 **Last Updated:** 2026-03-11
-**Part of:** AI Workflow Automation v1.9.4
+**Part of:** AI Workflow Automation v1.9.5
 
 <!-- ARCHIVED CONTENT BELOW -- kept for historical reference -->
 
@@ -202,4 +202,4 @@ const merged = deepMerge(defaults, userConfig);
 ---
 
 **Last Updated:** 2026-02-01
-**Part of:** AI Workflow Automation v1.9.4
+**Part of:** AI Workflow Automation v1.9.5
