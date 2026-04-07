@@ -188,9 +188,10 @@ export function extractCriticalDirs(config) {
   }
 
   const dirs = [];
-  const { src_dirs = [], test_dirs = [], docs_dirs = [] } = config.structure;
+  // Support both 'source_dirs' (template/init.js default) and legacy 'src_dirs'
+  const { source_dirs = [], src_dirs = [], test_dirs = [], docs_dirs = [] } = config.structure;
 
-  dirs.push(...src_dirs, ...test_dirs, ...docs_dirs);
+  dirs.push(...source_dirs, ...src_dirs, ...test_dirs, ...docs_dirs);
 
   return [...new Set(dirs)]; // Remove duplicates
 }
@@ -448,7 +449,9 @@ export class Step5DirectoryAnalyzer {
         try {
           const language = options.language || (await this.detectLanguage(projectRoot));
           const projectKind =
-            (this.projectKindConfig ? await this.projectKindConfig.getProjectKind() : null) ?? '';
+            options.projectKind ??
+            (this.projectKindConfig ? await this.projectKindConfig.getProjectKind() : null) ??
+            '';
           const aiGuidance =
             projectKind && this.projectKindConfig
               ? await this.projectKindConfig.getAIGuidance(projectKind).catch(() => null)
