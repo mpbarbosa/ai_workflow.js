@@ -71,6 +71,7 @@ import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
 import { DocConsolidationStep } from '../steps/step_21_doc_consolidation.js';
 import { Step22AccessibilityReview } from '../steps/step_22_accessibility_review.js';
 import { Step23PerfReview } from '../steps/step_23_perf_review.js';
+import { fileURLToPath } from 'url';
 
 // ============================================================================
 // CONSTANTS
@@ -1031,6 +1032,27 @@ export class MainOrchestrator {
         }
         commonDeps.projectVersion = projectVersion;
 
+        // Read ai_workflow.js tool version and workflow_core submodule version (non-fatal).
+        // Both are stamped into prompt log headers alongside the project version.
+        const toolRoot = path.resolve(fileURLToPath(import.meta.url), '../../..');
+        let workflowVersion = null;
+        try {
+          const toolPkgRaw = await fs.readFile(path.join(toolRoot, 'package.json'), 'utf8');
+          workflowVersion = JSON.parse(toolPkgRaw).version || null;
+        } catch {
+          // tool package.json absent or unreadable — leave workflowVersion null
+        }
+        let workflowCoreVersion = null;
+        try {
+          const corePkgRaw = await fs.readFile(
+            path.join(toolRoot, '.workflow_core', 'package.json'),
+            'utf8'
+          );
+          workflowCoreVersion = JSON.parse(corePkgRaw).version || null;
+        } catch {
+          // .workflow_core absent or unreadable — leave workflowCoreVersion null
+        }
+
         // Always inject a pre-configured AiHelper so that:
         // (a) project version is stamped into every prompt log header, and
         // (b) when streaming is enabled, token deltas are forwarded to the TUI.
@@ -1043,6 +1065,8 @@ export class MainOrchestrator {
           commonDeps.aiHelper = new AiHelper({
             promptsDir: commonDeps.promptsDir,
             projectVersion,
+            workflowVersion,
+            workflowCoreVersion,
             streamingCallback: (delta, meta = {}) => {
               engine.emit('ai:stream:chunk', {
                 stepId,
@@ -1071,11 +1095,13 @@ export class MainOrchestrator {
           engine.on('step:complete', onStepComplete);
           engine.on('step:error', onStepComplete);
         } else {
-          // Non-streaming: inject a plain AiHelper with projectVersion so that
-          // the version is still stamped into prompt log headers.
+          // Non-streaming: inject a plain AiHelper with version fields so that
+          // all versions are stamped into prompt log headers.
           commonDeps.aiHelper = new AiHelper({
             promptsDir: commonDeps.promptsDir,
             projectVersion,
+            workflowVersion,
+            workflowCoreVersion,
           });
         }
 

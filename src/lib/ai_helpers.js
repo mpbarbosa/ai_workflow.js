@@ -629,6 +629,8 @@ export class AiHelper {
    * @param {string} [config.fallbackModel='claude-haiku-4.5'] - Model to try when the primary
    *   model exhausts all retries due to timeouts. Set to null to disable fallback.
    * @param {Object[]} [config.tools] - SDK tools for Copilot to call; defaults to buildWorkflowTools()
+   * @param {string|null} [config.workflowVersion=null] - Version of the ai_workflow.js tool itself
+   * @param {string|null} [config.workflowCoreVersion=null] - Version of the .workflow_core submodule
    */
   constructor(config = {}) {
     this.config = {
@@ -641,6 +643,8 @@ export class AiHelper {
       promptsDir: config.promptsDir || null,
       workingDirectory: config.workingDirectory || null,
       projectVersion: config.projectVersion || null,
+      workflowVersion: config.workflowVersion || null,
+      workflowCoreVersion: config.workflowCoreVersion || null,
       // Fallback model to try when the primary model exhausts all retries due to timeouts.
       // Set to null/false to disable. Must differ from the primary model to take effect.
       fallbackModel:
@@ -1067,6 +1071,12 @@ export class AiHelper {
         `**Model:** ${options.model || this.config.model}`,
         ...(this.config.projectVersion
           ? [`**Project Version:** ${this.config.projectVersion}`]
+          : []),
+        ...(this.config.workflowVersion
+          ? [`**Workflow Version:** ${this.config.workflowVersion}`]
+          : []),
+        ...(this.config.workflowCoreVersion
+          ? [`**Workflow Core Version:** ${this.config.workflowCoreVersion}`]
           : []),
         ``,
         `## Prompt`,
