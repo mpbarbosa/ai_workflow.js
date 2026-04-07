@@ -1,9 +1,9 @@
 # Workflow Execution Validation Guide
 
 <<<<<<< HEAD
-**Version:** 1.9.7
+**Version:** 1.9.8
 =======
-**Version:** 1.9.7
+**Version:** 1.9.8
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 > > > > > > > **Last Updated:** 2026-02-21

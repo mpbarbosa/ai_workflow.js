@@ -9320,14 +9320,14 @@
     {
       "cacheKey": "3f711fdeda7f83874b66f8b675798540bb7dee7b3002ef68ebf1e7686648e5aa",
       "created": "2026-04-05T14:25:07.000Z",
-      "lastAccessed": "2026-04-05T14:25:07.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-04-07T15:30:50.000Z",
+      "accessCount": 2
     },
     {
       "cacheKey": "step_23:/home/mpb/Documents/GitHub/ai_workflow_core:2",
       "created": "2026-04-05T14:25:21.000Z",
-      "lastAccessed": "2026-04-05T14:25:21.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-04-07T15:32:50.000Z",
+      "accessCount": 2
     },
     {
       "cacheKey": "ac2cd68cd3b8e5164e26c21eb6a31f1b5bc98004d7e43a4417e8f5b812982bea",
@@ -9338,14 +9338,14 @@
     {
       "cacheKey": "58f925025db9e530c07fbc156e31733dccf7a49012587ed3daf24268069538cc",
       "created": "2026-04-05T14:26:14.000Z",
-      "lastAccessed": "2026-04-05T14:26:14.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-04-07T15:39:04.000Z",
+      "accessCount": 2
     },
     {
       "cacheKey": "step_20:/home/mpb/Documents/GitHub/ai_workflow_core:0",
       "created": "2026-04-05T14:26:39.000Z",
-      "lastAccessed": "2026-04-05T14:26:39.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-04-07T16:14:39.272Z",
+      "accessCount": 3
     },
     {
       "cacheKey": "0cd02d3a465d6e96eef9f582b424af84b650e4781ba2bcd125ade1d9bdb1c9f3",
@@ -9393,6 +9393,66 @@
       "cacheKey": "1961d35b3a9ea7b351c459ae578fe81e292b889b418ad3c3b0e83a89546f40ef",
       "created": "2026-04-07T04:03:59.000Z",
       "lastAccessed": "2026-04-07T04:03:59.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "2c82bed6dbb8839383f7b2ab2fafb8b12d12489693aa1094cb280be0b7ae3c14",
+      "created": "2026-04-07T04:04:22.000Z",
+      "lastAccessed": "2026-04-07T04:04:22.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "bf46908e8920236176cbc2fbbf9487e072b7d871f37f7a30d627865f35b769ed",
+      "created": "2026-04-07T15:38:48.000Z",
+      "lastAccessed": "2026-04-07T15:38:48.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "661b3b5d843ed7c48b3e6a046e390ddb251882593f67bb690281043e6dbbda5c",
+      "created": "2026-04-07T15:40:39.000Z",
+      "lastAccessed": "2026-04-07T15:40:39.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "bdb1c29bd5d53af2d7c9f3bd2f6a2d49f54637e4437fb1275a523fbf42c6bee8",
+      "created": "2026-04-07T16:11:47.000Z",
+      "lastAccessed": "2026-04-07T16:11:47.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "step_23:/home/mpb/Documents/GitHub/ai_workflow_core:1",
+      "created": "2026-04-07T16:12:24.000Z",
+      "lastAccessed": "2026-04-07T16:12:24.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "a3aada0d211b5228fff1ca6cc91842317d412a792b102d72f2ad20d9f1e617e8",
+      "created": "2026-04-07T16:13:38.000Z",
+      "lastAccessed": "2026-04-07T16:13:38.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "0194de6f7dc3d177201082f63a33a8c2b34da08decc021a5440cdb0f7c5b354d",
+      "created": "2026-04-07T16:14:07.000Z",
+      "lastAccessed": "2026-04-07T16:14:07.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "9265e847c680cdc77792f4fcc7d07d3ff95259b85be58ca8cf442d948d28558f",
+      "created": "2026-04-07T16:15:04.000Z",
+      "lastAccessed": "2026-04-07T16:15:04.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "1d97fc1ec0b72c8e30bd793be06915d85dcc067a3e6ac48d574401c5c10a592e",
+      "created": "2026-04-07T16:19:50.000Z",
+      "lastAccessed": "2026-04-07T16:19:50.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "852aefffaff2a3404602862c1af5608cdda53d8533789dbed485a73807c50b8e",
+      "created": "2026-04-07T16:21:25.000Z",
+      "lastAccessed": "2026-04-07T16:21:25.000Z",
       "accessCount": 1
     }
   ]

@@ -1,16 +1,15 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 26,
-  "filesHash": "eb3bd0d5",
+  "totalPartitions": 25,
+  "filesHash": "872ea7aa",
   "partitionLabels": [
-    "src/cli",
-    "src/cli (2)",
-    "src/cli (3)",
     "docs/api",
     "scripts",
     "scripts (2)",
     "scripts (3)",
+    "src/cli",
+    "src/cli (2)",
     "src/lib",
     "src/lib (2)",
     "src/lib (3)",
@@ -31,5 +30,5 @@
     "tsconfig.json, typedoc.json, .workflow_core/src",
     "src/core, src/types, .workflow_core/scripts"
   ],
-  "updatedAt": "2026-04-07T04:03:38.106Z"
+  "updatedAt": "2026-04-07T16:20:44.782Z"
 }

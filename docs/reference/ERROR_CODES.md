@@ -1,6 +1,6 @@
 # Error Codes Reference
 
-**AI Workflow Automation v1.9.7**
+**AI Workflow Automation v1.9.8**
 **Last Updated:** 2026-03-12
 **Audience:** Developers, Support Engineers
 
@@ -686,4 +686,4 @@ async function retryOnError(fn, maxRetries = 3) {
 ---
 
 **Last Updated:** 2026-03-12
-**Version:** 1.9.7
+**Version:** 1.9.8
