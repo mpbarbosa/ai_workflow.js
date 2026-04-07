@@ -458,9 +458,15 @@ export class Step5DirectoryAnalyzer {
             projectKind && this.projectKindConfig
               ? await this.projectKindConfig.getAIGuidance(projectKind).catch(() => null)
               : null;
-          const directoryStandards = aiGuidance?.directory_standards?.length
-            ? aiGuidance.directory_standards.map((s) => `- ${s}`).join('\n')
-            : '';
+          // 'language_specific_directory_standards' carries project-kind-level directory
+          // conventions (not language-level, despite the placeholder name which predates
+          // the project_kinds system). Injecting the 'generic' kind's content-free bullets
+          // adds prompt tokens with no signal value, so treat 'generic' as absent.
+          const GENERIC_KIND = 'generic';
+          const directoryStandards =
+            projectKind && projectKind !== GENERIC_KIND && aiGuidance?.directory_standards?.length
+              ? aiGuidance.directory_standards.map((s) => `- ${s}`).join('\n')
+              : '';
           const issueLines =
             structureResults.issues?.length > 0
               ? structureResults.issues
