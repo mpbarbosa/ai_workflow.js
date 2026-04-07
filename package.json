@@ -109,7 +109,7 @@
     "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.10.tar.gz",
     "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9",
     "ora": "^9.3.0",
-    "pajussara_tui_comp": "https://github.com/mpbarbosa/pajussara_tui_comp/archive/refs/tags/v1.1.9.tar.gz",
+    "pajussara_tui_comp": "https://github.com/mpbarbosa/pajussara_tui_comp/archive/refs/tags/v1.2.0.tar.gz",
     "react": "^19.2.4"
   },
   "devDependencies": {

@@ -2,12 +2,12 @@
  * @fileoverview StepsPanel component — backward-compatible adapter over ListPanel
  * @module cli/tui/components/StepsPanel
  *
- * Imports {@link ListPanel} and {@link StatusBadge} from the pajussara_tui_comp
+ * Imports {@link ListPanel} and {@link StatusChronometer} from the pajussara_tui_comp
  * package and composes them into a single panel. StepsPanel maps the legacy
  * workflow-step prop names (steps / currentStepId / selectedStepId / onSelectStep)
  * to the canonical ListPanel API (items / currentItemId / selectedItemId /
- * onSelectItem), then renders a {@link StatusBadge} below the list to reflect the
- * current GitHub Copilot SDK execution state.
+ * onSelectItem), then renders a {@link StatusChronometer} below the list to reflect
+ * the current GitHub Copilot SDK execution state and elapsed time.
  *
  * ### `copilotStatus` values (PanelStatus)
  * | Value        | Badge shown                        |
@@ -26,19 +26,20 @@
  * 4. `currentStepId != null`  → `'loading'`
  * 5. *(else)*                 → `'idle'`
  *
- * @version 2.1.0
+ * @version 2.4.0
  * @since 2026-04-04
  */
 
 import React from 'react';
 import { Box } from 'ink';
-import { ListPanel, StatusBadge } from 'pajussara_tui_comp';
+import { ListPanel, StatusChronometer } from 'pajussara_tui_comp';
 
 export { ListPanel };
 
 /**
  * Backward-compatible wrapper around {@link ListPanel} with an integrated
- * {@link StatusBadge} that reflects the Copilot SDK execution state.
+ * {@link StatusChronometer} that reflects the Copilot SDK execution state and
+ * elapsed time.
  *
  * @param {{
  *   steps: Object.<string, import('../hooks/useOrchestrator.js').StepEntry>,
@@ -67,6 +68,10 @@ export function StepsPanel({
     copilotStatus !== 'idle' &&
     (currentStepId != null || copilotStatus === 'done' || copilotStatus === 'error');
 
+  // Derive forceRunning explicitly (mirrors the demo pattern in
+  // status-chronometer-cities5.tsx) rather than delegating via syncWithStatus.
+  const forceRunning = copilotStatus === 'loading' || copilotStatus === 'streaming';
+
   return React.createElement(
     Box,
     { flexDirection: 'column' },
@@ -74,7 +79,9 @@ export function StepsPanel({
       items: steps,
       currentItemId: currentStepId,
       width,
-      height,
+      // Reserve 1 row for StatusChronometer when it is visible so the combined
+      // height stays within the contentHeight container allocated by App.js.
+      height: showBadge ? height - 1 : height,
       selectedItemId: selectedStepId,
       onSelectItem: onSelectStep,
       isFocused,
@@ -82,14 +89,16 @@ export function StepsPanel({
       emptyText: 'Waiting for steps…',
     }),
     showBadge &&
-      React.createElement(
-        Box,
-        { paddingX: 1 },
-        React.createElement(StatusBadge, {
-          status: copilotStatus,
-          errorMessage: copilotErrorMessage ?? undefined,
-        })
-      )
+      React.createElement(StatusChronometer, {
+        status: copilotStatus,
+        errorMessage: copilotErrorMessage ?? undefined,
+        width,
+        isFocused: false,
+        forceRunning,
+        showLabel: false,
+        showBorder: false,
+        showHints: false,
+      })
   );
 }
 
