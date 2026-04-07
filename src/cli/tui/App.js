@@ -245,8 +245,6 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
         isFocused: focusedPanel === 'steps',
         selectedStepId,
         onSelectStep: setSelectedStepId,
-        copilotStatus,
-        copilotErrorMessage,
       }),
       React.createElement(
         Box,
@@ -268,7 +266,7 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
       )
     ),
     React.createElement(ProgressBar, { pct: progress, startTime: startTimeRef.current }),
-    React.createElement(StatusBar, { isComplete }),
+    React.createElement(StatusBar, { isComplete, copilotStatus, copilotErrorMessage, width: cols }),
     isComplete
       ? React.createElement(
           Box,
