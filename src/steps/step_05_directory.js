@@ -450,7 +450,9 @@ export class Step5DirectoryAnalyzer {
           const language = options.language || (await this.detectLanguage(projectRoot));
           const projectKind =
             options.projectKind ??
-            (this.projectKindConfig ? await this.projectKindConfig.getProjectKind() : null) ??
+            (this.projectKindConfig
+              ? await this.projectKindConfig.getProjectKind().catch(() => null)
+              : null) ??
             '';
           const aiGuidance =
             projectKind && this.projectKindConfig
