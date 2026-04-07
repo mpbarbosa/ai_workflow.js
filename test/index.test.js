@@ -100,10 +100,6 @@ describe('index.js - Public API Exports', () => {
   });
 
   describe('Phase 6: AI Integration exports', () => {
-    it('should export JqWrapper', () => {
-      expect(index.JqWrapper).toBeDefined();
-    });
-
     it('should export AI persona functions', () => {
       expect(index.getAllPersonas).toBeDefined();
       expect(index.getPersonaById).toBeDefined();

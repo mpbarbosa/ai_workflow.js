@@ -1,9 +1,9 @@
 # Conditional Execution Strategy
 
 <<<<<<< HEAD
-**Version:** 1.9.5
+**Version:** 1.9.6
 =======
-**Version:** 1.9.5
+**Version:** 1.9.6
 
 > > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 > > > > > > > **Status:** ✅ Implemented
@@ -864,7 +864,7 @@ Run only tests that cover changed code:
 
 <<<<<<< HEAD
 
-### [1.9.5] - 2026-02-07
+### [1.9.6] - 2026-02-07
 
 =======
 

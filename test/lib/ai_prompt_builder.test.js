@@ -582,7 +582,7 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('**Role**');
       expect(result).toContain('test architect');
       expect(result).toContain('test/app.test.js');
-      expect(result).toContain('using Jest framework');
+      expect(result).toContain('using Jest');
     });
 
     test('works without framework', () => {
@@ -591,6 +591,109 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
 
       expect(result).not.toContain('using');
       expect(result).toContain('test/app.test.js');
+    });
+
+    test('includes framework-specific guideline when framework is provided', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        framework: 'TypeScript',
+      });
+
+      expect(result).toContain('When reviewing TypeScript tests');
+      expect(result).toContain('TypeScript-specific matchers');
+    });
+
+    test('omits framework-specific guideline when framework is absent', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.js'] });
+
+      expect(result).not.toContain('When reviewing');
+      expect(result).not.toContain('specific matchers');
+    });
+
+    test('includes file:line citation guideline', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        framework: 'jest',
+      });
+
+      expect(result).toContain('file:line');
+    });
+
+    test('includes calibrated effort estimate guideline', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('small');
+      expect(result).toContain('medium');
+      expect(result).toContain('large');
+    });
+
+    test('includes CONTRIBUTING.md convention guideline', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('CONTRIBUTING.md');
+    });
+
+    test('uses testFramework as primary label, framework as qualifier', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        framework: 'typescript',
+        testFramework: 'jest',
+      });
+
+      expect(result).toContain('using jest (typescript)');
+      expect(result).toContain('When reviewing jest tests');
+    });
+
+    test('uses only testFramework when framework is absent', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        testFramework: 'pytest',
+      });
+
+      expect(result).toContain('using pytest');
+      expect(result).not.toContain('pytest (');
+    });
+
+    test('includes test and coverage commands when provided', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        testFramework: 'jest',
+        testCommand: 'npm test',
+        coverageCommand: 'npm run coverage',
+      });
+
+      expect(result).toContain('`npm test`');
+      expect(result).toContain('`npm run coverage`');
+    });
+
+    test('omits command line when testCommand is empty', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        testFramework: 'jest',
+      });
+
+      expect(result).not.toContain('Run tests with');
+    });
+
+    test('normalizes null/whitespace framework values gracefully', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/app.test.ts'],
+        framework: null,
+        testFramework: '  ',
+        testCommand: '',
+      });
+
+      expect(result).not.toContain('using');
+      expect(result).not.toContain('Run tests with');
+      expect(result).not.toContain('When reviewing');
+    });
+
+    test('clarifies assertion quality, edge cases, and test isolation in task', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('assertion quality');
+      expect(result).toContain('edge cases');
+      expect(result).toContain('test isolation');
     });
   });
 

@@ -268,15 +268,6 @@ export {
 
 // Phase 6 exports (v2.0.0) - AI Integration
 export {
-  validateJson,
-  sanitizeArgjsonValue,
-  parseJqArguments,
-  validateArgjsonPairs,
-  buildJqCommand,
-  JqWrapper,
-} from './lib/jq_wrapper.js';
-
-export {
   getAllPersonas,
   getPersonaById,
   getPersonaByName,

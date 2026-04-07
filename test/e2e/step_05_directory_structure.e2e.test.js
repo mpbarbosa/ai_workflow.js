@@ -19,6 +19,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { jest } from '@jest/globals';
 import {
   Step5DirectoryAnalyzer,
   ROOT_ALLOWED_FILES,
@@ -50,6 +51,9 @@ describe('E2E: Step 5 Directory Structure Validation – glob fix', () => {
   let analyzer;
 
   beforeEach(async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ai_workflow_step5_e2e_'));
 
     fileOps = new FileOperations();
@@ -66,6 +70,8 @@ describe('E2E: Step 5 Directory Structure Validation – glob fix', () => {
   });
 
   afterEach(async () => {
+    jest.restoreAllMocks();
+
     if (tempDir) {
       await fs.rm(tempDir, { recursive: true, force: true });
     }

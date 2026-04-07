@@ -8,6 +8,9 @@
 import { jest } from '@jest/globals';
 import React from 'react';
 import { act } from 'react';
+
+// React 18 requires this global to enable act() in non-browser (Node) environments.
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 import { render } from 'ink-testing-library';
 import { useOrchestrator } from '../../../../src/cli/tui/hooks/useOrchestrator.js';
 

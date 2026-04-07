@@ -1,10 +1,9 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 29,
-  "filesHash": "eb7e821e",
+  "totalPartitions": 30,
+  "filesHash": "0c6a776d",
   "partitionLabels": [
-    "src",
     "src/steps",
     "src/steps (2)",
     "src/steps (3)",
@@ -15,6 +14,7 @@
     "scripts",
     "scripts (2)",
     "scripts (3)",
+    "src",
     "src/lib",
     "src/lib (2)",
     "src/lib (3)",
@@ -23,6 +23,7 @@
     "src/lib (6)",
     "src/lib (7)",
     "src/lib (8)",
+    "package-lock.json, package.json",
     "docs/api",
     "src/cli",
     "src/cli (2)",
@@ -34,5 +35,5 @@
     "typedoc.json, .workflow_core/src, src/core",
     "src/types, .workflow_core/scripts"
   ],
-  "updatedAt": "2026-04-07T03:19:35.621Z"
+  "updatedAt": "2026-04-07T03:32:30.794Z"
 }

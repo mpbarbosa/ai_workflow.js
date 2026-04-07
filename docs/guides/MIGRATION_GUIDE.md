@@ -1,6 +1,6 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v1.9.5**
+**AI Workflow Automation v1.9.6**
 **Last Updated:** 2026-03-11
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 

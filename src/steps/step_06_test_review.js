@@ -501,10 +501,13 @@ export class Step6TestReviewer {
             bash: 'bats',
           };
           const testFramework =
+            ctx.config?.tech_stack?.test_framework ??
             ctx.config?.tech_stack?.test_runner ??
             ctx.techStack?.testRunner ??
             testFrameworkMap[language] ??
             language;
+          const configTestCommand = ctx.config?.tech_stack?.test_command ?? testCmdMap[language] ?? 'npm test';
+          const configCovCommand = covCmdMap[language] ?? 'npm run coverage';
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
             sharedParsedYaml = yaml.load(yamlContent);
@@ -551,9 +554,9 @@ export class Step6TestReviewer {
                       ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
                     primary_language: language,
                     test_framework: testFramework,
-                    test_env: testCmdMap[language] ?? 'npm test',
-                    test_command: testCmdMap[language] ?? 'npm test',
-                    coverage_command: covCmdMap[language] ?? 'npm run coverage',
+                    test_env: configTestCommand,
+                    test_command: configTestCommand,
+                    coverage_command: configCovCommand,
                     test_count: String(testFiles.length),
                     tests_in_tests_dir: String(testsInTestsDir),
                     tests_colocated: String(sliceFiles.length - testsInTestsDir),
@@ -568,7 +571,13 @@ export class Step6TestReviewer {
                 }
               }
               if (!prompt) {
-                prompt = buildTestReviewPrompt({ testFiles: sliceFiles, framework: language });
+                prompt = buildTestReviewPrompt({
+                  testFiles: sliceFiles,
+                  framework: language,
+                  testFramework,
+                  testCommand: configTestCommand,
+                  coverageCommand: configCovCommand,
+                });
               }
 
               const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);

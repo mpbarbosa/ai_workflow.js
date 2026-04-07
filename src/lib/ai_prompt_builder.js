@@ -635,34 +635,57 @@ If no semantic issues are apparent from the provided context, respond with: "No 
  *
  * @param {Object} options - Prompt options
  * @param {string[]} options.testFiles - Test files to review
- * @param {string} [options.framework] - Test framework name
+ * @param {string} [options.framework] - Programming language (e.g. "typescript")
+ * @param {string} [options.testFramework] - Test runner/framework (e.g. "jest", "pytest")
+ * @param {string} [options.testCommand] - Command to run tests (e.g. "npm test")
+ * @param {string} [options.coverageCommand] - Command to run coverage (e.g. "npm run coverage")
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Test review prompt
  */
 export function buildTestReviewPrompt(options) {
-  const { testFiles = [], framework = '', projectInfo = {} } = options;
+  const {
+    testFiles = [],
+    framework = '',
+    testFramework = '',
+    testCommand = '',
+    coverageCommand = '',
+    projectInfo = {},
+  } = options;
 
+  const lang = typeof framework === 'string' ? framework.trim() : '';
+  const runner = typeof testFramework === 'string' ? testFramework.trim() : '';
+  const testCmd = typeof testCommand === 'string' ? testCommand.trim() : '';
+  const covCmd = typeof coverageCommand === 'string' ? coverageCommand.trim() : '';
+
+  const effectiveFramework = runner || lang;
+  const frameworkContext = effectiveFramework ? ` When reviewing ${effectiveFramework} tests, use ${effectiveFramework}-specific matchers, patterns, and APIs in all recommendations.` : '';
   const role = `You are a senior test architect specializing in test quality, coverage analysis, and testing best practices.
 
 **Critical Behavioral Guidelines**:
-- ALWAYS provide specific, actionable recommendations
+- ALWAYS provide specific, actionable recommendations with \`file:line\` references where applicable${frameworkContext}
 - Focus on test quality, not just coverage numbers
-- Identify gaps in edge case coverage and error handling
-- Recommend practical improvements with effort estimates`;
+- Identify gaps in edge case coverage and error handling; reference the actual test file and line number for each gap
+- Recommend practical improvements with effort estimates (e.g. "small: rename test description", "medium: extract shared fixture", "large: refactor mock strategy")
+- If the project includes CONTRIBUTING.md or documented testing conventions, align recommendations with those conventions`;
 
   const testList = buildFileListContext(testFiles);
-  const frameworkContext = framework ? ` using ${framework} framework` : '';
 
-  const task = `Review test quality and coverage for these test files${frameworkContext}:
-${testList}`;
+  const taskFrameworkLabel = runner ? (lang ? `${runner} (${lang})` : runner) : lang;
+  const taskFrameworkContext = taskFrameworkLabel ? ` using ${taskFrameworkLabel}` : '';
+  const commandsNote = testCmd
+    ? `\nRun tests with: \`${testCmd}\`${covCmd ? `; coverage with: \`${covCmd}\`` : ''}`
+    : '';
+
+  const task = `Review test quality and coverage — including assertion quality, edge cases, error handling, and test isolation — for these test files${taskFrameworkContext}:
+${testList}${commandsNote}`;
 
   const approach = `**Review Methodology**:
-1. **Coverage Analysis**: Identify untested code paths and edge cases
-2. **Quality Assessment**: Evaluate test clarity, maintainability, and assertions
-3. **Best Practices**: Check for proper setup/teardown, mocking, and isolation
+1. **Coverage Analysis**: Identify untested code paths, edge cases, and error handling gaps
+2. **Quality Assessment**: Evaluate assertion quality, test clarity, and maintainability
+3. **Best Practices**: Check for proper setup/teardown, mocking, test isolation, and descriptive naming
 4. **Recommendations**: Prioritize improvements by impact and effort
 
-**Focus**: Test quality, edge cases, error handling, and maintainability`;
+**Focus**: Assertion quality, edge cases, error handling, test isolation, and maintainability`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);

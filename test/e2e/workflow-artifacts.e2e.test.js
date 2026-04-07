@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import path from 'path';
 import fs from 'fs/promises';
 import { Backlog } from '../../src/lib/backlog.js';
@@ -24,13 +24,16 @@ import {
 
 let tempDir;
 let config;
+let consoleSpy;
 
 beforeEach(async () => {
+  consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   tempDir = await createTempProject('nodejs-api');
   config = createMockConfig(tempDir);
   await ensureWorkflowDirectories(tempDir);
 });
 afterEach(async () => {
+  consoleSpy.mockRestore();
   await cleanupTempProject(tempDir);
 });
 

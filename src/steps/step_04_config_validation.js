@@ -561,7 +561,7 @@ export class Step4ConfigAnalyzer {
       const configFiles = await this.discoverConfigFiles(projectRoot);
       if (configFiles.length === 0) {
         logger.info('No configuration files found - skipping validation');
-        return { success: true, skipped: true, reason: 'no_config_files' };
+        return { success: true, skipped: true, reason: 'no_config_files', alternatives: [], recommendedAlternative: null };
       }
 
       logger.info(`Found ${configFiles.length} configuration file(s)`);

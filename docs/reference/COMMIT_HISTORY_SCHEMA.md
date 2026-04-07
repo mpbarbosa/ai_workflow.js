@@ -1,7 +1,7 @@
 # Commit History Schema
 
 **File:** `.ai_workflow/commit_history.json`
-**Version:** 1.9.5
+**Version:** 1.9.6
 
 ## Overview
 
