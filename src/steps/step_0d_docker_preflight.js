@@ -25,8 +25,6 @@
 
 import path from 'path';
 import fs from 'fs';
-import { promisify } from 'util';
-import { execFile } from 'child_process';
 
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
@@ -34,15 +32,18 @@ import * as executor from '../core/executor.js';
 import { Backlog } from '../lib/backlog.js';
 import { validateLockfileStructure } from './step_09_dependencies.js';
 
-const execFileAsync = promisify(execFile);
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 /** Minimum free disk space (bytes) before a warning is emitted. */
 export const MIN_DISK_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
 /** Dockerfile name patterns to scan for. */
-export const DOCKERFILE_PATTERNS = ['Dockerfile', 'Dockerfile.test', 'Dockerfile.dev', 'Dockerfile.prod'];
+export const DOCKERFILE_PATTERNS = [
+  'Dockerfile',
+  'Dockerfile.test',
+  'Dockerfile.dev',
+  'Dockerfile.prod',
+];
 
 /** Marker text in a Dockerfile that signals `npm ci` is used. */
 export const NPM_CI_PATTERN = /RUN\s+npm\s+ci\b/;
@@ -85,11 +86,7 @@ export const FROM_LINE_PATTERN = /^FROM\s+([^\s]+)/im;
  * @returns {string[]} Relative paths of detected Docker files
  */
 export function detectDockerFiles(projectRoot) {
-  const candidates = [
-    ...DOCKERFILE_PATTERNS,
-    'docker-compose.yml',
-    'docker-compose.yaml',
-  ];
+  const candidates = [...DOCKERFILE_PATTERNS, 'docker-compose.yml', 'docker-compose.yaml'];
 
   return candidates.filter((name) => {
     try {
@@ -172,9 +169,7 @@ export function isLockfileDockerIgnored(projectRoot) {
     return content.split('\n').some((line) => {
       const trimmed = line.trim();
       return (
-        trimmed === 'package-lock.json' ||
-        trimmed === '*.lock' ||
-        trimmed === '*.json' // overly broad — would also exclude package-lock.json
+        trimmed === 'package-lock.json' || trimmed === '*.lock' || trimmed === '*.json' // overly broad — would also exclude package-lock.json
       );
     });
   } catch {
@@ -216,7 +211,11 @@ export function formatPreflightReport(report) {
   }
 
   lines.push('');
-  lines.push(report.passed ? '✅ All Docker pre-flight checks passed.' : '⚠️ Some Docker pre-flight checks failed — review issues above.');
+  lines.push(
+    report.passed
+      ? '✅ All Docker pre-flight checks passed.'
+      : '⚠️ Some Docker pre-flight checks failed — review issues above.'
+  );
   return lines.join('\n');
 }
 
@@ -339,7 +338,10 @@ export class Step0dDockerPreflight {
    */
   async _checkDockerCli() {
     try {
-      const result = await this.executor.execute('docker --version', { shell: true, timeout: 10000 });
+      const result = await this.executor.execute('docker --version', {
+        shell: true,
+        timeout: 10000,
+      });
       const version = (result.stdout || '').trim().split('\n')[0] || 'unknown';
       return { passed: true, message: version };
     } catch {
@@ -374,13 +376,16 @@ export class Step0dDockerPreflight {
   async _checkDiskSpace(projectRoot) {
     try {
       // `df -k <path>` outputs kilobytes in the 4th column (available)
-      const result = await this.executor.execute(`df -k "${projectRoot}" | tail -1 | awk '{print $4}'`, {
-        shell: true,
-        timeout: 5000,
-      });
+      const result = await this.executor.execute(
+        `df -k "${projectRoot}" | tail -1 | awk '{print $4}'`,
+        {
+          shell: true,
+          timeout: 5000,
+        }
+      );
       const availableKb = parseInt((result.stdout || '0').trim(), 10);
       const availableBytes = availableKb * 1024;
-      const availableGb = (availableBytes / (1024 ** 3)).toFixed(1);
+      const availableGb = (availableBytes / 1024 ** 3).toFixed(1);
 
       if (availableBytes < MIN_DISK_BYTES) {
         return {
