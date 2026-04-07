@@ -233,6 +233,8 @@ export class Step0dDockerPreflight {
   constructor(options = {}) {
     this.executor = options.executor || executor;
     this.backlog = options.backlog || new Backlog();
+    this._validateLockfileStructure =
+      options.validateLockfileStructure ?? validateLockfileStructure;
   }
 
   /**
@@ -446,7 +448,7 @@ export class Step0dDockerPreflight {
     }
 
     // Structural validation (synchronous, pure)
-    const structuralResult = validateLockfileStructure(lockfilePath);
+    const structuralResult = this._validateLockfileStructure(lockfilePath);
     const structuralIssues = structuralResult.issues || [];
 
     // Dry-run install to catch unresolvable version ranges

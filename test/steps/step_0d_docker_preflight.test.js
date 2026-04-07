@@ -154,7 +154,11 @@ describe('Step0dDockerPreflight class', () => {
       execute: jest.fn(),
     };
     mockBacklog = { saveStepSummary: jest.fn().mockResolvedValue() };
-    step = new Step0dDockerPreflight({ executor: mockExecutor, backlog: mockBacklog });
+    step = new Step0dDockerPreflight({
+      executor: mockExecutor,
+      backlog: mockBacklog,
+      validateLockfileStructure: jest.fn().mockReturnValue({ issues: [] }),
+    });
     jest.spyOn(fs, 'accessSync').mockImplementation((p) => {
       if (p.endsWith('Dockerfile')) return true;
       throw new Error('not found');
@@ -188,11 +192,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({}) // docker manifest inspect
       .mockResolvedValueOnce({}); // npm install --dry-run
 
-    // validateLockfileStructure returns { issues: [] }
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
-
     const result = await step.execute('/root');
     expect(result.passed).toBe(true);
     expect(result.success).toBe(true);
@@ -208,10 +207,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({ stdout: `${6 * 1024 * 1024}` }) // df -k
       .mockResolvedValueOnce({}); // docker manifest inspect
 
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
-
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
     expect(result.issues).toContain('Docker CLI not available');
@@ -223,10 +218,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockRejectedValueOnce({ stderr: 'permission denied' }) // docker info
       .mockResolvedValueOnce({ stdout: `${6 * 1024 * 1024}` }) // df -k
       .mockResolvedValueOnce({}); // docker manifest inspect
-
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
 
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
@@ -240,10 +231,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({ stdout: `${1 * 1024 * 1024}` }) // df -k (1GB)
       .mockResolvedValueOnce({}); // docker manifest inspect
 
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
-
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
     expect(result.issues).toContain('Low disk space for Docker');
@@ -255,10 +242,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({ stdout: '25.0.0' }) // docker info
       .mockResolvedValueOnce({ stdout: `${6 * 1024 * 1024}` }) // df -k
       .mockRejectedValueOnce(new Error('unreachable')); // docker manifest inspect
-
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
 
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
@@ -272,10 +255,6 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({ stdout: '25.0.0' }) // docker info
       .mockResolvedValueOnce({ stdout: `${6 * 1024 * 1024}` }) // df -k
       .mockResolvedValueOnce({}); // docker manifest inspect
-
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
 
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
@@ -295,25 +274,14 @@ describe('Step0dDockerPreflight class', () => {
       .mockResolvedValueOnce({ stdout: `${6 * 1024 * 1024}` }) // df -k
       .mockResolvedValueOnce({}); // docker manifest inspect
 
-    jest
-      .spyOn(require('../../src/steps/step_09_dependencies.js'), 'validateLockfileStructure')
-      .mockReturnValue({ issues: [] });
-
     const result = await step.execute('/root');
     expect(result.passed).toBe(false);
     expect(result.issues).toContain('.dockerignore excludes package-lock.json');
   });
 
   it('returns error on unexpected failure', async () => {
-    jest.spyOn(fs, 'accessSync').mockImplementation(() => {
-      throw new Error('fail');
-    });
-    jest.spyOn(fs, 'readFileSync').mockImplementation(() => {
-      throw new Error('fail');
-    });
-    mockExecutor.execute.mockImplementation(() => {
-      throw new Error('fail');
-    });
+    // Simulate unexpected failure by making backlog throw — no internal handler catches this
+    mockBacklog.saveStepSummary.mockRejectedValue(new Error('fail'));
     const result = await step.execute('/root');
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
