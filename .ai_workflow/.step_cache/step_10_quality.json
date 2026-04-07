@@ -69,17 +69,17 @@
     "src/steps/step_02_consistency.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-04T01:21:24.772Z"
+      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
     },
     "src/steps/step_03_script_refs.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-11T22:53:07.387Z"
+      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
     },
     "src/steps/step_05_directory.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-06T01:49:37.985Z"
+      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
     },
     "src/steps/step_06_test_review.js": {
       "score": 100,
@@ -370,6 +370,16 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-07T03:19:35.621Z"
+    },
+    "src/steps/step_04_config_validation.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
+    },
+    "src/steps/step_0d_docker_preflight.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
     }
   }
 }

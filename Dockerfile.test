@@ -1,0 +1,58 @@
+# ── Test runner image for ai_workflow.js ─────────────────────────────────────
+#
+# Build and run:
+#   docker build -f Dockerfile.test -t ai-workflow-test .
+#   docker run --rm -e CI=true ai-workflow-test
+#
+# Run with coverage extracted to the host:
+#   docker run --rm \
+#     -e CI=true \
+#     -v "$(pwd)/coverage:/app/coverage" \
+#     ai-workflow-test \
+#     npm test -- --runInBand --coverage
+#
+# Or use the convenience script (recommended):
+#   npm run test:docker
+#   bash scripts/run-tests-docker.sh
+#   bash scripts/run-tests-docker.sh -- --coverage
+#   bash scripts/run-tests-docker.sh --e2e
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine
+
+# git is required because one dependency uses the github: protocol:
+#   "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9"
+# npm resolves github: references by cloning via git.
+RUN apk add --no-cache git bash
+
+WORKDIR /app
+
+# Copy dependency manifests first so this layer is cached between source changes.
+COPY package.json package-lock.json ./
+
+# Override NODE_ENV=production (the default in all official Node images) so that
+# npm ci installs devDependencies (Jest, Babel, type definitions, etc.).
+ENV NODE_ENV=test
+
+# Disable husky so its `prepare` lifecycle script does not fail inside Alpine
+# (no .git/hooks directory exists in the build context).
+ENV HUSKY=0
+
+# --ignore-scripts skips all lifecycle hooks (postinstall, prepare, etc.).
+# postinstall.js patches olinda_shell_interface.js and vscode-jsonrpc exports maps
+# required for @github/copilot-sdk ESM imports, but the script file does not exist
+# yet at this layer — only package manifests have been copied.  We run it explicitly
+# after COPY . . below so it has access to the full scripts/ directory.
+RUN npm ci --ignore-scripts
+
+# Copy the rest of the project after npm ci so source changes do not invalidate
+# the dependency cache layer.  .dockerignore controls what is excluded.
+COPY . .
+
+# Run postinstall manually now that scripts/postinstall.js is present.
+RUN node scripts/postinstall.js
+
+# Run the full Jest suite by default.
+# The shell script (scripts/run-tests-docker.sh) always appends --runInBand when
+# invoking docker run, which prevents a VM-teardown race when using ESM workers.
+CMD ["npm", "test"]

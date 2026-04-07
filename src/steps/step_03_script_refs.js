@@ -383,7 +383,17 @@ export class Step3ScriptAnalyzer {
       logger.info(`Language: ${language}, patterns: ${patterns.join(', ')}`);
 
       // Phase 2: Find all scripts
-      const scripts = await this.findScripts(projectRoot, directories, patterns);
+      const primaryScripts = await this.findScripts(projectRoot, directories, patterns);
+
+      // For non-bash projects, also scan standard shell-script directories so that
+      // mixed-language repos (e.g. TypeScript + scripts/*.sh) don't silently skip
+      // their bash automation scripts.
+      let shellScripts = [];
+      if (language !== 'bash') {
+        shellScripts = await this.findScripts(projectRoot, ['scripts', '.'], ['*.sh']);
+      }
+
+      const scripts = [...new Set([...primaryScripts, ...shellScripts])];
       if (scripts.length === 0) {
         logger.info('No scripts found - skipping validation');
         return {

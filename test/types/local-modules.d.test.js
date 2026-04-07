@@ -2,12 +2,24 @@
  * Tests for ambient type declarations in src/types/local-modules.d.ts.
  * Verifies that the real JS modules match the contracts described in the .d.ts.
  */
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import { logger } from '../../src/core/logger.js';
 import { WorkflowError, SystemError, ConfigurationError } from '../../src/utils/errors.js';
 
 describe('Ambient Module: logger', () => {
   const LOG_METHODS = ['debug', 'info', 'warn', 'error'];
+
+  beforeAll(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    console.log.mockRestore();
+    console.warn.mockRestore();
+    console.error.mockRestore();
+  });
 
   test.each(LOG_METHODS)('logger.%s should be a function', (method) => {
     expect(typeof logger[method]).toBe('function');

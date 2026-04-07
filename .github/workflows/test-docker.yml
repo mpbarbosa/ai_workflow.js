@@ -1,0 +1,69 @@
+name: Docker Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new run is triggered on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-docker:
+    name: Test Suite (Docker)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        run: |
+          docker build \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -t ai-workflow-test \
+            -f Dockerfile.test \
+            .
+
+      - name: Run tests inside Docker
+        run: |
+          docker run --rm \
+            -e CI=true \
+            -v "${{ github.workspace }}/coverage:/app/coverage" \
+            ai-workflow-test \
+            npm test -- --runInBand --coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "### Docker Test Coverage :bar_chart:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/coverage-summary.json ]; then
+            LINES=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.lines.pct + '%')")
+            STMTS=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.statements.pct + '%')")
+            FUNCS=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.functions.pct + '%')")
+            BRANCHES=$(node -e "const s=require('./coverage/coverage-summary.json').total; console.log(s.branches.pct + '%')")
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | $LINES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | $STMTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Functions | $FUNCS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | $BRANCHES |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report not available" >> $GITHUB_STEP_SUMMARY
+          fi

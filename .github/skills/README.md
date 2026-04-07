@@ -7,9 +7,10 @@ invoked by name during a chat session.
 
 ## Available skills
 
-| Skill              | Directory           | Purpose                                                                         |
-| ------------------ | ------------------- | ------------------------------------------------------------------------------- |
-| `update-pajussara` | `update-pajussara/` | Bump the `pajussara_tui_comp` dependency to the latest (or a specified) release |
+| Skill                | Directory             | Purpose                                                                         |
+| -------------------- | --------------------- | ------------------------------------------------------------------------------- |
+| `update-pajussara`   | `update-pajussara/`   | Bump the `pajussara_tui_comp` dependency to the latest (or a specified) release |
+| `update-submodules`  | `update-submodules/`  | Pull latest changes for all git submodules and sync them with the project       |
 
 ## How skills work
 

@@ -186,16 +186,26 @@ describe('Step 5: Directory Structure Validation', () => {
   });
 
   describe('getDefaultCriticalDirs', () => {
-    test('always includes .github', () => {
+    test('returns empty array when no known directories exist', () => {
       const result = getDefaultCriticalDirs([]);
+      expect(result).toEqual([]);
+    });
+
+    test('includes .github when it exists', () => {
+      const result = getDefaultCriticalDirs(['.github', 'src']);
       expect(result).toContain('.github');
+      expect(result).toContain('src');
+    });
+
+    test('does not include .github when it does not exist', () => {
+      const result = getDefaultCriticalDirs(['src', 'docs']);
+      expect(result).not.toContain('.github');
     });
 
     test('includes existing standard directories', () => {
       const existing = ['src', 'docs', 'test'];
       const result = getDefaultCriticalDirs(existing);
 
-      expect(result).toContain('.github');
       expect(result).toContain('src');
       expect(result).toContain('docs');
       expect(result).toContain('test');

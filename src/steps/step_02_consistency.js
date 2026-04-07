@@ -81,6 +81,7 @@ export const SCOPE_DESCRIPTIONS = {
   docs_only: 'docs_only — documentation changes only',
   test_changes: 'test_changes — test file modifications',
   full_changes: 'full_changes — all file types modified',
+  full_validation: 'full_validation — complete codebase analysis, all files analyzed regardless of recent changes',
 };
 
 // ============================================================================
@@ -620,7 +621,9 @@ export class Step2ConsistencyAnalyzer {
             `The following paths are historical snapshots stored in \`.ai_workflow/archive/\`.\n` +
             `Broken links within archived files are expected (their targets may have been renamed\n` +
             `or reorganized since the snapshot was taken) and must NOT be flagged as actionable issues.\n\n` +
-            archiveFiles.map((f) => `- ${f}`).join('\n')
+            archiveFiles
+              .map((f) => `- ${path.isAbsolute(f) ? path.relative(projectRoot, f) : f}`)
+              .join('\n')
           : '';
 
       // Phase 2: Load expected version
@@ -720,7 +723,7 @@ export class Step2ConsistencyAnalyzer {
                 change_scope: SCOPE_DESCRIPTIONS[options.scope] || options.scope || '',
                 doc_count: String(docFiles.length),
                 ts_source_count: tsSourceCount,
-                modified_count: String(partFiles.length),
+                modified_count: `${partFiles.length} (files are batched in groups of ≤${PARTITION_SIZE} to stay within AI context limits)`,
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
                 directory_tree: directoryTree,

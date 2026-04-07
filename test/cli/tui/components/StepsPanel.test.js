@@ -126,7 +126,7 @@ describe('StepsPanel Component', () => {
     expect(lastFrame()).toContain('1.0s');
   });
 
-  // ── StatusBadge integration ──────────────────────────────────────────────
+  // ── StatusChronometer integration ────────────────────────────────────────
 
   it("copilotStatus='loading' renders spinner/Loading when currentStepId is set", () => {
     const { lastFrame } = render(

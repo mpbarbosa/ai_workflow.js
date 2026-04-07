@@ -202,11 +202,8 @@ export function extractCriticalDirs(config) {
  * @returns {string[]} Array of default critical directories
  */
 export function getDefaultCriticalDirs(existingDirs) {
-  const defaults = ['.github'];
-  const optional = ['src', 'docs', 'lib', 'bin', 'tests', 'test'];
-
-  const existing = optional.filter((dir) => existingDirs.includes(dir));
-  return [...defaults, ...existing];
+  const optional = ['.github', 'src', 'docs', 'lib', 'bin', 'tests', 'test'];
+  return optional.filter((dir) => existingDirs.includes(dir));
 }
 
 /**
@@ -545,7 +542,7 @@ export class Step5DirectoryAnalyzer {
           );
         }
       } else {
-        logger.warn('AI helper not available - skipping AI analysis');
+        logger.info('AI helper not available - skipping AI analysis');
       }
 
       if (structureResults.missingCritical > 0) {

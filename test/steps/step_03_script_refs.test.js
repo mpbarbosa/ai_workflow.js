@@ -567,6 +567,25 @@ describe('Step 3: Script Reference Validation', () => {
       expect(flaggedRefs.every((r) => r.endsWith('.sh'))).toBe(true); // no .py
     });
 
+    // [BUG FIX] Mixed-language project: .sh scripts must be found even when primary language is TS
+    test('[BUG FIX] TypeScript project finds .sh scripts alongside .ts sources', async () => {
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('.sh')) return Promise.resolve(['scripts/deploy.sh']);
+        if (pattern.includes('.ts')) return Promise.resolve(['src/index.ts', 'src/types.ts']);
+        return Promise.resolve([]);
+      };
+      // README documents the TypeScript entry point but not the shell script
+      mockFileOps.readFile = () => Promise.resolve('Entry point: `src/index.ts`.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.scriptsFound).toBe(3); // 2 .ts + 1 .sh
+      expect(result.undocumented).toContain('scripts/deploy.sh');
+      expect(result.undocumented).not.toContain('src/index.ts'); // documented, must not appear
+    });
+
     test('handles errors gracefully', async () => {
       mockTechStack.detectTechStack = () => Promise.reject(new Error('Detection failed'));
 
