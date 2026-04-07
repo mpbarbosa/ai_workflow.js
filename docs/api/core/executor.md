@@ -1,13 +1,8 @@
 # executor - Command Execution Module
 
 **Module:** `core/executor`
-<<<<<<< HEAD
-**Version:** 0.5.9 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
-=======
-**Version:** 0.5.8 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
-
-> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-> > > > > > > **Type:** Async Functions
+**Version:** 0.5.10 (via [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js))
+**Type:** Async Functions
 
 > **Note:** This module re-exports from the [`olinda_shell_interface.js`](https://github.com/mpbarbosa/olinda_shell_interface.js) package (installed from GitHub). The implementation lives upstream; this file is a thin re-export layer.
 
@@ -229,13 +224,6 @@ await execute('slow-command', { timeout: 600000 }); // 10 min
 
 ---
 
-<<<<<<< HEAD
-**Last Updated:** 2026-03-03
-**Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
-**Part of:** AI Workflow Automation v1.9.4
-=======
 **Last Updated:** 2026-03-11
-**Source package:** [`olinda_shell_interface.js` v0.5.9](https://github.com/mpbarbosa/olinda_shell_interface.js)
+**Source package:** [`olinda_shell_interface.js` v0.5.10](https://github.com/mpbarbosa/olinda_shell_interface.js)
 **Part of:** AI Workflow Automation v1.9.4
-
-> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])

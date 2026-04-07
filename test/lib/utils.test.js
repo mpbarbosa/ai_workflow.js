@@ -1,6 +1,6 @@
 /**
  * Tests for src/lib/utils.js
- * Smoke and functional tests for all 26 utility re-exports from olinda_shell_interface.js v0.5.9.
+ * Smoke and functional tests for all 26 utility re-exports from olinda_shell_interface.js v0.5.10.
  */
 
 import {
@@ -108,8 +108,7 @@ describe('escapeRegex', () => {
 
 describe('dedupe', () => {
   it('is a function', () => expect(typeof dedupe).toBe('function'));
-  it('removes duplicate primitives', () =>
-    expect(dedupe([1, 2, 2, 3, 1])).toEqual([1, 2, 3]));
+  it('removes duplicate primitives', () => expect(dedupe([1, 2, 2, 3, 1])).toEqual([1, 2, 3]));
   it('handles empty array', () => expect(dedupe([])).toEqual([]));
 });
 
@@ -117,14 +116,18 @@ describe('chunk', () => {
   it('is a function', () => expect(typeof chunk).toBe('function'));
   it('splits array into chunks of given size', () =>
     expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]));
-  it('returns array of arrays', () =>
-    expect(Array.isArray(chunk([1, 2, 3], 2)[0])).toBe(true));
+  it('returns array of arrays', () => expect(Array.isArray(chunk([1, 2, 3], 2)[0])).toBe(true));
 });
 
 describe('flatten', () => {
   it('is a function', () => expect(typeof flatten).toBe('function'));
   it('flattens one level by default', () =>
-    expect(flatten([[1, 2], [3, 4]])).toEqual([1, 2, 3, 4]));
+    expect(
+      flatten([
+        [1, 2],
+        [3, 4],
+      ])
+    ).toEqual([1, 2, 3, 4]));
   it('handles empty array', () => expect(flatten([])).toEqual([]));
 });
 

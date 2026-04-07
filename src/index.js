@@ -41,7 +41,7 @@ export {
   withRetry,
 } from './utils/retry.js';
 
-// Utility functions (via olinda_shell_interface.js v0.5.9 / olinda_utils.js v0.3.14)
+// Utility functions (via olinda_shell_interface.js v0.5.10 / olinda_utils.js v0.3.14)
 export {
   camelCase,
   kebabCase,
