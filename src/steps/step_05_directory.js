@@ -366,6 +366,7 @@ export class Step5DirectoryAnalyzer {
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
     this.techStack = options.techStack || new TechStackDetector();
+    this.projectKindConfig = options.projectKindConfig || null;
   }
 
   /**
@@ -446,6 +447,15 @@ export class Step5DirectoryAnalyzer {
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
         try {
           const language = options.language || (await this.detectLanguage(projectRoot));
+          const projectKind =
+            (this.projectKindConfig ? await this.projectKindConfig.getProjectKind() : null) ?? '';
+          const aiGuidance =
+            projectKind && this.projectKindConfig
+              ? await this.projectKindConfig.getAIGuidance(projectKind).catch(() => null)
+              : null;
+          const directoryStandards = aiGuidance?.directory_standards?.length
+            ? aiGuidance.directory_standards.map((s) => `- ${s}`).join('\n')
+            : '';
           const issueLines =
             structureResults.issues?.length > 0
               ? structureResults.issues
@@ -461,6 +471,7 @@ export class Step5DirectoryAnalyzer {
             project_name: projectRoot,
             project_description: options.projectDescription || '',
             primary_language: language,
+            project_kind: projectKind,
             dir_count: String(results.totalDirs ?? 0),
             change_scope: options.scope || '',
             modified_count: String(options.modifiedCount ?? 0),
@@ -469,7 +480,7 @@ export class Step5DirectoryAnalyzer {
             doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
             structure_issues_content: issueLines,
             dir_tree: dirTree,
-            language_specific_directory_standards: '',
+            language_specific_directory_standards: directoryStandards,
           });
         } catch {
           /* fallback to generic prompt */
