@@ -554,6 +554,8 @@ export class Step6TestReviewer {
                     project_description:
                       ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
                     primary_language: language,
+                    change_scope: options?.scope || '',
+                    modified_count: String((options?.modifiedFiles ?? []).length),
                     test_framework: testFramework,
                     test_env: configTestCommand,
                     test_command: configTestCommand,
