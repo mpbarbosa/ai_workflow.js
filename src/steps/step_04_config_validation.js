@@ -467,6 +467,32 @@ export function formatConfigReport(results) {
 }
 
 /**
+ * Group a list of relative file paths by their parent directory and return a
+ * Markdown-formatted string suitable for prompt injection.
+ *
+ * Files at the project root (no directory separator) are grouped under "Root".
+ * Paths with a parent directory are grouped under that directory name.
+ *
+ * @pure
+ * @param {string[]} relPaths - Relative file paths (e.g. ['package.json', '.github/workflows/test.yml'])
+ * @returns {string} Markdown grouped list, e.g. "**Root**: package.json\n**\.github/workflows**: test.yml"
+ */
+export function groupConfigFilesList(relPaths) {
+  if (!relPaths || relPaths.length === 0) return '';
+  /** @type {Map<string, string[]>} */
+  const groups = new Map();
+  for (const p of relPaths) {
+    const slash = p.lastIndexOf('/');
+    const dir = slash === -1 ? 'Root' : p.slice(0, slash);
+    if (!groups.has(dir)) groups.set(dir, []);
+    groups.get(dir).push(slash === -1 ? p : p.slice(slash + 1));
+  }
+  return Array.from(groups.entries())
+    .map(([dir, files]) => `**${dir}**: ${files.join(', ')}`)
+    .join('\n');
+}
+
+/**
  * Build a formatted block of file contents for inclusion in an AI prompt.
  * Each file is rendered as a fenced code block with its relative path as header.
  * Content is truncated to MAX_FILE_CONTENT_CHARS to limit token usage.
@@ -561,7 +587,13 @@ export class Step4ConfigAnalyzer {
       const configFiles = await this.discoverConfigFiles(projectRoot);
       if (configFiles.length === 0) {
         logger.info('No configuration files found - skipping validation');
-        return { success: true, skipped: true, reason: 'no_config_files', alternatives: [], recommendedAlternative: null };
+        return {
+          success: true,
+          skipped: true,
+          reason: 'no_config_files',
+          alternatives: [],
+          recommendedAlternative: null,
+        };
       }
 
       logger.info(`Found ${configFiles.length} configuration file(s)`);
@@ -648,7 +680,7 @@ export class Step4ConfigAnalyzer {
         try {
           prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
             project_name: path.basename(projectRoot),
-            config_files_list: relPaths.join(', '),
+            config_files_list: groupConfigFilesList(relPaths),
             config_files_content: filesContentBlock,
             config_count: String(configFiles.length),
             project_kind: projectKind,

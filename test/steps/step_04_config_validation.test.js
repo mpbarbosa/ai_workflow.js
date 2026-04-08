@@ -15,6 +15,7 @@ import {
   checkConfigBestPractices,
   formatConfigReport,
   buildFileContentsBlock,
+  groupConfigFilesList,
   validateAiResponseQuality,
   EXCLUDE_DIRS,
   MAX_FILE_CONTENT_CHARS,
@@ -1025,6 +1026,47 @@ describe('Step 4: Configuration Validation', () => {
       const result = buildFileContentsBlock([{ relativePath: 'f.yml', content }], 5);
       expect(result).toContain('[truncated');
       expect(result).toContain('5 more chars');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - groupConfigFilesList
+  // ========================================================================
+
+  describe('groupConfigFilesList', () => {
+    test('returns empty string for empty input', () => {
+      expect(groupConfigFilesList([])).toBe('');
+      expect(groupConfigFilesList(null)).toBe('');
+    });
+
+    test('groups root-level files under "Root"', () => {
+      const result = groupConfigFilesList(['package.json', 'tsconfig.json']);
+      expect(result).toBe('**Root**: package.json, tsconfig.json');
+    });
+
+    test('groups files by parent directory', () => {
+      const result = groupConfigFilesList([
+        'package.json',
+        '.github/workflows/test.yml',
+        '.github/workflows/lint.yml',
+        '.github/dependabot.yml',
+      ]);
+      expect(result).toContain('**Root**: package.json');
+      expect(result).toContain('**.github/workflows**: test.yml, lint.yml');
+      expect(result).toContain('**.github**: dependabot.yml');
+    });
+
+    test('preserves insertion order of directories', () => {
+      const paths = ['a/x.json', 'b/y.yaml', 'a/z.json'];
+      const result = groupConfigFilesList(paths);
+      const lines = result.split('\n');
+      expect(lines[0]).toBe('**a**: x.json, z.json');
+      expect(lines[1]).toBe('**b**: y.yaml');
+    });
+
+    test('handles deeply nested paths', () => {
+      const result = groupConfigFilesList(['.github/actions/security-check/action.yml']);
+      expect(result).toBe('**.github/actions/security-check**: action.yml');
     });
   });
 
