@@ -36,13 +36,19 @@ git submodule sync --recursive
 ### Step 2 — Check for unpushed local commits (safety check)
 
 Before resetting submodule checkouts, check whether any submodule has local
-commits that are ahead of the parent-pinned pointer and have not been pushed.
+commits that are ahead of the remote and have not been pushed.
 If such commits exist, **warn the user** and ask whether to proceed, because
 Step 3 will orphan them.
 
 ```bash
-git submodule foreach --recursive "git log HEAD..origin/main --oneline 2>/dev/null || true"
+git submodule foreach --recursive "git log origin/main..HEAD --oneline 2>/dev/null || true"
 ```
+
+> **Important:** the range is `origin/main..HEAD` (not `HEAD..origin/main`).
+> `origin/main..HEAD` lists commits that exist locally but not on the remote —
+> exactly the commits that Step 3 would orphan. The reversed form checks the
+> opposite direction (remote-ahead of local) and gives a false "safe" signal
+> when local work is ahead.
 
 If this shows commits, ask the user: "Submodule <name> has local unpushed
 commits. Proceeding will orphan them. Continue? (y/n)"
