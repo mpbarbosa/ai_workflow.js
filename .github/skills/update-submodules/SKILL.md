@@ -33,7 +33,23 @@ Ensure `.git/config` reflects the latest URLs from `.gitmodules`:
 git submodule sync --recursive
 ```
 
-### Step 2 — Initialise and update submodule checkouts
+### Step 2 — Check for unpushed local commits (safety check)
+
+Before resetting submodule checkouts, check whether any submodule has local
+commits that are ahead of the parent-pinned pointer and have not been pushed.
+If such commits exist, **warn the user** and ask whether to proceed, because
+Step 3 will orphan them.
+
+```bash
+git submodule foreach --recursive "git log HEAD..origin/main --oneline 2>/dev/null || true"
+```
+
+If this shows commits, ask the user: "Submodule <name> has local unpushed
+commits. Proceeding will orphan them. Continue? (y/n)"
+
+Stop if the user answers no.
+
+### Step 3 — Initialise and update submodule checkouts
 
 Fetch the commits recorded in the parent repo and check them out:
 
@@ -41,19 +57,19 @@ Fetch the commits recorded in the parent repo and check them out:
 git submodule update --init --recursive
 ```
 
-### Step 3 — Pull the latest remote commits
+### Step 4 — Pull the latest remote commits
 
-Pull from each submodule's tracked remote branch so it advances to `HEAD`
-rather than staying at the pinned parent-repo commit:
+After `update --init`, submodules are in **detached HEAD** state, so plain
+`git pull` always fails. Checkout the default branch first, then pull:
 
 ```bash
-git submodule foreach --recursive git pull
+git submodule foreach --recursive "git pull origin main"
 ```
 
-> **Note:** If a specific branch is requested (e.g. `main`), use
-> `git submodule foreach --recursive "git pull origin main"` instead.
+> **Note:** If a submodule tracks a branch other than `main`, substitute
+> that branch name accordingly.
 
-### Step 4 — Show the result
+### Step 5 — Show the result
 
 Display the final submodule state so the user can confirm everything is current:
 
