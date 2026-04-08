@@ -612,8 +612,9 @@ Where project-specific conventions are documented (e.g., in \`CONTRIBUTING.md\` 
 take precedence over generic defaults.
 
 **Documentation types in scope:** root-level \`.md\` files (README, CHANGELOG, CONTRIBUTING, etc.),
-\`docs/\` subdirectory (API reference, architecture, guides), and \`.github/\` metadata files.
-JSDoc source coverage is a separate concern and is NOT part of this step.
+\`docs/\` subdirectory and all its nested subdirs (e.g., \`docs/architecture/\`, \`docs/guides/\`),
+and \`.github/\` metadata including all nested subdirs (e.g., \`.github/ISSUE_TEMPLATE/\`,
+\`.github/workflows/\`). JSDoc source coverage is a separate concern and is NOT part of this step.
 
 **Programmatic scan already completed — do not re-derive these results:**
 - Files checked: ${fileCount}
@@ -627,8 +628,9 @@ ${fileList}`;
   const approach = `**Your task — supplement the programmatic scan with semantic analysis:**
 1. **Terminology Consistency**: Flag terms used interchangeably that should be standardised (e.g. service names, API names, tool versions)
 2. **Example Consistency**: Identify if code examples use different conventions across files (env vars vs hardcoded values, variable naming)
-3. **Cross-Reference Clarity**: Identify ambiguous or missing cross-references between the files listed above
-4. **Structured Reporting**: Organise only genuine issues by severity (Critical > High > Medium > Low)
+3. **Cross-Reference Clarity**: Identify ambiguous or missing cross-references between the files listed above; also flag markdown tables, numbered lists, or inline links that reference a documentation file by path or name that does not appear in the provided file list (treat as documentation gaps, not broken links)
+4. **Version Badge Discrepancies**: When files contain version badges (e.g., \`![version](https://img.shields.io/badge/version-X.Y.Z-...)\`), compare the embedded version against authoritative sources in context (e.g., \`package.json\`); flag only if an explicit mismatch is detectable — do not flag badges whose version cannot be verified
+5. **Structured Reporting**: Organise only genuine issues by severity (Critical > High > Medium > Low)
 
 **For each issue you report, you MUST**:
 - Cite only files from the list provided above
