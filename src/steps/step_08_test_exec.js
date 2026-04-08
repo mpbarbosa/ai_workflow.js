@@ -8,6 +8,7 @@
 
 import { STEP_KIND } from './step_contract.js';
 import path from 'path';
+import fs from 'fs';
 import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -116,6 +117,25 @@ export function hasTestScript(packageJson) {
  */
 export function extractTestCommand(packageJson) {
   return packageJson?.scripts?.test || null;
+}
+
+/**
+ * Detect CI/CD workflow config file paths under .github/workflows/.
+ * @pure
+ * @param {string} projectRoot - Project root directory
+ * @returns {string} Comma-separated list of workflow filenames, or 'none found'
+ */
+export function detectCiConfigPaths(projectRoot) {
+  const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+  try {
+    if (!fs.existsSync(workflowsDir)) return 'none found';
+    const files = fs
+      .readdirSync(workflowsDir)
+      .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+    return files.length > 0 ? files.join(', ') : 'none found';
+  } catch {
+    return 'none found';
+  }
 }
 
 // ============================================================================
@@ -637,6 +657,9 @@ export class Step8TestExecutor {
             tests_total: String(testResults.total ?? 0),
             tests_passed: String(testResults.passed ?? 0),
             tests_failed: String(testResults.failed ?? 0),
+            tests_skipped: String(testResults.skipped ?? 0),
+            project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
+            ci_config_paths: detectCiConfigPaths(projectRoot),
             execution_summary: noTestsFound
               ? `No tests were discovered or executed (runner produced no output in ${duration}ms)`
               : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
