@@ -468,7 +468,12 @@ export class Step3ScriptAnalyzer {
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
-          const docCoverageMap = formatDocCoverageMap(coverageMap);
+          // Cap coverage map to avoid prompt bloat in large repos
+          const DOC_COVERAGE_MAX = 1500;
+          let docCoverageMap = formatDocCoverageMap(coverageMap);
+          if (docCoverageMap.length > DOC_COVERAGE_MAX) {
+            docCoverageMap = docCoverageMap.slice(0, DOC_COVERAGE_MAX) + '\n... [truncated]';
+          }
           // Include first ~80 lines of each doc file so the AI can verify claims
           const DOC_CONTEXT_MAX = 2000;
           let docContext = allDocFiles
