@@ -553,11 +553,15 @@ export function buildDocAnalysisPrompt(options) {
   const changedList = buildFileListContext(changedFiles);
   const docList = buildFileListContext(docFiles);
 
-  const task = `Based on the recent changes to these files:
+  const task = `Review the changed files below and make targeted edits to the listed documentation files. Focus on: API references, usage instructions, architecture descriptions, and version numbers directly affected by the changes.
+
+Changed files:
 ${changedList}
 
-Update documentation in these files:
-${docList}`;
+Documentation to review:
+${docList}
+
+A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". If no edits are needed, state "No updates required" with a one-line reason.`;
 
   const approach = `**Methodology**:
 1. **Analyze Changes**: Examine what was modified in each changed file
