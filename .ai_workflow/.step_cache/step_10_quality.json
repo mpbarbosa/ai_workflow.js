@@ -445,6 +445,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+    },
+    "scripts/fix-markdown.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-08T03:02:32.960Z"
+    },
+    "scripts/security-audit.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-08T03:02:32.960Z"
+    },
+    "scripts/smoke-test-copilot-sdk.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-08T03:02:32.960Z"
+    },
+    "scripts/validate-exports.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-08T03:02:32.960Z"
+    },
+    "scripts/cleanup_artifacts.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-08T03:02:32.960Z"
     }
   }
 }

@@ -1,6 +1,6 @@
 # ai_workflow.js Documentation
 
-**Version:** 1.9.9
+**Version:** 1.9.10
 **Last Updated:** February 8, 2026
 
 Welcome to the ai_workflow.js documentation! This documentation covers the Node.js implementation of AI-powered workflow automation.
