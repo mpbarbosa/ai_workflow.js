@@ -14,14 +14,8 @@ describe('core/version module exports', () => {
 });
 
 describe('Version utilities', () => {
-  const {
-    parseVersion,
-    compareVersions,
-    isGreaterThan,
-    isLessThan,
-    isEqual,
-    getLatestVersion,
-  } = versionModule;
+  const { parseVersion, compareVersions, isGreaterThan, isLessThan, isEqual, getLatestVersion } =
+    versionModule;
 
   describe('parseVersion', () => {
     it('should parse valid semantic version string', () => {
@@ -77,7 +71,7 @@ describe('Version utilities', () => {
 
   describe('isGreaterThan', () => {
     it('should return true if first is greater', () => {
-      expect(isGreaterThan('2.0.0', '1.9.9')).toBe(true);
+      expect(isGreaterThan('2.0.0', '1.9.10')).toBe(true);
     });
     it('should return false if first is not greater', () => {
       expect(isGreaterThan('1.0.0', '1.0.0')).toBe(false);
