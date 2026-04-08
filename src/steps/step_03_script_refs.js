@@ -46,10 +46,10 @@ export const SCRIPT_PATTERNS = {
  * Script directories by language
  */
 export const SCRIPT_DIRECTORIES = {
-  bash: ['.', 'scripts', 'src/scripts', 'src/workflow'],
+  bash: ['.', '.github/scripts', 'scripts', 'src/scripts', 'src/workflow'],
   python: ['scripts', 'src'],
-  javascript: ['scripts', 'src'],
-  typescript: ['scripts', 'src'],
+  javascript: ['scripts', 'src/scripts', 'bin'],
+  typescript: ['scripts', 'src/scripts', 'bin'],
   default: ['scripts'],
 };
 
@@ -387,10 +387,15 @@ export class Step3ScriptAnalyzer {
 
       // For non-bash projects, also scan standard shell-script directories so that
       // mixed-language repos (e.g. TypeScript + scripts/*.sh) don't silently skip
-      // their bash automation scripts.
+      // their bash automation scripts. Dot-directories (e.g. .github/scripts) are
+      // listed explicitly because many glob implementations skip them by default.
       let shellScripts = [];
       if (language !== 'bash') {
-        shellScripts = await this.findScripts(projectRoot, ['scripts', '.'], ['*.sh']);
+        shellScripts = await this.findScripts(
+          projectRoot,
+          ['.github/scripts', 'scripts', '.'],
+          ['*.sh']
+        );
       }
 
       const scripts = [...new Set([...primaryScripts, ...shellScripts])];
@@ -416,9 +421,14 @@ export class Step3ScriptAnalyzer {
 
       // Phase 4: Extract and validate script references
       const allReferences = extractScriptReferences(readmeContent);
-      // Only validate references matching the detected language's extensions
-      // to avoid false positives (e.g. .ts refs when language is bash)
+      // Validate references matching the detected language's extensions to avoid false
+      // positives (e.g. .ts refs when language is bash). When shell scripts were also
+      // discovered via the non-bash fallback, include .sh so that README references
+      // to missing shell scripts are reported too.
       const patternExts = patterns.map((p) => p.replace('*.', ''));
+      if (shellScripts.length > 0) {
+        patternExts.push('sh');
+      }
       const references = allReferences.filter((ref) => patternExts.includes(ref.split('.').pop()));
       const existingScripts = new Set(scripts);
       const missingReferences = validateScriptReferences(references, existingScripts);

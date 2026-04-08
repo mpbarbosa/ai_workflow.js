@@ -46,11 +46,25 @@ describe('Step 3: Script Reference Validation', () => {
 
   describe('getScriptDirectories', () => {
     test('returns bash directories', () => {
-      expect(getScriptDirectories('bash')).toEqual(['.', 'scripts', 'src/scripts', 'src/workflow']);
+      expect(getScriptDirectories('bash')).toEqual([
+        '.',
+        '.github/scripts',
+        'scripts',
+        'src/scripts',
+        'src/workflow',
+      ]);
     });
 
     test('returns python directories', () => {
       expect(getScriptDirectories('python')).toEqual(['scripts', 'src']);
+    });
+
+    test('returns typescript directories', () => {
+      expect(getScriptDirectories('typescript')).toEqual(['scripts', 'src/scripts', 'bin']);
+    });
+
+    test('returns javascript directories', () => {
+      expect(getScriptDirectories('javascript')).toEqual(['scripts', 'src/scripts', 'bin']);
     });
 
     test('defaults to scripts for unknown language', () => {
@@ -527,11 +541,13 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.referencesChecked).toBe(1); // only the .sh reference
     });
 
-    // [BUG FIX fdfb34d] filter by detected language extension
-    test('[BUG FIX] TypeScript project ignores .sh script references in README', async () => {
+    // When no shell scripts exist in a TS project, .sh README refs are not validated
+    test('TypeScript project does not flag .sh README refs when no shell scripts exist', async () => {
       mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
-      mockFileOps.glob = () => Promise.resolve(['src/api.ts', 'src/server.ts']);
-      // README references a shell script — must not be flagged as missing
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('.sh')) return Promise.resolve([]); // no shell scripts on disk
+        return Promise.resolve(['src/api.ts', 'src/server.ts']);
+      };
       mockFileOps.readFile = () => Promise.resolve('Run `./scripts/deploy.sh` to deploy.');
 
       const result = await analyzer.execute('/project');
@@ -584,6 +600,41 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.scriptsFound).toBe(3); // 2 .ts + 1 .sh
       expect(result.undocumented).toContain('scripts/deploy.sh');
       expect(result.undocumented).not.toContain('src/index.ts'); // documented, must not appear
+    });
+
+    test('TypeScript project flags missing .sh README ref when shell scripts exist', async () => {
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('.sh')) return Promise.resolve(['scripts/setup.sh']);
+        if (pattern.includes('.ts')) return Promise.resolve(['src/index.ts']);
+        return Promise.resolve([]);
+      };
+      // README references a .sh script that does NOT exist on disk
+      mockFileOps.readFile = () =>
+        Promise.resolve('Run `scripts/setup.sh` and `scripts/missing.sh` to deploy.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      const flaggedRefs = result.missingReferences.map((r) => r.reference);
+      expect(flaggedRefs).toContain('scripts/missing.sh'); // missing → flagged
+      expect(flaggedRefs).not.toContain('scripts/setup.sh'); // exists → not flagged
+    });
+
+    test('TypeScript project discovers shell scripts in .github/scripts', async () => {
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = (pattern) => {
+        if (pattern.startsWith('.github/scripts') && pattern.includes('.sh'))
+          return Promise.resolve(['.github/scripts/deploy.sh']);
+        if (pattern.includes('.ts')) return Promise.resolve(['src/index.ts']);
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = () => Promise.resolve('See `src/index.ts` for the entry point.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.undocumented).toContain('.github/scripts/deploy.sh');
     });
 
     test('handles errors gracefully', async () => {
