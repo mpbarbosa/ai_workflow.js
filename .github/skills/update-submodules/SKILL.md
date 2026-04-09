@@ -93,24 +93,39 @@ Display the final submodule state so the user can confirm everything is current:
 git submodule status --recursive
 ```
 
+### Step 6 — Commit updated submodule pointers
+
+If any submodule line from Step 5 is prefixed with `+` (the checked-out commit
+is ahead of what the parent repo has recorded), stage and commit the pointer
+update:
+
+```bash
+git add .workflow_core .workflow_fspec
+git commit -m "chore: update submodules to latest
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+```
+
+Use the actual short SHAs and commit subjects from `git submodule status` to
+make the message more descriptive, e.g.:
+
+```
+chore: update .workflow_core submodule to <sha>
+
+Points to <commit subject>
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+```
+
+If no submodule shows `+`, the parent repo is already up to date and this step
+can be skipped.
+
 ## Expected output
 
 Each submodule line in `git submodule status` output begins with a space
 (checked-out at the recorded commit) or `+` (ahead of the recorded commit
 after the pull). A `-` prefix means the submodule is still uninitialised and
 the update failed.
-
-## After updating
-
-If any submodule has advanced to a new commit, the parent repo will show an
-unstaged change to the submodule path. Optionally stage and commit with:
-
-```bash
-git add .workflow_core .workflow_fspec
-git commit -m "chore: update submodules to latest"
-```
-
-Ask the user whether to commit before doing so.
 
 ## Related files
 
