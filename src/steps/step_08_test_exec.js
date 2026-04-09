@@ -120,6 +120,69 @@ export function extractTestCommand(packageJson) {
 }
 
 /**
+ * Detect which test types (unit, integration, e2e) are present in the project.
+ * Inspects test config file names and the test directory for known patterns.
+ * @pure
+ * @param {string} projectRoot - Project root directory
+ * @returns {string} Comma-separated list of detected test types (e.g. "unit, integration")
+ */
+export function detectTestTypes(projectRoot) {
+  const types = [];
+  try {
+    const unitIndicators = [
+      'jest.config.js',
+      'jest.config.ts',
+      'jest.config.cjs',
+      'jest.config.mjs',
+      'jest.config.json',
+      'vitest.config.js',
+      'vitest.config.ts',
+      'vitest.config.mjs',
+      'karma.conf.js',
+      '.mocharc.js',
+      '.mocharc.yml',
+      '.mocharc.json',
+      'jasmine.json',
+    ];
+    const integrationIndicators = [
+      'jest.integration.config.js',
+      'jest.integration.config.ts',
+      'jest.integration.config.json',
+      'jest.config.integration.js',
+      'jest.config.integration.ts',
+    ];
+    const e2eIndicators = [
+      'playwright.config.js',
+      'playwright.config.ts',
+      'jest.config.e2e.js',
+      'jest.config.e2e.ts',
+      'cypress.config.js',
+      'cypress.config.ts',
+      'cypress.json',
+      'wdio.conf.js',
+    ];
+
+    if (unitIndicators.some((f) => fs.existsSync(path.join(projectRoot, f)))) types.push('unit');
+    if (integrationIndicators.some((f) => fs.existsSync(path.join(projectRoot, f))))
+      types.push('integration');
+    if (e2eIndicators.some((f) => fs.existsSync(path.join(projectRoot, f)))) types.push('e2e');
+
+    // Also check for e2e or integration directories under test/
+    const testDir = path.join(projectRoot, 'test');
+    if (fs.existsSync(testDir)) {
+      const entries = fs.readdirSync(testDir);
+      if (!types.includes('integration') && entries.some((e) => /integrat/i.test(e)))
+        types.push('integration');
+      if (!types.includes('e2e') && entries.some((e) => /e2e|end.to.end/i.test(e)))
+        types.push('e2e');
+    }
+  } catch {
+    /* ignore — return whatever was found */
+  }
+  return types.length > 0 ? types.join(', ') : 'unit';
+}
+
+/**
  * Detect CI/CD workflow config file paths under .github/workflows/.
  * @pure
  * @param {string} projectRoot - Project root directory
@@ -690,6 +753,7 @@ export class Step8TestExecutor {
               language,
             test_command: testCommand,
             test_config_paths: detectTestConfigPaths(projectRoot),
+            test_types: detectTestTypes(projectRoot),
             test_exit_code: noTestsFound
               ? `${testResult.exitCode} (no tests discovered — runner exited without output${runnerCrashed ? ', possible crash or OOM kill' : ''}; treated as no-tests-found, not a test failure)`
               : String(testResult.exitCode),
