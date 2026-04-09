@@ -1,12 +1,13 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 23,
-  "filesHash": "3188ba67",
+  "totalPartitions": 24,
+  "filesHash": "65f1c019",
   "partitionLabels": [
-    "scripts",
-    "scripts (2)",
-    "scripts (3)",
+    "src/steps",
+    "src/steps (2)",
+    "src/steps (3)",
+    "src/steps (4)",
     "src/cli",
     "src/cli (2)",
     "src/lib",
@@ -19,14 +20,14 @@
     "src/lib (8)",
     "src/orchestrator",
     "src/orchestrator (2)",
-    "src/steps",
-    "src/steps (2)",
-    "src/steps (3)",
     "src/utils, eslint.config.mjs, .lintstagedrc.json",
     ".prettierrc.json, .test-e2e/step-02-1771697742634-nc47xngdjgp, .test-e2e/step-02-1771699285303-hdpamja35hd",
     ".workflow_core, jest.config.json, jest.integration.config.json",
     "tsconfig.json, typedoc.json, .workflow_core/src",
-    "src/core, src/types, .workflow_core/scripts"
+    "src/core, src/types",
+    "scripts",
+    "scripts (2)",
+    ".workflow_core/scripts"
   ],
-  "updatedAt": "2026-04-08T03:02:32.961Z"
+  "updatedAt": "2026-04-09T02:12:32.265Z"
 }

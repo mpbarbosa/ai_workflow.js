@@ -1,6 +1,6 @@
 # Developer Guide
 
-**AI Workflow Automation v1.9.10**
+**AI Workflow Automation v1.9.11**
 **Last Updated:** 2026-02-01
 **Audience:** Contributors and maintainers
 
@@ -690,7 +690,7 @@ describe('NewModule', () => {
 # new_module - Brief Description
 
 **Module:** `lib/new_module`
-**Version:** 1.9.10
+**Version:** 1.9.11
 **Type:** Pure Functions + Wrapper
 
 ## Overview
@@ -823,4 +823,4 @@ gh release create v1.1.0 --title "v1.1.0" --notes "Release notes here"
 ---
 
 **Last Updated:** 2026-02-01
-**Version:** 1.9.10
+**Version:** 1.9.11
