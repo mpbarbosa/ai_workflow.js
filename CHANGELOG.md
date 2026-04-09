@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-04-09
+
 ### Fixed
 
 - **Step 16: populate `project_description` in version-bump AI prompt** (`src/steps/step_16_version_update.js`): `project_description` was hardcoded as an empty string, causing the AI prompt to render `**Project**: guia_js ()` (empty parentheses). The fix reads `context.projectDescription` — already populated by the orchestrator with a multi-level fallback (workflow config → project config → directory basename) — and passes it to `buildYamlStepPrompt()` to fill the `{project_description}` placeholder in the YAML template. For standalone Step16 invocations outside the orchestrator, `basename(projectRoot)` is used as the fallback so the prompt is never left with empty parentheses.
