@@ -111,8 +111,8 @@ The ai_workflow.js project demonstrates exceptional script documentation quality
 }
 ```
 
-**Status:** ⚠️ **Warning** - `src/cli/index.js` does not exist yet (Phase 11 - future implementation)
-**Documentation:** Properly noted as "future" in README.md with planned CLI commands documented
+**Status:** ✅ **OK** - `src/cli/index.js` exists (Phase 11 complete)
+**Documentation:** CLI commands are documented in `docs/reference/CLI_REFERENCE.md`
 
 #### Command-Line Arguments Accuracy
 
@@ -430,17 +430,20 @@ npm run lint              # Final linting pass
 **Documented Scripts:**
 
 1. `analyze-change-impact.js` - Change analysis job (lines 36-56)
-  - JSON output parsing with `jq`
-  - Output variables for conditional execution
-  - Human-readable analysis display
+
+- JSON output parsing with `jq`
+- Output variables for conditional execution
+- Human-readable analysis display
 
 2. `validate-exports.js` - Validation job (via npm run validate)
-  - Runs after test completion
-  - Blocks merge on failure
+
+- Runs after test completion
+- Blocks merge on failure
 
 3. `check-version-consistency.js` - Validation job (via npm run validate)
-  - Runs after test completion
-  - Blocks merge on failure
+
+- Runs after test completion
+- Blocks merge on failure
 
 **CI/CD Features Documented:**
 
@@ -535,10 +538,11 @@ npm publish    # Future
 ### High Priority Issues 🟠 (Fix Within Sprint)
 
 1. **HP-1: Missing Executable Permissions on Node.js Scripts**
-  - **Location:** `scripts/validate-exports.js`, `check-version-consistency.js`, `analyze-change-impact.js`
-  - **Impact:** Medium - Scripts work via npm but cannot be executed directly
-  - **Effort:** 5 minutes
-  - **Remediation:** Run the following:
+
+- **Location:** `scripts/validate-exports.js`, `check-version-consistency.js`, `analyze-change-impact.js`
+- **Impact:** Medium - Scripts work via npm but cannot be executed directly
+- **Effort:** 5 minutes
+- **Remediation:** Run the following:
 
 ```bash
 chmod +x scripts/validate-exports.js
@@ -549,114 +553,122 @@ git commit -m "fix(scripts): add executable permissions to Node.js scripts"
 ```
 
 2. **HP-2: Missing Dedicated Guide for cleanup_artifacts.sh**
-  - **Location:** `docs/guides/` (missing file)
-  - **Impact:** Medium - Script is less discoverable and documented than others
-  - **Effort:** 2 hours
-  - **Remediation:** Create `docs/guides/CLEANUP_ARTIFACTS.md` with:
-    - Purpose and use cases
-    - All command-line options with examples
-    - Integration with CI/CD
-    - Safety best practices (dry-run, backups)
-    - Troubleshooting common issues
+
+- **Location:** `docs/guides/` (missing file)
+- **Impact:** Medium - Script is less discoverable and documented than others
+- **Effort:** 2 hours
+- **Remediation:** Create `docs/guides/CLEANUP_ARTIFACTS.md` with:
+  - Purpose and use cases
+  - All command-line options with examples
+  - Integration with CI/CD
+  - Safety best practices (dry-run, backups)
+  - Troubleshooting common issues
 
 3. **HP-3: Missing Troubleshooting Sections**
-  - **Location:** `docs/guides/VALIDATION_SCRIPTS.md`, `CONDITIONAL_EXECUTION.md`
-  - **Impact:** Medium - Users may struggle when scripts fail
-  - **Effort:** 3 hours
-  - **Remediation:** Add "Troubleshooting" section to both guides with:
 
-     ```markdown
-     ## Troubleshooting
+- **Location:** `docs/guides/VALIDATION_SCRIPTS.md`, `CONDITIONAL_EXECUTION.md`
+- **Impact:** Medium - Users may struggle when scripts fail
+- **Effort:** 3 hours
+- **Remediation:** Add "Troubleshooting" section to both guides with:
 
-     ### validate-exports.js Failures
+  ```markdown
+  ## Troubleshooting
 
-     **Error:** "Export mismatch at line X"
-     **Cause:** src/index.js exports name that doesn't exist in source module
-     **Solution:** Update src/index.js to use correct export name from module
+  ### validate-exports.js Failures
 
-     ### check-version-consistency.js Failures
+  **Error:** "Export mismatch at line X"
+  **Cause:** src/index.js exports name that doesn't exist in source module
+  **Solution:** Update src/index.js to use correct export name from module
 
-     **Error:** "Version mismatch: package.json (1.2.0) vs README.md (1.1.0)"
-     **Cause:** Documentation not updated after version bump
-     **Solution:** Run global find-replace to update version in docs
+  ### check-version-consistency.js Failures
 
-     ### analyze-change-impact.js Issues
+  **Error:** "Version mismatch: package.json (1.2.0) vs README.md (1.1.0)"
+  **Cause:** Documentation not updated after version bump
+  **Solution:** Run global find-replace to update version in docs
 
-     **Error:** "fatal: No commits yet"
-     **Cause:** Empty Git repository or shallow clone
-     **Solution:** Clone with --depth=0 or ensure git history exists
-     ```
+  ### analyze-change-impact.js Issues
+
+  **Error:** "fatal: No commits yet"
+  **Cause:** Empty Git repository or shallow clone
+  **Solution:** Clone with --depth=0 or ensure git history exists
+  ```
 
 ### Medium Priority Issues 🟡 (Fix Within Month)
 
 4. **MP-1: Document .workflow_core Python Scripts Locally**
-  - **Location:** `docs/guides/` (new file needed)
-  - **Impact:** Low - Scripts are external/template, rarely used directly
-  - **Effort:** 1 hour
-  - **Remediation:** Create `docs/guides/WORKFLOW_CORE_SCRIPTS.md` documenting:
-    - `validate_context_blocks.py` usage
-    - `validate_structure.py` usage
-    - When to run these scripts
-    - How they integrate with main workflows
+
+- **Location:** `docs/guides/` (new file needed)
+- **Impact:** Low - Scripts are external/template, rarely used directly
+- **Effort:** 1 hour
+- **Remediation:** Create `docs/guides/WORKFLOW_CORE_SCRIPTS.md` documenting:
+  - `validate_context_blocks.py` usage
+  - `validate_structure.py` usage
+  - When to run these scripts
+  - How they integrate with main workflows
 
 5. **MP-2: Add Script Dependencies Documentation**
-  - **Location:** README.md or docs/guides/VALIDATION_SCRIPTS.md
-  - **Impact:** Low - Most scripts have no external dependencies
-  - **Effort:** 30 minutes
-  - **Remediation:** Add section:
 
-     ```markdown
-     ## Script Dependencies
+- **Location:** README.md or docs/guides/VALIDATION_SCRIPTS.md
+- **Impact:** Low - Most scripts have no external dependencies
+- **Effort:** 30 minutes
+- **Remediation:** Add section:
 
-     | Script                       | Requires                  | Optional    | Notes                |
-     | ---------------------------- | ------------------------- | ----------- | -------------------- |
-     | validate-exports.js          | Node.js >= 20.0.0         | -           | No external deps     |
-     | check-version-consistency.js | Node.js >= 20.0.0         | -           | No external deps     |
-     | analyze-change-impact.js     | Node.js >= 20.0.0, Git    | jq (for CI) | Git history required |
-     | cleanup_artifacts.sh         | Bash 4.0+, find, du, stat | -           | Standard Unix tools  |
-     ```
+  ```markdown
+  ## Script Dependencies
+
+  | Script                       | Requires                  | Optional    | Notes                |
+  | ---------------------------- | ------------------------- | ----------- | -------------------- |
+  | validate-exports.js          | Node.js >= 20.0.0         | -           | No external deps     |
+  | check-version-consistency.js | Node.js >= 20.0.0         | -           | No external deps     |
+  | analyze-change-impact.js     | Node.js >= 20.0.0, Git    | jq (for CI) | Git history required |
+  | cleanup_artifacts.sh         | Bash 4.0+, find, du, stat | -           | Standard Unix tools  |
+  ```
 
 6. **MP-3: Add Release Automation Script**
-  - **Location:** `scripts/release.js` (new file)
-  - **Impact:** Medium - Manual release process is error-prone
-  - **Effort:** 4 hours
-  - **Remediation:** Create release script to automate:
-    - Version bumping
-    - CHANGELOG updates
-    - Git tagging
-    - Validation checks
-    - (Future) npm publishing
+
+- **Location:** `scripts/release.js` (new file)
+- **Impact:** Medium - Manual release process is error-prone
+- **Effort:** 4 hours
+- **Remediation:** Create release script to automate:
+  - Version bumping
+  - CHANGELOG updates
+  - Git tagging
+  - Validation checks
+  - (Future) npm publishing
 
 7. **MP-4: Add Performance Characteristics Documentation**
-  - **Location:** docs/guides/VALIDATION_SCRIPTS.md, CONDITIONAL_EXECUTION.md
-  - **Impact:** Low - Nice to have for planning
-  - **Effort:** 1 hour
-  - **Remediation:** Add execution time estimates:
 
-     ```markdown
-     ## Performance Characteristics
+- **Location:** docs/guides/VALIDATION_SCRIPTS.md, CONDITIONAL_EXECUTION.md
+- **Impact:** Low - Nice to have for planning
+- **Effort:** 1 hour
+- **Remediation:** Add execution time estimates:
 
-     | Script                       | Typical Duration | Max Duration | Factors                  |
-     | ---------------------------- | ---------------- | ------------ | ------------------------ |
-     | validate-exports.js          | <1s              | 2s           | Number of modules        |
-     | check-version-consistency.js | 1-3s             | 5s           | Documentation file count |
-     | analyze-change-impact.js     | 1-2s             | 10s          | Git history size         |
-     | cleanup_artifacts.sh         | 5-30s            | 5min         | Artifact count/size      |
-     ```
+  ```markdown
+  ## Performance Characteristics
+
+  | Script                       | Typical Duration | Max Duration | Factors                  |
+  | ---------------------------- | ---------------- | ------------ | ------------------------ |
+  | validate-exports.js          | <1s              | 2s           | Number of modules        |
+  | check-version-consistency.js | 1-3s             | 5s           | Documentation file count |
+  | analyze-change-impact.js     | 1-2s             | 10s          | Git history size         |
+  | cleanup_artifacts.sh         | 5-30s            | 5min         | Artifact count/size      |
+  ```
 
 ### Low Priority Issues 🟢 (Nice to Have)
 
 8. **LP-1: Add Historical Context to Scripts**
-  - **Location:** Inline documentation
-  - **Impact:** Very Low - Interesting but not critical
-  - **Effort:** 1 hour
-  - **Remediation:** Expand inline comments with "Why this script was created" context
+
+- **Location:** Inline documentation
+- **Impact:** Very Low - Interesting but not critical
+- **Effort:** 1 hour
+- **Remediation:** Expand inline comments with "Why this script was created" context
 
 9. **LP-2: Document Alternative Approaches**
-  - **Location:** Guide documentation
-  - **Impact:** Very Low - Advanced users only
-  - **Effort:** 1 hour
-  - **Remediation:** Add "When NOT to use this script" sections
+
+- **Location:** Guide documentation
+- **Impact:** Very Low - Advanced users only
+- **Effort:** 1 hour
+- **Remediation:** Add "When NOT to use this script" sections
 
 10. **LP-3: Add Script Integration Diagram**
     - **Location:** docs/architecture/ (new file)
@@ -700,39 +712,45 @@ git commit -m "fix(scripts): add executable permissions to Node.js scripts"
 ### ✅ Excellent Practices
 
 1. **Multi-Layer Documentation Approach**
-  - Inline script documentation (headers, comments)
-  - Dedicated guide pages (VALIDATION_SCRIPTS.md, CONDITIONAL_EXECUTION.md)
-  - README.md quick reference
-  - CONTRIBUTING.md developer guidance
-  - CI/CD workflow inline documentation
+
+- Inline script documentation (headers, comments)
+- Dedicated guide pages (VALIDATION_SCRIPTS.md, CONDITIONAL_EXECUTION.md)
+- README.md quick reference
+- CONTRIBUTING.md developer guidance
+- CI/CD workflow inline documentation
 
 2. **Comprehensive Usage Examples**
-  - Multiple invocation methods shown (npm, direct, with flags)
-  - Expected output examples provided
-  - Error scenario examples included
-  - CI/CD integration examples complete
+
+- Multiple invocation methods shown (npm, direct, with flags)
+- Expected output examples provided
+- Error scenario examples included
+- CI/CD integration examples complete
 
 3. **Smart Testing Strategy**
-  - Change impact analysis reduces CI time by 40-60%
-  - Conditional execution based on file patterns
-  - Multi-version Node.js testing (18.x, 20.x, 22.x)
-  - Comprehensive test suite (3417 passing of 3435 total, 18 skipped)
+
+- Change impact analysis reduces CI time by 40-60%
+- Conditional execution based on file patterns
+- Multi-version Node.js testing (18.x, 20.x, 22.x)
+- Comprehensive test suite (3417 passing of 3435 total, 18 skipped)
 
 4. **Clear Separation of Concerns**
-  - Validation scripts separate from test scripts
-  - Analysis script separate from execution
-  - Cleanup script independent from workflows
+
+- Validation scripts separate from test scripts
+- Analysis script separate from execution
+- Cleanup script independent from workflows
 
 5. **Exit Code Best Practices**
-  - All scripts document exit codes
-  - Consistent 0=success, 1=failure pattern
-  - Special case for analyze-change-impact.js (always 0, JSON output)
+
+- All scripts document exit codes
+- Consistent 0=success, 1=failure pattern
+- Special case for analyze-change-impact.js (always 0, JSON output)
 
 6. **Self-Contained Scripts**
-  - No external environment variable dependencies
-  - Minimal external tool requirements
-  - Cross-platform compatibility (Node.js scripts)
-  - Portable shebangs (`/usr/bin/env`)
+
+- No external environment variable dependencies
+- Minimal external tool requirements
+- Cross-platform compatibility (Node.js scripts)
+- Portable shebangs (`/usr/bin/env`)
 
 ### 🔵 Good Practices to Maintain
 

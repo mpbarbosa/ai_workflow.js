@@ -42,3 +42,4 @@ guia_turistico is a modular JavaScript/Node.js application for managing tourist 
 | 1.6.3   | 2026-02-25 | Phase 4–5 complete — project detection & git integration; workflow steps scaffolded                                |
 | 1.9.11  | 2026-03-12 | Phase 6–9 complete — AI integration, orchestration, performance optimisation, CLI; streaming support added         |
 | 2.0.0   | 2026-04-09 | Breaking: Node.js >=20 required. SDK evolved to v0.5.1 (tools, hooks, SSE streaming, log validation, smoke tests)  |
+| 2.0.1   | 2026-04-09 | Implement real `workflowDirWritable` fs check; refresh stale Phase 11 doc references                               |

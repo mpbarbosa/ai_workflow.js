@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-04-09
+
+### Fixed
+
+- **Implement real `workflowDirWritable` check** (`src/orchestrator/main_orchestrator.js`): The `healthCheck()` method previously hardcoded `workflowDirWritable: true`. It now calls `fs.access(workflowDir, W_OK)` to verify the directory is actually writable, returning `false` if the path does not exist or lacks write permission.
+
+### Changed
+
+- **Refresh stale Phase 11 documentation** (`docs/README.md`, `docs/architecture/OVERVIEW.md`, `docs/reports/analysis/SCRIPT_VALIDATION_REPORT.md`, `docs/guides/CONFIGURATION_GUIDE.md`): Updated references that still labelled Phase 11 (CLI layer) as "future" — Phase 11 is complete. `src/cli/index.js` now correctly shows as ✅ in validation reports. Removed stale `TODO: Increase to 80% after v1.0.0` coverage comment (global coverage is already ≥83%).
+
 ## [2.0.0] - 2026-04-09
 
 ### Fixed

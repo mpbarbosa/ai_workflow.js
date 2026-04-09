@@ -805,7 +805,6 @@ tech_stack:
   build_system: 'vite'
 
   # Coverage threshold set to 75% during MVP phase
-  # TODO: Increase to 80% after v1.0.0
   coverage_threshold: 75
 ```
 

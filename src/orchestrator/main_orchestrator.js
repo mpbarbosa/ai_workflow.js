@@ -590,7 +590,10 @@ export class MainOrchestrator {
       platform: process.platform,
       config: this.configManager,
       workflowDir: this.workflowDir,
-      workflowDirWritable: true, // TODO: Add actual check
+      workflowDirWritable: await fs
+        .access(this.workflowDir, 0o2)
+        .then(() => true)
+        .catch(() => false),
     };
 
     const results = performHealthChecks(environment);

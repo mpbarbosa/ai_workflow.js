@@ -2,8 +2,8 @@
   "version": "1.0.0",
   "created": "2026-02-20T21:00:57.000Z",
   "createdEpoch": 1771621257,
-  "lastCleanup": "2026-04-09T02:06:23.000Z",
-  "lastCleanupEpoch": 1775700383,
+  "lastCleanup": "2026-04-09T15:47:53.000Z",
+  "lastCleanupEpoch": 1775749673,
   "entries": [
     {
       "cacheKey": "5324f4b5dffa296ff153ac54f91f09ed2a29e7711366f3ee18df4947a01244a0",
@@ -9344,8 +9344,8 @@
     {
       "cacheKey": "step_20:/home/mpb/Documents/GitHub/ai_workflow_core:0",
       "created": "2026-04-05T14:26:39.000Z",
-      "lastAccessed": "2026-04-07T16:14:39.272Z",
-      "accessCount": 3
+      "lastAccessed": "2026-04-09T19:45:28.797Z",
+      "accessCount": 5
     },
     {
       "cacheKey": "0cd02d3a465d6e96eef9f582b424af84b650e4781ba2bcd125ade1d9bdb1c9f3",
@@ -9422,8 +9422,8 @@
     {
       "cacheKey": "step_23:/home/mpb/Documents/GitHub/ai_workflow_core:1",
       "created": "2026-04-07T16:12:24.000Z",
-      "lastAccessed": "2026-04-07T16:12:24.000Z",
-      "accessCount": 1
+      "lastAccessed": "2026-04-09T19:43:37.666Z",
+      "accessCount": 3
     },
     {
       "cacheKey": "a3aada0d211b5228fff1ca6cc91842317d412a792b102d72f2ad20d9f1e617e8",
@@ -9591,6 +9591,54 @@
       "cacheKey": "ea079c0cd4d6c767a8d08589c95b06f8d74f0f67e38a0dd48865b0e143a22220",
       "created": "2026-04-09T02:13:16.000Z",
       "lastAccessed": "2026-04-09T02:13:16.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "63f964a3677f4be72796ce06eb74c4baaa6ceafeffc8927e2a6ed0d2b36ebc6e",
+      "created": "2026-04-09T02:14:51.000Z",
+      "lastAccessed": "2026-04-09T02:14:51.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "3d62c1054325b1ff3328b606b8bf00a554ea84129f4be1c5c7793d49971c97f5",
+      "created": "2026-04-09T15:58:54.000Z",
+      "lastAccessed": "2026-04-09T15:58:54.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "59b6384319b9fc3e0635a206b968447906eec49f022da98026f682fd320fe346",
+      "created": "2026-04-09T16:03:10.000Z",
+      "lastAccessed": "2026-04-09T16:03:10.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "08325ce1a071a6d5849344057a34d650843ce4cf16ffe62cc119d999af8bc396",
+      "created": "2026-04-09T16:04:03.000Z",
+      "lastAccessed": "2026-04-09T19:45:22.820Z",
+      "accessCount": 2
+    },
+    {
+      "cacheKey": "dba620801f0d307b77a7f4d8f7c0e6e0eb7ecf3078af5763053692b7efb5aaae",
+      "created": "2026-04-09T16:06:28.000Z",
+      "lastAccessed": "2026-04-09T16:06:28.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "55296af70cda5b056890d9aef2a3f93e72923d296c31540c64bacf7dba2cf48b",
+      "created": "2026-04-09T19:43:34.000Z",
+      "lastAccessed": "2026-04-09T19:43:34.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "8ff25faa687c43e390dc6307e92fd7da79f3a978a63ab4c116a32bce0c12a40b",
+      "created": "2026-04-09T19:45:18.000Z",
+      "lastAccessed": "2026-04-09T19:45:18.000Z",
+      "accessCount": 1
+    },
+    {
+      "cacheKey": "497dba490e25253b65a1ebd0eddb941b8031496ae260b5f7de8e32174026c001",
+      "created": "2026-04-09T19:45:47.000Z",
+      "lastAccessed": "2026-04-09T19:45:47.000Z",
       "accessCount": 1
     }
   ]

@@ -1415,6 +1415,18 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result).toHaveProperty('checks');
     });
 
+    test('healthCheck reports workflowDirWritable=true for a writable dir', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      const result = await orch.healthCheck();
+      expect(result.checks.filesystem.workflowDirWritable).toBe(true);
+    });
+
+    test('healthCheck reports workflowDirWritable=false for a non-existent dir', async () => {
+      const orch = new MainOrchestrator({ workflowDir: '/nonexistent/path/abc123' });
+      const result = await orch.healthCheck();
+      expect(result.checks.filesystem.workflowDirWritable).toBe(false);
+    });
+
     test('abort delegates to workflowEngine.abort()', () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
       let abortCalled = false;

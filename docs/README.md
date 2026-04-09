@@ -201,7 +201,7 @@ See: [Referential Transparency Guide](../.github/REFERENTIAL_TRANSPARENCY.md)
 
 ```
 ┌─────────────────────────────────────┐
-│  CLI Layer (future Phase 11)        │
+│  CLI Layer (Phase 11) ✅            │
 ├─────────────────────────────────────┤
 │  Workflow Engine (Phase 7) ✅       │
 ├─────────────────────────────────────┤
