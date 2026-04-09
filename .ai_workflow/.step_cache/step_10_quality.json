@@ -485,6 +485,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-09T02:12:32.265Z"
+    },
+    "src/cli/tui/components/HelpOverlay.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-09T21:03:10.128Z"
+    },
+    "src/cli/tui/components/LogPanel.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-09T21:03:10.128Z"
+    },
+    "src/cli/tui/components/LogSearchBar.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-09T21:03:10.128Z"
+    },
+    "src/cli/tui/components/ProgressBar.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-09T21:03:10.128Z"
+    },
+    "src/cli/tui/components/StepDetailOverlay.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-09T21:03:10.128Z"
     }
   }
 }
