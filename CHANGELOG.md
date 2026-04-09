@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.2] - 2026-04-09
+## [2.1.0] - 2026-04-09
+
+### Added
+
+- **`parseWorkflowFile(content, filePath)` pure function** (`src/orchestrator/workflow_engine.js`): New exported pure function that parses workflow configuration from a string. Supports `.json` (via `JSON.parse`), `.yaml` and `.yml` (via `js-yaml`). Throws `SystemError` for unsupported extensions, parse failures, or YAML that doesn't deserialise to an object.
+- **`loadWorkflow(path)` file loading** (`src/orchestrator/workflow_engine.js`): The `WorkflowEngine.loadWorkflow()` method now accepts a file path string (`.json`, `.yaml`, or `.yml`). Previously this branch threw "not yet implemented". Extension validation happens before the file read so an unsupported-extension error is immediately actionable.
+- **`parseWorkflowFile` re-exported** from `src/index.js` as part of the public API.
+
+### Tests
+
+- **Replace `not-yet-implemented` stub** (`test/orchestrator/workflow_engine.test.js`): The single `test.skip`-equivalent stub for `loadWorkflow` file loading is replaced with 6 integration tests (JSON round-trip, YAML `.yaml`, YAML `.yml`, file-not-found, invalid JSON, invalid schema) and 8 unit tests for the new `parseWorkflowFile` pure function. Test count: 6971 → 6984.
 
 ### Fixed
 

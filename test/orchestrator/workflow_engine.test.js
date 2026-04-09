@@ -4,6 +4,9 @@
  * @jest-environment node
  */
 
+import { writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import {
   validateWorkflowConfig,
   buildExecutionPlan,
@@ -12,6 +15,7 @@ import {
   calculateWorkflowProgress,
   validateStepDefinition,
   createExecutionContext,
+  parseWorkflowFile,
   WorkflowEngine,
 } from '../../src/orchestrator/workflow_engine.js';
 
@@ -422,6 +426,56 @@ describe('Workflow Engine Module - Pure Functions', () => {
   });
 });
 
+describe('Workflow Engine Module - parseWorkflowFile', () => {
+  const validWorkflow = { name: 'w', version: '1.0.0', steps: [{ id: 's1', name: 'S1' }] };
+
+  test('parses valid JSON', () => {
+    const result = parseWorkflowFile(JSON.stringify(validWorkflow), 'workflow.json');
+    expect(result).toEqual(validWorkflow);
+  });
+
+  test('parses valid YAML (.yaml)', () => {
+    const content = `name: w\nversion: "1.0.0"\nsteps:\n  - id: s1\n    name: S1\n`;
+    const result = parseWorkflowFile(content, 'workflow.yaml');
+    expect(result.name).toBe('w');
+    expect(result.steps[0].id).toBe('s1');
+  });
+
+  test('parses valid YAML (.yml)', () => {
+    const content = `name: w\nversion: "1.0.0"\nsteps:\n  - id: s1\n    name: S1\n`;
+    const result = parseWorkflowFile(content, 'workflow.yml');
+    expect(result.name).toBe('w');
+  });
+
+  test('throws SystemError for invalid JSON', () => {
+    expect(() => parseWorkflowFile('{ bad json }', 'wf.json')).toThrow(
+      'Failed to parse workflow JSON'
+    );
+  });
+
+  test('throws SystemError for invalid YAML', () => {
+    expect(() => parseWorkflowFile('key: [unclosed', 'wf.yaml')).toThrow(
+      'Failed to parse workflow YAML'
+    );
+  });
+
+  test('throws SystemError when YAML parses to non-object', () => {
+    expect(() => parseWorkflowFile('just a string', 'wf.yaml')).toThrow(
+      'did not parse to an object'
+    );
+  });
+
+  test('throws SystemError for unsupported extension', () => {
+    expect(() => parseWorkflowFile('{}', 'wf.toml')).toThrow('Unsupported workflow file extension');
+  });
+
+  test('throws SystemError for missing extension', () => {
+    expect(() => parseWorkflowFile('{}', 'workflow')).toThrow(
+      'Unsupported workflow file extension'
+    );
+  });
+});
+
 describe('Workflow Engine Module - WorkflowEngine Class', () => {
   let engine;
 
@@ -493,8 +547,66 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       expect(loadedEventCalled).toBe(true);
     });
 
-    test('throws for file loading (not implemented)', async () => {
-      await expect(engine.loadWorkflow('./workflow.json')).rejects.toThrow('not yet implemented');
+    test('throws for unsupported file extension', async () => {
+      await expect(engine.loadWorkflow('./workflow.toml')).rejects.toThrow(
+        'Unsupported workflow file extension'
+      );
+    });
+
+    test('loads workflow from JSON file', async () => {
+      const workflow = {
+        name: 'file-workflow',
+        version: '1.0.0',
+        steps: [{ id: 'step1', name: 'Step 1' }],
+      };
+      const tmpPath = join(tmpdir(), `wf-test-${Date.now()}.json`);
+      await writeFile(tmpPath, JSON.stringify(workflow), 'utf8');
+      try {
+        await engine.loadWorkflow(tmpPath);
+        expect(engine.workflow.name).toBe('file-workflow');
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
+    });
+
+    test('loads workflow from YAML file', async () => {
+      const tmpPath = join(tmpdir(), `wf-test-${Date.now()}.yaml`);
+      const yamlContent = `name: yaml-workflow\nversion: "1.0.0"\nsteps:\n  - id: step1\n    name: Step 1\n`;
+      await writeFile(tmpPath, yamlContent, 'utf8');
+      try {
+        await engine.loadWorkflow(tmpPath);
+        expect(engine.workflow.name).toBe('yaml-workflow');
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
+    });
+
+    test('throws readable error when file does not exist', async () => {
+      await expect(engine.loadWorkflow('/nonexistent/path/workflow.json')).rejects.toThrow(
+        'Failed to read workflow file'
+      );
+    });
+
+    test('throws on invalid JSON in file', async () => {
+      const tmpPath = join(tmpdir(), `wf-test-${Date.now()}.json`);
+      await writeFile(tmpPath, '{ bad json }', 'utf8');
+      try {
+        await expect(engine.loadWorkflow(tmpPath)).rejects.toThrow('Failed to parse workflow JSON');
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
+    });
+
+    test('throws ValidationError for valid JSON with invalid workflow schema', async () => {
+      const tmpPath = join(tmpdir(), `wf-test-${Date.now()}.json`);
+      await writeFile(tmpPath, JSON.stringify({ name: 'no-steps' }), 'utf8');
+      try {
+        await expect(engine.loadWorkflow(tmpPath)).rejects.toThrow(
+          'Invalid workflow configuration'
+        );
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
     });
   });
 

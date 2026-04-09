@@ -44,3 +44,4 @@ guia_turistico is a modular JavaScript/Node.js application for managing tourist 
 | 2.0.0   | 2026-04-09 | Breaking: Node.js >=20 required. SDK evolved to v0.5.1 (tools, hooks, SSE streaming, log validation, smoke tests)  |
 | 2.0.1   | 2026-04-09 | Implement real `workflowDirWritable` fs check; refresh stale Phase 11 doc references                               |
 | 2.0.2   | 2026-04-09 | Fix `mergeValidationResults()` ignoring TIMEOUT tasks; un-skip 3 step1_parallel tests; update FRS scope section    |
+| 2.1.0   | 2026-04-09 | Implement `loadWorkflow()` file loading (JSON/YAML); add `parseWorkflowFile` pure function; 6984 tests passing     |

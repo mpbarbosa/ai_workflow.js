@@ -351,6 +351,7 @@ export {
   calculateWorkflowProgress,
   validateStepDefinition,
   createExecutionContext,
+  parseWorkflowFile,
   WorkflowEngine,
 } from './orchestrator/workflow_engine.js';
 

@@ -14,6 +14,9 @@
  */
 
 import EventEmitter from 'events';
+import fs from 'fs/promises';
+import { extname } from 'path';
+import yaml from 'js-yaml';
 import { logger } from '../core/logger.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
 
@@ -363,6 +366,47 @@ export function createExecutionContext(workflow, options = {}) {
 // ==============================================================================
 
 /**
+ * Parses workflow file content based on file extension.
+ * Supports JSON (.json) and YAML (.yaml, .yml) formats.
+ *
+ * @param {string} content - Raw file content
+ * @param {string} filePath - File path (used to determine format)
+ * @returns {Object} Parsed workflow configuration
+ *
+ * @throws {SystemError} If the file extension is unsupported or content cannot be parsed
+ *
+ * @pure
+ */
+export function parseWorkflowFile(content, filePath) {
+  const ext = extname(filePath).toLowerCase();
+
+  if (ext === '.json') {
+    try {
+      return JSON.parse(content);
+    } catch (err) {
+      throw new SystemError(`Failed to parse workflow JSON from ${filePath}: ${err.message}`);
+    }
+  }
+
+  if (ext === '.yaml' || ext === '.yml') {
+    try {
+      const parsed = yaml.load(content);
+      if (parsed === null || typeof parsed !== 'object') {
+        throw new SystemError(`Workflow YAML in ${filePath} did not parse to an object`);
+      }
+      return parsed;
+    } catch (err) {
+      if (err instanceof SystemError) throw err;
+      throw new SystemError(`Failed to parse workflow YAML from ${filePath}: ${err.message}`);
+    }
+  }
+
+  throw new SystemError(
+    `Unsupported workflow file extension "${ext}" in ${filePath}. Use .json, .yaml, or .yml`
+  );
+}
+
+/**
  * Workflow Engine for orchestrating step execution.
  * Handles workflow loading, execution, state management, and event emission.
  *
@@ -438,8 +482,19 @@ export class WorkflowEngine extends EventEmitter {
     let workflow;
 
     if (typeof workflowOrPath === 'string') {
-      // Load from file (future: implement file loading)
-      throw new SystemError('Loading workflow from file not yet implemented');
+      const ext = extname(workflowOrPath).toLowerCase();
+      if (!['.json', '.yaml', '.yml'].includes(ext)) {
+        throw new SystemError(
+          `Unsupported workflow file extension "${ext || '(none)'}". Use .json, .yaml, or .yml.`
+        );
+      }
+      let content;
+      try {
+        content = await fs.readFile(workflowOrPath, 'utf8');
+      } catch (err) {
+        throw new SystemError(`Failed to read workflow file "${workflowOrPath}": ${err.message}`);
+      }
+      workflow = parseWorkflowFile(content, workflowOrPath);
     } else {
       workflow = workflowOrPath;
     }
