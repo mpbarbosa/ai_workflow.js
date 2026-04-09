@@ -767,15 +767,23 @@ export const MAX_CHARS_TOTAL_CONTENTS = 30_000;
 /**
  * Build a fenced code block section for a single file, truncating if needed.
  *
+ * When the content exceeds MAX_CHARS_PER_FILE, the cut is made at the last
+ * newline before the limit so the excerpt always ends on a complete line
+ * rather than mid-line or mid-comment.
+ *
  * @param {string} filePath - Relative file path used as the section header.
  * @param {string} content  - Raw file content.
  * @returns {string} Markdown fenced block.
  */
 export function buildFileContentBlock(filePath, content) {
-  const truncated =
-    content.length > MAX_CHARS_PER_FILE
-      ? content.substring(0, MAX_CHARS_PER_FILE) + '\n...(truncated)'
-      : content;
+  let truncated;
+  if (content.length > MAX_CHARS_PER_FILE) {
+    const cutAt = content.lastIndexOf('\n', MAX_CHARS_PER_FILE);
+    const safeAt = cutAt > 0 ? cutAt : MAX_CHARS_PER_FILE;
+    truncated = content.substring(0, safeAt) + '\n\n...(truncated — remainder omitted)';
+  } else {
+    truncated = content;
+  }
   const ext = filePath.split('.').pop() ?? '';
   return `### \`${filePath}\`\n\`\`\`${ext}\n${truncated}\n\`\`\``;
 }

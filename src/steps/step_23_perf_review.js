@@ -27,7 +27,6 @@ import {
   loadResolvedAiHelpers,
   buildYamlStepPrompt,
   buildFileContentBlock,
-  MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 
@@ -211,10 +210,7 @@ export class Step23PerfReview {
         if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) break;
         try {
           const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
-          let content = await this.fileOps.readFile(absPath);
-          if (content.length > MAX_CHARS_PER_FILE) {
-            content = content.slice(0, MAX_CHARS_PER_FILE) + '\n... [truncated]';
-          }
+          const content = await this.fileOps.readFile(absPath);
           fileContents.push(content);
           fileBlocks.push(buildFileContentBlock(relFile, content));
           totalChars += content.length;

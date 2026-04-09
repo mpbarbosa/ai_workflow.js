@@ -798,7 +798,7 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       };
       const result = buildCodeQualityPrompt(options);
 
-      expect(result).toContain('...(truncated)');
+      expect(result).toContain('...(truncated — remainder omitted)');
       // Should not contain all 5000 chars; allow for prompt boilerplate overhead
       expect(result.length).toBeLessThan(bigContent.length + 2_000);
     });
