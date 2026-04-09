@@ -138,6 +138,42 @@ export function detectCiConfigPaths(projectRoot) {
   }
 }
 
+/**
+ * Detect test runner config files in the project root.
+ * Covers Jest, Vitest, Mocha, Jasmine, Karma, and Playwright.
+ * @pure
+ * @param {string} projectRoot - Project root directory
+ * @returns {string} Comma-separated list of found config filenames, or 'none found'
+ */
+export function detectTestConfigPaths(projectRoot) {
+  const candidates = [
+    'jest.config.js',
+    'jest.config.ts',
+    'jest.config.cjs',
+    'jest.config.mjs',
+    'jest.config.json',
+    'jest.config.unit.js',
+    'jest.config.e2e.js',
+    'vitest.config.js',
+    'vitest.config.ts',
+    'vitest.config.mjs',
+    'karma.conf.js',
+    'karma.conf.ts',
+    '.mocharc.js',
+    '.mocharc.yml',
+    '.mocharc.json',
+    'jasmine.json',
+    'playwright.config.js',
+    'playwright.config.ts',
+  ];
+  try {
+    const found = candidates.filter((f) => fs.existsSync(path.join(projectRoot, f)));
+    return found.length > 0 ? found.join(', ') : 'none found';
+  } catch {
+    return 'none found';
+  }
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Test Output Parsing
 // ============================================================================
@@ -649,8 +685,11 @@ export class Step8TestExecutor {
             project_description: options?.projectDescription ?? 'N/A',
             primary_language: language,
             test_framework:
-              this.configManager?.getConfig?.()?.tech_stack?.test_framework || language,
+              this.configManager?.getConfig?.()?.tech_stack?.test_framework ||
+              (await this._readTestFrameworkFromConfig(projectRoot)) ||
+              language,
             test_command: testCommand,
+            test_config_paths: detectTestConfigPaths(projectRoot),
             test_exit_code: noTestsFound
               ? `${testResult.exitCode} (no tests discovered — runner exited without output${runnerCrashed ? ', possible crash or OOM kill' : ''}; treated as no-tests-found, not a test failure)`
               : String(testResult.exitCode),
@@ -956,6 +995,23 @@ export class Step8TestExecutor {
       // Config missing or unreadable — use default
     }
     return 80;
+  }
+  /**
+   * Read the test framework name from `.workflow-config.yaml`.
+   * Used as a fallback when `configManager` is not injected.
+   *
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<string|null>} Framework name (e.g. 'jest') or null
+   */
+  async _readTestFrameworkFromConfig(projectRoot) {
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const content = await this.fileOps.readFile(configPath);
+      const config = yaml.load(content);
+      return config?.tech_stack?.test_framework || null;
+    } catch {
+      return null;
+    }
   }
 }
 

@@ -71,7 +71,7 @@ describe('Version utilities', () => {
 
   describe('isGreaterThan', () => {
     it('should return true if first is greater', () => {
-      expect(isGreaterThan('2.0.0', '1.9.10')).toBe(true);
+      expect(isGreaterThan('2.0.0', '1.9.11')).toBe(true);
     });
     it('should return false if first is not greater', () => {
       expect(isGreaterThan('1.0.0', '1.0.0')).toBe(false);

@@ -1561,7 +1561,7 @@ describe('AiHelper._logPrompt - Project Version header', () => {
 
   test('includes Workflow Version in log header when workflowVersion is set', async () => {
     const { readFile, readdir } = await import('fs/promises');
-    const helper = new AiHelper({ promptsDir, workflowVersion: '1.9.10' });
+    const helper = new AiHelper({ promptsDir, workflowVersion: '1.9.11' });
     await helper._logPrompt(
       'test prompt',
       { persona: 'tester', model: 'gpt-4.1' },
@@ -1569,7 +1569,7 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     );
     const files = await readdir(promptsDir);
     const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
-    expect(content).toContain('**Workflow Version:** 1.9.10');
+    expect(content).toContain('**Workflow Version:** 1.9.11');
   });
 
   test('omits Workflow Version line when workflowVersion is null', async () => {
@@ -1616,7 +1616,7 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     const helper = new AiHelper({
       promptsDir,
       projectVersion: '1.9.1',
-      workflowVersion: '1.9.10',
+      workflowVersion: '1.9.11',
       workflowCoreVersion: '1.2.3',
     });
     await helper._logPrompt(
@@ -1627,7 +1627,7 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     const files = await readdir(promptsDir);
     const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
     expect(content).toContain('**Project Version:** 1.9.1');
-    expect(content).toContain('**Workflow Version:** 1.9.10');
+    expect(content).toContain('**Workflow Version:** 1.9.11');
     expect(content).toContain('**Workflow Core Version:** 1.2.3');
     const projectIdx = content.indexOf('**Project Version:**');
     const workflowIdx = content.indexOf('**Workflow Version:**');

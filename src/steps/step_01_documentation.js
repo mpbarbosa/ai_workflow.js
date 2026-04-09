@@ -404,6 +404,14 @@ export class Step1DocumentationAnalyzer {
             } catch {
               // Content injection is best-effort; proceed without it if anything fails
             }
+            let projectConventions = '';
+            try {
+              projectConventions = await this.fileOps.readFile(
+                `${projectRoot}/.github/CONTRIBUTING.md`
+              );
+            } catch {
+              // CONTRIBUTING.md is optional; leave empty so placeholder is omitted cleanly
+            }
             try {
               const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
               prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {
@@ -412,6 +420,7 @@ export class Step1DocumentationAnalyzer {
                 changed_files: relevantChangedFiles.join(', '),
                 doc_files: files.join(', '),
                 file_contents: fileContentsSection || '(no file contents available)',
+                project_conventions: projectConventions,
               });
             } catch {
               /* fallback */

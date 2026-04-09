@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Step 16: populate `project_description` in version-bump AI prompt** (`src/steps/step_16_version_update.js`): `project_description` was hardcoded as an empty string, causing the AI prompt to render `**Project**: guia_js ()` (empty parentheses). The fix reads `context.projectDescription` — already populated by the orchestrator with a multi-level fallback (workflow config → project config → directory basename) — and passes it to `buildYamlStepPrompt()` to fill the `{project_description}` placeholder in the YAML template. For standalone Step16 invocations outside the orchestrator, `basename(projectRoot)` is used as the fallback so the prompt is never left with empty parentheses.
+
 ### Changed
 
 - **`olinda_copilot_sdk.ts` upgraded to v0.5.1** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`, `test/lib/copilot_sdk_wrapper.d.test.ts`): Updated the package from v0.4.1 to v0.5.1 using the GitHub archive CDN URL. v0.5.1 bundles all v0.4.2 additions (`parseSSEStream`, `CopilotClient.streamText`, `SdkSmokeTest` module with `runSdkSmokeTest`, `buildSmokeTestPrompt`, `validateSmokeTestResponse`, `formatSmokeTestResult`, `SdkSmokeTestOptions`, `SdkSmokeTestResult`) and v0.3.3 additions (`LogValidator`, `parseLogIssues`, `buildValidationPrompt`, `selectRelevantFiles`, companion types). `copilot_sdk_wrapper.ts` now re-exports `ResumeSessionConfig` (already available since v0.3.2, now surfaced explicitly for callers using `resumeSession()`). Module version bumped to 2.4.0. Test version references updated; new `ResumeSessionConfig` re-export test added.
@@ -17,9 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`engines.node` raised to `>=20.0.0`** (`package.json`, `test/fixtures/nodejs-api/package.json`): Node.js 18 reached end-of-life in April 2025. The minimum supported runtime is now Node.js 20 LTS. All documentation and test fixtures updated accordingly.
 
-- **`olinda_copilot_sdk.ts` upgraded to v0.2.1** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`): Updated the package from v0.1.3 to v0.2.1 using the GitHub shorthand install format (`github:mpbarbosa/olinda_copilot_sdk.ts#v0.2.1`). v0.2.1 promotes `CopilotSdkWrapper` to a first-class public export, removing the need for the local re-implementation. `src/lib/copilot_sdk_wrapper.ts` and its compiled counterparts are now thin re-exports from `olinda_copilot_sdk.ts`; all SDK lifecycle logic (client start/stop, session creation/recreation, serialised sendAndWait, forceStop fallback) lives in the package. Tests updated to import `SystemError` from `olinda_copilot_sdk.ts` since that is the error class thrown by the new wrapper. An `overrides.esquery` entry was added to `package.json` to pin `esquery` to `1.7.0` while `esquery@1.9.10` (required by `eslint@10.0.3`) is not yet published to the npm registry.
+- **`olinda_copilot_sdk.ts` upgraded to v0.2.1** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`): Updated the package from v0.1.3 to v0.2.1 using the GitHub shorthand install format (`github:mpbarbosa/olinda_copilot_sdk.ts#v0.2.1`). v0.2.1 promotes `CopilotSdkWrapper` to a first-class public export, removing the need for the local re-implementation. `src/lib/copilot_sdk_wrapper.ts` and its compiled counterparts are now thin re-exports from `olinda_copilot_sdk.ts`; all SDK lifecycle logic (client start/stop, session creation/recreation, serialised sendAndWait, forceStop fallback) lives in the package. Tests updated to import `SystemError` from `olinda_copilot_sdk.ts` since that is the error class thrown by the new wrapper. An `overrides.esquery` entry was added to `package.json` to pin `esquery` to `1.7.0` while `esquery@1.9.11` (required by `eslint@10.0.3`) is not yet published to the npm registry.
 
-## [1.9.10] - 2026-03-12
+## [1.9.11] - 2026-03-12
 
 ### Added
 

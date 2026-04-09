@@ -791,9 +791,10 @@ export class Step16VersionUpdate {
             gitCtx.diffSample,
           ].join('\n');
 
+          const projectDescription = context.projectDescription || basename(this.projectRoot);
           let prompt = buildYamlStepPrompt(parsedYaml, 'version_manager_prompt', {
             project_name: basename(this.projectRoot),
-            project_description: '',
+            project_description: projectDescription,
             current_version: currentVersion,
             heuristic_recommendation: bumpType,
             changed_files: changedFilesBlock,
