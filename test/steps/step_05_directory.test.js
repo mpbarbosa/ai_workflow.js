@@ -16,6 +16,7 @@ import {
   formatDirectoryReport,
   DIR_CATEGORIES,
   ISSUE_TYPE,
+  EXCLUDED_DIR_PATHS,
 } from '../../src/steps/step_05_directory.js';
 
 describe('Step 5: Directory Structure Validation', () => {
@@ -130,6 +131,20 @@ describe('Step 5: Directory Structure Validation', () => {
     test('excludes build directories', () => {
       expect(shouldIncludeDir('dist')).toBe(false);
       expect(shouldIncludeDir('build')).toBe(false);
+    });
+
+    test('excludes directories matching EXCLUDED_DIR_PATHS prefix', () => {
+      for (const prefix of EXCLUDED_DIR_PATHS) {
+        expect(shouldIncludeDir(prefix)).toBe(false);
+        expect(shouldIncludeDir(`${prefix}/sub`)).toBe(false);
+        expect(shouldIncludeDir(`${prefix}/sub/deep`)).toBe(false);
+      }
+    });
+
+    test('does not exclude sibling directories with similar names', () => {
+      // e.g. docs/api/html is excluded but docs/api itself is not
+      expect(shouldIncludeDir('docs/api')).toBe(true);
+      expect(shouldIncludeDir('docs')).toBe(true);
     });
   });
 

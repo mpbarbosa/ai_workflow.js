@@ -89,7 +89,7 @@ export const ROOT_ALLOWED_FILES = [
 ];
 
 /**
- * Directories to exclude from validation
+ * Directories to exclude from validation (checked against individual path segments)
  */
 export const EXCLUDED_DIRS = [
   'node_modules',
@@ -112,6 +112,15 @@ export const EXCLUDED_DIRS = [
   '.nuxt',
   '.svelte-kit',
   'out',
+];
+
+/**
+ * Full relative path prefixes to exclude from validation.
+ * Used for auto-generated or gitignored subtrees whose segment names are too
+ * common to add to EXCLUDED_DIRS (e.g. "html", "assets").
+ */
+export const EXCLUDED_DIR_PATHS = [
+  'docs/api/html', // TypeDoc-generated HTML output (gitignored, auto-generated)
 ];
 
 /**
@@ -166,12 +175,17 @@ export function getTargetDir(category) {
 /**
  * Filter out excluded directories
  * @pure
- * @param {string} dirPath - Directory path
+ * @param {string} dirPath - Directory path (relative, using OS separator)
  * @returns {boolean} True if directory should be included
  */
 export function shouldIncludeDir(dirPath) {
   const parts = dirPath.split(path.sep);
-  return !parts.some((part) => EXCLUDED_DIRS.includes(part));
+  if (parts.some((part) => EXCLUDED_DIRS.includes(part))) return false;
+  // Check full-path prefix exclusions (normalize to forward slashes for portability)
+  const normalizedPath = parts.join('/');
+  return !EXCLUDED_DIR_PATHS.some(
+    (prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix + '/')
+  );
 }
 
 // ============================================================================
@@ -660,6 +674,18 @@ export class Step5DirectoryAnalyzer {
           docContents.push(content);
         } catch {
           // File doesn't exist, skip
+        }
+      }
+
+      // Also read any README.md found directly inside subdirectories so that
+      // a directory that self-documents via its own README is not flagged.
+      for (const dir of existingDirs) {
+        try {
+          const readmePath = path.join(projectRoot, dir, 'README.md');
+          const content = await this.fileOps.readFile(readmePath);
+          docContents.push(content);
+        } catch {
+          // No README in this dir — skip silently
         }
       }
 
