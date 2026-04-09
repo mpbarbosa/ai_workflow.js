@@ -16,6 +16,7 @@ Active development continues on TUI enhancements, streaming, and the next releas
 - [Phase 12 — Testing & Documentation](#phase-12--testing--documentation)
 - [Phase 13 — Packaging & Release](#phase-13--packaging--release)
 - [Phase 14 — Prompt Engineering Enhancements](#phase-14--prompt-engineering-enhancements)
+- [Phase 15 — Python Packaging Step](#phase-15--python-packaging-step)
 - [Phase W — Web Interface](#phase-w--web-interface)
 - [TUI Roadmap (Phases T1–T5)](#tui-roadmap-phases-t1t5)
 - [Long-Term Vision](#long-term-vision)
@@ -316,6 +317,57 @@ low-quality initial prompts and produces more consistent step outputs.
 - [ ] Apply as opt-in pre-flight step: `workflow.ai.promptRefinement: true`
 - [ ] Cache refined prompts in `ai_cache.js` to avoid redundant refinement on re-runs
 - [ ] Benchmark: compare output quality scores before/after refinement on 5 representative steps
+
+---
+
+## Phase 15 — Python Packaging Step
+
+> **Goal:** Add a dedicated workflow step that uses the `python_developer_prompt` specialist
+> persona to review and improve Python packaging manifests for `python_app` projects.
+>
+> _Prompt template:_ `python_developer_prompt` (`.workflow_core` v7.0.0+)
+
+### Background
+
+The `python_developer_prompt` template was added to `.workflow_core` in v7.0.0. It is a
+specialist persona focused exclusively on the **manifest layer** of Python projects:
+`pyproject.toml`, `requirements*.txt`, `setup.cfg`, `tox.ini`, `.python-version`. It covers
+dependency management, dependency groups, project metadata, build backend consistency,
+security, and tooling configuration (`[tool.pytest.ini_options]`, `[tool.ruff]`, etc.).
+
+### 15.1 — `step_24_python_packaging.js`
+
+- [ ] Create `src/steps/step_24_python_packaging.js` following the v2.0.0 referential
+      transparency pattern (pure functions + `Step24PythonPackaging` wrapper class)
+- [ ] Activate only for `project_kind === 'python_app'`; return a graceful no-op skip for
+      all other project kinds
+- [ ] Collect manifest files from the project root: `pyproject.toml`, `requirements*.txt`,
+      `setup.cfg`, `tox.ini`, `.python-version` — pass as `{python_manifest_files}` context
+- [ ] Build prompt via `PromptBuilder` using `python_developer_prompt` template; inject
+      standard context fields (`project_name`, `project_description`, `project_kind`,
+      `primary_language`, `build_system`, `test_framework`, `test_command`, `lint_command`,
+      `modified_count`)
+- [ ] Apply the manifest layout rule: `pyproject.toml` present → canonical source;
+      `requirements*.txt` only → requirements-only workflow; neither → report the gap
+- [ ] Parse AI response with `AiHelper`; validate with `ai_validation.js`; write structured
+      findings to `.ai_workflow/logs/step_24_python_packaging.json`
+- [ ] Register step in `src/orchestrator/step_registry.js` with: - `id: 'step_24'` - `name: 'Python Packaging Review'` - `condition: ctx => ctx.projectKind === 'python_app'` - `dependsOn: ['step_00']` (project detection must have run first)
+
+### 15.2 — Tests
+
+- [ ] Unit tests for pure functions: manifest file collection, context building, layout-rule
+      branching (pyproject.toml present / requirements-only / neither)
+- [ ] Integration tests: mock `AiHelper`; verify the step produces a valid `StepResult` and
+      writes the expected artifact file
+- [ ] Conditional skip test: verify the step returns `{ skipped: true }` for non-Python
+      project kinds
+- [ ] Add `step_24` to the workflow smoke test (`test/e2e/workflow-smoke.e2e.test.js`)
+
+### 15.3 — Configuration & Documentation
+
+- [ ] Add `step24` toggle to `.workflow-config.yaml` under `workflow.steps`
+- [ ] Update `docs/reference/CLI_REFERENCE.md` step list with step_24 entry
+- [ ] Update `README.md` step table (currently lists steps up to step_23)
 
 ---
 
