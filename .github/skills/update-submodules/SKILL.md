@@ -37,11 +37,14 @@ git submodule sync --recursive
 
 Before resetting submodule checkouts, check whether any submodule has local
 commits that are ahead of the remote and have not been pushed.
-If such commits exist, **warn the user** and ask whether to proceed, because
+If such commits exist, **warn the user** and ask what to do, because
 Step 3 will orphan them.
 
+Use `--no-pager` to prevent the output from opening an interactive pager:
+
 ```bash
-git submodule foreach --recursive "git log origin/main..HEAD --oneline 2>/dev/null || true"
+git --no-pager submodule foreach --recursive \
+  "git --no-pager log origin/main..HEAD --oneline 2>/dev/null || true"
 ```
 
 > **Important:** the range is `origin/main..HEAD` (not `HEAD..origin/main`).
@@ -50,10 +53,17 @@ git submodule foreach --recursive "git log origin/main..HEAD --oneline 2>/dev/nu
 > opposite direction (remote-ahead of local) and gives a false "safe" signal
 > when local work is ahead.
 
-If this shows commits, ask the user: "Submodule <name> has local unpushed
-commits. Proceeding will orphan them. Continue? (y/n)"
+If this shows commits for any submodule, present **three options** to the user:
 
-Stop if the user answers no.
+1. **Push first, then continue** — push the unpushed commits to the remote
+   (`git push origin main` inside the submodule), then proceed with Step 3.
+   This is the safe default when the commits are intentional local work.
+2. **Skip push and continue anyway** — proceed with Step 3 immediately.
+   The local commits will be orphaned (detached, unreachable after the
+   checkout is reset). Only choose this if the commits are truly disposable.
+3. **Abort** — stop here without making any changes.
+
+Stop if the user chooses option 3.
 
 ### Step 3 — Initialise and update submodule checkouts
 
@@ -69,7 +79,7 @@ After `update --init`, submodules are in **detached HEAD** state, so plain
 `git pull` always fails. Checkout the default branch first, then pull:
 
 ```bash
-git submodule foreach --recursive "git pull origin main"
+git submodule foreach --recursive "git checkout main && git pull origin main"
 ```
 
 > **Note:** If a submodule tracks a branch other than `main`, substitute
