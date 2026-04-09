@@ -31,9 +31,9 @@ describe('ai_personas - Pure Functions', () => {
       expect(personas.length).toBeGreaterThan(0);
     });
 
-    test('returns 17 personas', () => {
+    test('returns 18 personas', () => {
       const personas = getAllPersonas();
-      expect(personas).toHaveLength(17);
+      expect(personas).toHaveLength(18);
     });
 
     test('all personas have required fields', () => {
@@ -428,7 +428,7 @@ describe('ai_personas - Pure Functions', () => {
   describe('getPersonaCount', () => {
     test('returns correct count', () => {
       const count = getPersonaCount();
-      expect(count).toBe(17);
+      expect(count).toBe(18);
     });
 
     test('matches getAllPersonas length', () => {
@@ -446,7 +446,7 @@ describe('ai_personas - Pure Functions', () => {
     test('returns all persona IDs', () => {
       const ids = getPersonaIds();
       expect(Array.isArray(ids)).toBe(true);
-      expect(ids).toHaveLength(17);
+      expect(ids).toHaveLength(18);
     });
 
     test('all IDs are strings', () => {

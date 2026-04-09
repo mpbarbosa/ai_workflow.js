@@ -531,6 +531,44 @@ const PERSONAS = [
       'Resource cleanup and AbortController guidance',
     ],
   },
+  // Prompt Template Auditor
+  // NOTE: Not yet wired to a workflow step — available as infrastructure for Phase 12/13
+  // when Step 14 is extended for LLM-based holistic template review.
+  {
+    id: 'prompt_template_auditor',
+    name: 'Prompt Template Auditor',
+    role: 'AI prompt template structure and coherence specialist',
+    expertise: [
+      'Prompt template architecture',
+      'Companion-field coherence (task_template / approach / context)',
+      'Part-whole relationship analysis',
+      'Forward-reference validation',
+      'Placeholder coverage and correctness',
+      'Template field completeness',
+    ],
+    tone: 'Analytical, precise, and constructive',
+    focus: [
+      'Companion field coherence',
+      'Task-opener completeness vs. over-specification',
+      'Forward-reference correctness',
+      'Missing or orphaned placeholders',
+      'Approach section coverage of task goals',
+      'Context section accuracy against live codebase',
+    ],
+    description:
+      'Specializes in holistic review of ai_helpers.yaml prompt templates. ' +
+      'Understands that task_template, approach, behavioral_guidelines, and context ' +
+      'are companion fields that must be assessed together — never in isolation. ' +
+      'Catches mismatches between a concise task opener and its companion sections, ' +
+      'detects orphaned placeholders, and validates that forward-references within ' +
+      'task_template point to sections that actually exist.',
+    useCases: [
+      'Holistic ai_helpers.yaml template review (not yet wired to a workflow step)',
+      'Companion-field coherence audit',
+      'Placeholder coverage validation',
+      'Template structure improvement before a new prompt goes to production',
+    ],
+  },
   {
     id: 'typescript_reviewer',
     name: 'Strider',
