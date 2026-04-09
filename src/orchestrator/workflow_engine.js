@@ -407,6 +407,41 @@ export function parseWorkflowFile(content, filePath) {
 }
 
 /**
+ * Serializes a workflow object to a string in the specified format.
+ *
+ * Pure function — no I/O. Inverse of parseWorkflowFile.
+ *
+ * @param {Object} workflow - Workflow configuration object
+ * @param {'json'|'yaml'|'yml'} format - Output format
+ * @returns {string} Serialized workflow content
+ * @throws {SystemError} If format is unsupported or serialization fails
+ * @pure
+ */
+export function serializeWorkflow(workflow, format) {
+  const normalized = (format || '').toLowerCase().replace(/^\./, '');
+
+  if (normalized === 'json') {
+    try {
+      return JSON.stringify(workflow, null, 2);
+    } catch (err) {
+      throw new SystemError(`Failed to serialize workflow to JSON: ${err.message}`);
+    }
+  }
+
+  if (normalized === 'yaml' || normalized === 'yml') {
+    try {
+      return yaml.dump(workflow, { lineWidth: -1 });
+    } catch (err) {
+      throw new SystemError(`Failed to serialize workflow to YAML: ${err.message}`);
+    }
+  }
+
+  throw new SystemError(
+    `Unsupported serialization format "${format}". Use "json", "yaml", or "yml".`
+  );
+}
+
+/**
  * Workflow Engine for orchestrating step execution.
  * Handles workflow loading, execution, state management, and event emission.
  *
@@ -518,6 +553,44 @@ export class WorkflowEngine extends EventEmitter {
     this.emit('workflow:loaded', { workflow, executionPlan: this.executionPlan });
 
     return workflow;
+  }
+
+  /**
+   * Saves the currently loaded workflow to a file.
+   *
+   * The output format is determined by the file extension (.json, .yaml, .yml).
+   *
+   * @param {string} filePath - Destination file path
+   * @returns {Promise<void>}
+   * @throws {SystemError} If no workflow is loaded, extension is unsupported, or write fails
+   *
+   * @example
+   * await engine.loadWorkflow('./workflow.yaml');
+   * // ... modify engine.workflow ...
+   * await engine.saveWorkflow('./workflow-updated.json');
+   */
+  async saveWorkflow(filePath) {
+    if (!this.workflow) {
+      throw new SystemError('No workflow loaded. Call loadWorkflow() first.');
+    }
+
+    const ext = extname(filePath).toLowerCase();
+    if (!['.json', '.yaml', '.yml'].includes(ext)) {
+      throw new SystemError(
+        `Unsupported workflow file extension "${ext || '(none)'}". Use .json, .yaml, or .yml.`
+      );
+    }
+
+    const format = ext.replace('.', ''); // '.json' → 'json'
+    const content = serializeWorkflow(this.workflow, format);
+
+    try {
+      await fs.writeFile(filePath, content, 'utf8');
+    } catch (err) {
+      throw new SystemError(`Failed to write workflow file "${filePath}": ${err.message}`);
+    }
+
+    logger.success(`Workflow saved to ${filePath}`);
   }
 
   /**

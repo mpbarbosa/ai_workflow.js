@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-04-09
+## [2.2.0] - 2026-04-09
+
+### Added
+
+- **`serializeWorkflow(workflow, format)` pure function** (`src/orchestrator/workflow_engine.js`): Converts a workflow object to a JSON or YAML string. Accepts `"json"`, `"yaml"`, `"yml"` (with or without a leading dot). Throws `SystemError` for unsupported formats or serialization failures. This is the inverse of `parseWorkflowFile` introduced in v2.1.0.
+- **`WorkflowEngine.saveWorkflow(path)` method** (`src/orchestrator/workflow_engine.js`): Writes the currently loaded workflow to a `.json`, `.yaml`, or `.yml` file. Extension validation happens before the write so an unsupported-extension error is immediate. Throws `SystemError` if no workflow is loaded or the write fails.
+- **`serializeWorkflow` re-exported** from `src/index.js` (public API, consistent with `parseWorkflowFile`).
+
+### Tests
+
+- **`serializeWorkflow` pure-function tests** (`test/orchestrator/workflow_engine.test.js`): 8 unit tests covering JSON/YAML/yml output, JSON and YAML round-trips through `parseWorkflowFile`, leading-dot format, and error paths for unsupported/empty formats.
+- **`saveWorkflow` integration tests**: 5 tests covering no-workflow-loaded error, unsupported extension, JSON round-trip via temp file, YAML round-trip via temp file, and write-failure error. Test count: 6984 → 6997.
 
 ### Added
 

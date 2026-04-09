@@ -352,6 +352,7 @@ export {
   validateStepDefinition,
   createExecutionContext,
   parseWorkflowFile,
+  serializeWorkflow,
   WorkflowEngine,
 } from './orchestrator/workflow_engine.js';
 

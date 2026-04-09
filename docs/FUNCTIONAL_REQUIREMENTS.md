@@ -4,7 +4,7 @@
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Date:** 2026-04-09
 **Status:** Active
 
@@ -81,7 +81,7 @@ Detailed specifications for each module are provided in the sections below.
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Date:** February 2, 2026
 **Status:** Active
 

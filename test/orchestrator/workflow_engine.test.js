@@ -16,6 +16,7 @@ import {
   validateStepDefinition,
   createExecutionContext,
   parseWorkflowFile,
+  serializeWorkflow,
   WorkflowEngine,
 } from '../../src/orchestrator/workflow_engine.js';
 
@@ -476,6 +477,52 @@ describe('Workflow Engine Module - parseWorkflowFile', () => {
   });
 });
 
+describe('Workflow Engine Module - serializeWorkflow', () => {
+  const workflow = { name: 'w', version: '1.0.0', steps: [{ id: 's1', name: 'S1' }] };
+
+  test('serializes to JSON', () => {
+    const output = serializeWorkflow(workflow, 'json');
+    const parsed = JSON.parse(output);
+    expect(parsed).toEqual(workflow);
+  });
+
+  test('serializes to YAML', () => {
+    const output = serializeWorkflow(workflow, 'yaml');
+    expect(output).toContain('name: w');
+    expect(output).toContain('steps:');
+  });
+
+  test('serializes to yml format', () => {
+    const output = serializeWorkflow(workflow, 'yml');
+    expect(output).toContain('name: w');
+  });
+
+  test('json round-trips through parseWorkflowFile', () => {
+    const serialized = serializeWorkflow(workflow, 'json');
+    const recovered = parseWorkflowFile(serialized, 'workflow.json');
+    expect(recovered).toEqual(workflow);
+  });
+
+  test('yaml round-trips through parseWorkflowFile', () => {
+    const serialized = serializeWorkflow(workflow, 'yaml');
+    const recovered = parseWorkflowFile(serialized, 'workflow.yaml');
+    expect(recovered).toEqual(workflow);
+  });
+
+  test('accepts format with leading dot', () => {
+    const output = serializeWorkflow(workflow, '.json');
+    expect(() => JSON.parse(output)).not.toThrow();
+  });
+
+  test('throws SystemError for unsupported format', () => {
+    expect(() => serializeWorkflow(workflow, 'toml')).toThrow('Unsupported serialization format');
+  });
+
+  test('throws SystemError for empty format', () => {
+    expect(() => serializeWorkflow(workflow, '')).toThrow('Unsupported serialization format');
+  });
+});
+
 describe('Workflow Engine Module - WorkflowEngine Class', () => {
   let engine;
 
@@ -607,6 +654,52 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       } finally {
         await unlink(tmpPath).catch(() => {});
       }
+    });
+  });
+
+  describe('saveWorkflow', () => {
+    const baseWorkflow = { name: 'save-test', version: '1.0.0', steps: [{ id: 's1', name: 'S1' }] };
+
+    test('throws when no workflow loaded', async () => {
+      await expect(engine.saveWorkflow('/tmp/out.json')).rejects.toThrow('No workflow loaded');
+    });
+
+    test('throws for unsupported extension', async () => {
+      await engine.loadWorkflow(baseWorkflow);
+      await expect(engine.saveWorkflow('/tmp/out.toml')).rejects.toThrow(
+        'Unsupported workflow file extension'
+      );
+    });
+
+    test('saves workflow to JSON file and content round-trips', async () => {
+      await engine.loadWorkflow(baseWorkflow);
+      const tmpPath = join(tmpdir(), `wf-save-${Date.now()}.json`);
+      try {
+        await engine.saveWorkflow(tmpPath);
+        const raw = await import('fs/promises').then((m) => m.readFile(tmpPath, 'utf8'));
+        expect(JSON.parse(raw)).toEqual(baseWorkflow);
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
+    });
+
+    test('saves workflow to YAML file and content round-trips', async () => {
+      await engine.loadWorkflow(baseWorkflow);
+      const tmpPath = join(tmpdir(), `wf-save-${Date.now()}.yaml`);
+      try {
+        await engine.saveWorkflow(tmpPath);
+        const raw = await import('fs/promises').then((m) => m.readFile(tmpPath, 'utf8'));
+        expect(raw).toContain('name: save-test');
+      } finally {
+        await unlink(tmpPath).catch(() => {});
+      }
+    });
+
+    test('throws readable error when directory does not exist', async () => {
+      await engine.loadWorkflow(baseWorkflow);
+      await expect(engine.saveWorkflow('/nonexistent/deep/path/out.json')).rejects.toThrow(
+        'Failed to write workflow file'
+      );
     });
   });
 
