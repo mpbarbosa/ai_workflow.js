@@ -4,14 +4,9 @@
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-<<<<<<< HEAD
-**Version:** 2.0.1
-=======
-**Version:** 2.0.1
-
-> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-> > > > > > > **Date:** February 2, 2026
-> > > > > > > **Status:** Active
+**Version:** 2.0.2
+**Date:** 2026-04-09
+**Status:** Active
 
 ---
 
@@ -46,19 +41,19 @@
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), and project detection & analysis (Phase 4).
-
-For requirements related to later phases (Git Integration, AI Integration, Workflow Engine, etc.), see the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are complete but documented separately in the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
 
 ### 1.2 Scope
 
-This document covers the requirements for **23 core modules** implemented in Phases 1-5:
+This document covers the requirements for **23 core modules** implemented in Phases 1–5 of the full 60+ module, 11-phase implementation:
 
-- **Phase 1 (Foundation):** 7 modules - colors, logger, errors, system, version, executor, index
-- **Phase 2 (Configuration):** 4 modules - config, backlog, session_manager, metrics
-- **Phase 3 (File Operations):** 5 modules - file_operations, edit_operations, utils, argument_parser, cleanup_handlers
-- **Phase 4 (Project Detection):** 4 modules - project_kind_detection, project_kind_config, tech_stack, third_party_exclusion
-- **Phase 5 (Git Integration):** 4 modules - git_automation, git_cache, auto_commit, change_detection
+- **Phase 1 (Foundation):** 7 modules — colors, logger, errors, system, version, executor, index
+- **Phase 2 (Configuration):** 4 modules — config, backlog, session_manager, metrics
+- **Phase 3 (File Operations):** 5 modules — file_operations, edit_operations, utils, argument_parser, cleanup_handlers
+- **Phase 4 (Project Detection):** 4 modules — project_kind_detection, project_kind_config, tech_stack, third_party_exclusion
+- **Phase 5 (Git Integration):** 4 modules — git_automation, git_cache, auto_commit, change_detection
+
+Phases 6–11 add a further 37+ modules (AI integration, workflow orchestration, performance optimisation, 20 workflow steps, CLI). See the project [README.md](../README.md) for the complete module inventory.
 
 Detailed specifications for each module are provided in the sections below.
 
@@ -86,7 +81,7 @@ Detailed specifications for each module are provided in the sections below.
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.0.1
+**Version:** 2.0.2
 **Date:** February 2, 2026
 **Status:** Active
 
@@ -123,19 +118,19 @@ Detailed specifications for each module are provided in the sections below.
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), and project detection & analysis (Phase 4).
-
-For requirements related to later phases (Git Integration, AI Integration, Workflow Engine, etc.), see the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are complete but documented separately in the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
 
 ### 1.2 Scope
 
-This document covers the requirements for **23 core modules** implemented in Phases 1-5:
+This document covers the requirements for **23 core modules** implemented in Phases 1–5 of the full 60+ module, 11-phase implementation:
 
-- **Phase 1 (Foundation):** 7 modules - colors, logger, errors, system, version, executor, index
-- **Phase 2 (Configuration):** 4 modules - config, backlog, session_manager, metrics
-- **Phase 3 (File Operations):** 5 modules - file_operations, edit_operations, utils, argument_parser, cleanup_handlers
-- **Phase 4 (Project Detection):** 4 modules - project_kind_detection, project_kind_config, tech_stack, third_party_exclusion
-- **Phase 5 (Git Integration):** 4 modules - git_automation, git_cache, auto_commit, change_detection
+- **Phase 1 (Foundation):** 7 modules — colors, logger, errors, system, version, executor, index
+- **Phase 2 (Configuration):** 4 modules — config, backlog, session_manager, metrics
+- **Phase 3 (File Operations):** 5 modules — file_operations, edit_operations, utils, argument_parser, cleanup_handlers
+- **Phase 4 (Project Detection):** 4 modules — project_kind_detection, project_kind_config, tech_stack, third_party_exclusion
+- **Phase 5 (Git Integration):** 4 modules — git_automation, git_cache, auto_commit, change_detection
+
+Phases 6–11 add a further 37+ modules (AI integration, workflow orchestration, performance optimisation, 20 workflow steps, CLI). See the project [README.md](../README.md) for the complete module inventory.
 
 Detailed specifications for each module are provided in the sections below.
 

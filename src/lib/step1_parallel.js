@@ -241,7 +241,7 @@ export function mergeValidationResults(tasks) {
 
     if (task.status === TASK_STATUS.COMPLETED) {
       results.validatedFiles += task.files.length;
-    } else if (task.status === TASK_STATUS.FAILED) {
+    } else if (task.status === TASK_STATUS.FAILED || task.status === TASK_STATUS.TIMEOUT) {
       results.success = false;
       results.errors.push({
         category: task.category,

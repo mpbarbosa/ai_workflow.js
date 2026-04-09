@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-04-09
+
+### Fixed
+
+- **`mergeValidationResults()` ignores TIMEOUT tasks** (`src/lib/step1_parallel.js`): Tasks that timed out were not counted as failures — the function only set `success = false` for `FAILED` tasks. TIMEOUT tasks now also set `success = false` and are recorded in `errors`, consistent with FAILED task handling.
+
+### Tests
+
+- **Un-skip 3 deferred tests** (`test/lib/step1_parallel.test.js`): `handles timeout`, `cancels running tasks`, and `complete parallel validation workflow` were previously marked `test.skip`. The timeout test now has a real bug to cover; the other two already passed when un-skipped. Test count: 6971 → 6971 (0 skipped, was 3 skipped).
+
+### Docs
+
+- **Resolve merge conflict in `docs/FUNCTIONAL_REQUIREMENTS.md`**: A leftover `<<<<<<< HEAD` conflict marker was present in the file header. Resolved by keeping HEAD and adding the `Date`/`Status` fields from the conflicting branch.
+- **Update FRS scope section** (`docs/FUNCTIONAL_REQUIREMENTS.md`): The scope section still described "23 core modules implemented in Phases 1-5". Updated to clarify this document covers Phases 1–5 within the full 60+ module, 11-phase implementation (Phases 6–11 documented separately).
+
 ## [2.0.1] - 2026-04-09
 
 ### Fixed

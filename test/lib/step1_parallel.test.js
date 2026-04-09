@@ -448,7 +448,7 @@ describe('Step 1 Parallel Processing', () => {
         expect(progressCalls.length).toBeGreaterThan(0);
       });
 
-      test.skip('handles timeout', async () => {
+      test('handles timeout', async () => {
         const files = ['README.md'];
 
         const validator = async () => {
@@ -566,7 +566,7 @@ describe('Step 1 Parallel Processing', () => {
     });
 
     describe('cancel', () => {
-      test.skip('cancels running tasks', async () => {
+      test('cancels running tasks', async () => {
         const files = ['README.md'];
         let validationStarted = false;
 
@@ -609,7 +609,7 @@ describe('Step 1 Parallel Processing', () => {
     });
 
     describe('end-to-end workflow', () => {
-      test.skip('complete parallel validation workflow', async () => {
+      test('complete parallel validation workflow', async () => {
         const files = [
           'README.md',
           'docs/api/index.md',
