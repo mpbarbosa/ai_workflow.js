@@ -1,21 +1,25 @@
-# AI Workflow Automation Configuration Template
-# Copy this file to your project root as .workflow-config.yaml and customize
+# AI Workflow Automation Configuration
+# Project: ai_workflow.js
 
 project:
   name: 'ai_workflow.js'
-  type: 'nodejs-application' # e.g., bash-automation-framework, nodejs-application, python-package
+  type: 'nodejs-application'
   description: 'JavaScript/Node.js migration of AI workflow automation system'
-  kind: 'nodejs_automation' # e.g., shell_automation, nodejs_api, nodejs_automation, python_app, generic
-  version: '1.0.0'
+  kind: 'nodejs_automation'
+  version: '2.2.2'
 
 tech_stack:
-  primary_language: 'javascript' # e.g., bash, javascript, python, typescript
+  primary_language: 'javascript'
   secondary_languages:
     - 'typescript'
-  build_system: 'npm' # e.g., none, npm, webpack, maven, gradle
-  test_framework: 'jest' # e.g., shell-script, jest, pytest, mocha
-  test_command: 'npm test' # e.g., ./tests/run_all_tests.sh, npm test, pytest
-  lint_command: 'npm run lint' # e.g., shellcheck src/**/*.sh, eslint ., pylint src/
+  build_system: 'npm'
+  test_framework: 'jest'
+  test_command: 'npm test'
+  lint_command: 'npm run lint'
+  # step_10 reads lint_commands (plural keyed map) to drive per-language linting
+  lint_commands:
+    javascript: 'npm run lint'
+    typescript: 'npm run lint'
 
 structure:
   source_dirs:
@@ -24,3 +28,25 @@ structure:
     - test
   docs_dirs:
     - docs
+
+# step_16 reads version.config_files to know which files to version-bump
+version:
+  config_files:
+    - package.json
+
+# step_16 reads skills.version_sync to run a project-specific version-sync hook
+skills:
+  version_sync:
+    command: 'npm run validate'
+    check_command: 'npm run validate:versions'
+    description: 'Validate version consistency across package.json and source files'
+
+# Workflow execution settings (template v4.0.0+)
+workflow:
+  settings:
+    auto_mode: false # skip interactive prompts
+    parallel_execution: true # run independent steps in parallel
+    smart_execution: true # skip steps based on change detection
+    ml_optimize: false # use ML-driven step optimization
+    multi_stage: false # progressive validation pipeline
+    auto_commit: false # automatically commit workflow artifacts
