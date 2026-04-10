@@ -17,6 +17,7 @@ Active development continues on TUI enhancements, streaming, and the next releas
 - [Phase 13 — Packaging & Release](#phase-13--packaging--release)
 - [Phase 14 — Prompt Engineering Enhancements](#phase-14--prompt-engineering-enhancements)
 - [Phase 15 — Python Packaging Step](#phase-15--python-packaging-step)
+- [Phase 16 — Submodule Sync / Loader API Parity](#phase-16--submodule-sync--loader-api-parity)
 - [Phase W — Web Interface](#phase-w--web-interface)
 - [TUI Roadmap (Phases T1–T5)](#tui-roadmap-phases-t1t5)
 - [Long-Term Vision](#long-term-vision)
@@ -368,6 +369,55 @@ security, and tooling configuration (`[tool.pytest.ini_options]`, `[tool.ruff]`,
 - [ ] Add `step24` toggle to `.workflow-config.yaml` under `workflow.steps`
 - [ ] Update `docs/reference/CLI_REFERENCE.md` step list with step_24 entry
 - [ ] Update `README.md` step table (currently lists steps up to step_23)
+
+> **Prerequisite met ✅**: `python_developer_prompt` is available in `.workflow_core` v7.0.0+
+> (submodule at commit `2055f83`, tag `v1.4.1`).
+
+---
+
+## Phase 16 — Submodule Sync / Loader API Parity
+
+> **Goal:** Keep the JavaScript codebase in sync with new capabilities introduced in the
+> `.workflow_core` submodule, specifically mirroring the TypeScript loader API additions
+> that are not consumed via the npm package but duplicated manually in
+> `src/lib/ai_prompt_builder.js`.
+
+### Background
+
+`ai_workflow.js` reads `.workflow_core` YAML config files directly via path references —
+it does not import the TypeScript package (`src/loader.ts`) as an npm dependency.
+Whenever new loader functions are published in `.workflow_core`, the corresponding JS
+implementations must be added manually to `ai_prompt_builder.js` for full parity.
+
+The assessment of `.workflow_core` v1.3.0 → v1.4.1 (commits `f1950d2`…`2055f83`)
+revealed the following gaps, which were closed in **v2.2.2**:
+
+| Gap                                                                                                                | Severity | Status             |
+| ------------------------------------------------------------------------------------------------------------------ | -------- | ------------------ |
+| `resolveRoleRef` used truthiness check instead of `hasOwnProperty.call()` — same bug that was fixed in `loader.ts` | Medium   | ✅ Fixed in v2.2.2 |
+| No `listPersonas()` equivalent reading from YAML                                                                   | Low      | ✅ Added in v2.2.2 |
+| No `validateConfig()` JS mirror for cross-validating `role_ref` integrity                                          | Low      | ✅ Added in v2.2.2 |
+| CHANGELOG did not mention `.workflow_core` v1.4.1                                                                  | Low      | ✅ Fixed in v2.2.2 |
+| `step_24_python_packaging.js` not yet implemented                                                                  | Future   | See Phase 15       |
+
+### 16.1 — Completed (v2.2.2)
+
+- [x] Fix `resolveRoleRef` in `src/lib/ai_prompt_builder.js` to use `Object.prototype.hasOwnProperty.call()` — prevents prototype-chain false positives for keys like `"constructor"` / `"toString"`
+- [x] Add `listPersonas(parsedYaml)` pure function to `src/lib/ai_prompt_builder.js` — sorted `string[]` of persona keys, mirroring `loader.ts → listPersonas()`
+- [x] Add `validateConfig(parsedYaml, roles)` pure function to `src/lib/ai_prompt_builder.js` — collects all unresolvable `role_ref` errors, returns `{ valid, errors }`, mirroring `loader.ts → validateConfig()`
+- [x] Export `listPersonas` and `validateAiHelpersConfig` from `src/index.js`
+- [x] Add 16 new tests (2 regression, 6 for `listPersonas`, 8 for `validateConfig`)
+- [x] Update CHANGELOG.md with `.workflow_core` v1.4.1 bump notes
+
+### 16.2 — Ongoing process
+
+Whenever `.workflow_core` receives new public loader API functions, apply the same pattern:
+
+1. Identify the new function and its TypeScript signature
+2. Mirror it as a pure function in `src/lib/ai_prompt_builder.js`
+3. Export from `src/index.js` with an unambiguous alias if the name collides
+4. Add unit tests matching the TypeScript test cases
+5. Note the submodule bump in CHANGELOG.md
 
 ---
 

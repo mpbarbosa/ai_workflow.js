@@ -320,6 +320,8 @@ export {
   PromptBuilder,
   resolveRoleRef,
   resolveAllRoleRefs,
+  listPersonas,
+  validateConfig as validateAiHelpersConfig,
   loadResolvedAiHelpers,
   AI_HELPERS_PATH,
   PROMPT_ROLES_PATH,

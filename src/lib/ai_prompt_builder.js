@@ -58,10 +58,10 @@ export function resolveRoleRef(persona, roles) {
   if (!persona || typeof persona !== 'object') return persona;
   if (!persona.role_ref) return { ...persona };
 
-  const roleEntry = roles?.roles?.[persona.role_ref];
-  if (!roleEntry) {
+  if (!roles?.roles || !Object.prototype.hasOwnProperty.call(roles.roles, persona.role_ref)) {
     throw new Error(`role_ref "${persona.role_ref}" not found in prompt_roles.yaml`);
   }
+  const roleEntry = roles.roles[persona.role_ref];
   const { role_ref: _unusedRoleRef, ...rest } = persona; // eslint-disable-line no-unused-vars
   return { ...rest, role_prefix: roleEntry.role_prefix };
 }
@@ -91,6 +91,78 @@ export function resolveAllRoleRefs(parsedYaml, roles) {
     }
   }
   return resolved;
+}
+
+// ==============================================================================
+// PURE FUNCTIONS - Persona Enumeration and Validation
+// ==============================================================================
+
+/**
+ * Returns a sorted array of all persona keys in a parsed ai_helpers.yaml object.
+ *
+ * An entry is considered a persona if it is a plain object with a `role_ref`
+ * string property (structural detection, consistent with resolveAllRoleRefs).
+ * Non-persona entries (language lookup tables, YAML anchor scalars) are excluded.
+ *
+ * Mirrors `.workflow_core/src/loader.ts → listPersonas()`.
+ *
+ * @param {Object} parsedYaml - Parsed ai_helpers.yaml object
+ * @returns {string[]} Sorted array of persona keys
+ * @pure
+ */
+export function listPersonas(parsedYaml) {
+  if (!parsedYaml || typeof parsedYaml !== 'object') return [];
+  return Object.entries(parsedYaml)
+    .filter(
+      ([, value]) =>
+        value &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        typeof value.role_ref === 'string'
+    )
+    .map(([key]) => key)
+    .sort();
+}
+
+/**
+ * Validates that every persona in `parsedYaml` has a `role_ref` that resolves
+ * to an own-property of `roles.roles`.
+ *
+ * Unlike `resolveAllRoleRefs` (which throws on the first bad reference), this
+ * function collects **all** unresolvable references and returns them as a list,
+ * making it suitable for pre-flight validation and CI checks.
+ *
+ * Non-persona entries (language tables, YAML anchor scalars) are silently
+ * ignored — only entries with a `role_ref` are validated.
+ *
+ * Mirrors `.workflow_core/src/loader.ts → validateConfig()`.
+ *
+ * @param {Object} parsedYaml - Parsed ai_helpers.yaml object
+ * @param {Object} roles      - Parsed prompt_roles.yaml object (must have a `roles` key)
+ * @returns {{ valid: boolean, errors: string[] }} Validation result
+ * @pure
+ */
+export function validateConfig(parsedYaml, roles) {
+  const errors = [];
+  if (parsedYaml && typeof parsedYaml === 'object') {
+    for (const [key, value] of Object.entries(parsedYaml)) {
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        typeof value.role_ref !== 'string'
+      )
+        continue;
+      if (!roles?.roles || !Object.prototype.hasOwnProperty.call(roles.roles, value.role_ref)) {
+        errors.push(
+          `Role reference "${value.role_ref}" used by persona "${key}" was not found ` +
+            `in prompt_roles.yaml. Add an entry under roles.${value.role_ref} or correct the role_ref key.`
+        );
+      }
+    }
+  }
+  errors.sort();
+  return { valid: errors.length === 0, errors };
 }
 
 // ==============================================================================

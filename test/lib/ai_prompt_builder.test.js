@@ -31,6 +31,8 @@ import {
   // Role-ref resolution
   resolveRoleRef,
   resolveAllRoleRefs,
+  listPersonas,
+  validateConfig,
 } from '../../src/lib/ai_prompt_builder.js';
 
 describe('AI Prompt Builder Module - Template Processing', () => {
@@ -444,6 +446,20 @@ describe('AI Prompt Builder Module - Role Reference Resolution', () => {
       );
     });
 
+    test('throws for prototype-chain keys that are not own-properties (e.g. "constructor")', () => {
+      const persona = { role_ref: 'constructor' };
+      expect(() => resolveRoleRef(persona, mockRoles)).toThrow(
+        'role_ref "constructor" not found in prompt_roles.yaml'
+      );
+    });
+
+    test('throws for prototype-chain key "toString"', () => {
+      const persona = { role_ref: 'toString' };
+      expect(() => resolveRoleRef(persona, mockRoles)).toThrow(
+        'role_ref "toString" not found in prompt_roles.yaml'
+      );
+    });
+
     test('returns null/undefined input unchanged', () => {
       expect(resolveRoleRef(null, mockRoles)).toBeNull();
       expect(resolveRoleRef(undefined, mockRoles)).toBeUndefined();
@@ -506,6 +522,130 @@ describe('AI Prompt Builder Module - Role Reference Resolution', () => {
         'role_ref "missing_role" not found in prompt_roles.yaml'
       );
     });
+  });
+});
+
+describe('AI Prompt Builder Module - Persona Enumeration (listPersonas)', () => {
+  test('returns sorted persona keys for entries with role_ref', () => {
+    const yaml = {
+      typescript_prompt: { role_ref: 'typescript_dev', task_template: 'Review TS.' },
+      doc_prompt: { role_ref: 'doc_analysis', task_template: 'Analyze docs.' },
+      python_prompt: { role_ref: 'python_developer', task_template: 'Review Python.' },
+    };
+    expect(listPersonas(yaml)).toEqual(['doc_prompt', 'python_prompt', 'typescript_prompt']);
+  });
+
+  test('excludes non-persona entries (no role_ref)', () => {
+    const yaml = {
+      some_prompt: { role_ref: 'doc_analysis', task_template: 'Analyze.' },
+      lookup_table: { javascript: { key_points: 'Use ESLint.' } },
+      metadata: { version: '1.0.0' },
+      plain_string: 'anchor',
+    };
+    expect(listPersonas(yaml)).toEqual(['some_prompt']);
+  });
+
+  test('excludes arrays even if they have a role_ref property', () => {
+    const yaml = {
+      arr_entry: Object.assign(['a', 'b'], { role_ref: 'doc_analysis' }),
+      valid_prompt: { role_ref: 'doc_analysis', task_template: 'Task.' },
+    };
+    expect(listPersonas(yaml)).toEqual(['valid_prompt']);
+  });
+
+  test('returns empty array for empty object', () => {
+    expect(listPersonas({})).toEqual([]);
+  });
+
+  test('returns empty array for null or non-object input', () => {
+    expect(listPersonas(null)).toEqual([]);
+    expect(listPersonas(undefined)).toEqual([]);
+    expect(listPersonas('string')).toEqual([]);
+  });
+
+  test('returns deterministic sorted order', () => {
+    const yaml = { z_prompt: { role_ref: 'z' }, a_prompt: { role_ref: 'a' } };
+    expect(listPersonas(yaml)).toEqual(['a_prompt', 'z_prompt']);
+  });
+});
+
+describe('AI Prompt Builder Module - Config Validation (validateConfig)', () => {
+  const roles = {
+    roles: {
+      doc_analysis: { role_prefix: 'You are a doc specialist.' },
+      python_developer: { role_prefix: 'You are a Python developer.' },
+    },
+  };
+
+  test('returns valid=true and empty errors when all role_refs resolve', () => {
+    const yaml = {
+      doc_prompt: { role_ref: 'doc_analysis', task_template: 'Analyze.' },
+      python_prompt: { role_ref: 'python_developer', task_template: 'Review Python.' },
+    };
+    const result = validateConfig(yaml, roles);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  test('returns valid=false with error message for unresolvable role_ref', () => {
+    const yaml = {
+      bad_prompt: { role_ref: 'nonexistent_role', task_template: 'Task.' },
+    };
+    const result = validateConfig(yaml, roles);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('nonexistent_role');
+    expect(result.errors[0]).toContain('bad_prompt');
+  });
+
+  test('collects all errors rather than throwing on first', () => {
+    const yaml = {
+      z_bad: { role_ref: 'z_missing', task_template: 'Z task.' },
+      a_bad: { role_ref: 'a_missing', task_template: 'A task.' },
+      good: { role_ref: 'doc_analysis', task_template: 'Good.' },
+    };
+    const result = validateConfig(yaml, roles);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(2);
+    // errors are sorted
+    expect(result.errors[0]).toContain('a_missing');
+    expect(result.errors[1]).toContain('z_missing');
+  });
+
+  test('rejects prototype-chain keys not present as own-properties (e.g. "constructor")', () => {
+    const yaml = { sneaky_prompt: { role_ref: 'constructor', task_template: 'Task.' } };
+    const result = validateConfig(yaml, roles);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('constructor');
+  });
+
+  test('ignores non-persona entries (no role_ref)', () => {
+    const yaml = {
+      lookup_table: { javascript: 'Use ESLint.' },
+      metadata: { version: '1.0.0' },
+      valid_prompt: { role_ref: 'doc_analysis', task_template: 'Analyze.' },
+    };
+    const result = validateConfig(yaml, roles);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  test('returns valid=true for empty yaml object', () => {
+    const result = validateConfig({}, roles);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  test('returns valid=true for null/undefined yaml', () => {
+    expect(validateConfig(null, roles)).toEqual({ valid: true, errors: [] });
+    expect(validateConfig(undefined, roles)).toEqual({ valid: true, errors: [] });
+  });
+
+  test('reports error when roles is missing entirely', () => {
+    const yaml = { some_prompt: { role_ref: 'doc_analysis', task_template: 'Task.' } };
+    const result = validateConfig(yaml, null);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toHaveLength(1);
   });
 });
 
