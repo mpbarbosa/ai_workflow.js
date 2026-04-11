@@ -267,6 +267,8 @@ describe('Step23PerfReview - Wrapper', () => {
             '    Build: {build_system}\n' +
             '    Files: {source_file_count}\n' +
             '    Paths: {file_paths}\n' +
+            '    **File Contents (sampled source excerpts):**\n' +
+            '    {file_content_block}\n' +
             '  approach: "performance review approach"'
         );
       }
@@ -502,6 +504,24 @@ describe('Step23PerfReview - Wrapper', () => {
     expect(result.success).toBe(true);
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
     expect(promptArg).toContain('npm');
+  });
+
+  test('prompt injects file content block once instead of appending a duplicate copy', async () => {
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step23PerfReview({
+      fileOps: makeFileOps(['src/index.js'], 'const x = JSON.parse(raw);'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    await step.execute('/project');
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(promptArg).toContain('**File Contents (sampled source excerpts):**');
+    expect(promptArg).toContain('### `src/index.js`');
+    expect((promptArg.match(/### `src\/index\.js`/g) || []).length).toBe(1);
   });
 
   test('re-throws errors from file listing', async () => {

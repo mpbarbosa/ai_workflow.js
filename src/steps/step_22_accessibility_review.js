@@ -249,6 +249,10 @@ export class Step22AccessibilityReview {
               ? `${filePathList}\n      ... and ${relativeFiles.length - MAX_FILE_PATHS_IN_CONTEXT} more`
               : filePathList;
 
+          const fileContentBlock =
+            fileBlocks.length > 0
+              ? fileBlocks.join('\n\n')
+              : '_No readable file excerpts were available in the current context window._';
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const prompt = buildYamlStepPrompt(parsedYaml, 'accessibility_review_prompt', {
             project_name: options.projectName ?? path.basename(projectRoot),
@@ -256,10 +260,11 @@ export class Step22AccessibilityReview {
             framework: options.framework ?? 'vanilla',
             source_file_count: String(relativeFiles.length),
             file_paths: filePathsContext,
+            file_content_block: fileContentBlock,
           });
 
           if (prompt) {
-            const fullPrompt = `${prompt}\n\n${fileBlocks.join('\n\n')}`;
+            const fullPrompt = prompt;
             const cacheKey = `step_22:${projectRoot}:${scores.totalIssues}`;
             const cached = await this.aiCache.get(cacheKey);
 

@@ -282,6 +282,8 @@ describe('Step22AccessibilityReview - Wrapper', () => {
             '    Framework: {framework}\n' +
             '    Files: {source_file_count}\n' +
             '    Paths: {file_paths}\n' +
+            '    **File Contents (sampled source excerpts):**\n' +
+            '    {file_content_block}\n' +
             '  approach: "review approach"'
         );
       }
@@ -480,6 +482,23 @@ describe('Step22AccessibilityReview - Wrapper', () => {
     expect(promptArg).toContain('src/page0.html');
     expect(promptArg).toContain('src/page19.html');
     expect(promptArg).toContain('and 5 more');
+  });
+
+  test('prompt injects file content block once instead of appending a duplicate copy', async () => {
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step22AccessibilityReview({
+      fileOps: makeFileOps(['src/App.vue'], '<button aria-label="Close">X</button>'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    await step.execute('/project');
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(promptArg).toContain('**File Contents (sampled source excerpts):**');
+    expect(promptArg).toContain('### `src/App.vue`');
+    expect((promptArg.match(/### `src\/App\.vue`/g) || []).length).toBe(1);
   });
 
   test('re-throws errors from file listing', async () => {
