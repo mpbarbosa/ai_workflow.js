@@ -1,0 +1,728 @@
+#!/usr/bin/env bash
+#
+# update_submodules.sh - Update one or more git submodules in a parent repository
+#
+# Usage examples:
+#   ./update_submodules.sh
+#   ./update_submodules.sh --submodule .workflow_core --tag v1.2.7 --stage --commit-changes
+#   ./update_submodules.sh --branch main --create-branch chore/update-submodules --create-pr
+#
+# Notes:
+# - By default, the script updates all configured submodules using each submodule's
+#   configured remote-tracking branch.
+# - Before updating, the script syncs submodule URLs from .gitmodules into the
+#   parent repository's git config.
+# - Parent-repository staging, commit creation, and pull-request creation are opt-in.
+# - If PROJECT_ROOT_OVERRIDE is exported, it takes precedence over {{PROJECT_ROOT}}.
+
+set -euo pipefail
+
+readonly GREEN='\033[0;32m'
+readonly RED='\033[0;31m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly TEMPLATE_PROJECT_ROOT='{{PROJECT_ROOT}}'
+
+PROJECT_ROOT=''
+GITMODULES_FILE=''
+
+MODE='remote'
+TARGET_BRANCH=''
+TARGET_TAG=''
+TARGET_COMMIT=''
+STAGE_CHANGES=false
+COMMIT_CHANGES=false
+COMMIT_MESSAGE=''
+CREATE_BRANCH=''
+CREATE_PR=false
+PR_TITLE=''
+PR_BODY=''
+PR_BASE=''
+RUN_HEALTH_CHECK=false
+HEALTH_CHECK_CMD=''
+ALLOW_DIRTY_PARENT=false
+ALLOW_DIRTY_SUBMODULES=false
+DRY_RUN=false
+VERBOSE=false
+
+declare -a REQUESTED_SUBMODULES=()
+declare -a TARGET_SUBMODULES=()
+declare -a ALL_SUBMODULES=()
+declare -A BEFORE_COMMITS=()
+declare -A AFTER_COMMITS=()
+
+print_color() {
+  local color="$1"
+  local message="$2"
+  printf '%b%s%b\n' "$color" "$message" "$NC"
+}
+
+print_info() {
+  print_color "$BLUE" "INFO: $1"
+}
+
+print_warn() {
+  print_color "$YELLOW" "WARN: $1"
+}
+
+print_error() {
+  print_color "$RED" "ERROR: $1" >&2
+}
+
+print_success() {
+  print_color "$GREEN" "OK: $1"
+}
+
+debug() {
+  if [[ "$VERBOSE" == true ]]; then
+    print_info "$1"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+Usage: update_submodules.sh [options]
+
+Selection:
+  --submodule PATH       Update a specific submodule path. Repeatable.
+  --all                  Update all configured submodules (default).
+
+Update mode:
+  --remote               Update using the configured remote-tracking branch (default).
+  --branch NAME          Checkout and fast-forward a specific branch in each target submodule.
+  --tag NAME             Checkout a specific tag in each target submodule.
+  --commit SHA           Checkout a specific commit in each target submodule.
+
+Mutation:
+  --stage                Stage updated submodule pointers in the parent repository.
+  --commit-changes       Create a parent-repository commit after staging.
+  --commit-message MSG   Custom commit message for --commit-changes.
+  --create-branch NAME   Create or switch to a branch in the parent repository before updating.
+
+Pull request:
+  --create-pr            Push the current branch and open a pull request with gh.
+  --pr-title TITLE       Override the pull request title.
+  --pr-body BODY         Override the pull request body.
+  --pr-base BRANCH       Override the pull request base branch.
+
+Validation and safety:
+  --run-health-check     Run an integration health check after submodule updates.
+  --health-check-cmd CMD Override the health-check command.
+  --allow-dirty-parent   Allow tracked parent-repository changes before updating.
+  --allow-dirty-submodules
+                         Allow tracked changes inside target submodules before updating.
+  --dry-run              Print commands without executing them.
+  --verbose              Print extra progress information.
+  -h, --help             Show this help.
+
+Environment:
+  PROJECT_ROOT_OVERRIDE  Optional project root override for copied scripts.
+EOF
+}
+
+run_cmd() {
+  if [[ "$DRY_RUN" == true ]]; then
+    printf '[dry-run] '
+    printf '%q ' "$@"
+    printf '\n'
+    return 0
+  fi
+
+  "$@"
+}
+
+run_shell_cmd() {
+  local command="$1"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    printf '[dry-run] bash -lc %q\n' "$command"
+    return 0
+  fi
+
+  bash -lc "$command"
+}
+
+require_command() {
+  local command_name="$1"
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    print_error "Required command not found: $command_name"
+    exit 2
+  fi
+}
+
+join_by() {
+  local delimiter="$1"
+  shift
+  local first=true
+  local value
+
+  for value in "$@"; do
+    if [[ "$first" == true ]]; then
+      printf '%s' "$value"
+      first=false
+    else
+      printf '%s%s' "$delimiter" "$value"
+    fi
+  done
+}
+
+resolve_project_root() {
+  local override="${PROJECT_ROOT_OVERRIDE:-}"
+  local fallback=''
+
+  if [[ -n "$override" ]]; then
+    PROJECT_ROOT="$(cd "$override" && pwd)"
+  elif [[ "$TEMPLATE_PROJECT_ROOT" != '{{PROJECT_ROOT}}' && -d "$TEMPLATE_PROJECT_ROOT" ]]; then
+    PROJECT_ROOT="$(cd "$TEMPLATE_PROJECT_ROOT" && pwd)"
+  elif git -C "$SCRIPT_DIR" rev-parse --show-toplevel >/dev/null 2>&1; then
+    PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+  else
+    fallback="$(cd "$SCRIPT_DIR/.." && pwd)"
+    PROJECT_ROOT="$fallback"
+  fi
+
+  GITMODULES_FILE="$PROJECT_ROOT/.gitmodules"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --submodule)
+        REQUESTED_SUBMODULES+=("$2")
+        shift 2
+        ;;
+      --all)
+        shift
+        ;;
+      --remote)
+        MODE='remote'
+        TARGET_BRANCH=''
+        TARGET_TAG=''
+        TARGET_COMMIT=''
+        shift
+        ;;
+      --branch)
+        MODE='branch'
+        TARGET_BRANCH="$2"
+        TARGET_TAG=''
+        TARGET_COMMIT=''
+        shift 2
+        ;;
+      --tag)
+        MODE='tag'
+        TARGET_TAG="$2"
+        TARGET_BRANCH=''
+        TARGET_COMMIT=''
+        shift 2
+        ;;
+      --commit)
+        MODE='commit'
+        TARGET_COMMIT="$2"
+        TARGET_BRANCH=''
+        TARGET_TAG=''
+        shift 2
+        ;;
+      --stage)
+        STAGE_CHANGES=true
+        shift
+        ;;
+      --commit-changes)
+        COMMIT_CHANGES=true
+        STAGE_CHANGES=true
+        shift
+        ;;
+      --commit-message)
+        COMMIT_MESSAGE="$2"
+        shift 2
+        ;;
+      --create-branch)
+        CREATE_BRANCH="$2"
+        shift 2
+        ;;
+      --create-pr)
+        CREATE_PR=true
+        COMMIT_CHANGES=true
+        STAGE_CHANGES=true
+        shift
+        ;;
+      --pr-title)
+        PR_TITLE="$2"
+        shift 2
+        ;;
+      --pr-body)
+        PR_BODY="$2"
+        shift 2
+        ;;
+      --pr-base)
+        PR_BASE="$2"
+        shift 2
+        ;;
+      --run-health-check)
+        RUN_HEALTH_CHECK=true
+        shift
+        ;;
+      --health-check-cmd)
+        HEALTH_CHECK_CMD="$2"
+        RUN_HEALTH_CHECK=true
+        shift 2
+        ;;
+      --allow-dirty-parent)
+        ALLOW_DIRTY_PARENT=true
+        shift
+        ;;
+      --allow-dirty-submodules)
+        ALLOW_DIRTY_SUBMODULES=true
+        shift
+        ;;
+      --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
+      --verbose)
+        VERBOSE=true
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        print_error "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
+
+validate_args() {
+  local mode_count=0
+
+  [[ "$MODE" == 'remote' ]] && mode_count=$((mode_count + 1))
+  [[ -n "$TARGET_BRANCH" ]] && mode_count=$((mode_count + 1))
+  [[ -n "$TARGET_TAG" ]] && mode_count=$((mode_count + 1))
+  [[ -n "$TARGET_COMMIT" ]] && mode_count=$((mode_count + 1))
+
+  if [[ $mode_count -ne 1 ]]; then
+    print_error "Choose exactly one update mode."
+    exit 1
+  fi
+}
+
+ensure_git_repo() {
+  if ! git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    print_error "Project root is not a git repository: $PROJECT_ROOT"
+    exit 2
+  fi
+}
+
+load_all_submodules() {
+  if [[ ! -f "$GITMODULES_FILE" ]]; then
+    print_error "No .gitmodules file found in $PROJECT_ROOT"
+    exit 2
+  fi
+
+  mapfile -t ALL_SUBMODULES < <(
+    git -C "$PROJECT_ROOT" config -f "$GITMODULES_FILE" --get-regexp '^submodule\..*\.path$' |
+      awk '{print $2}'
+  )
+
+  if [[ ${#ALL_SUBMODULES[@]} -eq 0 ]]; then
+    print_error "No submodules are configured in $GITMODULES_FILE"
+    exit 2
+  fi
+}
+
+contains_submodule() {
+  local needle="$1"
+  local candidate
+
+  for candidate in "${ALL_SUBMODULES[@]}"; do
+    if [[ "$candidate" == "$needle" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+resolve_targets() {
+  local path=''
+
+  if [[ ${#REQUESTED_SUBMODULES[@]} -eq 0 ]]; then
+    TARGET_SUBMODULES=("${ALL_SUBMODULES[@]}")
+    return
+  fi
+
+  for path in "${REQUESTED_SUBMODULES[@]}"; do
+    if ! contains_submodule "$path"; then
+      print_error "Submodule path is not defined in .gitmodules: $path"
+      exit 1
+    fi
+    TARGET_SUBMODULES+=("$path")
+  done
+}
+
+check_parent_worktree() {
+  local dirty_output=''
+
+  if [[ "$ALLOW_DIRTY_PARENT" == true ]]; then
+    return
+  fi
+
+  dirty_output="$(git -C "$PROJECT_ROOT" status --short --untracked-files=no)"
+  if [[ -n "$dirty_output" ]]; then
+    print_error "Parent repository has tracked changes. Commit or stash them first, or use --allow-dirty-parent."
+    printf '%s\n' "$dirty_output" >&2
+    exit 1
+  fi
+}
+
+sync_submodule_config() {
+  print_info "Syncing submodule URLs from .gitmodules"
+  run_cmd git -C "$PROJECT_ROOT" submodule sync --recursive -- "${TARGET_SUBMODULES[@]}"
+}
+
+ensure_parent_branch() {
+  if [[ -z "$CREATE_BRANCH" ]]; then
+    return
+  fi
+
+  if git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/$CREATE_BRANCH"; then
+    run_cmd git -C "$PROJECT_ROOT" switch "$CREATE_BRANCH"
+  else
+    run_cmd git -C "$PROJECT_ROOT" switch -c "$CREATE_BRANCH"
+  fi
+}
+
+ensure_submodule_initialized() {
+  local path="$1"
+
+  if git -C "$PROJECT_ROOT/$path" rev-parse --git-dir >/dev/null 2>&1; then
+    return
+  fi
+
+  print_info "Initializing submodule: $path"
+  run_cmd git -C "$PROJECT_ROOT" submodule update --init -- "$path"
+}
+
+check_submodule_worktree() {
+  local path="$1"
+  local dirty_output=''
+
+  if [[ "$ALLOW_DIRTY_SUBMODULES" == true ]]; then
+    return
+  fi
+
+  dirty_output="$(git -C "$PROJECT_ROOT/$path" status --short --untracked-files=no)"
+  if [[ -n "$dirty_output" ]]; then
+    print_error "Submodule has tracked changes: $path"
+    printf '%s\n' "$dirty_output" >&2
+    exit 1
+  fi
+}
+
+default_commit_message() {
+  if [[ ${#TARGET_SUBMODULES[@]} -eq 1 ]]; then
+    case "$MODE" in
+      remote)
+        printf 'chore: update submodule %s' "${TARGET_SUBMODULES[0]}"
+        ;;
+      branch)
+        printf 'chore: update submodule %s to %s' "${TARGET_SUBMODULES[0]}" "$TARGET_BRANCH"
+        ;;
+      tag)
+        printf 'chore: pin submodule %s to %s' "${TARGET_SUBMODULES[0]}" "$TARGET_TAG"
+        ;;
+      commit)
+        printf 'chore: pin submodule %s to %s' "${TARGET_SUBMODULES[0]}" "${TARGET_COMMIT:0:12}"
+        ;;
+    esac
+  else
+    case "$MODE" in
+      remote)
+        printf 'chore: update submodules'
+        ;;
+      branch)
+        printf 'chore: update submodules to branch %s' "$TARGET_BRANCH"
+        ;;
+      tag)
+        printf 'chore: pin submodules to %s' "$TARGET_TAG"
+        ;;
+      commit)
+        printf 'chore: pin submodules to %s' "${TARGET_COMMIT:0:12}"
+        ;;
+    esac
+  fi
+}
+
+record_before_commit() {
+  local path="$1"
+  BEFORE_COMMITS["$path"]="$(git -C "$PROJECT_ROOT/$path" rev-parse HEAD)"
+}
+
+record_after_commit() {
+  local path="$1"
+  AFTER_COMMITS["$path"]="$(git -C "$PROJECT_ROOT/$path" rev-parse HEAD)"
+}
+
+update_one_submodule() {
+  local path="$1"
+  local current_branch=''
+
+  ensure_submodule_initialized "$path"
+  check_submodule_worktree "$path"
+  record_before_commit "$path"
+
+  print_info "Updating submodule: $path"
+
+  case "$MODE" in
+    remote)
+      run_cmd git -C "$PROJECT_ROOT" submodule update --init --remote -- "$path"
+      ;;
+    branch)
+      run_cmd git -C "$PROJECT_ROOT/$path" fetch --prune origin "$TARGET_BRANCH"
+      current_branch="$(git -C "$PROJECT_ROOT/$path" rev-parse --abbrev-ref HEAD)"
+      if [[ "$current_branch" != "$TARGET_BRANCH" ]]; then
+        run_cmd git -C "$PROJECT_ROOT/$path" checkout "$TARGET_BRANCH"
+      fi
+      run_cmd git -C "$PROJECT_ROOT/$path" pull --ff-only origin "$TARGET_BRANCH"
+      ;;
+    tag)
+      run_cmd git -C "$PROJECT_ROOT/$path" fetch --tags --prune origin
+      run_cmd git -C "$PROJECT_ROOT/$path" checkout "$TARGET_TAG"
+      ;;
+    commit)
+      run_cmd git -C "$PROJECT_ROOT/$path" fetch --tags --prune origin
+      run_cmd git -C "$PROJECT_ROOT/$path" checkout "$TARGET_COMMIT"
+      ;;
+  esac
+
+  record_after_commit "$path"
+}
+
+stage_submodule_pointers() {
+  if [[ "$STAGE_CHANGES" == false ]]; then
+    return
+  fi
+
+  print_info "Staging submodule pointers in parent repository"
+  run_cmd git -C "$PROJECT_ROOT" add -- "${TARGET_SUBMODULES[@]}"
+}
+
+detect_default_health_check_cmd() {
+  local candidate=''
+
+  if [[ -n "$HEALTH_CHECK_CMD" ]]; then
+    return 0
+  fi
+
+  for candidate in \
+    "$PROJECT_ROOT/scripts/check_integration_health.sh" \
+    "$PROJECT_ROOT/.workflow_core/scripts/check_integration_health.sh"
+  do
+    if [[ -f "$candidate" ]]; then
+      HEALTH_CHECK_CMD="bash \"$candidate\""
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+run_health_check() {
+  if [[ "$RUN_HEALTH_CHECK" == false ]]; then
+    return
+  fi
+
+  if ! detect_default_health_check_cmd; then
+    print_error "No health-check script found. Provide --health-check-cmd or add scripts/check_integration_health.sh."
+    exit 1
+  fi
+
+  print_info "Running health check"
+  run_shell_cmd "cd \"$PROJECT_ROOT\" && $HEALTH_CHECK_CMD"
+}
+
+has_parent_changes() {
+  if git -C "$PROJECT_ROOT" diff --quiet -- "${TARGET_SUBMODULES[@]}" &&
+    git -C "$PROJECT_ROOT" diff --cached --quiet -- "${TARGET_SUBMODULES[@]}"; then
+    return 1
+  fi
+
+  return 0
+}
+
+commit_parent_changes() {
+  if [[ "$COMMIT_CHANGES" == false ]]; then
+    return
+  fi
+
+  if ! has_parent_changes; then
+    print_warn "No staged or unstaged parent changes were detected for the selected submodules. Skipping commit."
+    return
+  fi
+
+  if [[ "$STAGE_CHANGES" == false ]]; then
+    print_error "--commit-changes requires staged changes. Use --stage or --commit-changes together."
+    exit 1
+  fi
+
+  print_info "Creating parent-repository commit"
+  run_cmd git -C "$PROJECT_ROOT" commit -m "$COMMIT_MESSAGE"
+}
+
+detect_default_base_branch() {
+  local default_ref=''
+
+  default_ref="$(git -C "$PROJECT_ROOT" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)"
+  if [[ -n "$default_ref" ]]; then
+    printf '%s\n' "${default_ref#refs/remotes/origin/}"
+    return 0
+  fi
+
+  return 1
+}
+
+open_pull_request() {
+  local current_branch=''
+  local base_branch=''
+  local title=''
+  local body=''
+
+  if [[ "$CREATE_PR" == false ]]; then
+    return
+  fi
+
+  require_command gh
+
+  current_branch="$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)"
+  if [[ "$current_branch" == 'HEAD' ]]; then
+    print_error "Pull request creation requires a branch checkout. Use --create-branch first."
+    exit 1
+  fi
+
+  if [[ -n "$PR_BASE" ]]; then
+    base_branch="$PR_BASE"
+  else
+    base_branch="$(detect_default_base_branch || true)"
+  fi
+
+  if [[ -z "$base_branch" ]]; then
+    print_error "Could not determine a PR base branch. Pass --pr-base explicitly."
+    exit 1
+  fi
+
+  if [[ "$current_branch" == "$base_branch" ]]; then
+    print_error "Current branch matches the PR base branch. Use --create-branch or switch to a feature branch first."
+    exit 1
+  fi
+
+  title="${PR_TITLE:-$COMMIT_MESSAGE}"
+  body="${PR_BODY:-$(default_pr_body)}"
+
+  print_info "Pushing branch $current_branch"
+  run_cmd git -C "$PROJECT_ROOT" push -u origin "$current_branch"
+
+  print_info "Creating pull request against $base_branch"
+  run_cmd gh pr create --repo "$(detect_repo_slug)" --base "$base_branch" --title "$title" --body "$body"
+}
+
+detect_repo_slug() {
+  local remote_url=''
+
+  remote_url="$(git -C "$PROJECT_ROOT" remote get-url origin)"
+
+  case "$remote_url" in
+    git@github.com:*)
+      remote_url="${remote_url#git@github.com:}"
+      remote_url="${remote_url%.git}"
+      printf '%s\n' "$remote_url"
+      ;;
+    https://github.com/*)
+      remote_url="${remote_url#https://github.com/}"
+      remote_url="${remote_url%.git}"
+      printf '%s\n' "$remote_url"
+      ;;
+    *)
+      print_error "Origin remote is not a GitHub remote: $remote_url"
+      exit 1
+      ;;
+  esac
+}
+
+default_pr_body() {
+  local summary=''
+  summary="$(summarize_updates)"
+
+  cat <<EOF
+Automated submodule update generated by update_submodules.sh.
+
+Updated submodules:
+$summary
+EOF
+}
+
+summarize_updates() {
+  local path=''
+  local before=''
+  local after=''
+
+  for path in "${TARGET_SUBMODULES[@]}"; do
+    before="${BEFORE_COMMITS[$path]:-unknown}"
+    after="${AFTER_COMMITS[$path]:-unknown}"
+    printf -- '- `%s`: `%s` -> `%s`\n' "$path" "${before:0:12}" "${after:0:12}"
+  done
+}
+
+print_summary() {
+  local path=''
+  local before=''
+  local after=''
+
+  print_color "$BLUE" "Submodule update summary"
+  for path in "${TARGET_SUBMODULES[@]}"; do
+    before="${BEFORE_COMMITS[$path]:-unknown}"
+    after="${AFTER_COMMITS[$path]:-unknown}"
+    if [[ "$before" == "$after" ]]; then
+      print_info "$path unchanged at ${after:0:12}"
+    else
+      print_success "$path ${before:0:12} -> ${after:0:12}"
+    fi
+  done
+}
+
+main() {
+  require_command git
+  parse_args "$@"
+  resolve_project_root
+  validate_args
+  ensure_git_repo
+  load_all_submodules
+  resolve_targets
+  if [[ "$COMMIT_CHANGES" == true && -z "$COMMIT_MESSAGE" ]]; then
+    COMMIT_MESSAGE="$(default_commit_message)"
+  fi
+  check_parent_worktree
+  ensure_parent_branch
+  sync_submodule_config
+
+  print_info "Project root: $PROJECT_ROOT"
+  print_info "Selected submodules: $(join_by ', ' "${TARGET_SUBMODULES[@]}")"
+
+  local path=''
+  for path in "${TARGET_SUBMODULES[@]}"; do
+    update_one_submodule "$path"
+  done
+
+  print_summary
+  stage_submodule_pointers
+  run_health_check
+  commit_parent_changes
+  open_pull_request
+}
+
+main "$@"
