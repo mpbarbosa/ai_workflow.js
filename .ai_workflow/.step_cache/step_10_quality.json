@@ -510,6 +510,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-09T21:03:10.128Z"
+    },
+    "scripts/update_submodules.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-11T01:11:42.960Z"
+    },
+    "scripts/colors.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-11T01:11:42.960Z"
+    },
+    "scripts/prepare-release.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-11T01:11:42.960Z"
+    },
+    "scripts/run-tests-docker.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-11T01:11:42.960Z"
+    },
+    "scripts/setup.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-11T01:11:42.960Z"
     }
   }
 }

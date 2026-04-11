@@ -45,4 +45,4 @@ guia_turistico is a modular JavaScript/Node.js application for managing tourist 
 | 2.0.1   | 2026-04-09 | Implement real `workflowDirWritable` fs check; refresh stale Phase 11 doc references                               |
 | 2.0.2   | 2026-04-09 | Fix `mergeValidationResults()` ignoring TIMEOUT tasks; un-skip 3 step1_parallel tests; update FRS scope section    |
 | 2.1.0   | 2026-04-09 | Implement `loadWorkflow()` file loading (JSON/YAML); add `parseWorkflowFile` pure function; 6984 tests passing     |
-| 2.2.1   | 2026-04-09 | Add `saveWorkflow(path)` + `serializeWorkflow()` pure function (inverse of parseWorkflowFile); 6997 tests passing  |
+| 2.2.2   | 2026-04-09 | Add `saveWorkflow(path)` + `serializeWorkflow()` pure function (inverse of parseWorkflowFile); 6997 tests passing  |
