@@ -220,6 +220,83 @@ export function buildPromptFromTemplate(template, context = {}) {
   return result;
 }
 
+function canonicalizeProjectText(value) {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Convert a project-kind identifier into a readable label for prompt summaries.
+ *
+ * @param {string} projectKind - Project kind identifier like `nodejs_api`
+ * @returns {string} Human-readable label, or empty string if unavailable
+ * @pure
+ */
+export function formatProjectKindLabel(projectKind) {
+  if (!projectKind || typeof projectKind !== 'string') {
+    return '';
+  }
+
+  return projectKind
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\bapi\b/gi, 'API')
+    .replace(/\bspa\b/gi, 'SPA')
+    .replace(/\btui\b/gi, 'TUI')
+    .replace(/\bux\b/gi, 'UX')
+    .replace(/\bui\b/gi, 'UI')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Derive a concise, human-readable project summary for prompt headers.
+ *
+ * Prefers a meaningful `project_description` when available. When the description is
+ * blank, placeholder-like, or duplicates the project name, falls back to a summary
+ * derived from language and project kind so prompts still carry useful context.
+ *
+ * @param {Object} [context] - Prompt context values
+ * @returns {string} Project summary for prompt use
+ * @pure
+ */
+export function deriveProjectSummary(context = {}) {
+  const projectName = String(context.project_name ?? '').trim();
+  const projectDescription = String(context.project_description ?? '').trim();
+  const primaryLanguage = String(context.primary_language ?? context.language ?? '').trim();
+  const projectKind = formatProjectKindLabel(
+    String(context.project_kind ?? context.projectKind ?? '').trim()
+  );
+  const normalizedDescription = canonicalizeProjectText(projectDescription);
+  const normalizedName = canonicalizeProjectText(projectName);
+  const placeholderDescriptions = new Set(['', 'na', 'n/a', 'none', 'unknown', 'unspecified']);
+
+  if (
+    projectDescription &&
+    !placeholderDescriptions.has(projectDescription.toLowerCase()) &&
+    normalizedDescription !== normalizedName
+  ) {
+    return projectDescription;
+  }
+
+  if (primaryLanguage && projectKind) {
+    return `${primaryLanguage} ${projectKind} project`;
+  }
+
+  if (primaryLanguage) {
+    return `${primaryLanguage} project`;
+  }
+
+  if (projectKind) {
+    return `${projectKind} project`;
+  }
+
+  return 'Software project';
+}
+
 /**
  * Inject project context into prompt
  *
@@ -510,6 +587,10 @@ export function buildYamlStepPrompt(parsedYaml, yamlKey, context = {}) {
         }
       }
     }
+  }
+
+  if (!String(enrichedContext.project_summary ?? '').trim()) {
+    enrichedContext.project_summary = deriveProjectSummary(enrichedContext);
   }
 
   const task = buildPromptFromTemplate(taskTemplate, enrichedContext);

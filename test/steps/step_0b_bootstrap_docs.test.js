@@ -199,7 +199,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
           role_prefix: 'You are a yaml-loaded technical writer.\n',
           behavioral_guidelines: 'Be helpful.\n',
           task_template:
-            'Project: {project_name} ({project_description})\nLanguage: {primary_language}\nDocs: {doc_count}\nSources: {source_files}\n',
+            'Project: {project_name}\nProject Summary: {project_summary}\nLanguage: {primary_language}\nDocs: {doc_count}\nSources: {source_files}\n',
         },
       };
       const context = {

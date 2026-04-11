@@ -277,7 +277,8 @@ describe('Step22AccessibilityReview - Wrapper', () => {
           'accessibility_review_prompt:\n' +
             '  role_ref: accessibility_expert\n' +
             '  task_template: |\n' +
-            '    Project: {project_name} ({project_description})\n' +
+            '    Project: {project_name}\n' +
+            '    Project Summary: {project_summary}\n' +
             '    Framework: {framework}\n' +
             '    Files: {source_file_count}\n' +
             '    Paths: {file_paths}\n' +

@@ -18,7 +18,7 @@ export const AI_HELPERS_PATH = path.resolve(
   '../../.workflow_core/config/ai_helpers.yaml'
 );
 import { FileOperations } from '../lib/file_operations.js';
-import { loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { deriveProjectSummary, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
 import { STEP_KIND } from './step_contract.js';
@@ -253,6 +253,11 @@ export function buildTechnicalWriterPrompt(context) {
         const variables = {
           project_name: projectName,
           project_description: projectDescription || '',
+          project_summary: deriveProjectSummary({
+            project_name: projectName,
+            project_description: projectDescription || '',
+            primary_language: primaryLanguage,
+          }),
           primary_language: primaryLanguage,
           doc_count: String(docCount),
           source_files: String(sourceCount),

@@ -6,6 +6,9 @@
 
 import {
   buildPromptFromTemplate,
+  buildYamlStepPrompt,
+  formatProjectKindLabel,
+  deriveProjectSummary,
   injectProjectContext,
   formatProjectContextSection,
   formatCodeBlock,
@@ -122,6 +125,44 @@ describe('AI Prompt Builder Module - Template Processing', () => {
       const result = buildPromptFromTemplate(template, { file_content_map: sourceCode });
       expect(result).toContain('\\$&');
       expect(result).not.toContain('{file_content_map}');
+    });
+
+    test('formats project kind labels for prompt summaries', () => {
+      expect(formatProjectKindLabel('nodejs_api')).toBe('nodejs API');
+      expect(formatProjectKindLabel('client_spa')).toBe('client SPA');
+      expect(formatProjectKindLabel('tui_ux')).toBe('TUI UX');
+    });
+
+    test('derives a generic project summary when description duplicates the project name', () => {
+      expect(
+        deriveProjectSummary({
+          project_name: 'ai_workflow.js',
+          project_description: 'ai_workflow.js',
+          project_kind: 'nodejs_automation',
+          primary_language: 'JavaScript',
+        })
+      ).toBe('JavaScript nodejs automation project');
+    });
+
+    test('buildYamlStepPrompt injects derived project_summary when description is low-signal', () => {
+      const parsedYaml = {
+        summary_prompt: {
+          role: 'Reviewer',
+          task_template:
+            'Project: {project_name}\nProject Summary: {project_summary}\nLanguage: {primary_language}',
+        },
+      };
+
+      const result = buildYamlStepPrompt(parsedYaml, 'summary_prompt', {
+        project_name: 'ai_workflow.js',
+        project_description: 'ai_workflow.js',
+        project_kind: 'nodejs_automation',
+        primary_language: 'JavaScript',
+      });
+
+      expect(result).toContain('Project: ai_workflow.js');
+      expect(result).toContain('Project Summary: JavaScript nodejs automation project');
+      expect(result).toContain('Language: JavaScript');
     });
   });
 

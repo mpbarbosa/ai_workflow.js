@@ -261,7 +261,8 @@ describe('Step23PerfReview - Wrapper', () => {
           'performance_review_prompt:\n' +
             '  role_ref: performance_engineer\n' +
             '  task_template: |\n' +
-            '    Project: {project_name} ({project_description})\n' +
+            '    Project: {project_name}\n' +
+            '    Project Summary: {project_summary}\n' +
             '    Language: {primary_language}\n' +
             '    Build: {build_system}\n' +
             '    Files: {source_file_count}\n' +
