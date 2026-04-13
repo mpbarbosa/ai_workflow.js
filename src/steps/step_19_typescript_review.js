@@ -24,7 +24,9 @@ import { AiCache } from '../lib/ai_cache.js';
 import {
   loadResolvedAiHelpers,
   buildYamlStepPrompt,
+  buildPromptFromTemplate,
   buildFileContentBlock,
+  deriveProjectSummary,
   formatProjectContextSection,
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
@@ -251,6 +253,24 @@ export class Step19TypescriptReview {
             fileContentBlocks.length > 0
               ? `**File Contents**:\n\n${fileContentBlocks.join('\n\n')}`
               : '';
+          const filePathsContext =
+            sampleFiles.length > 0
+              ? sampleFiles.map((file) => `      - ${file}`).join('\n')
+              : '      - (no readable TypeScript files were available)';
+          const promptContext = {
+            project_name: options.projectName ?? path.basename(projectRoot),
+            project_description: options.projectDescription ?? '',
+            project_kind: options.projectKind ?? 'nodejs_api',
+            primary_language: 'TypeScript',
+            build_system: 'tsc / Vite / Webpack',
+            test_framework: 'Jest / ts-jest / Vitest',
+            test_command: 'npm test',
+            lint_command: 'npm run lint',
+            source_file_count: String(tsFiles.length),
+            modified_count: String(tsFiles.length),
+            file_paths: filePathsContext,
+          };
+          promptContext.project_summary = deriveProjectSummary(promptContext);
 
           if (cfg && typeof cfg === 'object') {
             const parts = [];
@@ -264,18 +284,8 @@ export class Step19TypescriptReview {
                 `**Codebase Profile — Verified Ground Truth**:\n\nThe following facts about this codebase have been verified against the live code. Treat them as authoritative. Do NOT flag items documented here as issues.\n\n${contextProfile}`
               );
             }
-            // Interpolate task_template placeholders
             if (cfg.task_template) {
-              const task = cfg.task_template
-                .replace('{project_name}', options.projectName ?? path.basename(projectRoot))
-                .replace('{project_description}', 'TypeScript project')
-                .replace('{project_kind}', options.projectKind ?? 'nodejs_api')
-                .replace('{primary_language}', 'TypeScript')
-                .replace('{build_system}', 'tsc / Vite / Webpack')
-                .replace('{test_framework}', 'Jest / ts-jest / Vitest')
-                .replace('{test_command}', 'npm test')
-                .replace('{lint_command}', 'npm run lint')
-                .replace('{modified_count}', String(tsFiles.length));
+              const task = buildPromptFromTemplate(cfg.task_template, promptContext);
               parts.push(task.trim());
             }
             if (tsconfigs.length > 0) {
@@ -287,12 +297,14 @@ export class Step19TypescriptReview {
               `**TypeScript Files to Review** (${tsFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
             );
             if (fileContentsSection) parts.push(fileContentsSection);
-            if (cfg.approach) parts.push(cfg.approach.trim());
+            if (cfg.approach) {
+              parts.push(buildPromptFromTemplate(cfg.approach, promptContext).trim());
+            }
             tsPrompt = parts.join('\n\n');
           } else {
             // Fallback to generic builder
             const builtPrompt = buildYamlStepPrompt(parsedYaml, 'typescript_developer_prompt', {
-              project_name: options.projectName ?? path.basename(projectRoot),
+              ...promptContext,
               source_files: sampleFiles.join(', '),
               file_count: `${tsFiles.length} total, sampling ${sampleFiles.length}`,
             });

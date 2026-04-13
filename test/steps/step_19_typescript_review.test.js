@@ -323,6 +323,49 @@ describe('Step19TypescriptReview', () => {
     expect(capturedPrompt).toContain(fileContent);
   });
 
+  it('resolves task template placeholders for project summary and file paths', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts', 'src/utils.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const value: string = "ok";') // index.ts
+      .mockResolvedValueOnce('export function greet(name: string): string { return name; }') // utils.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n' +
+          '  role_prefix: "You are Strider"\n' +
+          '  task_template: |\n' +
+          '    Project Summary: {project_summary}\n' +
+          '    Source Files Analyzed: {source_file_count}\n' +
+          '    Analyzed File Paths:\n' +
+          '    {file_paths}\n' +
+          '  approach: "Review {project_name}"'
+      );
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root', {
+      projectName: 'MyApp',
+      projectKind: 'nodejs_api',
+    });
+
+    expect(capturedPrompt).toContain('Project Summary: TypeScript nodejs API project');
+    expect(capturedPrompt).toContain('Source Files Analyzed: 2');
+    expect(capturedPrompt).toContain('      - src/index.ts');
+    expect(capturedPrompt).toContain('      - src/utils.ts');
+    expect(capturedPrompt).not.toContain('{project_summary}');
+    expect(capturedPrompt).not.toContain('{source_file_count}');
+    expect(capturedPrompt).not.toContain('{file_paths}');
+    expect(capturedPrompt).toContain('Review MyApp');
+  });
+
   it('executes with AI unavailable and returns report without AI content', async () => {
     mockFileOps.glob.mockResolvedValue(['src/app.ts']);
     mockFileOps.readFile.mockResolvedValue('const x: string = "hi";');
