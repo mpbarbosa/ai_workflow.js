@@ -64,12 +64,12 @@
     "src/steps/step_01_documentation.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-09T02:12:32.265Z"
+      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
     },
     "src/steps/step_02_consistency.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-07T03:32:30.794Z"
+      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
     },
     "src/steps/step_03_script_refs.js": {
       "score": 100,
@@ -535,6 +535,21 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-11T01:11:42.960Z"
+    },
+    "src/steps/step_15_ux_analysis.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
+    },
+    "src/steps/step_20_async_perf_review.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
+    },
+    "src/steps/step_23_perf_review.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
     }
   }
 }
