@@ -7,126 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.2.4] - 2026-04-10
-
-### Changed
-
-- **`.workflow_core` submodule bumped to v1.4.1** (commit `2055f83`): Contains prompt-template quality fixes for steps 3, 4, 8, 10, 12, 13 and `version_manager_prompt`; new `python_developer_prompt` specialist persona (v7.0.0); four new prompt roles (`python_developer`, `workflow_orchestration_engineer`, `workflow_step_engineer`, `copilot_sdk_engineer`); and `listPersonas()` / `validateConfig()` additions to the TypeScript loader API. These prompt improvements are consumed automatically at runtime — no code changes are required for the template fixes.
-
-### Added
-
-- **`listPersonas(parsedYaml)` pure function** (`src/lib/ai_prompt_builder.js`): Returns a sorted `string[]` of all persona keys in a parsed `ai_helpers.yaml` object. An entry is treated as a persona if it is a plain object with a `role_ref` string property. Mirrors `.workflow_core/src/loader.ts → listPersonas()`. Exported from `src/index.js` as `listPersonas`.
-- **`validateConfig(parsedYaml, roles)` pure function** (`src/lib/ai_prompt_builder.js`): Validates that every persona's `role_ref` resolves to an own-property of `roles.roles`. Unlike `resolveAllRoleRefs` (which throws on the first bad reference), this function collects **all** unresolvable `role_ref` errors and returns `{ valid: boolean, errors: string[] }`. Suitable for pre-flight CI checks. Mirrors `.workflow_core/src/loader.ts → validateConfig()`. Exported from `src/index.js` as `validateAiHelpersConfig`.
-
-### Fixed
-
-- **`resolveRoleRef` prototype-chain false positive** (`src/lib/ai_prompt_builder.js`): The truthiness check `if (!roleEntry)` could silently resolve prototype-chain keys such as `"constructor"` or `"toString"` to real JavaScript functions. Replaced with `Object.prototype.hasOwnProperty.call(roles.roles, persona.role_ref)`, matching the fix applied in `.workflow_core/src/loader.ts`. Two regression tests added.
-
-### Tests
-
-- **`resolveRoleRef` prototype-chain tests** (`test/lib/ai_prompt_builder.test.js`): Added two tests verifying that `"constructor"` and `"toString"` role_refs throw instead of silently resolving to prototype functions.
-- **`listPersonas` test suite** (6 tests): Sorted output, exclusion of non-persona entries, exclusion of arrays, empty/null input, deterministic order.
-- **`validateConfig` test suite** (8 tests): All-valid config, single error, multi-error (sorted), prototype-chain key rejection, non-persona entries ignored, empty YAML, null YAML, missing roles object. Test count: prior count + 16.
-
-### Added
-
-- **`serializeWorkflow(workflow, format)` pure function** (`src/orchestrator/workflow_engine.js`): Converts a workflow object to a JSON or YAML string. Accepts `"json"`, `"yaml"`, `"yml"` (with or without a leading dot). Throws `SystemError` for unsupported formats or serialization failures. This is the inverse of `parseWorkflowFile` introduced in v2.1.0.
-- **`WorkflowEngine.saveWorkflow(path)` method** (`src/orchestrator/workflow_engine.js`): Writes the currently loaded workflow to a `.json`, `.yaml`, or `.yml` file. Extension validation happens before the write so an unsupported-extension error is immediate. Throws `SystemError` if no workflow is loaded or the write fails.
-- **`serializeWorkflow` re-exported** from `src/index.js` (public API, consistent with `parseWorkflowFile`).
-
-### Tests
-
-- **`serializeWorkflow` pure-function tests** (`test/orchestrator/workflow_engine.test.js`): 8 unit tests covering JSON/YAML/yml output, JSON and YAML round-trips through `parseWorkflowFile`, leading-dot format, and error paths for unsupported/empty formats.
-- **`saveWorkflow` integration tests**: 5 tests covering no-workflow-loaded error, unsupported extension, JSON round-trip via temp file, YAML round-trip via temp file, and write-failure error. Test count: 6984 → 6997.
-
-### Added
-
-- **`parseWorkflowFile(content, filePath)` pure function** (`src/orchestrator/workflow_engine.js`): New exported pure function that parses workflow configuration from a string. Supports `.json` (via `JSON.parse`), `.yaml` and `.yml` (via `js-yaml`). Throws `SystemError` for unsupported extensions, parse failures, or YAML that doesn't deserialise to an object.
-- **`loadWorkflow(path)` file loading** (`src/orchestrator/workflow_engine.js`): The `WorkflowEngine.loadWorkflow()` method now accepts a file path string (`.json`, `.yaml`, or `.yml`). Previously this branch threw "not yet implemented". Extension validation happens before the file read so an unsupported-extension error is immediately actionable.
-- **`parseWorkflowFile` re-exported** from `src/index.js` as part of the public API.
-
-### Tests
-
-- **Replace `not-yet-implemented` stub** (`test/orchestrator/workflow_engine.test.js`): The single `test.skip`-equivalent stub for `loadWorkflow` file loading is replaced with 6 integration tests (JSON round-trip, YAML `.yaml`, YAML `.yml`, file-not-found, invalid JSON, invalid schema) and 8 unit tests for the new `parseWorkflowFile` pure function. Test count: 6971 → 6984.
-
-### Fixed
-
-- **`mergeValidationResults()` ignores TIMEOUT tasks** (`src/lib/step1_parallel.js`): Tasks that timed out were not counted as failures — the function only set `success = false` for `FAILED` tasks. TIMEOUT tasks now also set `success = false` and are recorded in `errors`, consistent with FAILED task handling.
-
-### Tests
-
-- **Un-skip 3 deferred tests** (`test/lib/step1_parallel.test.js`): `handles timeout`, `cancels running tasks`, and `complete parallel validation workflow` were previously marked `test.skip`. The timeout test now has a real bug to cover; the other two already passed when un-skipped. Test count: 6971 → 6971 (0 skipped, was 3 skipped).
-
-### Docs
-
-- **Resolve merge conflict in `docs/FUNCTIONAL_REQUIREMENTS.md`**: A leftover `<<<<<<< HEAD` conflict marker was present in the file header. Resolved by keeping HEAD and adding the `Date`/`Status` fields from the conflicting branch.
-- **Update FRS scope section** (`docs/FUNCTIONAL_REQUIREMENTS.md`): The scope section still described "23 core modules implemented in Phases 1-5". Updated to clarify this document covers Phases 1–5 within the full 60+ module, 11-phase implementation (Phases 6–11 documented separately).
-
-## [2.0.1] - 2026-04-09
-
-### Fixed
-
-- **Implement real `workflowDirWritable` check** (`src/orchestrator/main_orchestrator.js`): The `healthCheck()` method previously hardcoded `workflowDirWritable: true`. It now calls `fs.access(workflowDir, W_OK)` to verify the directory is actually writable, returning `false` if the path does not exist or lacks write permission.
-
-### Changed
-
-- **Refresh stale Phase 11 documentation** (`docs/README.md`, `docs/architecture/OVERVIEW.md`, `docs/reports/analysis/SCRIPT_VALIDATION_REPORT.md`, `docs/guides/CONFIGURATION_GUIDE.md`): Updated references that still labelled Phase 11 (CLI layer) as "future" — Phase 11 is complete. `src/cli/index.js` now correctly shows as ✅ in validation reports. Removed stale `TODO: Increase to 80% after v1.0.0` coverage comment (global coverage is already ≥83%).
-
-## [2.0.0] - 2026-04-09
-
-### Fixed
-
-- **Step 16: populate `project_description` in version-bump AI prompt** (`src/steps/step_16_version_update.js`): `project_description` was hardcoded as an empty string, causing the AI prompt to render `**Project**: guia_js ()` (empty parentheses). The fix reads `context.projectDescription` — already populated by the orchestrator with a multi-level fallback (workflow config → project config → directory basename) — and passes it to `buildYamlStepPrompt()` to fill the `{project_description}` placeholder in the YAML template. For standalone Step16 invocations outside the orchestrator, `basename(projectRoot)` is used as the fallback so the prompt is never left with empty parentheses.
-
-### Changed
-
-- **`olinda_copilot_sdk.ts` upgraded to v0.5.1** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`, `test/lib/copilot_sdk_wrapper.d.test.ts`): Updated the package from v0.4.1 to v0.5.1 using the GitHub archive CDN URL. v0.5.1 bundles all v0.4.2 additions (`parseSSEStream`, `CopilotClient.streamText`, `SdkSmokeTest` module with `runSdkSmokeTest`, `buildSmokeTestPrompt`, `validateSmokeTestResponse`, `formatSmokeTestResult`, `SdkSmokeTestOptions`, `SdkSmokeTestResult`) and v0.3.3 additions (`LogValidator`, `parseLogIssues`, `buildValidationPrompt`, `selectRelevantFiles`, companion types). `copilot_sdk_wrapper.ts` now re-exports `ResumeSessionConfig` (already available since v0.3.2, now surfaced explicitly for callers using `resumeSession()`). Module version bumped to 2.4.0. Test version references updated; new `ResumeSessionConfig` re-export test added.
-
-- **`olinda_copilot_sdk.ts` upgraded to v0.4.1 via CDN tarball** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`, `scripts/postinstall.js`): Updated the package from v0.3.2 to v0.4.1 using the GitHub archive CDN URL format (`https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/v0.4.1.tar.gz`). v0.4.1 adds 12 hook-naming type aliases for full `@github/copilot-sdk` naming parity (`PreToolUseHookInput`, `PreToolUseHookOutput`, `PostToolUseHookInput`, `PostToolUseHookOutput`, `UserPromptSubmittedHandler`, `UserPromptSubmittedHookInput`, `UserPromptSubmittedHookOutput`, `SessionStartHookInput`, `SessionStartHookOutput`, `SessionEndHookInput`, `SessionEndHookOutput`, `ErrorOccurredHookInput`, `ErrorOccurredHookOutput`) and a `PermissionHandler` re-export from `hooks.ts`. v0.4.1 contains one breaking change: `approveAllTools()` now returns `PermissionHandler` for use with `SessionConfig.onPermissionRequest` rather than `PreToolUseHandler` — this codebase does not use `approveAllTools()`, so no runtime changes are required. v0.4.1's `dist/esm/index.js` ships with `CopilotSdkWrapper` already present, so `scripts/postinstall.js` Patch 3 (which patched v0.3.2's missing rebuild) has been removed as dead code. `copilot_sdk_wrapper` module version bumped to 2.3.0. Test version references updated.
-
-- **`olinda_copilot_sdk.ts` upgraded to v0.3.2 via CDN tarball** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `src/lib/ai_helpers.js`, `test/lib/copilot_sdk_wrapper.test.js`): Updated the package from v0.2.1 to v0.3.2 using the GitHub archive CDN URL format (`https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/v0.3.2.tar.gz`), matching the install pattern already used for `olinda_shell_interface.js`. v0.3.2 adds full `SessionConfig` parity (12 new fields including `tools`, `mcpServers`, `systemMessage`, `hooks`, `customAgents`, `infiniteSessions`, `skillDirectories`, `disabledSkills`), a new `tools.ts` module with `defineTool` and strongly-typed tool interfaces (`Tool`, `ToolHandler`, `ToolInvocation`, `ZodSchema`, `SystemMessageAppendConfig`, `SystemMessageReplaceConfig`, `SystemMessageConfig`, `CustomAgentConfig`, `InfiniteSessionConfig`), and `ResumeSessionConfig`. `src/lib/copilot_sdk_wrapper.ts` and its compiled counterparts now re-export all new symbols. `src/lib/ai_helpers.js` updated to import `defineTool` from `./copilot_sdk_wrapper.js` instead of `@github/copilot-sdk` directly, routing all SDK surface through the stable wrapper layer. Tests updated with version comment bumps and new smoke tests for `defineTool` and `approveAll` re-exports.
-
-- **`engines.node` raised to `>=20.0.0`** (`package.json`, `test/fixtures/nodejs-api/package.json`): Node.js 18 reached end-of-life in April 2025. The minimum supported runtime is now Node.js 20 LTS. All documentation and test fixtures updated accordingly.
-
-- **`olinda_copilot_sdk.ts` upgraded to v0.2.1** (`package.json`, `src/lib/copilot_sdk_wrapper.ts`, `src/lib/copilot_sdk_wrapper.js`, `src/lib/copilot_sdk_wrapper.d.ts`, `test/lib/copilot_sdk_wrapper.test.js`): Updated the package from v0.1.3 to v0.2.1 using the GitHub shorthand install format (`github:mpbarbosa/olinda_copilot_sdk.ts#v0.2.1`). v0.2.1 promotes `CopilotSdkWrapper` to a first-class public export, removing the need for the local re-implementation. `src/lib/copilot_sdk_wrapper.ts` and its compiled counterparts are now thin re-exports from `olinda_copilot_sdk.ts`; all SDK lifecycle logic (client start/stop, session creation/recreation, serialised sendAndWait, forceStop fallback) lives in the package. Tests updated to import `SystemError` from `olinda_copilot_sdk.ts` since that is the error class thrown by the new wrapper. An `overrides.esquery` entry was added to `package.json` to pin `esquery` to `1.7.0` while `esquery@1.9.11` (required by `eslint@10.0.3`) is not yet published to the npm registry.
-
-## [1.9.11] - 2026-03-12
-
 ### Added
 
 - **Streaming Copilot responses** (`src/lib/copilot_sdk_wrapper.js`, `src/lib/ai_helpers.js`): Copilot prompt responses can now be streamed token-by-token. Pass `streaming: true` to `CopilotSdkWrapper` (creates the session with `streaming: true` per SDK requirements) and call `executeRequest(prompt, { stream: true }, onChunk)` on `AiHelper` where `onChunk(delta)` receives each content fragment as it arrives. The final resolved value is identical to non-streaming mode, so all downstream validation, caching, and logging are unchanged. Non-streaming callers are unaffected.
 
-### Changed
-
-- **`scripts/security-audit.js`: extended scan scope to `scripts/`** (`scripts/security-audit.js`): `checkHardcodedSecrets()`, `checkCommandInjection()`, and `checkPathTraversal()` now scan both `src/` and `scripts/`. `getAllJSFiles()` accepts a string or array of directories and silently skips directories that do not exist.
-
-- **`scripts/security-audit.js`: surface moderate/low npm audit findings** (`scripts/security-audit.js`): `checkDependencies()` now pushes moderate findings to `findings.medium[]` and low findings to `findings.low[]` so they appear in `generateReport()` totals and are accessible to downstream tooling.
-
-- **`scripts/security-audit.js`: `--json` output mode** (`scripts/security-audit.js`): Running `node scripts/security-audit.js --json` writes the `findings` object as structured JSON to stdout and suppresses all human-readable color output. Useful for CI integration (e.g. GitHub SARIF upload, Slack alerts).
-
-- **`test/scripts/postinstall.test.js`: isolated temp directories** (`test/scripts/postinstall.test.js`): Test fixtures are now created in `os.tmpdir()` via `fs.mkdtempSync()` (in `beforeAll`) and removed in `afterAll`, eliminating the `test/node_modules/` workspace leak.
-
 ### Fixed
 
-- **`scripts/security-audit.js`: reset regex `lastIndex` and findings before each run** (`scripts/security-audit.js`): Stateful `/g` regex patterns and the module-level `findings` arrays were not reset between runs, causing duplicate findings on repeated invocations within the same process.
-
-- **Step 2: exclude `.ai_workflow/backlog` from Files to Analyze** (`src/steps/step_02_consistency.js`): Backlog files were incorrectly included in the documentation scan, inflating the file count and producing false-positive broken-link reports.
-
-- **Step 2: resolve false-positive broken links for submodule cross-references** (`src/steps/step_02_consistency.js`): Links pointing into `.workflow_core/` and `.workflow_fspec/` submodule paths were flagged as broken because the file index did not include submodule contents. Submodule paths are now added to the existing-file set.
-
-- **Step 2: guard against undefined `projectRoot`** (`src/steps/step_02_consistency.js`): Calling `execute()` without a project root previously caused the step to silently scan the current working directory, which could take much longer than the test timeout. The step now returns `{ success: true, skipped: true, reason: 'no_project_root' }` immediately when `projectRoot` is falsy.
-
-- **AI: respect `stream: false` option and add missing `sendStream()`** (`src/lib/ai_helpers.js`, `src/lib/copilot_sdk_wrapper.js`): Passing `{ stream: false }` to `executeRequest()` was ignored; the option is now honoured. `CopilotSdkWrapper` also gained the missing `sendStream()` method required by the streaming path.
-
-- **SDK session: add `onPermissionRequest` handler** (`src/lib/copilot_sdk_wrapper.js`): Creating a Copilot SDK session without an `onPermissionRequest` callback caused an unhandled rejection in environments that issue permission prompts. A no-op handler is now registered by default.
-
-- **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9` whose `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry. The override pins to an existing version until upstream fixes its `typedoc` dependency.
-
-### Tests
-
-- **`test/scripts/postinstall.test.js`**: Added 4 missing edge-case unit tests: multiple matching export keys, `console.log` spy per patch, idempotency (calling `patchAll()` twice), and vscode-jsonrpc partial exports (object without `./node`). Added a black-box child-process integration test that spawns `node scripts/postinstall.js` against a minimal fixture and asserts exit code 0 and correct patched output.
-
-- **`test/scripts/security-audit.test.js`**: Added tests for `getAllJSFiles()` with array argument, `checkDependencies()` surfacing moderate/low findings, and `runSecurityAudit()` `--json` mode output.
+- **`olinda_shell_interface.js` dependency install failure** (`package.json`): Added `overrides["@jridgewell/trace-mapping": "0.3.31"]` to work around a broken transitive dependency in `olinda_shell_interface.js@0.4.9`. That package's devDependency `typedoc@^0.28.17` declares `@jridgewell/trace-mapping@^0.3.88`, which does not exist in the npm registry (latest available is `0.3.31`), causing `npm install` to fail with `ETARGET`. The override pins the package to an existing version until `olinda_shell_interface.js` fixes its `typedoc` dependency.
 
 ## [1.6.3] - 2026-02-25
 

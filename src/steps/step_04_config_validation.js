@@ -546,7 +546,9 @@ export function buildPackageLockPromptSummary(content) {
   try {
     const parsed = JSON.parse(stripJsonComments(content));
     const packages =
-      parsed && typeof parsed.packages === 'object' && parsed.packages !== null ? parsed.packages : {};
+      parsed && typeof parsed.packages === 'object' && parsed.packages !== null
+        ? parsed.packages
+        : {};
     const rootPackage =
       packages[''] && typeof packages[''] === 'object' && packages[''] !== null ? packages[''] : {};
     const legacyDependencies =
@@ -604,7 +606,13 @@ export function summarizeConfigContentForPrompt(relativePath, content) {
 function splitPromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
   const preparedContent = summarizeConfigContentForPrompt(entry.relativePath, entry.content);
   if (preparedContent.length <= maxEntryChars) {
-    return [{ relativePath: entry.relativePath, sourcePath: entry.relativePath, content: preparedContent }];
+    return [
+      {
+        relativePath: entry.relativePath,
+        sourcePath: entry.relativePath,
+        content: preparedContent,
+      },
+    ];
   }
 
   const totalParts = Math.ceil(preparedContent.length / maxEntryChars);
@@ -696,7 +704,9 @@ export function assessPromptEvidence(
   const truncatedFiles = entries
     .filter((entry) => typeof entry.content === 'string' && entry.content.length > maxChars)
     .map((entry) => entry.relativePath);
-  const unavailableFiles = (relativeFilePaths ?? []).filter((filePath) => !availableFiles.has(filePath));
+  const unavailableFiles = (relativeFilePaths ?? []).filter(
+    (filePath) => !availableFiles.has(filePath)
+  );
 
   return {
     hasPartialEvidence: truncatedFiles.length > 0 || unavailableFiles.length > 0,
@@ -1068,6 +1078,9 @@ ${filesContentBlock}`;
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
         try {
+          const qualityFileHashEntries = (configFiles ?? [])
+            .slice(0, 10)
+            .map((filePath) => `${path.relative(projectRoot, filePath)}:`);
           const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
             files_to_review: (configFiles ?? []).slice(0, 10).join(', '),
             project_name: projectRoot,
@@ -1077,7 +1090,7 @@ ${filesContentBlock}`;
             // specialist" role (anti-patterns, best practices, maintainability) — not security.
             const qResult = await this.aiCache.withFileChangeGuard(
               'step_04_quality',
-              fileHashEntries,
+              qualityFileHashEntries,
               () =>
                 this.aiHelper.executeRequest(qPrompt, {
                   persona: 'code_quality_analyst',
