@@ -40,7 +40,11 @@ import {
   Step2ConsistencyAnalyzer,
   formatConsistencyReport,
 } from '../../src/steps/step_02_consistency.js';
-import { buildConsistencyPrompt, resolveAllRoleRefs } from '../../src/lib/ai_prompt_builder.js';
+import {
+  buildConsistencyPrompt,
+  buildYamlStepPrompt,
+  resolveAllRoleRefs,
+} from '../../src/lib/ai_prompt_builder.js';
 import logger from '../../src/core/logger.js';
 
 // ---------------------------------------------------------------------------
@@ -53,11 +57,12 @@ const AI_HELPERS_YAML = path.join(REPO_ROOT, '.workflow_core', 'config', 'ai_hel
 // Required placeholders in the step2_consistency_prompt task_template
 const REQUIRED_PLACEHOLDERS = [
   '{project_name}',
-  '{project_description}',
+  '{project_summary}',
   '{primary_language}',
   '{doc_count}',
   '{broken_refs_content}',
   '{doc_files}',
+  '{file_contents}',
 ];
 
 // ---------------------------------------------------------------------------
@@ -181,6 +186,15 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(template).toContain(placeholder);
     });
 
+    test('task_template stays repository-agnostic instead of hardcoding docs paths', () => {
+      const template = parsed.step2_consistency_prompt.task_template;
+
+      expect(template).not.toContain('docs/GETTING_STARTED.md');
+      expect(template).not.toContain('docs/ARCHITECTURE.md');
+      expect(template).not.toContain('docs/FUNCTIONAL_REQUIREMENTS.md');
+      expect(template).not.toContain('docs/API.md');
+    });
+
     test('step2_consistency_prompt has approach field', () => {
       const section = parsed.step2_consistency_prompt;
       expect(section).toHaveProperty('approach');
@@ -219,12 +233,94 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(lower).toMatch(/consistency|analysis|cross.reference|validation/);
       });
 
+      test('fallback prompt marks missing manifest and script evidence inconclusive', () => {
+        const prompt = buildConsistencyPrompt({
+          docDirectory: tempDir,
+          docFiles: ['README.md', 'CHANGELOG.md'],
+        });
+
+        expect(prompt).toContain('limited or inconclusive');
+        expect(prompt).toContain('package manifests, scripts, build steps, or source files');
+      });
+
+      test('fallback prompt includes provided file contents when available', () => {
+        const prompt = buildConsistencyPrompt({
+          docDirectory: tempDir,
+          docFiles: ['README.md'],
+          fileContents: '### `README.md`\n```md\n# Project\n```\n',
+        });
+
+        expect(prompt).toContain('Provided file contents and excerpts');
+        expect(prompt).toContain('### `README.md`');
+        expect(prompt).toContain('# Project');
+      });
+
       test('prompt injects language when provided via projectInfo', () => {
         const prompt = buildConsistencyPrompt({
           docDirectory: tempDir,
           projectInfo: { language: 'TypeScript' },
         });
         expect(prompt).toContain('TypeScript');
+      });
+
+      test('rendered YAML prompt follows the provided documentation scope', () => {
+        const prompt = buildYamlStepPrompt(parsed, 'step2_consistency_prompt', {
+          project_name: 'gitx',
+          project_summary: 'gitx',
+          primary_language: 'typescript',
+          doc_count: '5',
+          ts_source_count: '3',
+          change_scope: 'full_validation',
+          modified_count: '5',
+          broken_refs_content: 'none',
+          doc_files: [
+            '_(5 files in this partition.)_',
+            '**Root** (4): ARCHITECTURE.md, CHANGELOG.md, FUNCTIONAL_REQUIREMENTS.md, README.md',
+            '**.github/ — Guides & Policies** (1): .github/copilot-instructions.md',
+          ].join('\n'),
+          file_contents: '### `README.md`\n```md\n# gitx\n```\n',
+          language_specific_documentation: '- Use TSDoc format when documentation examples include TypeScript API docs.',
+        });
+
+        expect(prompt).not.toContain('docs/GETTING_STARTED.md');
+        expect(prompt).not.toContain('docs/ARCHITECTURE.md');
+        expect(prompt).not.toContain('docs/FUNCTIONAL_REQUIREMENTS.md');
+        expect(prompt).not.toContain('docs/API.md');
+        expect(prompt).toContain('limited or inconclusive');
+        expect(prompt).toContain('do not contradict the programmatic scan');
+        expect(prompt).toContain('Provided file contents and excerpts');
+        expect(prompt).toContain('### `README.md`');
+      });
+
+      test('execute() injects markdown contents and uses documentation-specialist overlay', async () => {
+        await writeFile(path.join(tempDir, 'README.md'), '# Project\n\nVersion 1.0.0\n');
+
+        let capturedPrompt = '';
+        const analyzer = new Step2ConsistencyAnalyzer({
+          fileOps: buildRealFileOps(tempDir),
+          backlog: buildBacklogStub().stub,
+          aiCache: {
+            init: () => Promise.resolve(),
+            withFileChangeGuard: async (_cacheKey, _fileHashEntries, fn) => fn(),
+          },
+          aiHelper: {
+            initialize: () => Promise.resolve(true),
+            executeRequest: (prompt) => {
+              capturedPrompt = prompt;
+              return Promise.resolve({
+                content: 'No additional issues found beyond the programmatic scan.',
+              });
+            },
+          },
+        });
+
+        await analyzer.execute(tempDir, { projectKind: 'nodejs_automation' });
+
+        expect(capturedPrompt).toContain('Provided file contents and excerpts');
+        expect(capturedPrompt).toMatch(/### `.*README\.md`/);
+        expect(capturedPrompt).toContain('# Project');
+        expect(capturedPrompt.toLowerCase()).toMatch(/documentation specialist|technical writer/);
+        expect(capturedPrompt.toLowerCase()).not.toContain('code reviewer');
       });
     });
   });

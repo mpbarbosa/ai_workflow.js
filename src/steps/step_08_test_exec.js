@@ -439,6 +439,67 @@ export function formatCoverageGapsSection(gaps, threshold = 80) {
   return lines.join('\n');
 }
 
+/**
+ * Build the coverage context string injected into the Step 8 AI prompt.
+ *
+ * Distinguishes between:
+ * - no tests ran,
+ * - no coverage artifact was produced,
+ * - aggregate coverage being below threshold without file-level gaps,
+ * - and a genuine "no gaps" success case backed by measured coverage.
+ *
+ * @pure
+ * @param {Object} params
+ * @param {boolean} [params.noTestsFound=false]
+ * @param {Object} [params.coverage={}]
+ * @param {Object|null} [params.coverageJson=null]
+ * @param {Array<{file: string, statements: number, branches: number, functions: number, lines: number}>} [params.coverageGaps=[]]
+ * @param {number} [params.coverageThreshold=80]
+ * @returns {string}
+ */
+export function describeCoveragePromptContext({
+  noTestsFound = false,
+  coverage = {},
+  coverageJson = null,
+  coverageGaps = [],
+  coverageThreshold = 80,
+} = {}) {
+  if (noTestsFound) {
+    return 'unavailable — no tests ran, so coverage could not be measured';
+  }
+
+  const metrics = [
+    ['statements', coverage?.statements],
+    ['branches', coverage?.branches],
+    ['functions', coverage?.functions],
+    ['lines', coverage?.lines],
+  ].filter(([, value]) => typeof value === 'number' && Number.isFinite(value));
+
+  const coverageAvailable = Boolean(coverageJson) || metrics.length > 0;
+  if (!coverageAvailable) {
+    return 'unavailable — no coverage artifact was found for this run';
+  }
+
+  if (coverageGaps.length > 0) {
+    return coverageGaps
+      .map(
+        (g) =>
+          `  - ${g.file}: stmts=${g.statements}% branch=${g.branches}% funcs=${g.functions}% lines=${g.lines}%`
+      )
+      .join('\n');
+  }
+
+  const aggregateBelowThreshold = metrics
+    .filter(([, value]) => value < coverageThreshold)
+    .map(([name, value]) => `${name}=${value}%`);
+
+  if (aggregateBelowThreshold.length > 0) {
+    return `inconclusive — aggregate coverage is below ${coverageThreshold}% (${aggregateBelowThreshold.join(', ')}), but no per-file gaps were provided`;
+  }
+
+  return `none — measured coverage meets or exceeds the ${coverageThreshold}% threshold`;
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Test Status
 // ============================================================================
@@ -728,16 +789,13 @@ export class Step8TestExecutor {
       if (aiAvailable) {
         await this.aiCache.init();
 
-        // Build a concise coverage gaps string for the prompt
-        const coverageGapsText =
-          coverageGaps.length > 0
-            ? coverageGaps
-                .map(
-                  (g) =>
-                    `  - ${g.file}: stmts=${g.statements}% branch=${g.branches}% funcs=${g.functions}% lines=${g.lines}%`
-                )
-                .join('\n')
-            : 'none — all modules meet the threshold';
+        const coverageGapsText = describeCoveragePromptContext({
+          noTestsFound,
+          coverage,
+          coverageJson,
+          coverageGaps,
+          coverageThreshold,
+        });
 
         let prompt;
         try {

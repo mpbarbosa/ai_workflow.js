@@ -7,9 +7,13 @@ import { jest } from '@jest/globals';
 import {
   isPerformanceSensitiveProject,
   scorePerfIssues,
+  splitPerformancePromptEntry,
+  buildPerformancePromptPartitions,
+  buildPerformanceFileContentsBlock,
   formatPerfReport,
   STEP_DEFINITION,
   Step23PerfReview,
+  MAX_PROMPT_ENTRY_CHARS,
 } from '../../src/steps/step_23_perf_review.js';
 import { STEP_KIND } from '../../src/steps/step_contract.js';
 
@@ -152,6 +156,78 @@ export const greet = (name) => \`Hello, \${name}\`;
   });
 
   // -------------------------------------------------------------------------
+  // Prompt partition helpers
+  // -------------------------------------------------------------------------
+
+  describe('splitPerformancePromptEntry', () => {
+    test('keeps small files as a single prompt entry', () => {
+      const entries = splitPerformancePromptEntry({
+        relativePath: 'src/app.ts',
+        content: 'export const value = 1;\n',
+      });
+
+      expect(entries).toEqual([
+        {
+          relativePath: 'src/app.ts',
+          sourcePath: 'src/app.ts',
+          content: 'export const value = 1;\n',
+        },
+      ]);
+    });
+
+    test('splits oversized files into labeled parts instead of truncating them', () => {
+      const content = Array.from({ length: 1200 }, (_, index) => `line ${index}`).join('\n');
+      const entries = splitPerformancePromptEntry(
+        {
+          relativePath: 'src/large.ts',
+          content,
+        },
+        1000
+      );
+
+      expect(entries.length).toBeGreaterThan(1);
+      expect(entries[0].relativePath).toBe('src/large.ts (part 1/11)');
+      expect(entries.at(-1)?.relativePath).toBe('src/large.ts (part 11/11)');
+      expect(entries.map((entry) => entry.content).join('\n')).toBe(content);
+    });
+  });
+
+  describe('buildPerformancePromptPartitions', () => {
+    test('partitions source files into multiple prompt-safe batches', () => {
+      const fileEntries = Array.from({ length: 5 }, (_, index) => ({
+        relativePath: `src/file${index}.ts`,
+        content: `export const value${index} = ${index};\n`,
+      }));
+
+      const partitions = buildPerformancePromptPartitions(fileEntries, 10_000, MAX_PROMPT_ENTRY_CHARS);
+
+      expect(partitions).toHaveLength(2);
+      expect(partitions[0].scopePaths).toEqual([
+        'src/file0.ts',
+        'src/file1.ts',
+        'src/file2.ts',
+        'src/file3.ts',
+      ]);
+      expect(partitions[1].scopePaths).toEqual(['src/file4.ts']);
+    });
+  });
+
+  describe('buildPerformanceFileContentsBlock', () => {
+    test('renders part labels without a truncation marker', () => {
+      const block = buildPerformanceFileContentsBlock([
+        {
+          relativePath: 'src/large.ts (part 1/2)',
+          sourcePath: 'src/large.ts',
+          content: 'const a = 1;\n',
+        },
+      ]);
+
+      expect(block).toContain('### `src/large.ts (part 1/2)`');
+      expect(block).not.toContain('...(truncated — remainder omitted)');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // formatPerfReport
   // -------------------------------------------------------------------------
 
@@ -261,13 +337,15 @@ describe('Step23PerfReview - Wrapper', () => {
           'performance_review_prompt:\n' +
             '  role_ref: performance_engineer\n' +
             '  task_template: |\n' +
+            '    {partition_header}\n' +
             '    Project: {project_name}\n' +
             '    Project Summary: {project_summary}\n' +
             '    Language: {primary_language}\n' +
             '    Build: {build_system}\n' +
             '    Files: {source_file_count}\n' +
             '    Paths: {file_paths}\n' +
-            '    **File Contents (sampled source excerpts):**\n' +
+            '    {partition_scope_note}\n' +
+            '    **File Contents (source excerpts for this request):**\n' +
             '    {file_content_block}\n' +
             '  approach: "performance review approach"'
         );
@@ -296,11 +374,21 @@ describe('Step23PerfReview - Wrapper', () => {
     executeRequest: jest.fn().mockResolvedValue({ content }),
   });
 
-  const makeAiCache = () => ({
-    init: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue(undefined),
-  });
+  const makeAiCache = () => {
+    const cache = {
+      init: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      withCache: jest.fn().mockImplementation(async (prompt, context, aiFunction) => {
+        const cached = await cache.get(`${prompt}|${context}`);
+        if (cached !== null) return cached;
+        const response = await aiFunction();
+        await cache.set(`${prompt}|${context}`, response, { prompt, context });
+        return response;
+      }),
+    };
+    return cache;
+  };
 
   test('skips gracefully when no JS/TS files found', async () => {
     const fileOps = makeFileOps([]);
@@ -420,6 +508,13 @@ describe('Step23PerfReview - Wrapper', () => {
       init: jest.fn().mockResolvedValue(undefined),
       get: jest.fn().mockResolvedValue('cached perf report'),
       set: jest.fn().mockResolvedValue(undefined),
+      withCache: jest.fn().mockImplementation(async (prompt, context, aiFunction) => {
+        const cached = await aiCache.get(`${prompt}|${context}`);
+        if (cached !== null) return cached;
+        const response = await aiFunction();
+        await aiCache.set(`${prompt}|${context}`, response, { prompt, context });
+        return response;
+      }),
     };
     const step = new Step23PerfReview({
       fileOps: makeFileOps(),
@@ -468,7 +563,7 @@ describe('Step23PerfReview - Wrapper', () => {
     expect(promptArg).toContain('vite');
   });
 
-  test('prompt includes file paths up to cap with overflow note', async () => {
+  test('prompt lists only the files in the current partition request', async () => {
     const files = Array.from({ length: 25 }, (_, i) => `src/file${i}.js`);
     const aiHelper = makeAiHelper('findings');
     const step = new Step23PerfReview({
@@ -482,9 +577,59 @@ describe('Step23PerfReview - Wrapper', () => {
     await step.execute('/project');
 
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(aiHelper.executeRequest.mock.calls.length).toBeGreaterThan(1);
+    expect(promptArg).toContain('[Partition 1 of');
     expect(promptArg).toContain('src/file0.js');
-    expect(promptArg).toContain('src/file19.js');
-    expect(promptArg).toContain('and 5 more');
+    expect(promptArg).toContain('src/file3.js');
+    expect(promptArg).not.toContain('src/file24.js');
+  });
+
+  test('runs multiple AI requests when the source payload needs partitioning', async () => {
+    const files = Array.from({ length: 5 }, (_, i) => `src/file${i}.ts`);
+    const aiHelper = {
+      initialize: jest.fn().mockResolvedValue(true),
+      executeRequest: jest
+        .fn()
+        .mockResolvedValueOnce({ content: 'partition one findings' })
+        .mockResolvedValueOnce({ content: 'partition two findings' }),
+    };
+    const step = new Step23PerfReview({
+      fileOps: makeFileOps(files, 'export const value = 1;\n'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    const result = await step.execute('/project');
+
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
+    expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
+      'split across multiple prompt logs to avoid truncated code excerpts'
+    );
+    expect(result.report).toContain('#### Partition 1 of 2');
+    expect(result.report).toContain('partition one findings');
+    expect(result.report).toContain('partition two findings');
+  });
+
+  test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {
+    const largeContent = `${'const line = 1;\n'.repeat(350)}const end = true;\n`;
+    const aiHelper = makeAiHelper('large file findings');
+    const step = new Step23PerfReview({
+      fileOps: makeFileOps(['src/large.ts'], largeContent),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    await step.execute('/project');
+
+    const promptArg = aiHelper.executeRequest.mock.calls[0][0];
+    expect(promptArg).toContain('src/large.ts (part 1/');
+    expect(promptArg).not.toContain('...(truncated — remainder omitted)');
   });
 
   test('falls back gracefully when tech stack detection fails', async () => {
@@ -519,7 +664,7 @@ describe('Step23PerfReview - Wrapper', () => {
     await step.execute('/project');
 
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
-    expect(promptArg).toContain('**File Contents (sampled source excerpts):**');
+    expect(promptArg).toContain('**File Contents (source excerpts for this request):**');
     expect(promptArg).toContain('### `src/index.js`');
     expect((promptArg.match(/### `src\/index\.js`/g) || []).length).toBe(1);
   });

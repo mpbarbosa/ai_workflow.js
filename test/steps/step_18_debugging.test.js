@@ -206,9 +206,8 @@ describe('Step18Debugging', () => {
       .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
     mockAiHelper.initialize.mockResolvedValue(true);
     mockAiCache.init.mockResolvedValue(undefined);
-    mockAiCache.withCache.mockImplementation(async (_k1, _k2, _fn) => ({
-      content: 'AI debug content',
-    }));
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => fn());
+    mockAiHelper.executeRequest.mockResolvedValue({ content: 'AI debug content' });
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
@@ -221,6 +220,13 @@ describe('Step18Debugging', () => {
       'Step 18 completed - debugging analysis report generated'
     );
     expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
+    expect(mockAiHelper.executeRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        persona: 'async_flow_debugger_prompt',
+        model: 'claude-haiku-4.5',
+      })
+    );
   });
 
   it('injects actual file contents into the AI prompt', async () => {
@@ -280,14 +286,37 @@ describe('Step18Debugging', () => {
   });
 
   it('executes with forcedPersona option', async () => {
+    const personaYaml = [
+      'observer_pattern_debugger_prompt:',
+      '  role_prefix: ObserverRole',
+      '  specific_expertise: Observer expertise',
+      '  approach: Analyze observer flows',
+      '  output_format: Report',
+    ].join('\n');
     mockFileOps.glob.mockResolvedValue(['file1.js']);
-    mockFileOps.readFile.mockResolvedValue('eventemitter');
-    mockAiHelper.initialize.mockResolvedValue(false);
+    mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT')) // PROJECT_CONTEXT.md absent
+      .mockResolvedValueOnce('eventemitter') // file1.js
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+    mockAiCache.withCache.mockImplementation(async (_k1, _k2, fn) => {
+      await fn();
+      return { content: 'observer ai content' };
+    });
 
     const result = await step.execute('/project/root', {
       forcedPersona: 'observer_pattern_debugger_prompt',
     });
     expect(result.personaKey).toBe('observer_pattern_debugger_prompt');
+    expect(mockAiHelper.executeRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        persona: 'observer_pattern_debugger_prompt',
+        model: 'claude-haiku-4.5',
+      })
+    );
   });
 
   it('handles fileOps.readFile errors gracefully', async () => {

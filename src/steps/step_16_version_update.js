@@ -338,6 +338,11 @@ ${fileList}${moreFiles}
 
 ${preAnalysis ? `## Pre-Analysis Results\n${preAnalysis}\n` : ''}
 
+## Evaluation Rules
+- Treat CHANGELOG.md [Unreleased] as the authoritative record of pending user-visible work when it is available.
+- Do not let an artifact-only staged diff under .ai_workflow override substantive [Unreleased] entries such as Added features, new capabilities, or breaking changes.
+- If primary sources conflict or are missing, explain the conflict and lower confidence instead of over-claiming certainty.
+
 Based on this context, determine the semantic version bump type:
 - **MAJOR (X.0.0)**: Breaking changes, API modifications, removed features
 - **MINOR (X.Y.0)**: New features, enhancements, additive changes
@@ -345,7 +350,7 @@ Based on this context, determine the semantic version bump type:
 
 Output format:
 Bump Type: [major|minor|patch]
-Reasoning: [2-3 sentence explanation]
+Reasoning: [2-3 sentence explanation citing the strongest available evidence and reconciling any conflict]
 Confidence: [high|medium|low]`;
 }
 

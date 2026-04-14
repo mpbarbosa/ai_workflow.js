@@ -3,17 +3,32 @@
  * @module test/lib/ai_personas.test
  */
 
-import {
-  getAllPersonas,
-  getPersonaById,
-  getPersonaByName,
-  getPersonasByTask,
-  getPersonasByExpertise,
-  validatePersona,
-  getPersonaCount,
-  getPersonaIds,
-  personaExists,
-} from '../../src/lib/ai_personas.js';
+let getAllPersonas;
+let getPersonaById;
+let getPersonaByName;
+let getPersonasByTask;
+let getPersonasByExpertise;
+let validatePersona;
+let getPersonaCount;
+let getPersonaIds;
+let personaExists;
+
+beforeAll(async () => {
+  const moduleUrl = new URL('../../src/lib/ai_personas.js', import.meta.url);
+  const aiPersonas = await import(`${moduleUrl.href}?suite=ai_personas`);
+
+  ({
+    getAllPersonas,
+    getPersonaById,
+    getPersonaByName,
+    getPersonasByTask,
+    getPersonasByExpertise,
+    validatePersona,
+    getPersonaCount,
+    getPersonaIds,
+    personaExists,
+  } = aiPersonas);
+});
 
 // =============================================================================
 // PURE FUNCTION TESTS
@@ -31,9 +46,9 @@ describe('ai_personas - Pure Functions', () => {
       expect(personas.length).toBeGreaterThan(0);
     });
 
-    test('returns 18 personas', () => {
+    test('returns 17 personas', () => {
       const personas = getAllPersonas();
-      expect(personas).toHaveLength(18);
+      expect(personas).toHaveLength(17);
     });
 
     test('all personas have required fields', () => {
@@ -428,7 +443,7 @@ describe('ai_personas - Pure Functions', () => {
   describe('getPersonaCount', () => {
     test('returns correct count', () => {
       const count = getPersonaCount();
-      expect(count).toBe(18);
+      expect(count).toBe(17);
     });
 
     test('matches getAllPersonas length', () => {
@@ -446,7 +461,7 @@ describe('ai_personas - Pure Functions', () => {
     test('returns all persona IDs', () => {
       const ids = getPersonaIds();
       expect(Array.isArray(ids)).toBe(true);
-      expect(ids).toHaveLength(18);
+      expect(ids).toHaveLength(17);
     });
 
     test('all IDs are strings', () => {

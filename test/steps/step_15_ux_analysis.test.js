@@ -330,7 +330,13 @@ describe('Step 15: UX Analysis', () => {
 
     test('handles missing fileGroups keys', () => {
       const result = selectKeyFiles(['src/app.vue'], {}, 5);
-      expect(result).toEqual([]);
+      expect(result).toEqual(['src/app.vue']);
+    });
+
+    test('falls back to framework files when no HTML/CSS files are available', () => {
+      const uiFiles = ['src/App.tsx', 'src/Button.tsx', 'src/Panel.jsx'];
+      const result = selectKeyFiles(uiFiles, { react: uiFiles, html: [], css: [] }, 2);
+      expect(result).toEqual(['src/App.tsx', 'src/Button.tsx']);
     });
 
     test('[BUG FIX] includes CSS files even when HTML count exceeds maxFiles', () => {
@@ -393,6 +399,7 @@ describe('Step 15: UX Analysis', () => {
       expect(prompt).toContain('Sample File Contents');
       expect(prompt).toContain('// index.html');
       expect(prompt).toContain('<html><body>Hello</body></html>');
+      expect(prompt).toContain('Base findings only on the visible source snippets');
     });
 
     test('omits file contents section when fileContents absent', () => {
@@ -404,6 +411,8 @@ describe('Step 15: UX Analysis', () => {
       };
       const prompt = buildUxAnalysisPrompt(context);
       expect(prompt).not.toContain('Sample File Contents');
+      expect(prompt).toContain('Do not infer detailed UX findings from filenames alone');
+      expect(prompt).toContain('review is unavailable or inconclusive');
     });
 
     test('omits file contents section when fileContents is empty array', () => {
@@ -416,6 +425,7 @@ describe('Step 15: UX Analysis', () => {
       };
       const prompt = buildUxAnalysisPrompt(context);
       expect(prompt).not.toContain('Sample File Contents');
+      expect(prompt).toContain('Do not infer detailed UX findings from filenames alone');
     });
   });
 
@@ -673,6 +683,11 @@ describe('Step 15: UX Analysis', () => {
       const step = new Step15UxAnalysis({
         backlog: mockBacklog,
         logger: mockLogger,
+        fileOps: {
+          readFile: jest
+            .fn()
+            .mockResolvedValue(JSON.stringify({ dependencies: { express: '^4.0.0' } })),
+        },
       });
 
       // Mock discoverFiles to avoid real filesystem globbing (which is slow and
@@ -712,6 +727,15 @@ describe('Step 15: UX Analysis', () => {
       const step = new Step15UxAnalysis({
         backlog: mockBacklog,
         logger: mockLogger,
+        fileOps: {
+          readFile: jest
+            .fn()
+            .mockImplementation((filePath) =>
+              filePath.endsWith('package.json')
+                ? Promise.resolve(JSON.stringify({ dependencies: { express: '^4.0.0' } }))
+                : Promise.resolve('<Component />')
+            ),
+        },
         aiHelper: { initialize: () => Promise.resolve(true) },
       });
 
@@ -739,6 +763,37 @@ describe('Step 15: UX Analysis', () => {
       expect(mockLogger.success).toHaveBeenCalledWith(
         expect.stringContaining('Step 15: UX Analysis completed')
       );
+    });
+
+    test('grounds fallback React-only analysis with component source snippets', async () => {
+      const prompts = [];
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        fileOps: {
+          readFile: jest
+            .fn()
+            .mockImplementation((filePath) =>
+              filePath.endsWith('package.json')
+                ? Promise.resolve(JSON.stringify({ dependencies: { express: '^4.0.0' } }))
+                : Promise.resolve('export function App() { return <Box />; }')
+            ),
+        },
+        aiHelper: { initialize: () => Promise.resolve(true) },
+      });
+
+      step.discoverFiles = jest.fn().mockResolvedValue(['src/App.tsx', 'src/Panel.tsx']);
+      step.performAnalysis = jest.fn().mockImplementation(async (prompt) => {
+        prompts.push(prompt);
+        return '## React findings';
+      });
+
+      const result = await step.execute({ projectType: 'nodejs_automation' });
+
+      expect(result.success).toBe(true);
+      expect(prompts[0]).toContain('Sample File Contents');
+      expect(prompts[0]).toContain('// src/App.tsx');
+      expect(prompts[0]).toContain('export function App()');
     });
 
     test('handles errors gracefully', async () => {
@@ -993,6 +1048,47 @@ describe('Step 15: UX Analysis', () => {
       // Must NOT contain web-UX phrases from buildUxAnalysisPrompt
       expect(prompts[0]).not.toContain('WCAG');
       expect(prompts[0]).not.toContain('responsive');
+    });
+
+    test('treats nodejs_automation Ink apps as TUI projects', async () => {
+      const prompts = [];
+      const step = new Step15UxAnalysis({ backlog: mockBacklog, logger: mockLogger });
+
+      step.fileOps = {
+        readFile: jest.fn().mockImplementation((p) => {
+          if (p.endsWith('package.json')) {
+            return Promise.resolve(JSON.stringify({ dependencies: { ink: '^5.0.0' } }));
+          }
+          if (p.includes('ai_helpers')) {
+            return Promise.resolve(
+              [
+                'tui_ux_designer_prompt:',
+                '  role_prefix: |',
+                '    You are a TUI engineer.',
+                '  task_template: |',
+                '    Review {project_name} TUI. Kind: {project_kind}. Files: {modified_count}.',
+              ].join('\n')
+            );
+          }
+          return Promise.resolve('// terminal component code');
+        }),
+      };
+      step.discoverFiles = jest.fn().mockResolvedValue(['src/App.tsx', 'src/index.tsx']);
+      step.performAnalysis = jest.fn().mockImplementation(async (prompt) => {
+        prompts.push(prompt);
+        return '## TUI findings';
+      });
+      step.aiHelper = { initialize: jest.fn().mockResolvedValue(true) };
+
+      const result = await step.execute({
+        projectType: 'nodejs_automation',
+        projectDescription: 'An Ink terminal app',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(2);
+      expect(prompts[0]).toContain('TUI');
+      expect(prompts[0]).not.toContain('WCAG');
     });
   });
 });

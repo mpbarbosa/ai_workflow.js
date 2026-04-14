@@ -1001,7 +1001,15 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       const result = buildCodeQualityPrompt(options);
 
       expect(result).toContain('src/app.js');
-      expect(result).not.toContain('# File Contents');
+      expect(result).toContain('# File Contents');
+      expect(result).toContain('mark it unavailable or inconclusive');
+    });
+
+    test('includes evidence-limit guidance for scoped reviews', () => {
+      const result = buildCodeQualityPrompt({ codeFiles: ['src/app.js'], language: 'javascript' });
+
+      expect(result).toContain('Review only the files and file contents explicitly provided');
+      expect(result).toContain('Do not claim repository-wide health');
     });
   });
 

@@ -241,9 +241,9 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
       expect(parsed.technical_writer_prompt.task_template).toContain('{project_name}');
     });
 
-    test('task_template contains {project_description} placeholder', async () => {
+    test('task_template contains {project_summary} placeholder', async () => {
       const { parsed } = await loadRealAiHelpersYaml();
-      expect(parsed.technical_writer_prompt.task_template).toContain('{project_description}');
+      expect(parsed.technical_writer_prompt.task_template).toContain('{project_summary}');
     });
 
     test('task_template contains {primary_language} placeholder', async () => {

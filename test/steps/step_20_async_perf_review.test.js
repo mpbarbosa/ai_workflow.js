@@ -7,9 +7,13 @@ import { jest } from '@jest/globals';
 import {
   isAsyncHeavyProject,
   scoreAsyncIssues,
+  splitAsyncPromptEntry,
+  buildAsyncPromptPartitions,
+  buildAsyncFileContentsBlock,
   formatAsyncPerfReport,
   STEP_DEFINITION,
   Step20AsyncPerfReview,
+  MAX_PROMPT_ENTRY_CHARS,
 } from '../../src/steps/step_20_async_perf_review.js';
 import { STEP_KIND } from '../../src/steps/step_contract.js';
 
@@ -144,6 +148,78 @@ el.addEventListener('click', fn);
   });
 
   // -------------------------------------------------------------------------
+  // Prompt partition helpers
+  // -------------------------------------------------------------------------
+
+  describe('splitAsyncPromptEntry', () => {
+    test('keeps small files as a single prompt entry', () => {
+      const entries = splitAsyncPromptEntry({
+        relativePath: 'src/app.ts',
+        content: 'export const value = 1;\n',
+      });
+
+      expect(entries).toEqual([
+        {
+          relativePath: 'src/app.ts',
+          sourcePath: 'src/app.ts',
+          content: 'export const value = 1;\n',
+        },
+      ]);
+    });
+
+    test('splits oversized files into labeled parts instead of truncating them', () => {
+      const content = Array.from({ length: 1200 }, (_, index) => `line ${index}`).join('\n');
+      const entries = splitAsyncPromptEntry(
+        {
+          relativePath: 'src/large.ts',
+          content,
+        },
+        1000
+      );
+
+      expect(entries.length).toBeGreaterThan(1);
+      expect(entries[0].relativePath).toBe('src/large.ts (part 1/11)');
+      expect(entries.at(-1)?.relativePath).toBe('src/large.ts (part 11/11)');
+      expect(entries.map((entry) => entry.content).join('\n')).toBe(content);
+    });
+  });
+
+  describe('buildAsyncPromptPartitions', () => {
+    test('partitions source files into multiple prompt-safe batches', () => {
+      const fileEntries = Array.from({ length: 5 }, (_, index) => ({
+        relativePath: `src/file${index}.ts`,
+        content: `export const value${index} = ${index};\n`,
+      }));
+
+      const partitions = buildAsyncPromptPartitions(fileEntries, 10_000, MAX_PROMPT_ENTRY_CHARS);
+
+      expect(partitions).toHaveLength(2);
+      expect(partitions[0].scopePaths).toEqual([
+        'src/file0.ts',
+        'src/file1.ts',
+        'src/file2.ts',
+        'src/file3.ts',
+      ]);
+      expect(partitions[1].scopePaths).toEqual(['src/file4.ts']);
+    });
+  });
+
+  describe('buildAsyncFileContentsBlock', () => {
+    test('renders part labels without a truncation marker', () => {
+      const block = buildAsyncFileContentsBlock([
+        {
+          relativePath: 'src/large.ts (part 1/2)',
+          sourcePath: 'src/large.ts',
+          content: 'const a = 1;\n',
+        },
+      ]);
+
+      expect(block).toContain('### `src/large.ts (part 1/2)`');
+      expect(block).not.toContain('...(truncated — remainder omitted)');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // formatAsyncPerfReport
   // -------------------------------------------------------------------------
 
@@ -224,8 +300,9 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
       if (p.endsWith('ai_helpers.yaml') || p.includes('ai_helpers')) {
         return Promise.resolve(
           'async_perf_engineer_prompt:\n' +
-            '  role_prefix: "test"\n' +
+            '  role_ref: async_perf_engineer\n' +
             '  task_template: |\n' +
+            '    {partition_header}\n' +
             '    Project: {project_name}\n' +
             '    Project Summary: {project_summary}\n' +
             '    Kind: {project_kind}\n' +
@@ -235,6 +312,9 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
             '    Files: {source_file_count}\n' +
             '    Modified: {modified_count}\n' +
             '    Paths: {file_paths}\n' +
+            '    Scope: {partition_scope_note}\n' +
+            '    **File Contents (source excerpts for this request):**\n' +
+            '    {file_content_block}\n' +
             '  approach: "approach"'
         );
       }
@@ -418,7 +498,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     expect(promptArg).toContain('src/index.js');
   });
 
-  test('prompt includes all analyzed file paths up to cap', async () => {
+  test('prompt includes partition-scoped file paths plus total source count context', async () => {
     const files = Array.from({ length: 25 }, (_, i) => `src/file${i}.js`);
     const aiHelper = makeAiHelper('findings');
     const step = new Step20AsyncPerfReview({
@@ -432,10 +512,79 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     await step.execute('/project');
 
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
-    // First 20 files should appear; file index 20+ may be summarised
+    expect(promptArg).toContain('Files: 25 total (4 covered in this request)');
     expect(promptArg).toContain('src/file0.js');
-    expect(promptArg).toContain('src/file19.js');
-    expect(promptArg).toContain('and 5 more');
+    expect(promptArg).toContain('src/file3.js');
+    expect(promptArg).not.toContain('src/file24.js');
+  });
+
+  test('prompt lists only the files in the current partition request', async () => {
+    const files = Array.from({ length: 25 }, (_, i) => `src/file${i}.js`);
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step20AsyncPerfReview({
+      fileOps: makeFileOps(files),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    await step.execute('/project');
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(aiHelper.executeRequest.mock.calls.length).toBeGreaterThan(1);
+    expect(promptArg).toContain('[Partition 1 of');
+    expect(promptArg).toContain('src/file0.js');
+    expect(promptArg).toContain('src/file3.js');
+    expect(promptArg).not.toContain('src/file24.js');
+  });
+
+  test('runs multiple AI requests when the source payload needs partitioning', async () => {
+    const files = Array.from({ length: 5 }, (_, i) => `src/file${i}.ts`);
+    const aiHelper = {
+      initialize: jest.fn().mockResolvedValue(true),
+      executeRequest: jest
+        .fn()
+        .mockResolvedValueOnce({ content: 'partition one findings' })
+        .mockResolvedValueOnce({ content: 'partition two findings' }),
+    };
+    const step = new Step20AsyncPerfReview({
+      fileOps: makeFileOps(files, 'export const value = 1;\n'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    const result = await step.execute('/project');
+
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
+    expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
+      'split across multiple prompt logs to avoid truncated code excerpts'
+    );
+    expect(result.report).toContain('#### Partition 1 of 2');
+    expect(result.report).toContain('partition one findings');
+    expect(result.report).toContain('partition two findings');
+  });
+
+  test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {
+    const largeContent = `${'const line = 1;\n'.repeat(350)}const end = true;\n`;
+    const aiHelper = makeAiHelper('large file findings');
+    const step = new Step20AsyncPerfReview({
+      fileOps: makeFileOps(['src/large.ts'], largeContent),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    await step.execute('/project');
+
+    const promptArg = aiHelper.executeRequest.mock.calls[0][0];
+    expect(promptArg).toContain('src/large.ts (part 1/');
+    expect(promptArg).not.toContain('...(truncated — remainder omitted)');
   });
 
   test('falls back gracefully when tech stack detection fails', async () => {

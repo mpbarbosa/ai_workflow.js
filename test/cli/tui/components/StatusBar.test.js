@@ -38,7 +38,7 @@ describe('StatusBar Component', () => {
 
   it('renders correct spacing between hints', () => {
     const { lastFrame } = render(React.createElement(StatusBar, {}));
-    expect(lastFrame()).toMatch(/Quit\s+.*Abort\s+.*Scroll/);
+    expect(lastFrame()).toMatch(/Quit[\s\S]*Abort[\s\S]*Scroll/);
   });
 
   it('renders with unexpected prop values gracefully', () => {

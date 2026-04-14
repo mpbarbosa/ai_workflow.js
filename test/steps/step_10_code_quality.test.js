@@ -4,7 +4,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
@@ -23,9 +23,15 @@ import {
   getAllDetectedLanguages,
   getLanguageLinterCommands,
   AI_FILES_PER_SLICE,
+  AI_MAX_CHARS_PER_PROMPT_ENTRY,
   prioritizeSourceFiles,
+  isStep10CodeReviewableFile,
+  isErrorResilienceReviewableFile,
   buildFileContentMap,
+  buildPromptFileEntries,
+  buildCodePromptSlices,
   formatFileContentMap,
+  formatPromptFileEntries,
   buildCodeContentHash,
   shouldRunErrorResiliencePrompt,
 } from '../../src/steps/step_10_code_quality.js';
@@ -563,6 +569,62 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
     });
   });
 
+  describe('buildPromptFileEntries', () => {
+    test('splits oversized file contents into labeled part entries', () => {
+      const entries = buildPromptFileEntries({
+        'src/app.tsx': 'x'.repeat(AI_MAX_CHARS_PER_PROMPT_ENTRY + 25),
+      });
+
+      expect(entries).toHaveLength(2);
+      expect(entries[0].displayPath).toBe('src/app.tsx (part 1/2)');
+      expect(entries[1].displayPath).toBe('src/app.tsx (part 2/2)');
+    });
+
+    test('keeps short file contents as a single entry', () => {
+      const entries = buildPromptFileEntries({ 'src/app.tsx': 'export const App = () => null;' });
+
+      expect(entries).toEqual([
+        {
+          displayPath: 'src/app.tsx',
+          sourcePath: 'src/app.tsx',
+          excerpt: 'export const App = () => null;',
+        },
+      ]);
+    });
+  });
+
+  describe('buildCodePromptSlices', () => {
+    test('creates multiple prompt slices when a file is split into several parts', () => {
+      const slices = buildCodePromptSlices(
+        {
+          'src/app.tsx': 'x'.repeat(AI_MAX_CHARS_PER_PROMPT_ENTRY * 2 + 50),
+          'src/utils.ts': 'export const noop = () => {};',
+        },
+        {
+          maxCharsPerEntry: AI_MAX_CHARS_PER_PROMPT_ENTRY,
+          maxPromptChars: AI_MAX_CHARS_PER_PROMPT_ENTRY + 200,
+          maxEntriesPerSlice: 2,
+        }
+      );
+
+      expect(slices).toHaveLength(3);
+      expect(slices[0].entries[0].displayPath).toContain('src/app.tsx (part 1/3)');
+      expect(slices[2].entries.some((entry) => entry.displayPath === 'src/utils.ts')).toBe(true);
+      expect(slices[0].oversizedPaths).toContain('src/app.tsx');
+    });
+  });
+
+  describe('formatPromptFileEntries', () => {
+    test('formats split prompt entries without truncated markers', () => {
+      const result = formatPromptFileEntries([
+        { displayPath: 'src/app.tsx (part 1/2)', excerpt: 'const x = 1;' },
+      ]);
+
+      expect(result).toContain('### src/app.tsx (part 1/2)');
+      expect(result).not.toContain('[truncated]');
+    });
+  });
+
   describe('buildCodeContentHash', () => {
     test('returns 8-char string for valid input', () => {
       const hash = buildCodeContentHash({ 'src/a.ts': 'hello' });
@@ -626,6 +688,31 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
     test('returns false for configuration_library', () => {
       expect(shouldRunErrorResiliencePrompt('configuration_library')).toBe(false);
+    });
+  });
+
+  describe('isStep10CodeReviewableFile', () => {
+    test('returns true for source-like executable files', () => {
+      expect(isStep10CodeReviewableFile('src/app.ts')).toBe(true);
+      expect(isStep10CodeReviewableFile('scripts/sync-pajussara-cdn.mjs')).toBe(true);
+      expect(isStep10CodeReviewableFile('eslint.config.mjs')).toBe(true);
+    });
+
+    test('returns false for metadata-only files such as lockfiles', () => {
+      expect(isStep10CodeReviewableFile('package-lock.json')).toBe(false);
+      expect(isStep10CodeReviewableFile('package.json')).toBe(false);
+    });
+  });
+
+  describe('isErrorResilienceReviewableFile', () => {
+    test('returns true for executable source-like files', () => {
+      expect(isErrorResilienceReviewableFile('src/server.ts')).toBe(true);
+      expect(isErrorResilienceReviewableFile('scripts/deploy.sh')).toBe(true);
+    });
+
+    test('returns false for declaration files and metadata', () => {
+      expect(isErrorResilienceReviewableFile('src/types.d.ts')).toBe(false);
+      expect(isErrorResilienceReviewableFile('package-lock.json')).toBe(false);
     });
   });
 
@@ -841,9 +928,9 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
 
     // AI phase partition system: each run reviews one small batch of files.
     // Multi-file coverage accumulates across successive runs via partition rotation.
-    test('AI phase uses partition system: one batch per run', async () => {
-      // With MAX_PARTITION_SIZE=5, AI_FILES_PER_SLICE=5: each run reviews exactly
-      // 1 partition (≤5 files) = 1 AI call. Rotation happens across successive runs.
+    test('AI phase uses partition system: one partition per run, with prompt slices as needed', async () => {
+      // With MAX_PARTITION_SIZE=5, each run still reviews exactly one partition.
+      // Step 10 may now split that partition across multiple AI prompt slices.
       const fileCount = AI_FILES_PER_SLICE * 2 + 1; // 11 total files
       const files = Array.from({ length: fileCount }, (_, i) => `src/file${i}.js`);
       mockTechStack.detectAll = async () => ({
@@ -873,8 +960,218 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       try {
         const result = await analyzer.execute(testDir, { modifiedFiles: [] });
         expect(result.success).toBe(true);
-        // One partition of ≤ AI_FILES_PER_SLICE files → exactly 1 AI call per run.
-        expect(prompts.length).toBe(1);
+        expect(prompts.length).toBe(2);
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('AI phase falls back to full rotation when every file is quality-exempt', async () => {
+      const files = ['src/a.js', 'src/b.js'];
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => files;
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('.yaml')) {
+          return [
+            'step10_code_quality_prompt:',
+            '  role_prefix: |',
+            '    You are a reviewer.',
+            '  task_template: |',
+            '    {partition_header}',
+            '    Files: {files_in_scope}',
+            '    {file_content_map}',
+            '    {partition_scope_note}',
+            '  approach: |',
+            '    Review only shown files.',
+          ].join('\n');
+        }
+        return 'const x = 1;';
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+        withFileChangeGuard: jest.fn().mockImplementation((_stepId, _fileContents, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-exempt-test-'));
+      try {
+        await mkdir(join(testDir, '.ai_workflow', '.step_cache'), { recursive: true });
+        await writeFile(
+          join(testDir, '.ai_workflow', '.step_cache', 'step_10_quality.json'),
+          JSON.stringify({
+            version: 1,
+            fileScores: {
+              'src/a.js': { score: 100, issueCount: 0, lastAnalyzed: '2026-01-01T00:00:00.000Z' },
+              'src/b.js': { score: 100, issueCount: 0, lastAnalyzed: '2026-01-01T00:00:00.000Z' },
+            },
+          }),
+          'utf8'
+        );
+
+        const result = await analyzer.execute(testDir, { modifiedFiles: [] });
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain('Files: 2');
+        expect(prompts[0]).toContain('### src/a.js');
+        expect(prompts[0]).not.toContain('(no source files provided)');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('AI phase skips lockfile-only partitions after reviewable-file filtering', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: [],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async (pattern) => (pattern.endsWith('.json') ? ['package-lock.json'] : []);
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('package-lock.json')) {
+          return '{"name":"demo","lockfileVersion":3,"packages":{}}';
+        }
+        throw new Error('not found');
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withFileChangeGuard: jest.fn().mockImplementation((_key, _files, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-lockfile-only-'));
+      try {
+        const result = await analyzer.execute(testDir, {
+          projectKind: 'nodejs_api',
+          modifiedFiles: [],
+        });
+
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(0);
+        expect(result.erFindings).toBe('');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('AI phase filters metadata files while keeping source-like files reviewable', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async (pattern) => {
+        if (pattern.endsWith('.mjs')) return ['scripts/sync-pajussara-cdn.mjs'];
+        if (pattern.endsWith('.json')) return ['package.json', 'package-lock.json'];
+        return [];
+      };
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.includes('ai_helpers')) return minimalErYaml;
+        if (filePath.endsWith('scripts/sync-pajussara-cdn.mjs')) return 'await fetch("https://example.test");';
+        if (filePath.endsWith('package.json')) return '{"name":"demo","scripts":{"lint":"eslint ."}}';
+        if (filePath.endsWith('package-lock.json')) {
+          return '{"name":"demo","lockfileVersion":3,"packages":{}}';
+        }
+        throw new Error('not found');
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withFileChangeGuard: jest.fn().mockImplementation((_key, _files, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-reviewable-filter-'));
+      try {
+        const result = await analyzer.execute(testDir, {
+          projectKind: 'nodejs_api',
+          modifiedFiles: [],
+        });
+
+        expect(result.success).toBe(true);
+        expect(prompts.length).toBeGreaterThan(0);
+        expect(prompts.some((prompt) => prompt.includes('scripts/sync-pajussara-cdn.mjs'))).toBe(
+          true
+        );
+        expect(prompts.some((prompt) => prompt.includes('package-lock.json'))).toBe(false);
+        expect(prompts.some((prompt) => prompt.includes('### package.json'))).toBe(false);
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('AI phase splits oversized source files across multiple prompt slices', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['javascript'],
+        primary_language: 'javascript',
+      });
+      mockFileOps.glob = async () => ['src/big.js'];
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('.yaml')) {
+          return [
+            'step10_code_quality_prompt:',
+            '  role_prefix: |',
+            '    You are a reviewer.',
+            '  task_template: |',
+            '    {partition_header}',
+            '    {file_content_map}',
+            '  approach: |',
+            '    Review only shown files.',
+          ].join('\n');
+        }
+        return 'x'.repeat(AI_MAX_CHARS_PER_PROMPT_ENTRY * 3 + 50);
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+        withFileChangeGuard: jest.fn().mockImplementation((_stepId, _fileContents, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-chunk-test-'));
+      try {
+        const result = await analyzer.execute(testDir, { modifiedFiles: [] });
+        expect(result.success).toBe(true);
+        expect(prompts.length).toBeGreaterThan(1);
+        expect(prompts[0]).toContain('src/big.js (part 1/4)');
+        expect(prompts[1]).toContain('src/big.js (part 4/4)');
+        expect(prompts.join('\n')).not.toContain('[truncated]');
       } finally {
         await rm(testDir, { recursive: true, force: true });
       }
@@ -1122,9 +1419,8 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       const analyzer = new Step10CodeQualityAnalyzer({
         executor: { execute: async () => ({ stdout: '', stderr: '', exitCode: 0 }) },
         fileOps: {
-          readFile: async () => {
-            throw new Error('not found');
-          },
+          readFile: async (filePath) =>
+            filePath.endsWith('src/index.js') ? 'export const main = () => {};' : '',
           glob: async (pattern) => (pattern.includes('js') ? ['src/index.js'] : []),
         },
         backlog: { saveStepSummary: async () => {} },

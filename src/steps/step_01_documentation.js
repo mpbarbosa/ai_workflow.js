@@ -246,6 +246,37 @@ export function validateAllSourceDocumentation(sourceFiles) {
   };
 }
 
+export const STEP1_PROJECT_CONVENTION_PATHS = [
+  '.github/copilot-instructions.md',
+  '.github/CONTRIBUTING.md',
+  'CONTRIBUTING.md',
+];
+
+/**
+ * Read project-specific documentation conventions from the highest-priority
+ * authority files available in the target repository.
+ *
+ * @param {Object} fileOps - File operations adapter with readFile(path)
+ * @param {string} projectRoot - Absolute path to target project root
+ * @returns {Promise<string>} Combined labeled convention blocks, or empty string
+ */
+export async function readProjectConventions(fileOps, projectRoot) {
+  const sections = [];
+
+  for (const relativePath of STEP1_PROJECT_CONVENTION_PATHS) {
+    try {
+      const content = await fileOps.readFile(`${projectRoot}/${relativePath}`);
+      if (typeof content === 'string' && content.trim().length > 0) {
+        sections.push(`### ${relativePath}\n${content.trim()}`);
+      }
+    } catch {
+      // Convention files are optional; skip unreadable paths gracefully.
+    }
+  }
+
+  return sections.join('\n\n');
+}
+
 // ============================================================================
 // STEP 1 ANALYZER - Impure Wrapper
 // ============================================================================
@@ -404,14 +435,7 @@ export class Step1DocumentationAnalyzer {
             } catch {
               // Content injection is best-effort; proceed without it if anything fails
             }
-            let projectConventions = '';
-            try {
-              projectConventions = await this.fileOps.readFile(
-                `${projectRoot}/.github/CONTRIBUTING.md`
-              );
-            } catch {
-              // CONTRIBUTING.md is optional; leave empty so placeholder is omitted cleanly
-            }
+            const projectConventions = await readProjectConventions(this.fileOps, projectRoot);
             try {
               const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
               prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {

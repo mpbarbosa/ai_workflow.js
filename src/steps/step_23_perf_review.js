@@ -26,11 +26,12 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import {
   loadResolvedAiHelpers,
   buildYamlStepPrompt,
-  buildFileContentBlock,
-  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 
 const MAX_FILE_PATHS_IN_CONTEXT = 20;
+export const MAX_PROMPT_ENTRY_CHARS = 4_000;
+export const MAX_PROMPT_PARTITION_CHARS = 9_000;
+export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -98,6 +99,116 @@ export function scorePerfIssues(fileContents) {
     objectInLoopCount,
     totalIssues: nestedLoopCount + syncIoCount + jsonParseCount + objectInLoopCount,
   };
+}
+
+/**
+ * Split a single source file into prompt-safe entries without dropping content.
+ *
+ * Oversized files are sliced into labeled `(part X/Y)` segments so the AI sees
+ * the complete file across multiple prompt logs instead of a single truncated
+ * excerpt.
+ *
+ * @param {{relativePath: string, content: string}} entry - Source file entry
+ * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per entry
+ * @returns {Array<{relativePath: string, sourcePath: string, content: string}>}
+ */
+export function splitPerformancePromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
+  const sourcePath = entry?.relativePath ?? '';
+  const content = entry?.content ?? '';
+
+  if (content.length <= maxEntryChars) {
+    return [{ relativePath: sourcePath, sourcePath, content }];
+  }
+
+  const parts = [];
+  let start = 0;
+  while (start < content.length) {
+    let end = Math.min(start + maxEntryChars, content.length);
+    if (end < content.length) {
+      const cutAt = content.lastIndexOf('\n', end);
+      if (cutAt > start) end = cutAt;
+    }
+    if (end <= start) end = Math.min(start + maxEntryChars, content.length);
+    parts.push(content.slice(start, end));
+    start = end;
+    if (content[start] === '\n') start += 1;
+  }
+
+  return parts.map((partContent, index) => ({
+    relativePath: `${sourcePath} (part ${index + 1}/${parts.length})`,
+    sourcePath,
+    content: partContent,
+  }));
+}
+
+function estimatePromptEntryChars(entry) {
+  return (entry?.relativePath?.length ?? 0) + (entry?.content?.length ?? 0) + 32;
+}
+
+/**
+ * Partition the performance-review source payload into prompt-safe batches.
+ *
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - Raw file entries
+ * @param {number} [maxPartitionChars=MAX_PROMPT_PARTITION_CHARS] - Max chars per prompt batch
+ * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per prompt entry
+ * @returns {Array<{entries: Array<{relativePath: string, sourcePath: string, content: string}>, scopePaths: string[]}>}
+ */
+export function buildPerformancePromptPartitions(
+  fileEntries,
+  maxPartitionChars = MAX_PROMPT_PARTITION_CHARS,
+  maxEntryChars = MAX_PROMPT_ENTRY_CHARS
+) {
+  if (!Array.isArray(fileEntries) || fileEntries.length === 0) return [];
+
+  const promptEntries = fileEntries.flatMap((entry) =>
+    splitPerformancePromptEntry(entry, maxEntryChars)
+  );
+  const partitions = [];
+  let currentEntries = [];
+  let currentChars = 0;
+
+  const flush = () => {
+    if (currentEntries.length === 0) return;
+    partitions.push({
+      entries: currentEntries,
+      scopePaths: [...new Set(currentEntries.map((entry) => entry.sourcePath))],
+    });
+    currentEntries = [];
+    currentChars = 0;
+  };
+
+  for (const entry of promptEntries) {
+    const entryChars = estimatePromptEntryChars(entry);
+    const wouldOverflow =
+      currentEntries.length > 0 &&
+      (currentChars + entryChars > maxPartitionChars ||
+        currentEntries.length >= MAX_PROMPT_ENTRIES_PER_PARTITION);
+
+    if (wouldOverflow) flush();
+
+    currentEntries.push(entry);
+    currentChars += entryChars;
+  }
+
+  flush();
+  return partitions;
+}
+
+/**
+ * Build a markdown block for the current performance-review prompt partition.
+ *
+ * @param {Array<{relativePath: string, sourcePath: string, content: string}>} entries - Prompt entries
+ * @returns {string} Markdown file-content block
+ */
+export function buildPerformanceFileContentsBlock(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+
+  return entries
+    .map(({ relativePath, sourcePath, content }) => {
+      const ext = (sourcePath || relativePath).split('.').pop() ?? '';
+      return `### \`${relativePath}\`\n\`\`\`${ext}\n${content}\n\`\`\``;
+    })
+    .join('\n\n');
 }
 
 /**
@@ -202,18 +313,15 @@ export class Step23PerfReview {
 
       logger.info(`Step 23: Analyzing ${relativeFiles.length} JS/TS files`);
 
-      let totalChars = 0;
       const fileContents = [];
-      const fileBlocks = [];
+      const fileEntries = [];
 
       for (const relFile of relativeFiles) {
-        if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) break;
         try {
           const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
           const content = await this.fileOps.readFile(absPath);
           fileContents.push(content);
-          fileBlocks.push(buildFileContentBlock(relFile, content));
-          totalChars += content.length;
+          fileEntries.push({ relativePath: relFile, content });
         } catch {
           // Skip unreadable files silently
         }
@@ -242,48 +350,77 @@ export class Step23PerfReview {
             // Non-fatal: fall back to default
           }
 
-          const filePathList = relativeFiles
-            .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
-            .map((f) => `      - ${f}`)
-            .join('\n');
-          const filePathsContext =
-            relativeFiles.length > MAX_FILE_PATHS_IN_CONTEXT
-              ? `${filePathList}\n      ... and ${relativeFiles.length - MAX_FILE_PATHS_IN_CONTEXT} more`
-              : filePathList;
-
-          const fileContentBlock =
-            fileBlocks.length > 0
-              ? fileBlocks.join('\n\n')
-              : '_No readable file excerpts were available in the current context window._';
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-          const prompt = buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
-            project_name: options.projectName ?? path.basename(projectRoot),
-            project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
-            primary_language: 'JavaScript/TypeScript',
-            build_system: buildSystem,
-            source_file_count: String(relativeFiles.length),
-            file_paths: filePathsContext,
-            file_content_block: fileContentBlock,
-          });
+          const promptPartitions =
+            fileEntries.length > 0 ? buildPerformancePromptPartitions(fileEntries) : [];
+          const partitionsToAnalyze =
+            promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
 
-          if (prompt) {
-            const fullPrompt = prompt;
-            const cacheKey = `step_23:${projectRoot}:${scores.totalIssues}`;
-            const cached = await this.aiCache.get(cacheKey);
+          if (partitionsToAnalyze.length > 1) {
+            logger.info(
+              `[step_23] Running AI analysis in ${partitionsToAnalyze.length} partition(s) to avoid prompt truncation`
+            );
+          }
 
-            if (cached) {
-              aiContent = cached;
-              logger.info('Step 23: Using cached AI response');
-            } else {
-              const aiResult = await this.aiHelper.executeRequest(fullPrompt, {
-                persona: 'performance_engineer',
-              });
-              aiContent = aiResult?.content ?? '';
-              if (aiContent) {
-                await this.aiCache.set(cacheKey, aiContent);
+          const aiSections = [];
+          for (let i = 0; i < partitionsToAnalyze.length; i++) {
+            const partition = partitionsToAnalyze[i];
+            const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
+            const filePathList = partitionDisplayPaths
+              .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
+              .map((f) => `      - ${f}`)
+              .join('\n');
+            const filePathsContext =
+              partitionDisplayPaths.length > MAX_FILE_PATHS_IN_CONTEXT
+                ? `${filePathList}\n      ... and ${partitionDisplayPaths.length - MAX_FILE_PATHS_IN_CONTEXT} more`
+                : filePathList;
+            const fileContentBlock = buildPerformanceFileContentsBlock(partition.entries);
+            const prompt = buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
+              partition_header:
+                partitionsToAnalyze.length > 1
+                  ? `[Partition ${i + 1} of ${partitionsToAnalyze.length} — analyze ONLY the files or file-parts listed below for this request]`
+                  : '',
+              partition_scope_note:
+                partitionsToAnalyze.length > 1
+                  ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current performance-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                  : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
+              project_name: options.projectName ?? path.basename(projectRoot),
+              project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
+              primary_language: 'JavaScript/TypeScript',
+              build_system: buildSystem,
+              source_file_count:
+                partitionsToAnalyze.length > 1
+                  ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
+                  : String(relativeFiles.length),
+              file_paths:
+                filePathsContext || '      - (no readable JavaScript/TypeScript files were available)',
+              file_content_block:
+                fileContentBlock || '_No readable file excerpts were available in the current context window._',
+            });
+
+            if (!prompt) continue;
+
+            const response = await this.aiCache.withCache(
+              prompt,
+              `step_23:performance_engineer:part:${i + 1}/${partitionsToAnalyze.length}:signals:${scores.totalIssues}`,
+              async () => {
+                const aiResult = await this.aiHelper.executeRequest(prompt, {
+                  persona: 'performance_engineer',
+                });
+                return aiResult?.content ?? '';
               }
+            );
+
+            if (response) {
+              aiSections.push(
+                partitionsToAnalyze.length > 1
+                  ? `#### Partition ${i + 1} of ${partitionsToAnalyze.length}\n\n${response}`
+                  : response
+              );
             }
           }
+
+          aiContent = aiSections.join('\n\n');
         } catch (promptError) {
           logger.warn(`Step 23: AI analysis skipped — ${promptError.message}`);
         }

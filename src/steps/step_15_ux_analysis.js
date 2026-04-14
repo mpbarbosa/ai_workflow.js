@@ -271,13 +271,23 @@ export function groupUiFilesByType(files) {
 export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
   const htmlFiles = fileGroups.html || [];
   const cssFiles = fileGroups.css || [];
+  const frameworkFiles = uiFiles.filter((file) =>
+    ['react', 'vue', 'svelte'].includes(categorizeUiFile(file))
+  );
   // Reserve ~30% of slots for CSS so it's always represented, even when HTML count is large.
   const cssReserved = Math.min(cssFiles.length, Math.max(1, Math.floor(maxFiles * 0.3)));
   const htmlAvail = maxFiles - cssReserved;
   // If HTML underflows its budget, give the unused slots to CSS.
   const cssAvail = cssReserved + Math.max(0, htmlAvail - htmlFiles.length);
   const selected = [...htmlFiles.slice(0, htmlAvail), ...cssFiles.slice(0, cssAvail)];
-  return selected.slice(0, maxFiles);
+  const remainingSlots = maxFiles - selected.length;
+
+  if (remainingSlots <= 0) {
+    return selected.slice(0, maxFiles);
+  }
+
+  const frameworkFallback = frameworkFiles.filter((file) => !selected.includes(file));
+  return [...selected, ...frameworkFallback.slice(0, remainingSlots)].slice(0, maxFiles);
 }
 
 // ============================================================================
@@ -315,6 +325,20 @@ export function buildUxAnalysisPrompt(context) {
           .map(({ file, content }) => `\`\`\`\n// ${file}\n${content}\n\`\`\``)
           .join('\n\n')}\n`
       : '';
+  const evidenceRules =
+    fileContents && fileContents.length > 0
+      ? `**Evidence Rules**:
+- Base findings only on the visible source snippets included below.
+- If a snippet ends with \`... (truncated)\` or a needed file/region is missing, mark that check as unavailable or inconclusive.
+- Do not claim a requirement passes unless the visible code proves it.
+
+`
+      : `**Evidence Rules**:
+- UI file paths are listed below, but no source snippets are visible in this prompt.
+- Do not infer detailed UX findings from filenames alone.
+- Respond that the UI/UX review is unavailable or inconclusive from the provided context instead of claiming success or claiming no UI code exists.
+
+`;
 
   return `**Role**: You are a senior UX/UI Designer and Frontend Specialist with expertise in user experience design, accessibility standards (WCAG 2.1 AA/AAA), responsive design, and modern frontend frameworks.
 
@@ -329,7 +353,7 @@ ${typeBreakdown}
 **Sample Files**:
 ${fileSummary}${moreFiles}
 ${contentSection}
-**Your Analysis Should Cover**:
+${evidenceRules}**Your Analysis Should Cover**:
 1. **Accessibility Issues** (WCAG 2.1 violations)
    - Missing ARIA labels and semantic HTML
    - Color contrast problems
@@ -570,46 +594,30 @@ export class Step15UxAnalysis {
       const projectType = context.projectType || 'generic';
 
       // Check if UX analysis should run.
-      // Fallback: even when the detected project_kind doesn't imply a UI, the project
-      // might contain Vue/React/Svelte files (e.g. location_based_service with Vue 3 SPA).
+      // Fallback: even when the detected project_kind doesn't imply a browser UI, the
+      // project might contain Vue/React/Svelte files or a terminal UI implementation.
       let confirmedTui = false;
       if (!shouldRunUxAnalysis(projectType)) {
-        // Exception: TUI-candidate kinds (nodejs_cli, cli_tool) may contain Ink/React terminal
-        // components. Check for TUI dependencies before deciding whether to skip.
+        // Any non-web project can still host a terminal UI. Probe package.json for known
+        // TUI dependencies before routing to the framework-file fallback or skipping.
+        let pkg = null;
+        try {
+          const pkgContent = await this.fileOps.readFile(path.join(this.projectRoot, 'package.json'));
+          pkg = JSON.parse(pkgContent);
+        } catch {
+          /* package.json absent or unparseable — treat as no TUI deps */
+        }
+
+        if (hasTuiDependencies(pkg)) {
+          confirmedTui = true;
+          this.logger.info(
+            `Step 15: TUI dependencies detected in '${projectType}' project — running terminal UI analysis`
+          );
+        }
+
         if (NON_UI_PROJECT_KINDS.includes(projectType)) {
-          if (isTuiProjectKind(projectType)) {
-            // Probe package.json for TUI framework deps before committing to TUI analysis.
-            let pkg = null;
-            try {
-              const pkgContent = await this.fileOps.readFile(
-                path.join(this.projectRoot, 'package.json')
-              );
-              pkg = JSON.parse(pkgContent);
-            } catch {
-              /* package.json absent or unparseable — treat as no TUI deps */
-            }
-            if (hasTuiDependencies(pkg)) {
-              // Fall through to TUI-specific analysis below.
-              confirmedTui = true;
-              this.logger.info(
-                `Step 15: TUI dependencies detected in '${projectType}' project — running terminal UI analysis`
-              );
-            } else {
-              this.logger.info(
-                `Step 15: UX Analysis skipped — project kind '${projectType}' has no TUI framework dependencies`
-              );
-              await this.backlog.saveStepSummary(
-                '15',
-                'UX_Analysis',
-                `Skipped: Non-web project kind '${projectType}' with no TUI deps`,
-                '⏭️'
-              );
-              return {
-                success: true,
-                skipped: true,
-                reason: `non-web project kind: ${projectType}`,
-              };
-            }
+          if (confirmedTui) {
+            // Fall through to TUI-specific analysis below.
           } else {
             this.logger.info(
               `Step 15: UX Analysis skipped — project kind '${projectType}' is a non-web library/tool; .tsx/.jsx files are not browser UI`

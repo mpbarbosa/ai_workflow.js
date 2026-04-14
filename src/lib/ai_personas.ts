@@ -3,7 +3,7 @@
  * @module lib/ai_personas
  * @version 2.0.0
  * @description
- * Defines 16 specialized AI personas for workflow automation.
+ * Defines 17 specialized AI personas for workflow automation.
  * Each persona has specific expertise, tone, and focus areas.
  *
  * Architecture: Pure functions only (persona data is immutable)
@@ -506,6 +506,40 @@ const PERSONAS: Persona[] = [
     ],
   },
 
+  // Async Performance Engineer (Step 20)
+  {
+    id: 'async_performance_engineer',
+    name: 'Async Performance Engineer',
+    role: 'Senior async performance and concurrency specialist',
+    expertise: [
+      'Promise anti-patterns',
+      'Event loop optimization',
+      'Memory leak detection',
+      'API call batching',
+      'Debouncing and throttling',
+      'Error handling',
+      'Resource cleanup',
+    ],
+    tone: 'Performance-focused, analytical, and concurrency-aware',
+    focus: [
+      'Event loop congestion',
+      'Memory leaks',
+      'Unhandled rejections',
+      'Sequential async bottlenecks',
+      'Resource cleanup',
+    ],
+    description:
+      'Specializes in asynchronous JavaScript and TypeScript performance. ' +
+      'Reviews Promise orchestration, event-loop pressure, memory retention, and network request ' +
+      'patterns to surface actionable async performance fixes.',
+    useCases: [
+      'Step 20: Async performance review',
+      'Promise anti-pattern analysis',
+      'Concurrency and batching recommendations',
+      'Memory leak and cleanup reviews',
+    ],
+  },
+
   {
     id: 'aws_serverless_engineer',
     name: 'AWS Serverless Engineer',
@@ -598,7 +632,7 @@ function clonePersona(p: Persona): Persona {
  * @returns Array of all personas (deep copies).
  * @example
  * const personas = getAllPersonas();
- * // Returns array of 16 personas
+ * // Returns array of 17 personas
  */
 export function getAllPersonas(): Persona[] {
   return PERSONAS.map(clonePersona);
@@ -667,6 +701,7 @@ export function getPersonasByTask(taskType: string): Persona[] {
     api: ['api_designer'],
     devops: ['devops_engineer'],
     accessibility: ['accessibility_expert', 'ux_analyst'],
+    'async-performance': ['async_performance_engineer'],
     ux: ['ux_analyst'],
     prompts: ['prompt_engineer'],
   };
@@ -762,7 +797,7 @@ export function validatePersona(persona: unknown): PersonaValidationResult {
  * @pure
  * @returns Total persona count.
  * @example
- * const count = getPersonaCount(); // 16
+ * const count = getPersonaCount(); // 17
  */
 export function getPersonaCount(): number {
   return PERSONAS.length;

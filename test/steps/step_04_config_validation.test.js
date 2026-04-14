@@ -15,10 +15,17 @@ import {
   checkConfigBestPractices,
   formatConfigReport,
   buildFileContentsBlock,
+  buildPackageLockPromptSummary,
+  summarizeConfigContentForPrompt,
+  buildConfigPromptPartitions,
+  assessPromptEvidence,
   groupConfigFilesList,
   validateAiResponseQuality,
+  validateAiResponseEvidenceHandling,
+  normalizeAiResponseForPartialEvidence,
   EXCLUDE_DIRS,
   MAX_FILE_CONTENT_CHARS,
+  MAX_PROMPT_ENTRY_CHARS,
   MIN_FILE_MENTION_RATIO,
 } from '../../src/steps/step_04_config_validation.js';
 
@@ -729,6 +736,109 @@ describe('Step 4: Configuration Validation', () => {
       expect(savedContent).toContain('Step 4');
     });
 
+    test('partitions oversized AI config scope instead of sending truncated content', async () => {
+      const longYaml = [
+        'workflow:',
+        `  note: "${'x'.repeat(MAX_PROMPT_ENTRY_CHARS * 2 + 1200)}"`,
+      ].join('\n');
+      let savedContent = '';
+      const seenPrompts = [];
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          seenPrompts.push(prompt);
+          return Promise.resolve({
+            content: 'No issues detected in the visible entries for this partition.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve(['.workflow-config.yaml', 'package.json', '.github/workflows/ci.yml']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('.workflow-config.yaml')) return Promise.resolve(longYaml);
+        if (filePath.endsWith('package.json')) return Promise.resolve('{"name":"test","version":"1.0.0"}');
+        if (filePath.endsWith('.github/workflows/ci.yml')) return Promise.resolve('name: CI\non: push');
+        return Promise.reject(new Error('not found'));
+      };
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedContent = content;
+        return Promise.resolve();
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      expect(seenPrompts).toHaveLength(2);
+      expect(seenPrompts[0]).toContain('- Partition: 1/2');
+      expect(seenPrompts[1]).toContain('.workflow-config.yaml (part 3/3)');
+      expect(seenPrompts.join('\n')).not.toContain('[truncated');
+      expect(savedContent).toContain('### Partition 1 of 2');
+      expect(savedContent).toContain('### Partition 2 of 2');
+      expect(savedContent).not.toContain('Validation note');
+    });
+
+    test('keeps generated package-lock content compact in AI prompt context', async () => {
+      const lockfile = JSON.stringify({
+        name: 'test',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            dependencies: { react: '^19.0.0' },
+            devDependencies: { typescript: '^5.8.0' },
+          },
+          'node_modules/react': { version: '19.0.0' },
+          'node_modules/typescript': { version: '5.8.2' },
+        },
+      });
+      let seenPrompt = '';
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          seenPrompt = prompt;
+          return Promise.resolve({
+            content: 'All configuration files validated successfully.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package-lock.json']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('package-lock.json')) return Promise.resolve(lockfile);
+        return Promise.reject(new Error('not found'));
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      expect(seenPrompt).toContain('[generated npm lockfile summary]');
+      expect(seenPrompt).toContain('"rootDependencies"');
+      expect(seenPrompt).not.toContain('"node_modules/react"');
+    });
+
     test('handles git operation failures gracefully', async () => {
       mockGitOps.getModifiedFiles = () => Promise.reject(new Error('Git error'));
       mockFileOps.glob = () => Promise.resolve(['package.json']);
@@ -1029,6 +1139,66 @@ describe('Step 4: Configuration Validation', () => {
     });
   });
 
+  describe('buildPackageLockPromptSummary', () => {
+    test('extracts root dependency versions without dumping full generated keys', () => {
+      const summary = buildPackageLockPromptSummary(
+        JSON.stringify({
+          name: 'demo',
+          version: '1.0.0',
+          lockfileVersion: 3,
+          packages: {
+            '': {
+              dependencies: { react: '^19.0.0' },
+              devDependencies: { typescript: '^5.8.0' },
+            },
+            'node_modules/react': { version: '19.0.0' },
+            'node_modules/typescript': { version: '5.8.2' },
+          },
+        })
+      );
+
+      expect(summary).toContain('[generated npm lockfile summary]');
+      expect(summary).toContain('"react": "19.0.0"');
+      expect(summary).toContain('"typescript": "5.8.2"');
+      expect(summary).not.toContain('"node_modules/react"');
+    });
+  });
+
+  describe('summarizeConfigContentForPrompt', () => {
+    test('summarizes package-lock.json but leaves regular config files unchanged', () => {
+      const lockSummary = summarizeConfigContentForPrompt(
+        'package-lock.json',
+        JSON.stringify({ lockfileVersion: 3, packages: { '': {} } })
+      );
+      const plainYaml = summarizeConfigContentForPrompt('.github/workflows/ci.yml', 'name: CI');
+
+      expect(lockSummary).toContain('[generated npm lockfile summary]');
+      expect(plainYaml).toBe('name: CI');
+    });
+  });
+
+  describe('buildConfigPromptPartitions', () => {
+    test('splits oversized entries into labeled parts and groups them into prompt-safe partitions', () => {
+      const partitions = buildConfigPromptPartitions(
+        [
+          { relativePath: 'package.json', content: '{"name":"demo"}' },
+          {
+            relativePath: '.workflow-config.yaml',
+            content: 'workflow:\n' + '  note: "' + 'x'.repeat(MAX_PROMPT_ENTRY_CHARS + 1000) + '"',
+          },
+        ],
+        MAX_PROMPT_ENTRY_CHARS + 500,
+        MAX_PROMPT_ENTRY_CHARS
+      );
+
+      expect(partitions).toHaveLength(2);
+      expect(partitions[0].entries[0].relativePath).toBe('package.json');
+      expect(partitions[0].entries[1].relativePath).toContain('.workflow-config.yaml (part 1/2)');
+      expect(partitions[1].entries[0].relativePath).toContain('.workflow-config.yaml (part 2/2)');
+      expect(partitions[0].scopePaths).toEqual(['package.json', '.workflow-config.yaml']);
+    });
+  });
+
   // ========================================================================
   // PURE FUNCTIONS - groupConfigFilesList
   // ========================================================================
@@ -1067,6 +1237,36 @@ describe('Step 4: Configuration Validation', () => {
     test('handles deeply nested paths', () => {
       const result = groupConfigFilesList(['.github/actions/security-check/action.yml']);
       expect(result).toBe('**.github/actions/security-check**: action.yml');
+    });
+  });
+
+  // ========================================================================
+  // PURE FUNCTIONS - assessPromptEvidence / evidence handling
+  // ========================================================================
+
+  describe('assessPromptEvidence', () => {
+    test('reports full evidence when every listed file is present and untruncated', () => {
+      const result = assessPromptEvidence(
+        ['package.json'],
+        [{ relativePath: 'package.json', content: '{"name":"x"}' }],
+        MAX_FILE_CONTENT_CHARS
+      );
+
+      expect(result.hasPartialEvidence).toBe(false);
+      expect(result.truncatedFiles).toEqual([]);
+      expect(result.unavailableFiles).toEqual([]);
+    });
+
+    test('reports truncated and unavailable files separately', () => {
+      const result = assessPromptEvidence(
+        ['package.json', 'ci.yml'],
+        [{ relativePath: 'package.json', content: 'x'.repeat(MAX_FILE_CONTENT_CHARS + 1) }],
+        MAX_FILE_CONTENT_CHARS
+      );
+
+      expect(result.hasPartialEvidence).toBe(true);
+      expect(result.truncatedFiles).toEqual(['package.json']);
+      expect(result.unavailableFiles).toEqual(['ci.yml']);
     });
   });
 
@@ -1127,6 +1327,54 @@ describe('Step 4: Configuration Validation', () => {
       const response = 'Reviewed a.yml and b.yml only.';
       const r = validateAiResponseQuality(response, files, 0.0);
       expect(r.coverage).toBeCloseTo(0.5);
+    });
+  });
+
+  describe('validateAiResponseEvidenceHandling', () => {
+    test('returns adequate=true when all evidence is present in full', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'All configuration files validated successfully.',
+        ['package.json'],
+        [{ relativePath: 'package.json', content: '{"name":"x"}' }]
+      );
+
+      expect(result.adequate).toBe(true);
+      expect(result.hasPartialEvidence).toBe(false);
+    });
+
+    test('returns adequate=false for unqualified success claims over truncated evidence', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'All configuration files validated successfully.\n\nNo issues detected.',
+        ['package.json'],
+        [{ relativePath: 'package.json', content: 'x'.repeat(MAX_FILE_CONTENT_CHARS + 1) }]
+      );
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toContain('partial evidence');
+      expect(result.reason).toContain('truncated: package.json');
+    });
+
+    test('allows excerpt-limited conclusions when partial evidence is acknowledged', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'No issues detected in the visible excerpts; the truncated remainder is inconclusive.',
+        ['package.json'],
+        [{ relativePath: 'package.json', content: 'x'.repeat(MAX_FILE_CONTENT_CHARS + 1) }]
+      );
+
+      expect(result.adequate).toBe(true);
+      expect(result.hasPartialEvidence).toBe(true);
+    });
+  });
+
+  describe('normalizeAiResponseForPartialEvidence', () => {
+    test('rewrites unsafe global-success phrases to excerpt-limited wording', () => {
+      const normalized = normalizeAiResponseForPartialEvidence(
+        'All configuration files validated successfully.\n\nNo issues detected.',
+        { hasPartialEvidence: true }
+      );
+
+      expect(normalized).toContain('Configuration validation remains inconclusive');
+      expect(normalized).toContain('No issues detected in the visible excerpts');
     });
   });
 

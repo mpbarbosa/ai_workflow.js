@@ -5,6 +5,8 @@
 
 import {
   Step2ConsistencyAnalyzer,
+  buildPartitionFileContents,
+  countTypeScriptSourceFiles,
   validateSemver,
   extractVersions,
   checkVersionConsistency,
@@ -580,7 +582,15 @@ describe('Step 2: Consistency Analysis', () => {
     test('[BUG FIX] docFiles passed to buildConsistencyPrompt are relative to projectRoot', async () => {
       // glob returns absolute paths (after absolute:true fix)
       mockFileOps.glob = () => Promise.resolve(['/project/README.md', '/project/docs/guide.md']);
-      mockFileOps.readFile = () => Promise.resolve('Version 1.0.0');
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('/README.md')) {
+          return Promise.resolve('# Project\n\nVersion 1.0.0\n');
+        }
+        if (filePath.endsWith('/docs/guide.md')) {
+          return Promise.resolve('## Guide\n\nUse `npm test`.\n');
+        }
+        return Promise.resolve('Version 1.0.0');
+      };
 
       let capturedPromptArg = null;
       const mockAiHelper = {
@@ -603,6 +613,9 @@ describe('Step 2: Consistency Analysis', () => {
       if (capturedPromptArg) {
         expect(capturedPromptArg).toContain('README.md');
         expect(capturedPromptArg).not.toContain('/project/README.md');
+        expect(capturedPromptArg).toContain('Provided file contents and excerpts');
+        expect(capturedPromptArg).toContain('### `README.md`');
+        expect(capturedPromptArg).toContain('# Project');
       }
     });
 
@@ -845,6 +858,34 @@ describe('Step 2: Consistency Analysis', () => {
       expect(result.reason).toBe('no_items_to_cover');
     });
 
+    test('returns adequate=false for unsupported blanket success claims when grounding is required', () => {
+      const response = `
+**Documentation Consistency Analysis Report**
+
+- No critical or high-priority documentation consistency issues detected.
+- All present documentation is consistent, well-structured, and follows project-specific conventions.
+- All cross-references are intact.
+      `.repeat(4);
+
+      const result = validateAiResponseQuality(response, [], {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('unsupported_global_claim');
+    });
+
+    test('accepts the explicit safe no-issue response when no broken refs exist', () => {
+      const response = 'No additional issues found beyond the programmatic scan.';
+
+      const result = validateAiResponseQuality(response, [], {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(true);
+      expect(result.reason).toBe('no_items_to_cover');
+    });
+
     test('returns adequate=false when coverage is below threshold', () => {
       // Response doesn't mention any broken targets
       const longResponse = 'A'.repeat(300);
@@ -872,6 +913,85 @@ Fix: Create the file or update the link.
       const response = 'Only mentions ./.github/TDD_GUIDE.md but not the other. '.repeat(10);
       const result = validateAiResponseQuality(response, flaggedItems);
       expect(result.coverage).toBe(0.5); // 1 of 2 addressed
+    });
+  });
+
+  describe('countTypeScriptSourceFiles', () => {
+    test('counts .ts and .tsx source files while excluding .d.ts files', async () => {
+      const calls = [];
+      const fileOps = {
+        async glob(pattern, options) {
+          calls.push({ pattern, options });
+          return ['src/index.tsx', 'src/app.tsx', 'src/pajussara-cdn.ts'];
+        },
+      };
+
+      const count = await countTypeScriptSourceFiles(fileOps, '/project');
+
+      expect(count).toBe('3');
+      expect(calls).toEqual([
+        {
+          pattern: 'src/**/*.{ts,tsx}',
+          options: {
+            cwd: '/project',
+            ignore: ['src/**/*.d.ts'],
+            absolute: false,
+          },
+        },
+      ]);
+    });
+
+    test('returns unknown when globbing fails', async () => {
+      const fileOps = {
+        async glob() {
+          throw new Error('boom');
+        },
+      };
+
+      await expect(countTypeScriptSourceFiles(fileOps, '/project')).resolves.toBe('unknown');
+    });
+  });
+
+  describe('buildPartitionFileContents', () => {
+    test('injects markdown file contents as fenced blocks', async () => {
+      const fileOps = {
+        async readFile(filePath) {
+          if (filePath.endsWith('/README.md')) return '# Project\n\nVersion 1.0.0\n';
+          if (filePath.endsWith('/docs/guide.md')) return '## Guide\n\nUse `npm test`.\n';
+          throw new Error(`Unexpected file: ${filePath}`);
+        },
+      };
+
+      const result = await buildPartitionFileContents(fileOps, '/project', [
+        'README.md',
+        'docs/guide.md',
+      ]);
+
+      expect(result.fileContentsSection).toContain('### `README.md`');
+      expect(result.fileContentsSection).toContain('# Project');
+      expect(result.fileContentsSection).toContain('### `docs/guide.md`');
+      expect(result.fileHashEntries).toEqual([
+        'README.md:# Project\n\nVersion 1.0.0\n',
+        'docs/guide.md:## Guide\n\nUse `npm test`.\n',
+      ]);
+    });
+
+    test('skips unreadable files gracefully', async () => {
+      const fileOps = {
+        async readFile(filePath) {
+          if (filePath.endsWith('/README.md')) return '# Project\n';
+          throw new Error('boom');
+        },
+      };
+
+      const result = await buildPartitionFileContents(fileOps, '/project', [
+        'README.md',
+        'docs/missing.md',
+      ]);
+
+      expect(result.fileContentsSection).toContain('### `README.md`');
+      expect(result.fileContentsSection).not.toContain('docs/missing.md');
+      expect(result.fileHashEntries).toEqual(['README.md:# Project\n']);
     });
   });
 

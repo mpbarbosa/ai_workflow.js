@@ -9,6 +9,7 @@ import {
   checkVersionReferences,
   classifyChangedFiles,
   shouldRunAiAnalysis,
+  readProjectConventions,
 } from '../../src/steps/step_01_documentation.js';
 
 describe('Step 1: Documentation Validation', () => {
@@ -530,6 +531,42 @@ doc_analysis_prompt:
         const result = await analyzer.execute('/project', { enableParallel: true });
         expect(result.success).toBe(true);
       });
+    });
+  });
+
+  describe('readProjectConventions', () => {
+    test('prefers repo authority docs in priority order and combines available files', async () => {
+      const mockFileOps = {
+        readFile: (path) => {
+          if (path.endsWith('/.github/copilot-instructions.md')) {
+            return Promise.resolve('# Copilot Instructions\nUse npm run lint.');
+          }
+          if (path.endsWith('/.github/CONTRIBUTING.md')) {
+            return Promise.resolve('# Contributing\nUse conventional commits.');
+          }
+          if (path.endsWith('/CONTRIBUTING.md')) {
+            return Promise.resolve('# Root Contributing\nLegacy entry point.');
+          }
+          return Promise.reject(new Error('ENOENT'));
+        },
+      };
+
+      const result = await readProjectConventions(mockFileOps, '/project');
+
+      expect(result).toContain('### .github/copilot-instructions.md');
+      expect(result).toContain('### .github/CONTRIBUTING.md');
+      expect(result).toContain('### CONTRIBUTING.md');
+      expect(result.indexOf('.github/copilot-instructions.md')).toBeLessThan(
+        result.indexOf('.github/CONTRIBUTING.md')
+      );
+    });
+
+    test('returns empty string when no authority docs are present', async () => {
+      const mockFileOps = {
+        readFile: () => Promise.reject(new Error('ENOENT')),
+      };
+
+      await expect(readProjectConventions(mockFileOps, '/project')).resolves.toBe('');
     });
   });
 });

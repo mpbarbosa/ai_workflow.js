@@ -4,9 +4,11 @@
  */
 
 import { jest } from '@jest/globals';
+import { readFileSync } from 'node:fs';
 import {
   Step8TestExecutor,
   buildCiRetryCmd,
+  describeCoveragePromptContext,
   getTestCommand,
   getCoverageFiles,
   hasTestScript,
@@ -19,6 +21,7 @@ import {
   hasNoTestsFoundMessage,
   formatTestReport,
 } from '../../src/steps/step_08_test_exec.js';
+import { AI_HELPERS_PATH } from '../../src/lib/ai_prompt_builder.js';
 import { logger } from '../../src/core/logger.js';
 
 describe('Step 8: Test Execution', () => {
@@ -264,6 +267,51 @@ describe('Step 8: Test Execution', () => {
       const result = parseJestCoverage(null);
 
       expect(result.statements).toBe(0);
+    });
+  });
+
+  describe('describeCoveragePromptContext', () => {
+    test('marks coverage unavailable when no tests ran', () => {
+      expect(
+        describeCoveragePromptContext({
+          noTestsFound: true,
+          coverageThreshold: 80,
+        })
+      ).toBe('unavailable — no tests ran, so coverage could not be measured');
+    });
+
+    test('marks coverage unavailable when no artifact exists', () => {
+      expect(
+        describeCoveragePromptContext({
+          coverage: {},
+          coverageJson: null,
+          coverageThreshold: 80,
+        })
+      ).toBe('unavailable — no coverage artifact was found for this run');
+    });
+
+    test('marks aggregate coverage below threshold as inconclusive without file gaps', () => {
+      expect(
+        describeCoveragePromptContext({
+          coverage: { statements: 75, branches: 82, functions: 91, lines: 88 },
+          coverageJson: { total: { statements: { pct: 75 } } },
+          coverageGaps: [],
+          coverageThreshold: 80,
+        })
+      ).toBe(
+        'inconclusive — aggregate coverage is below 80% (statements=75%), but no per-file gaps were provided'
+      );
+    });
+
+    test('reports threshold success only when measured coverage supports it', () => {
+      expect(
+        describeCoveragePromptContext({
+          coverage: { statements: 85, branches: 82, functions: 91, lines: 88 },
+          coverageJson: { total: { statements: { pct: 85 } } },
+          coverageGaps: [],
+          coverageThreshold: 80,
+        })
+      ).toBe('none — measured coverage meets or exceeds the 80% threshold');
     });
   });
 
@@ -597,6 +645,62 @@ describe('Step 8: Test Execution', () => {
       });
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+
+    test('[BUG FIX] AI prompt marks coverage unavailable instead of claiming threshold success when no tests ran', async () => {
+      let capturedPrompt = '';
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: 'No tests found, exiting with code 1',
+          stderr: '',
+        };
+      };
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/package.json') {
+          return JSON.stringify({ scripts: { test: 'jest' } });
+        }
+        if (targetPath === AI_HELPERS_PATH) {
+          return readFileSync(AI_HELPERS_PATH, 'utf8');
+        }
+        throw new Error(`Unexpected readFile path: ${targetPath}`);
+      };
+
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: () => Promise.resolve({ content: 'ok' }),
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withCache: async (prompt) => {
+          capturedPrompt = prompt;
+          return { content: 'ok' };
+        },
+      };
+
+      executor = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper,
+        aiCache,
+      });
+
+      await executor.execute('/project');
+
+      expect(capturedPrompt).toContain(
+        'Coverage Gaps: unavailable — no tests ran, so coverage could not be measured'
+      );
+      expect(capturedPrompt).toContain(
+        'mark the result as unavailable or inconclusive instead of guessing a specific misconfiguration'
+      );
+      expect(capturedPrompt).toContain(
+        'If the runner produced no output, or the prompt only names config/workflow files without'
+      );
+      expect(capturedPrompt).toContain(
+        'do not assert a specific root cause or workflow gap unless the'
+      );
     });
   });
 

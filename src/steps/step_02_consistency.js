@@ -16,10 +16,12 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
   buildConsistencyPrompt,
+  buildFileContentBlock,
   loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
+  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
 
@@ -527,9 +529,10 @@ export const MIN_COVERAGE_RATIO = 0.5;
  * @pure
  * @param {string} aiResponse - Raw AI response text
  * @param {string[]} flaggedItems - The "source:line → target" pairs sent to the AI
+ * @param {{ requireGroundedNoIssueResponse?: boolean }} [options] - Additional validation options
  * @returns {{ adequate: boolean, reason: string, coverage: number }}
  */
-export function validateAiResponseQuality(aiResponse, flaggedItems) {
+export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}) {
   if (!aiResponse || typeof aiResponse !== 'string' || aiResponse.trim().length === 0) {
     return { adequate: false, reason: 'empty_response', coverage: 0 };
   }
@@ -540,6 +543,28 @@ export function validateAiResponseQuality(aiResponse, flaggedItems) {
   }
 
   if (flaggedItems.length === 0) {
+    if (options.requireGroundedNoIssueResponse) {
+      const normalized = aiResponse.toLowerCase();
+      const usesExplicitSafeForm = normalized.includes(
+        'no additional issues found beyond the programmatic scan'
+      );
+      const usesUncertaintyLanguage =
+        normalized.includes('limited or inconclusive') ||
+        normalized.includes('limited') ||
+        normalized.includes('inconclusive') ||
+        normalized.includes('unavailable');
+      const makesBroadSuccessClaim =
+        normalized.includes('all present documentation is consistent') ||
+        normalized.includes('all docs are consistent') ||
+        normalized.includes('all cross-references are intact') ||
+        normalized.includes('no critical or high-priority documentation consistency issues') ||
+        normalized.includes('follows project-specific conventions');
+
+      if (!usesExplicitSafeForm && !usesUncertaintyLanguage && makesBroadSuccessClaim) {
+        return { adequate: false, reason: 'unsupported_global_claim', coverage: 0 };
+      }
+    }
+
     return { adequate: true, reason: 'no_items_to_cover', coverage: 1 };
   }
 
@@ -560,6 +585,71 @@ export function validateAiResponseQuality(aiResponse, flaggedItems) {
   }
 
   return { adequate: true, reason: 'ok', coverage };
+}
+
+/**
+ * Count TypeScript source files for prompt context.
+ * Includes `.ts` and `.tsx` files under `src/`, but excludes declaration files.
+ *
+ * @param {{ glob?: Function }} fileOps - File operations adapter
+ * @param {string} projectRoot - Project root directory
+ * @returns {Promise<string>} Count as a string, or "unknown" if it cannot be determined
+ */
+export async function countTypeScriptSourceFiles(fileOps, projectRoot) {
+  if (!fileOps?.glob || !projectRoot) {
+    return 'unknown';
+  }
+
+  try {
+    const tsFiles = await fileOps.glob('src/**/*.{ts,tsx}', {
+      cwd: projectRoot,
+      ignore: ['src/**/*.d.ts'],
+      absolute: false,
+    });
+    return String(tsFiles.length);
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Build the injected file-content section for a partition prompt.
+ *
+ * @param {{ readFile?: Function }} fileOps - File operations adapter
+ * @param {string} projectRoot - Project root directory
+ * @param {string[]} partFiles - Relative markdown file paths in this partition
+ * @returns {Promise<{ fileContentsSection: string, fileHashEntries: string[] }>}
+ */
+export async function buildPartitionFileContents(fileOps, projectRoot, partFiles) {
+  const fileHashEntries = [];
+  const blocks = [];
+  let totalChars = 0;
+
+  for (const relPath of partFiles) {
+    try {
+      const raw = await fileOps.readFile(`${projectRoot}/${relPath}`);
+      fileHashEntries.push(`${relPath}:${raw}`);
+
+      if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) {
+        continue;
+      }
+
+      totalChars += raw.length;
+      if (totalChars > MAX_CHARS_TOTAL_CONTENTS) {
+        blocks.push(`### \`${relPath}\`\n*(omitted — context budget exhausted)*`);
+        continue;
+      }
+
+      blocks.push(buildFileContentBlock(relPath, raw));
+    } catch {
+      // File unreadable — skip gracefully
+    }
+  }
+
+  return {
+    fileContentsSection: blocks.length > 0 ? blocks.join('\n\n') : '',
+    fileHashEntries,
+  };
 }
 
 // ============================================================================
@@ -674,7 +764,7 @@ export class Step2ConsistencyAnalyzer {
           const pk = buildProjectKindPrompt(
             parsedPk,
             options?.projectKind ?? 'default',
-            'code_reviewer'
+            'documentation_specialist'
           );
           if (pk?.role) roleOverride = pk.role;
         } catch {
@@ -689,18 +779,7 @@ export class Step2ConsistencyAnalyzer {
           `[step_02] Running AI analysis in ${totalParts} partition(s) of ≤${PARTITION_SIZE} files`
         );
 
-        // Count TypeScript source files (excluding .d.ts) for prompt context
-        let tsSourceCount = 'unknown';
-        try {
-          const tsFiles = await this.fileOps.glob('src/**/*.ts', {
-            cwd: projectRoot,
-            ignore: ['src/**/*.d.ts'],
-            absolute: false,
-          });
-          tsSourceCount = String(tsFiles.length);
-        } catch {
-          /* non-fatal — leave as 'unknown' */
-        }
+        const tsSourceCount = await countTypeScriptSourceFiles(this.fileOps, projectRoot);
 
         const aiParts = [];
         for (let i = 0; i < totalParts; i++) {
@@ -711,6 +790,11 @@ export class Step2ConsistencyAnalyzer {
             i,
             totalParts,
             docFiles.length
+          );
+          const { fileContentsSection, fileHashEntries } = await buildPartitionFileContents(
+            this.fileOps,
+            projectRoot,
+            partFiles
           );
 
           let prompt;
@@ -726,6 +810,7 @@ export class Step2ConsistencyAnalyzer {
                 modified_count: `${partFiles.length} (files are batched in groups of ≤${PARTITION_SIZE} to stay within AI context limits)`,
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
+                file_contents: fileContentsSection || '(no readable markdown file contents were available)',
                 directory_tree: directoryTree,
               });
               if (prompt && roleOverride) {
@@ -753,6 +838,7 @@ export class Step2ConsistencyAnalyzer {
                 project_name: projectRoot,
                 description: options.projectDescription || '',
               },
+              fileContents: fileContentsSection,
             });
             if (header) prompt = `${header}\n\n${prompt}`;
             if (archiveContext) prompt = `${prompt}\n\n${archiveContext}`;
@@ -769,16 +855,6 @@ export class Step2ConsistencyAnalyzer {
           // Build file-content hash entries from the actual doc files in this partition.
           // Scanning results (broken refs, version issues) are fully derived from file
           // content, so hashing file content captures all meaningful prompt inputs.
-          const fileHashEntries = await Promise.all(
-            partFiles.map(async (relPath) => {
-              try {
-                const raw = await this.fileOps.readFile(`${projectRoot}/${relPath}`);
-                return `${relPath}:${raw}`;
-              } catch {
-                return `${relPath}:`; // unreadable — include path with empty content
-              }
-            })
-          );
           // Use 'documentation_expert' persona: Step 2 performs documentation consistency
           // analysis (cross-references, version sync, terminology), not code quality review.
           // The YAML prompt template (step2_consistency_prompt) also defines a documentation
@@ -795,7 +871,9 @@ export class Step2ConsistencyAnalyzer {
             brokenRefsList !== 'none'
               ? brokenRefsList.split(', ').filter((s) => s.includes(' → '))
               : [];
-          const quality = validateAiResponseQuality(aiContent, partitionBrokenRefs);
+          const quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
+            requireGroundedNoIssueResponse: true,
+          });
           if (!quality.adequate) {
             logger.warn(
               `[step_02] Partition ${i + 1}: AI response quality low` +

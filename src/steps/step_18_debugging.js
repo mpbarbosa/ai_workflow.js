@@ -273,7 +273,7 @@ export class Step18Debugging {
             const cacheKey = `step_18|${personaKey}|${projectRoot}|${sourceFiles.length}`;
             const aiResult = await this.aiCache.withCache(cacheKey, cacheKey, () =>
               this.aiHelper.executeRequest(debugPrompt, {
-                persona: 'code_quality_analyst',
+                persona: personaKey,
                 model: 'claude-haiku-4.5',
               })
             );

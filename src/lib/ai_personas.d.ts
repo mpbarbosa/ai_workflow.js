@@ -3,7 +3,7 @@
  * @module lib/ai_personas
  * @version 2.0.0
  * @description
- * Defines 16 specialized AI personas for workflow automation.
+ * Defines 17 specialized AI personas for workflow automation.
  * Each persona has specific expertise, tone, and focus areas.
  *
  * Architecture: Pure functions only (persona data is immutable)
@@ -44,7 +44,7 @@ export interface PersonaValidationResult {
  * @returns Array of all personas (deep copies).
  * @example
  * const personas = getAllPersonas();
- * // Returns array of 16 personas
+ * // Returns array of 17 personas
  */
 export declare function getAllPersonas(): Persona[];
 /**
@@ -102,7 +102,7 @@ export declare function validatePersona(persona: unknown): PersonaValidationResu
  * @pure
  * @returns Total persona count.
  * @example
- * const count = getPersonaCount(); // 16
+ * const count = getPersonaCount(); // 17
  */
 export declare function getPersonaCount(): number;
 /**

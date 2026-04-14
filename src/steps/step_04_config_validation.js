@@ -95,6 +95,24 @@ export const MAX_FILE_CONTENT_CHARS = 2000;
  */
 export const MIN_FILE_MENTION_RATIO = 0.3;
 
+/**
+ * Maximum size of a single prompt entry before it is split into labeled parts.
+ * This is intentionally higher than MAX_FILE_CONTENT_CHARS because step 04 now
+ * partitions oversized scope into multiple AI requests instead of truncating
+ * everything into one inconclusive prompt.
+ */
+export const MAX_PROMPT_ENTRY_CHARS = 4000;
+
+/**
+ * Maximum aggregate prompt-entry payload per AI request.
+ */
+export const MAX_PROMPT_PARTITION_CHARS = 9000;
+
+/**
+ * Maximum number of prompt entries per partition.
+ */
+export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
+
 // ============================================================================
 // PURE FUNCTIONS - File Classification
 // ============================================================================
@@ -517,6 +535,262 @@ export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_
 }
 
 /**
+ * Build a compact prompt-safe summary for npm lockfiles so the AI can reason
+ * about consistency without receiving hundreds of kilobytes of generated data.
+ *
+ * @pure
+ * @param {string} content - Raw package-lock.json content
+ * @returns {string} Compact summary text
+ */
+export function buildPackageLockPromptSummary(content) {
+  try {
+    const parsed = JSON.parse(stripJsonComments(content));
+    const packages =
+      parsed && typeof parsed.packages === 'object' && parsed.packages !== null ? parsed.packages : {};
+    const rootPackage =
+      packages[''] && typeof packages[''] === 'object' && packages[''] !== null ? packages[''] : {};
+    const legacyDependencies =
+      parsed && typeof parsed.dependencies === 'object' && parsed.dependencies !== null
+        ? parsed.dependencies
+        : {};
+
+    const collectResolvedVersions = (deps) => {
+      const names = Object.keys(deps ?? {}).sort();
+      return Object.fromEntries(
+        names.map((name) => [
+          name,
+          packages[`node_modules/${name}`]?.version ?? legacyDependencies[name]?.version ?? null,
+        ])
+      );
+    };
+
+    return [
+      '[generated npm lockfile summary]',
+      'Raw lockfile content omitted to keep the prompt analyzable; use the summarized fields below for consistency checks against package.json and CI settings.',
+      JSON.stringify(
+        {
+          lockfileVersion: parsed.lockfileVersion ?? null,
+          packageName: parsed.name ?? rootPackage.name ?? null,
+          packageVersion: parsed.version ?? rootPackage.version ?? null,
+          packageCount: Object.keys(packages).length,
+          rootDependencies: collectResolvedVersions(rootPackage.dependencies),
+          rootDevDependencies: collectResolvedVersions(rootPackage.devDependencies),
+        },
+        null,
+        2
+      ),
+    ].join('\n');
+  } catch {
+    return content;
+  }
+}
+
+/**
+ * Normalize oversized config content before prompt assembly.
+ *
+ * @pure
+ * @param {string} relativePath - Relative config path
+ * @param {string} content - Raw file content
+ * @returns {string} Prompt-safe content
+ */
+export function summarizeConfigContentForPrompt(relativePath, content) {
+  const normalizedPath = String(relativePath ?? '').replace(/\\/g, '/');
+  if (/(^|\/)(package-lock\.json|npm-shrinkwrap\.json)$/.test(normalizedPath)) {
+    return buildPackageLockPromptSummary(content);
+  }
+  return content;
+}
+
+function splitPromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
+  const preparedContent = summarizeConfigContentForPrompt(entry.relativePath, entry.content);
+  if (preparedContent.length <= maxEntryChars) {
+    return [{ relativePath: entry.relativePath, sourcePath: entry.relativePath, content: preparedContent }];
+  }
+
+  const totalParts = Math.ceil(preparedContent.length / maxEntryChars);
+  const parts = [];
+  for (let i = 0; i < totalParts; i++) {
+    const start = i * maxEntryChars;
+    const end = start + maxEntryChars;
+    parts.push({
+      relativePath: `${entry.relativePath} (part ${i + 1}/${totalParts})`,
+      sourcePath: entry.relativePath,
+      content: preparedContent.slice(start, end),
+    });
+  }
+  return parts;
+}
+
+function estimatePromptEntryChars(entry) {
+  return (entry?.relativePath?.length ?? 0) + (entry?.content?.length ?? 0) + 32;
+}
+
+/**
+ * Partition config-file prompt payload into multiple AI-safe batches.
+ *
+ * @pure
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - Raw file entries
+ * @param {number} [maxPartitionChars=MAX_PROMPT_PARTITION_CHARS] - Max total chars per partition
+ * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per prompt entry
+ * @returns {Array<{entries: Array<{relativePath: string, sourcePath: string, content: string}>, scopePaths: string[]}>}
+ */
+export function buildConfigPromptPartitions(
+  fileEntries,
+  maxPartitionChars = MAX_PROMPT_PARTITION_CHARS,
+  maxEntryChars = MAX_PROMPT_ENTRY_CHARS
+) {
+  if (!Array.isArray(fileEntries) || fileEntries.length === 0) return [];
+
+  const promptEntries = fileEntries.flatMap((entry) => splitPromptEntry(entry, maxEntryChars));
+  const partitions = [];
+  let currentEntries = [];
+  let currentChars = 0;
+
+  const flush = () => {
+    if (currentEntries.length === 0) return;
+    partitions.push({
+      entries: currentEntries,
+      scopePaths: [...new Set(currentEntries.map((entry) => entry.sourcePath))],
+    });
+    currentEntries = [];
+    currentChars = 0;
+  };
+
+  for (const entry of promptEntries) {
+    const entryChars = estimatePromptEntryChars(entry);
+    const wouldOverflow =
+      currentEntries.length > 0 &&
+      (currentChars + entryChars > maxPartitionChars ||
+        currentEntries.length >= MAX_PROMPT_ENTRIES_PER_PARTITION);
+
+    if (wouldOverflow) flush();
+
+    currentEntries.push(entry);
+    currentChars += entryChars;
+  }
+
+  flush();
+  return partitions;
+}
+
+/**
+ * Assess whether the AI prompt had complete evidence for every listed config file.
+ *
+ * Evidence is partial when at least one listed file was unreadable (and therefore
+ * absent from the injected File Contents block) or when any injected file content
+ * had to be truncated to fit the prompt budget.
+ *
+ * @pure
+ * @param {string[]} relativeFilePaths - Relative paths that were listed in scope
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - File data actually injected
+ * @param {number} [maxChars=MAX_FILE_CONTENT_CHARS] - Per-file character limit
+ * @returns {{hasPartialEvidence: boolean, truncatedFiles: string[], unavailableFiles: string[]}}
+ */
+export function assessPromptEvidence(
+  relativeFilePaths,
+  fileEntries,
+  maxChars = MAX_FILE_CONTENT_CHARS
+) {
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  const availableFiles = new Set(entries.map((entry) => entry.relativePath));
+  const truncatedFiles = entries
+    .filter((entry) => typeof entry.content === 'string' && entry.content.length > maxChars)
+    .map((entry) => entry.relativePath);
+  const unavailableFiles = (relativeFilePaths ?? []).filter((filePath) => !availableFiles.has(filePath));
+
+  return {
+    hasPartialEvidence: truncatedFiles.length > 0 || unavailableFiles.length > 0,
+    truncatedFiles,
+    unavailableFiles,
+  };
+}
+
+/**
+ * Validate whether an AI response handled truncated or unavailable file evidence safely.
+ *
+ * @pure
+ * @param {string} aiResponse - AI response text
+ * @param {string[]} relativeFilePaths - Relative paths that were listed in scope
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - File data actually injected
+ * @param {number} [maxChars=MAX_FILE_CONTENT_CHARS] - Per-file character limit
+ * @returns {{
+ *   adequate: boolean,
+ *   reason: string,
+ *   hasPartialEvidence: boolean,
+ *   truncatedFiles: string[],
+ *   unavailableFiles: string[]
+ * }}
+ */
+export function validateAiResponseEvidenceHandling(
+  aiResponse,
+  relativeFilePaths,
+  fileEntries,
+  maxChars = MAX_FILE_CONTENT_CHARS
+) {
+  const evidence = assessPromptEvidence(relativeFilePaths, fileEntries, maxChars);
+  if (!evidence.hasPartialEvidence) {
+    return {
+      adequate: true,
+      reason: 'all listed files were available in full',
+      ...evidence,
+    };
+  }
+
+  const response = String(aiResponse ?? '');
+  const acknowledgesPartialEvidence =
+    /\b(inconclusive|unavailable|truncated|partial evidence|visible excerpt|visible excerpts|provided excerpt|content unavailable)\b/i.test(
+      response
+    );
+  const hasUnqualifiedSuccessClaim =
+    /\bAll configuration files validated successfully\b/i.test(response) ||
+    (/\bNo issues detected\b/i.test(response) && !acknowledgesPartialEvidence);
+
+  if (!hasUnqualifiedSuccessClaim) {
+    return {
+      adequate: true,
+      reason: 'partial evidence handled without an unqualified full-success claim',
+      ...evidence,
+    };
+  }
+
+  const details = [];
+  if (evidence.truncatedFiles.length > 0) {
+    details.push(`truncated: ${evidence.truncatedFiles.join(', ')}`);
+  }
+  if (evidence.unavailableFiles.length > 0) {
+    details.push(`unavailable: ${evidence.unavailableFiles.join(', ')}`);
+  }
+
+  return {
+    adequate: false,
+    reason: `AI response claims full validation despite partial evidence (${details.join('; ')})`,
+    ...evidence,
+  };
+}
+
+/**
+ * Rewrite unsafe full-success claims when prompt evidence was partial.
+ *
+ * @pure
+ * @param {string} aiResponse - AI response text
+ * @param {{hasPartialEvidence: boolean}} evidence - Evidence assessment
+ * @returns {string} Response with misleading global-success claims narrowed
+ */
+export function normalizeAiResponseForPartialEvidence(aiResponse, evidence) {
+  const response = String(aiResponse ?? '');
+  if (!evidence?.hasPartialEvidence || response.length === 0) {
+    return response;
+  }
+
+  return response
+    .replace(
+      /\bAll configuration files validated successfully\b/gi,
+      'Configuration validation remains inconclusive for truncated or unavailable file content'
+    )
+    .replace(/\bNo issues detected\b/gi, 'No issues detected in the visible excerpts');
+}
+
+/**
  * Validate that an AI response adequately covers the listed files.
  * Checks that at least MIN_FILE_MENTION_RATIO of the short filenames appear in the response.
  *
@@ -673,63 +947,123 @@ export class Step4ConfigAnalyzer {
             /* skip unreadable files */
           }
         }
-        const filesContentBlock = buildFileContentsBlock(fileEntries);
-
-        let prompt;
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
-        try {
-          prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
-            project_name: path.basename(projectRoot),
-            config_files_list: groupConfigFilesList(relPaths),
-            config_files_content: filesContentBlock,
-            config_count: String(configFiles.length),
-            project_kind: projectKind,
-            tech_stack: techStackSummary,
-          });
-        } catch {
-          /* fallback to generic prompt */
+        const promptPartitions = buildConfigPromptPartitions(fileEntries);
+        const aiSections = [];
+        const alternativeBodies = [];
+
+        if (promptPartitions.length > 1) {
+          logger.info(
+            `[step_04] Running AI analysis in ${promptPartitions.length} partition(s) to avoid prompt truncation`
+          );
         }
-        if (!prompt) {
-          const role = `You are a configuration validation specialist and security expert.`;
-          const task = `Analyze these configuration files for project at "${projectRoot}":
-- Files: ${relPaths.join(', ')}
+
+        for (let i = 0; i < promptPartitions.length; i++) {
+          const partition = promptPartitions[i];
+          const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
+          const partitionFileEntries = partition.entries.map((entry) => ({
+            relativePath: entry.relativePath,
+            content: entry.content,
+          }));
+          const filesContentBlock = buildFileContentsBlock(
+            partitionFileEntries,
+            Number.MAX_SAFE_INTEGER
+          );
+
+          const partitionHeader =
+            promptPartitions.length > 1
+              ? `[Partition ${i + 1} of ${promptPartitions.length} — analyze ONLY the files/slices listed below for this request]`
+              : '';
+          const partitionScopeNote =
+            promptPartitions.length > 1
+              ? `This partition covers ${partition.scopePaths.length} of ${configFiles.length} configuration files in the current run. Entries labeled "(part X/Y)" are deliberate sequential slices created to avoid prompt truncation; analyze only the visible slice(s) in this request.`
+              : 'This request contains the full configuration-file scope for this run.';
+
+          let prompt;
+          try {
+            prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
+              project_name: path.basename(projectRoot),
+              partition_header: partitionHeader,
+              partition_scope_note: partitionScopeNote,
+              partition_config_count: String(partition.scopePaths.length),
+              config_files_list: groupConfigFilesList(partitionDisplayPaths),
+              config_files_content: filesContentBlock,
+              config_count: String(configFiles.length),
+              project_kind: projectKind,
+              tech_stack: techStackSummary,
+            });
+          } catch {
+            /* fallback to generic prompt */
+          }
+          if (!prompt) {
+            const role = `You are a configuration validation specialist and security expert.`;
+            const task = `Analyze these configuration files for project at "${projectRoot}":
+- Partition: ${i + 1}/${promptPartitions.length}
+- Files in this request: ${partitionDisplayPaths.join(', ')}
+- Total config files in run: ${configFiles.length}
 - Syntax errors found: ${syntaxErrors.length}
 - Security findings: ${securityFindings.length}
 - Best practice issues: ${bestPracticeIssues.length}
 - Total issues: ${totalIssues}
 
-${filesContentBlock}`;
-          const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-        }
-        if (options.alternatives) {
-          const n = options.alternatives === true ? 2 : options.alternatives;
-          prompt += buildAlternativesDirective(n);
-        }
-        // Build the file-content strings for the hash guard (same files that feed the prompt).
-        const fileHashEntries = fileEntries.map((e) => `${e.relativePath}:${e.content}`);
-        // Use 'devops_engineer' persona: the configuration_specialist_prompt YAML template
-        // defines a "Senior DevOps Engineer and Configuration Management Expert" role covering
-        // config formats (JSON/YAML/TOML), CI/CD, Docker, IaC, and environment configuration.
-        // 'security_expert' only covers one of the five validation categories (Security Analysis)
-        // and creates a misleading mismatch with the actual broad-scope prompt content.
-        const aiResult = await this.aiCache.withFileChangeGuard('step_04', fileHashEntries, () =>
-          this.aiHelper.executeRequest(prompt, {
-            persona: 'devops_engineer',
-            model: 'claude-haiku-4.5',
-            timeout: 120000,
-          })
-        );
-        const aiContent = aiResult?.content ?? '';
-        parsedAlternatives = options.alternatives
-          ? parseAlternatives(aiContent)
-          : { alternatives: [], recommended: null };
+${partitionScopeNote}
 
-        // Validate response quality: AI must mention at least MIN_FILE_MENTION_RATIO of files
-        const quality = validateAiResponseQuality(aiContent, relPaths);
-        if (!quality.adequate) {
-          logger.warn(`Step 4 AI response quality low: ${quality.reason}`);
+${filesContentBlock}`;
+            const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
+            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
+          }
+          if (options.alternatives) {
+            const n = options.alternatives === true ? 2 : options.alternatives;
+            prompt += buildAlternativesDirective(n);
+          }
+
+          const fileHashEntries = partition.entries.map(
+            (entry) => `${entry.relativePath}:${entry.content}`
+          );
+          const aiResult = await this.aiCache.withFileChangeGuard(
+            `step_04_p${i}`,
+            fileHashEntries,
+            () =>
+              this.aiHelper.executeRequest(prompt, {
+                persona: 'devops_engineer',
+                model: 'claude-haiku-4.5',
+                timeout: 120000,
+              })
+          );
+          let aiContent = aiResult?.content ?? '';
+          let aiValidationNote = '';
+
+          const evidenceQuality = validateAiResponseEvidenceHandling(
+            aiContent,
+            partitionDisplayPaths,
+            partitionFileEntries,
+            Number.MAX_SAFE_INTEGER
+          );
+          if (!evidenceQuality.adequate) {
+            logger.warn(`Step 4 AI evidence handling low: ${evidenceQuality.reason}`);
+            aiContent = normalizeAiResponseForPartialEvidence(aiContent, evidenceQuality);
+            aiValidationNote = `> **Validation note:** ${evidenceQuality.reason}`;
+          }
+
+          const quality = validateAiResponseQuality(aiContent, partition.scopePaths);
+          if (!quality.adequate) {
+            logger.warn(`Step 4 AI response quality low: ${quality.reason}`);
+          }
+
+          const partitionBody = [aiValidationNote, aiContent].filter(Boolean).join('\n\n');
+          if (partitionBody) {
+            aiSections.push(
+              promptPartitions.length > 1
+                ? `### Partition ${i + 1} of ${promptPartitions.length}\n\n${partitionBody}`
+                : partitionBody
+            );
+            alternativeBodies.push(partitionBody);
+          }
         }
+
+        parsedAlternatives = options.alternatives
+          ? parseAlternatives(alternativeBodies.join('\n\n'))
+          : { alternatives: [], recommended: null };
 
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
@@ -756,9 +1090,10 @@ ${filesContentBlock}`;
           /* optional */
         }
 
-        if (aiContent || qualityContent) {
-          const sections = aiContent
-            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
+        if (aiSections.length > 0 || qualityContent) {
+          const aiSection = aiSections.join('\n\n');
+          const sections = aiSection
+            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiSection}`]
             : [report];
           if (qualityContent) sections.push(`\n\n## Quality Review\n\n${qualityContent}`);
           await this.backlog.saveStepSummary(4, 'Configuration Validation', sections.join(''));

@@ -698,10 +698,11 @@ export function buildDocAnalysisPrompt(options) {
 
 **Critical Behavioral Guidelines**:
 - ALWAYS provide concrete, actionable output (never ask clarifying questions)
-- If documentation is accurate, explicitly say "No updates needed - documentation is current"
+- If documentation is accurate, explicitly say "No updates needed - documentation is current" only when the visible file contents support that conclusion
+- If the prompt does not include the actual content or diff for a file in scope, explicitly say the result is unavailable or inconclusive for that file
 - Only update what is truly outdated or incorrect
 - Make informed decisions based on available context
-- Default to "no changes" rather than making unnecessary modifications`;
+- Default to unavailable or inconclusive rather than "no changes" when critical evidence is missing`;
 
   const changedList = buildFileListContext(changedFiles);
   const docList = buildFileListContext(docFiles);
@@ -714,7 +715,7 @@ ${changedList}
 Documentation to review:
 ${docList}
 
-A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". If no edits are needed, state "No updates required" with a one-line reason.`;
+A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required".`;
 
   const approach = `**Methodology**:
 1. **Analyze Changes**: Examine what was modified in each changed file
@@ -724,7 +725,7 @@ A "specific edit" means a concrete before/after text change tied to a file path 
 
 **Output Format**: Use markdown blocks with file paths and before/after examples
 
-**Critical**: ALWAYS provide specific edits OR state "No updates needed"`;
+**Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -741,7 +742,13 @@ A "specific edit" means a concrete before/after text change tied to a file path 
  * @returns {string} Consistency check prompt
  */
 export function buildConsistencyPrompt(options) {
-  const { docDirectory, docFiles = [], scanResults = {}, projectInfo = {} } = options;
+  const {
+    docDirectory,
+    docFiles = [],
+    scanResults = {},
+    projectInfo = {},
+    fileContents = '',
+  } = options;
 
   const role = `You are a senior technical documentation specialist and information architect reviewing the human-readable documentation of a software project. Your expertise covers documentation quality assurance, technical writing standards, and cross-reference validation across project artefacts such as README files, architecture documents, changelogs, and API references.
 
@@ -750,6 +757,8 @@ export function buildConsistencyPrompt(options) {
 - Do NOT fabricate file paths, line numbers, or references not present in the provided context
 - Do NOT invent issues about file content you have not been shown
 - The programmatic scan already covers broken links and version mismatches definitively — do not duplicate those findings
+- Do NOT claim overall consistency against package manifests, scripts, build steps, or source files unless that supporting evidence is explicitly visible in the provided context
+- When supporting evidence is missing, label conclusions as limited or inconclusive rather than inferring compliance
 - Focus exclusively on semantic issues requiring human-readable understanding: terminology inconsistencies, ambiguous cross-references, example inconsistencies
 - If the scan found 0 issues and you have no evidence of semantic problems, say so explicitly rather than inventing issues`;
 
@@ -758,8 +767,14 @@ export function buildConsistencyPrompt(options) {
   const brokenCount = scanResults.brokenLinks?.length ?? 0;
   const versionCount = scanResults.versionIssues?.length ?? 0;
   const totalIssues = scanResults.totalIssues ?? 0;
+  const primaryLanguage = projectInfo.language || projectInfo.primary_language || '';
+  const fileContentsSection = fileContents
+    ? `\n\n**Provided file contents and excerpts**:\n${fileContents}`
+    : '\n\n**Provided file contents and excerpts**:\n(unavailable — if a conclusion requires exact wording, examples, headings, or inline code blocks, mark it unavailable or inconclusive rather than claiming success)';
 
   const task = `Perform a comprehensive documentation consistency analysis for project: ${docDirectory}
+
+${primaryLanguage ? `**Primary language:** ${primaryLanguage}\n` : ''} 
 
 "Consistency" covers: uniform naming conventions, up-to-date examples and version numbers, intact
 cross-references, and style uniformity across all **markdown documentation files** (\`.md\`) —
@@ -768,10 +783,16 @@ Where project-specific conventions are documented (e.g., in \`CONTRIBUTING.md\` 
 \`.github/copilot-instructions.md\`), treat those as the authoritative style reference and let them
 take precedence over generic defaults.
 
-**Documentation types in scope:** root-level \`.md\` files (README, CHANGELOG, CONTRIBUTING, etc.),
-\`docs/\` subdirectory and all its nested subdirs (e.g., \`docs/architecture/\`, \`docs/guides/\`),
-and \`.github/\` metadata including all nested subdirs (e.g., \`.github/ISSUE_TEMPLATE/\`,
-\`.github/workflows/\`). JSDoc source coverage is a separate concern and is NOT part of this step.
+**Documentation types in scope:** the markdown files explicitly listed below, including root-level
+docs (README, CHANGELOG, CONTRIBUTING, etc.), any \`docs/\` subtree entries when present, and any
+\`.github/\` markdown files when present. Do not assume a \`docs/\` directory or specific filenames
+exist unless they appear in the provided file list. JSDoc source coverage is a separate concern and
+is NOT part of this step.
+
+**Evidence limits:** this prompt does not guarantee that raw package manifests, script files,
+or source files are included. Only claim parity with those artefacts when they are explicitly
+shown in the provided context or already established by the programmatic scan. Otherwise mark
+those comparisons as limited or inconclusive.
 
 **Programmatic scan already completed — do not re-derive these results:**
 - Files checked: ${fileCount}
@@ -780,7 +801,7 @@ and \`.github/\` metadata including all nested subdirs (e.g., \`.github/ISSUE_TE
 - Total programmatic issues: ${totalIssues}
 
 **Documentation files found:**
-${fileList}`;
+${fileList}${fileContentsSection}`;
 
   const approach = `**Your task — supplement the programmatic scan with semantic analysis:**
 1. **Terminology Consistency**: Flag terms used interchangeably that should be standardised (e.g. service names, API names, tool versions)
@@ -794,7 +815,7 @@ ${fileList}`;
 - Describe the specific inconsistency without fabricating line numbers
 - Provide a concrete fix
 
-If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan."`;
+If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly. If key evidence is missing for a requested comparison, say so explicitly and mark that conclusion limited or inconclusive.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -950,7 +971,10 @@ export function buildCodeQualityPrompt(options) {
 - ALWAYS provide specific, actionable feedback with code examples
 - Focus on maintainability, readability, and performance
 - Identify bugs, security issues, and design problems
-- Prioritize issues by severity and impact`;
+- Prioritize issues by severity and impact
+- Review only the files and file contents explicitly provided in this prompt
+- If required evidence is missing or truncated, mark the conclusion unavailable or inconclusive instead of claiming success
+- Do not claim repository-wide health, test coverage sufficiency, JSDoc completeness, or process/commit quality unless that evidence is explicitly visible`;
 
   const codeList = buildFileListContext(codeFiles);
 
@@ -976,13 +1000,16 @@ export function buildCodeQualityPrompt(options) {
     if (blocks.length > 0) {
       fileContentsSection = `\n\n# File Contents\n\n${blocks.join('\n\n')}`;
     }
+  } else {
+    fileContentsSection =
+      '\n\n# File Contents\n\n(unavailable — if a conclusion depends on exact source, exports, tests, or docs, mark it unavailable or inconclusive rather than claiming success)';
   }
 
   const task = `Perform comprehensive code quality review for these files:
 ${codeList}${fileContentsSection}`;
 
   const approach = `**Review Methodology**:
-1. **Code Analysis**: Examine structure, patterns, and complexity
+1. **Code Analysis**: Examine only the visible file contents for structure, patterns, and complexity
 2. **Issue Identification**: Find bugs, security issues, TODOs, and design problems
 3. **Best Practices**: Check adherence to language and project standards
 4. **Recommendations**: Provide specific fixes with code examples
@@ -1002,7 +1029,12 @@ ${codeList}${fileContentsSection}`;
 - Design pattern usage and appropriateness
 - Maintainability concerns (naming, complexity, cohesion, coupling)
 - Opportunities for simplification or refactoring
-- Adherence to SOLID principles and language idioms`;
+- Adherence to SOLID principles and language idioms
+
+**Evidence limits**:
+- Do not infer formatter compliance, JSDoc completeness, or test coverage adequacy unless the necessary tooling/configuration or source/test evidence is visible here
+- Do not assess commit-message quality, PR quality, or repository-wide architecture health unless that evidence is explicitly included
+- If the prompt omits exact file contents for a check, report that limitation explicitly and keep the conclusion narrow`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);

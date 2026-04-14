@@ -394,6 +394,8 @@ Confidence: high`;
       expect(prompt).toContain('README.md');
       expect(prompt).toContain('2 files changed');
       expect(prompt).toContain('Pre-Analysis Results');
+      expect(prompt).toContain('CHANGELOG.md [Unreleased]');
+      expect(prompt).toContain('Do not let an artifact-only staged diff under .ai_workflow override');
       expect(prompt).toContain('MAJOR (X.0.0)');
       expect(prompt).toContain('Bump Type:');
     });
