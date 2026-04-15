@@ -42,6 +42,8 @@ npm test
 
 ## Basic Usage
 
+**Performance tip:** importing from `ai-workflow` loads the full public API barrel. For smaller startup and bundle overhead, prefer scoped entry points such as `ai-workflow/core`, `ai-workflow/lib`, `ai-workflow/orchestrator`, and `ai-workflow/steps` when you only need one area of the package.
+
 ### 1. Import Core Modules
 
 ```javascript
