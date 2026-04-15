@@ -1,0 +1,68 @@
+export {
+  validateWorkflowConfig,
+  buildExecutionPlan,
+  shouldExecuteStep,
+  mergeStepResults,
+  calculateWorkflowProgress,
+  validateStepDefinition,
+  createExecutionContext,
+  parseWorkflowFile,
+  serializeWorkflow,
+  WorkflowEngine,
+} from './workflow_engine.js';
+export {
+  createStepDefinition,
+  validateStepMetadata,
+  matchStepRequirements,
+  groupStepsByPhase,
+  filterStepsByTags,
+  filterStepsByEnabled,
+  findStepsByPhase,
+  sortStepsById,
+  validateStepDependencies,
+  StepRegistry,
+} from './step_registry.js';
+export {
+  buildDependencyGraph,
+  topologicalSort,
+  detectCircularDependencies,
+  groupParallelSteps,
+  validateDependencies,
+  canRunInParallel,
+  calculateCriticalPath,
+  DependencyResolver,
+} from './dependency_resolver.js';
+export {
+  validateStepInput,
+  validateStepOutput,
+  calculateTimeout,
+  shouldRetryStep,
+  formatStepResult,
+  isTimedOut,
+  buildErrorMessage,
+  StepExecutor,
+} from './step_executor.js';
+export {
+  shouldSkipStep,
+  adaptStepToProjectKind,
+  calculateChangeImpact,
+  evaluateCondition,
+  buildSkipReason,
+  matchesPattern,
+  filterFilesByPattern,
+  doesChangeAffectStep,
+  calculateStepPriority,
+  ConditionalExecutor,
+} from './conditional_executor.js';
+export {
+  CheckpointManager,
+  createCheckpointData,
+  validateCheckpoint,
+  mergeCheckpointState,
+  calculateCheckpointAge,
+  shouldCleanupCheckpoint,
+  generateCheckpointId,
+  parseCheckpointId,
+  filterCheckpointsByWorkflow,
+  sortCheckpointsByTime,
+} from './checkpoint_manager.js';

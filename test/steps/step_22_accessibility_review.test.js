@@ -4,10 +4,19 @@
  */
 
 import { jest } from '@jest/globals';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import {
+  buildAccessibilityFileContentsBlock,
+  buildAccessibilityPromptPartitions,
+  filterAccessibilityReviewTargets,
   isAccessibleProject,
+  isAccessibilityReviewTarget,
   scoreAccessibilityIssues,
+  splitAccessibilityPromptEntry,
   formatAccessibilityReport,
+  MAX_PROMPT_ENTRY_CHARS,
   STEP_DEFINITION,
   Step22AccessibilityReview,
 } from '../../src/steps/step_22_accessibility_review.js';
@@ -61,6 +70,35 @@ describe('step_22_accessibility_review - Pure Functions', () => {
 
     test('is case-insensitive for extensions', () => {
       expect(isAccessibleProject(['src/Page.HTML'])).toBe(true);
+    });
+  });
+
+  describe('isAccessibilityReviewTarget', () => {
+    test('accepts real UI source files', () => {
+      expect(isAccessibilityReviewTarget('src/index.html')).toBe(true);
+      expect(isAccessibilityReviewTarget('src/App.tsx')).toBe(true);
+      expect(isAccessibilityReviewTarget('src/styles.css')).toBe(true);
+    });
+
+    test('rejects workflow artifacts and generated docs output', () => {
+      expect(isAccessibilityReviewTarget('.ai_workflow/logs/run.html')).toBe(false);
+      expect(isAccessibilityReviewTarget('docs/api/html/classes/AiCache.html')).toBe(false);
+      expect(isAccessibilityReviewTarget('docs/api/html/assets/style.css')).toBe(false);
+    });
+  });
+
+  describe('filterAccessibilityReviewTargets', () => {
+    test('deduplicates and filters unsupported files', () => {
+      expect(
+        filterAccessibilityReviewTargets([
+          'src/index.html',
+          'src/index.html',
+          '.ai_workflow/logs/run.html',
+          'docs/api/html/classes/AiCache.html',
+          'src/App.tsx',
+          'README.md',
+        ])
+      ).toEqual(['src/index.html', 'src/App.tsx']);
     });
   });
 
@@ -154,6 +192,82 @@ describe('step_22_accessibility_review - Pure Functions', () => {
       const file2 = '<img src="b.png">';
       const scores = scoreAccessibilityIssues([file1, file2]);
       expect(scores.missingAltCount).toBe(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Prompt partition helpers
+  // -------------------------------------------------------------------------
+
+  describe('splitAccessibilityPromptEntry', () => {
+    test('keeps small files as a single prompt entry', () => {
+      const entries = splitAccessibilityPromptEntry({
+        relativePath: 'src/App.tsx',
+        content: 'export function App() { return <div />; }\n',
+      });
+
+      expect(entries).toEqual([
+        {
+          relativePath: 'src/App.tsx',
+          sourcePath: 'src/App.tsx',
+          content: 'export function App() { return <div />; }\n',
+        },
+      ]);
+    });
+
+    test('splits oversized files into labeled parts instead of truncating them', () => {
+      const content = Array.from({ length: 1200 }, (_, index) => `line ${index}`).join('\n');
+      const entries = splitAccessibilityPromptEntry(
+        {
+          relativePath: 'src/large.css',
+          content,
+        },
+        1000
+      );
+
+      expect(entries.length).toBeGreaterThan(1);
+      expect(entries[0].relativePath).toBe('src/large.css (part 1/11)');
+      expect(entries.at(-1)?.relativePath).toBe('src/large.css (part 11/11)');
+      expect(entries.map((entry) => entry.content).join('\n')).toBe(content);
+    });
+  });
+
+  describe('buildAccessibilityPromptPartitions', () => {
+    test('partitions source files into multiple prompt-safe batches', () => {
+      const fileEntries = Array.from({ length: 5 }, (_, index) => ({
+        relativePath: `src/file${index}.html`,
+        content: `<div>file ${index}</div>\n`,
+      }));
+
+      const partitions = buildAccessibilityPromptPartitions(
+        fileEntries,
+        10_000,
+        MAX_PROMPT_ENTRY_CHARS
+      );
+
+      expect(partitions).toHaveLength(2);
+      expect(partitions[0].scopePaths).toEqual([
+        'src/file0.html',
+        'src/file1.html',
+        'src/file2.html',
+        'src/file3.html',
+      ]);
+      expect(partitions[1].scopePaths).toEqual(['src/file4.html']);
+    });
+  });
+
+  describe('buildAccessibilityFileContentsBlock', () => {
+    test('renders part labels without a truncation marker', () => {
+      const block = buildAccessibilityFileContentsBlock([
+        {
+          relativePath: 'src/large.css (part 1/2)',
+          sourcePath: 'src/large.css',
+          content: '.button { color: red; }\n',
+        },
+      ]);
+
+      expect(block).toContain('### `src/large.css (part 1/2)`');
+      expect(block).not.toContain('...(truncated — remainder omitted)');
     });
   });
 
@@ -277,11 +391,13 @@ describe('Step22AccessibilityReview - Wrapper', () => {
           'accessibility_review_prompt:\n' +
             '  role_ref: accessibility_expert\n' +
             '  task_template: |\n' +
+            '    {partition_header}\n' +
             '    Project: {project_name}\n' +
             '    Project Summary: {project_summary}\n' +
             '    Framework: {framework}\n' +
             '    Files: {source_file_count}\n' +
             '    Paths: {file_paths}\n' +
+            '    {partition_scope_note}\n' +
             '    **File Contents (sampled source excerpts):**\n' +
             '    {file_content_block}\n' +
             '  approach: "review approach"'
@@ -305,8 +421,7 @@ describe('Step22AccessibilityReview - Wrapper', () => {
 
   const makeAiCache = () => ({
     init: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue(undefined),
+    withCache: jest.fn().mockImplementation(async (_prompt, _context, aiFunction) => aiFunction()),
   });
 
   test('skips gracefully when no HTML/UI files found', async () => {
@@ -335,6 +450,24 @@ describe('Step22AccessibilityReview - Wrapper', () => {
 
     const result = await step.execute('/project');
     expect(result.skipped).toBe(true);
+  });
+
+  test('skips generated docs and workflow artifacts when scanning for accessibility targets', async () => {
+    const fileOps = makeFileOps([
+      'docs/api/html/classes/AiCache.html',
+      'docs/api/html/assets/style.css',
+      '.ai_workflow/logs/rendered.html',
+    ]);
+    const step = new Step22AccessibilityReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper: makeAiHelper(),
+      aiCache: makeAiCache(),
+    });
+
+    const result = await step.execute('/project');
+    expect(result.skipped).toBe(true);
+    expect(result.message).toContain('No HTML/UI files');
   });
 
   test('executes successfully when HTML/UI files are present', async () => {
@@ -418,8 +551,7 @@ describe('Step22AccessibilityReview - Wrapper', () => {
     const aiHelper = makeAiHelper();
     const aiCache = {
       init: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockResolvedValue('cached accessibility report'),
-      set: jest.fn().mockResolvedValue(undefined),
+      withCache: jest.fn().mockResolvedValue('cached accessibility report'),
     };
     const step = new Step22AccessibilityReview({
       fileOps: makeFileOps(),
@@ -445,6 +577,129 @@ describe('Step22AccessibilityReview - Wrapper', () => {
     expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
   });
 
+  test('uses changed HTML/UI files since the last successful workflow execution when git metadata is available', async () => {
+    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step22-success-scope-'));
+    try {
+      await fs.writeFile(
+        path.join(workflowDir, 'commit_history.json'),
+        JSON.stringify(
+          {
+            version: '1.0.0',
+            lastRunCommit: 'aaaaaaa',
+            runs: [
+              {
+                hash: 'aaaaaaa',
+                runId: 'workflow_20260414_225733',
+                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
+              },
+            ],
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const gitOps = {
+        getChangedFilesSince: jest.fn().mockReturnValue([
+          { file: 'src/page.html', status: 'modified' },
+          { file: 'README.md', status: 'modified' },
+        ]),
+        status: jest.fn().mockResolvedValue({
+          staged: [],
+          unstaged: [{ file: 'src/extra.css', status: 'modified' }],
+          untracked: [{ file: 'notes.txt', status: 'untracked' }],
+        }),
+      };
+      const fileOps = makeFileOps(['src/ignored-by-full-scan.html']);
+      const step = new Step22AccessibilityReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper: makeAiHelper(),
+        aiCache: makeAiCache(),
+        gitOps,
+      });
+
+      const result = await step.execute('/project', {
+        workflowDir,
+        workflowRunId: 'workflow_20260415_003447',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(2);
+      expect(gitOps.getChangedFilesSince).toHaveBeenCalledWith('aaaaaaa');
+      expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
+    } finally {
+      await fs.rm(workflowDir, { recursive: true, force: true });
+    }
+  });
+
+  test('skips when no HTML/UI files changed since the last successful workflow execution', async () => {
+    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step22-success-empty-'));
+    try {
+      await fs.writeFile(
+        path.join(workflowDir, 'commit_history.json'),
+        JSON.stringify(
+          {
+            version: '1.0.0',
+            lastRunCommit: 'aaaaaaa',
+            runs: [
+              {
+                hash: 'aaaaaaa',
+                runId: 'workflow_success',
+                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
+              },
+            ],
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const step = new Step22AccessibilityReview({
+        fileOps: makeFileOps(['src/full-scan.html']),
+        backlog: makeBacklog(),
+        aiHelper: makeAiHelper(),
+        aiCache: makeAiCache(),
+        gitOps: {
+          getChangedFilesSince: jest
+            .fn()
+            .mockReturnValue([{ file: 'README.md', status: 'modified' }]),
+          status: jest.fn().mockResolvedValue({ staged: [], unstaged: [], untracked: [] }),
+        },
+      });
+
+      const result = await step.execute('/project', {
+        workflowDir,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.message).toContain('last successful run');
+    } finally {
+      await fs.rm(workflowDir, { recursive: true, force: true });
+    }
+  });
+
+  test('uses modifiedFiles fallback when git metadata is unavailable', async () => {
+    const fileOps = makeFileOps(['src/full-scan.html']);
+    const step = new Step22AccessibilityReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper: makeAiHelper(),
+      aiCache: makeAiCache(),
+    });
+
+    const result = await step.execute('/project', {
+      modifiedFiles: ['README.md', '/project/src/page.html', '/project/src/styles.css'],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.fileCount).toBe(2);
+    expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
+  });
+
   test('prompt includes project name and framework', async () => {
     const aiHelper = makeAiHelper('findings');
     const step = new Step22AccessibilityReview({
@@ -466,7 +721,7 @@ describe('Step22AccessibilityReview - Wrapper', () => {
     expect(promptArg).toContain('vue');
   });
 
-  test('prompt includes file paths up to cap with overflow note', async () => {
+  test('prompt scopes file paths to the current partition request', async () => {
     const files = Array.from({ length: 25 }, (_, i) => `src/page${i}.html`);
     const aiHelper = makeAiHelper('findings');
     const step = new Step22AccessibilityReview({
@@ -480,8 +735,75 @@ describe('Step22AccessibilityReview - Wrapper', () => {
 
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
     expect(promptArg).toContain('src/page0.html');
-    expect(promptArg).toContain('src/page19.html');
-    expect(promptArg).toContain('and 5 more');
+    expect(promptArg).toContain('src/page3.html');
+    expect(promptArg).toContain('25 total (4 covered in this request)');
+    expect(promptArg).not.toContain('src/page24.html');
+  });
+
+  test('prompt lists only the files in the current partition request', async () => {
+    const files = Array.from({ length: 25 }, (_, i) => `src/page${i}.html`);
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step22AccessibilityReview({
+      fileOps: makeFileOps(files, '<button aria-label="Close">X</button>'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    await step.execute('/project');
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(aiHelper.executeRequest.mock.calls.length).toBeGreaterThan(1);
+    expect(promptArg).toContain('[Partition 1 of');
+    expect(promptArg).toContain('src/page0.html');
+    expect(promptArg).toContain('src/page3.html');
+    expect(promptArg).not.toContain('src/page24.html');
+  });
+
+  test('runs multiple AI requests when the source payload needs partitioning', async () => {
+    const files = Array.from({ length: 5 }, (_, i) => `src/page${i}.html`);
+    const aiHelper = {
+      initialize: jest.fn().mockResolvedValue(true),
+      executeRequest: jest
+        .fn()
+        .mockResolvedValueOnce({ content: 'partition one findings' })
+        .mockResolvedValueOnce({ content: 'partition two findings' }),
+    };
+    const step = new Step22AccessibilityReview({
+      fileOps: makeFileOps(files, '<button aria-label="Close">X</button>\n'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    const result = await step.execute('/project');
+
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
+    expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
+      'split across multiple prompt logs to avoid truncated code excerpts'
+    );
+    expect(result.report).toContain('#### Partition 1 of 2');
+    expect(result.report).toContain('partition one findings');
+    expect(result.report).toContain('partition two findings');
+  });
+
+  test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {
+    const largeContent = `${'.button { color: red; }\n'.repeat(350)}.end { color: blue; }\n`;
+    const aiHelper = makeAiHelper('large file findings');
+    const step = new Step22AccessibilityReview({
+      fileOps: makeFileOps(['src/large.css'], largeContent),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    await step.execute('/project');
+
+    const promptArg = aiHelper.executeRequest.mock.calls[0][0];
+    expect(promptArg).toContain('src/large.css (part 1/');
+    expect(promptArg).not.toContain('...(truncated — remainder omitted)');
   });
 
   test('prompt injects file content block once instead of appending a duplicate copy', async () => {

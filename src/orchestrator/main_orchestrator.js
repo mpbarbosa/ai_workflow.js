@@ -30,7 +30,6 @@ import { GitAutomation } from '../lib/git_automation.js';
 import { ProjectKindDetector } from '../lib/project_kind_detection.js';
 import { ProjectKindConfigManager } from '../lib/project_kind_config.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
-import { WorkflowSummary } from '../steps/step_17_summary.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { PerformanceTracker } from '../lib/performance.js';
 import { PerformanceMonitor, DEFAULT_THRESHOLDS } from '../lib/performance_monitoring.js';
@@ -41,37 +40,6 @@ import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
 import { FullChangesOptimizer } from '../lib/full_changes_optimization.js';
 import { MLOptimizer } from '../lib/ml_optimization.js';
 import { CommitHistory, isValidCommitHash } from '../lib/commit_history.js';
-
-// Import all workflow steps
-import { Step0Analyzer } from '../steps/step_00_analyze.js';
-import { Step1DocumentationAnalyzer } from '../steps/step_01_documentation.js';
-import { Step1_5CopilotInstructionsValidator } from '../steps/step_01_5_copilot_instructions.js';
-import { Step2ConsistencyAnalyzer } from '../steps/step_02_consistency.js';
-import { DocumentationOptimizer } from '../steps/step_02_5_doc_optimize.js';
-import { Step3ScriptAnalyzer } from '../steps/step_03_script_refs.js';
-import { Step4ConfigAnalyzer } from '../steps/step_04_config_validation.js';
-import { Step5DirectoryAnalyzer } from '../steps/step_05_directory.js';
-import { Step6TestReviewer } from '../steps/step_06_test_review.js';
-import { Step7TestGenerator } from '../steps/step_07_test_gen.js';
-import { Step8TestExecutor } from '../steps/step_08_test_exec.js';
-import { Step9DependencyValidator } from '../steps/step_09_dependencies.js';
-import { Step0bBootstrapDocs } from '../steps/step_0b_bootstrap_docs.js';
-import { Step10CodeQualityAnalyzer } from '../steps/step_10_code_quality.js';
-import { Step11ContextAnalyzer } from '../steps/step_11_context.js';
-import { Step11_5AwsLbsValidator } from '../steps/step_11_5_aws_lbs_validation.js';
-import { Step11_6AwsServerlessReviewer } from '../steps/step_11_6_aws_serverless_review.js';
-import { Step12GitFinalization } from '../steps/step_12_git_finalization.js';
-import { Step13MarkdownLint } from '../steps/step_13_markdown_lint.js';
-import { Step14PromptEngineer } from '../steps/step_14_prompt_engineer.js';
-import { Step15UxAnalysis } from '../steps/step_15_ux_analysis.js';
-import { Step16VersionUpdate } from '../steps/step_16_version_update.js';
-import { Step0fCommitArtifacts } from '../steps/step_0f_commit_artifacts.js';
-import { Step18Debugging } from '../steps/step_18_debugging.js';
-import { Step19TypescriptReview } from '../steps/step_19_typescript_review.js';
-import { Step20AsyncPerfReview } from '../steps/step_20_async_perf_review.js';
-import { DocConsolidationStep } from '../steps/step_21_doc_consolidation.js';
-import { Step22AccessibilityReview } from '../steps/step_22_accessibility_review.js';
-import { Step23PerfReview } from '../steps/step_23_perf_review.js';
 import { fileURLToPath } from 'url';
 
 // ============================================================================
@@ -90,6 +58,116 @@ export const HEALTH_CHECK_CATEGORIES = Object.freeze({
   DEPENDENCIES: 'dependencies',
   FILESYSTEM: 'filesystem',
 });
+
+const STEP_EXECUTOR_LOADERS = Object.freeze({
+  step_00: () => import('../steps/step_00_analyze.js').then(({ Step0Analyzer }) => Step0Analyzer),
+  step_0b: () =>
+    import('../steps/step_0b_bootstrap_docs.js').then(
+      ({ Step0bBootstrapDocs }) => Step0bBootstrapDocs
+    ),
+  step_01: () =>
+    import('../steps/step_01_documentation.js').then(
+      ({ Step1DocumentationAnalyzer }) => Step1DocumentationAnalyzer
+    ),
+  step_01_5: () =>
+    import('../steps/step_01_5_copilot_instructions.js').then(
+      ({ Step1_5CopilotInstructionsValidator }) => Step1_5CopilotInstructionsValidator
+    ),
+  step_02: () =>
+    import('../steps/step_02_consistency.js').then(
+      ({ Step2ConsistencyAnalyzer }) => Step2ConsistencyAnalyzer
+    ),
+  step_02_5: () =>
+    import('../steps/step_02_5_doc_optimize.js').then(
+      ({ DocumentationOptimizer }) => DocumentationOptimizer
+    ),
+  step_03: () =>
+    import('../steps/step_03_script_refs.js').then(
+      ({ Step3ScriptAnalyzer }) => Step3ScriptAnalyzer
+    ),
+  step_04: () =>
+    import('../steps/step_04_config_validation.js').then(
+      ({ Step4ConfigAnalyzer }) => Step4ConfigAnalyzer
+    ),
+  step_05: () =>
+    import('../steps/step_05_directory.js').then(
+      ({ Step5DirectoryAnalyzer }) => Step5DirectoryAnalyzer
+    ),
+  step_06: () =>
+    import('../steps/step_06_test_review.js').then(({ Step6TestReviewer }) => Step6TestReviewer),
+  step_07: () =>
+    import('../steps/step_07_test_gen.js').then(({ Step7TestGenerator }) => Step7TestGenerator),
+  step_08: () =>
+    import('../steps/step_08_test_exec.js').then(({ Step8TestExecutor }) => Step8TestExecutor),
+  step_09: () =>
+    import('../steps/step_09_dependencies.js').then(
+      ({ Step9DependencyValidator }) => Step9DependencyValidator
+    ),
+  step_10: () =>
+    import('../steps/step_10_code_quality.js').then(
+      ({ Step10CodeQualityAnalyzer }) => Step10CodeQualityAnalyzer
+    ),
+  step_11: () =>
+    import('../steps/step_11_context.js').then(
+      ({ Step11ContextAnalyzer }) => Step11ContextAnalyzer
+    ),
+  step_11_5: () =>
+    import('../steps/step_11_5_aws_lbs_validation.js').then(
+      ({ Step11_5AwsLbsValidator }) => Step11_5AwsLbsValidator
+    ),
+  step_11_6: () =>
+    import('../steps/step_11_6_aws_serverless_review.js').then(
+      ({ Step11_6AwsServerlessReviewer }) => Step11_6AwsServerlessReviewer
+    ),
+  step_12: () =>
+    import('../steps/step_12_git_finalization.js').then(
+      ({ Step12GitFinalization }) => Step12GitFinalization
+    ),
+  step_13: () =>
+    import('../steps/step_13_markdown_lint.js').then(
+      ({ Step13MarkdownLint }) => Step13MarkdownLint
+    ),
+  step_14: () =>
+    import('../steps/step_14_prompt_engineer.js').then(
+      ({ Step14PromptEngineer }) => Step14PromptEngineer
+    ),
+  step_15: () =>
+    import('../steps/step_15_ux_analysis.js').then(({ Step15UxAnalysis }) => Step15UxAnalysis),
+  step_16: () =>
+    import('../steps/step_16_version_update.js').then(
+      ({ Step16VersionUpdate }) => Step16VersionUpdate
+    ),
+  step_17: () =>
+    import('../steps/step_17_summary.js').then(({ WorkflowSummary }) => WorkflowSummary),
+  step_18: () =>
+    import('../steps/step_18_debugging.js').then(({ Step18Debugging }) => Step18Debugging),
+  step_19: () =>
+    import('../steps/step_19_typescript_review.js').then(
+      ({ Step19TypescriptReview }) => Step19TypescriptReview
+    ),
+  step_20: () =>
+    import('../steps/step_20_async_perf_review.js').then(
+      ({ Step20AsyncPerfReview }) => Step20AsyncPerfReview
+    ),
+  step_21: () =>
+    import('../steps/step_21_doc_consolidation.js').then(
+      ({ DocConsolidationStep }) => DocConsolidationStep
+    ),
+  step_22: () =>
+    import('../steps/step_22_accessibility_review.js').then(
+      ({ Step22AccessibilityReview }) => Step22AccessibilityReview
+    ),
+  step_23: () =>
+    import('../steps/step_23_perf_review.js').then(({ Step23PerfReview }) => Step23PerfReview),
+  step_0f: () =>
+    import('../steps/step_0f_commit_artifacts.js').then(
+      ({ Step0fCommitArtifacts }) => Step0fCommitArtifacts
+    ),
+});
+
+function isClassConstructor(value) {
+  return typeof value === 'function' && /^class\s/.test(Function.prototype.toString.call(value));
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Configuration and Planning
@@ -323,7 +401,16 @@ export class MainOrchestrator {
     this.workflowEngine = new WorkflowEngine({
       projectRoot: this.projectRoot,
     });
-    this.summaryGenerator = new WorkflowSummary(this.workflowDir);
+    this.summaryGenerator = {
+      generateSummary: async (options = {}) => {
+        const SummaryGenerator = await this._resolveStepExecutor(
+          'step_17',
+          STEP_EXECUTOR_LOADERS.step_17
+        );
+        const generator = new SummaryGenerator(this.workflowDir);
+        return generator.generateSummary(options);
+      },
+    };
     this.backlogManager = new Backlog(this.configManager); // Pass Config instance, not string
     this.gitOps = new GitAutomation({ repoPath: this.projectRoot });
     this.projectDetection = new ProjectKindDetector(this.projectRoot);
@@ -360,42 +447,42 @@ export class MainOrchestrator {
         id: 'step_00',
         name: 'Pre-Analysis',
         description: 'Analyze git state and project context',
-        class: Step0Analyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_00,
         dependencies: [],
       },
       {
         id: 'step_0b',
         name: 'Bootstrap Documentation',
         description: 'Generate initial documentation',
-        class: Step0bBootstrapDocs,
+        handler: STEP_EXECUTOR_LOADERS.step_0b,
         dependencies: ['step_00'],
       },
       {
         id: 'step_01',
         name: 'Documentation Updates',
         description: 'Validate and update documentation',
-        class: Step1DocumentationAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_01,
         dependencies: ['step_00'],
       },
       {
         id: 'step_01_5',
         name: 'Copilot Instructions Validation',
         description: 'Audit and refresh .github/copilot-instructions.md against live repo facts',
-        class: Step1_5CopilotInstructionsValidator,
+        handler: STEP_EXECUTOR_LOADERS.step_01_5,
         dependencies: ['step_01'],
       },
       {
         id: 'step_02',
         name: 'Consistency Analysis',
         description: 'Check code and documentation consistency',
-        class: Step2ConsistencyAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_02,
         dependencies: ['step_01_5'],
       },
       {
         id: 'step_02_5',
         name: 'Documentation Optimization',
         description: 'Optimize documentation size and quality',
-        class: DocumentationOptimizer,
+        handler: STEP_EXECUTOR_LOADERS.step_02_5,
         dependencies: ['step_02'],
       },
       {
@@ -403,70 +490,70 @@ export class MainOrchestrator {
         name: 'Doc Consolidation',
         description:
           'Find similar markdown docs via Cosine Similarity/TF-IDF and AI-merge them into canonical documents',
-        class: DocConsolidationStep,
+        handler: STEP_EXECUTOR_LOADERS.step_21,
         dependencies: ['step_02_5'],
       },
       {
         id: 'step_03',
         name: 'Script References',
         description: 'Validate script references',
-        class: Step3ScriptAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_03,
         dependencies: ['step_02'],
       },
       {
         id: 'step_04',
         name: 'Configuration Validation',
         description: 'Validate project configuration',
-        class: Step4ConfigAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_04,
         dependencies: ['step_00'],
       },
       {
         id: 'step_05',
         name: 'Directory Structure',
         description: 'Validate directory structure',
-        class: Step5DirectoryAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_05,
         dependencies: ['step_04'],
       },
       {
         id: 'step_06',
         name: 'Test Review',
         description: 'Review existing tests',
-        class: Step6TestReviewer,
+        handler: STEP_EXECUTOR_LOADERS.step_06,
         dependencies: ['step_05'],
       },
       {
         id: 'step_07',
         name: 'Test Generation',
         description: 'Generate new tests',
-        class: Step7TestGenerator,
+        handler: STEP_EXECUTOR_LOADERS.step_07,
         dependencies: ['step_06'],
       },
       {
         id: 'step_08',
         name: 'Test Execution',
         description: 'Execute test suite',
-        class: Step8TestExecutor,
+        handler: STEP_EXECUTOR_LOADERS.step_08,
         dependencies: ['step_07'],
       },
       {
         id: 'step_09',
         name: 'Dependency Analysis',
         description: 'Analyze and validate dependencies',
-        class: Step9DependencyValidator,
+        handler: STEP_EXECUTOR_LOADERS.step_09,
         dependencies: ['step_08'],
       },
       {
         id: 'step_10',
         name: 'Code Quality',
         description: 'Analyze code quality',
-        class: Step10CodeQualityAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_10,
         dependencies: ['step_09'],
       },
       {
         id: 'step_11',
         name: 'Context Management',
         description: 'Manage workflow context',
-        class: Step11ContextAnalyzer,
+        handler: STEP_EXECUTOR_LOADERS.step_11,
         dependencies: ['step_10'],
       },
       {
@@ -474,49 +561,49 @@ export class MainOrchestrator {
         name: 'AWS LBS Validation',
         description:
           'Validate aws_lbs_backend_setup projects: shell scripts, Lambda structure, AWS config',
-        class: Step11_5AwsLbsValidator,
+        handler: STEP_EXECUTOR_LOADERS.step_11_5,
         dependencies: ['step_11'],
       },
       {
         id: 'step_11_6',
         name: 'AWS Serverless AI Review',
         description: 'AI-powered deployment readiness review for aws_lbs_backend_setup projects',
-        class: Step11_6AwsServerlessReviewer,
+        handler: STEP_EXECUTOR_LOADERS.step_11_6,
         dependencies: ['step_11_5'],
       },
       {
         id: 'step_13',
         name: 'Markdown Linting',
         description: 'Lint markdown files',
-        class: Step13MarkdownLint,
+        handler: STEP_EXECUTOR_LOADERS.step_13,
         dependencies: ['step_11'],
       },
       {
         id: 'step_14',
         name: 'Prompt Engineering',
         description: 'Analyze and optimize AI prompts',
-        class: Step14PromptEngineer,
+        handler: STEP_EXECUTOR_LOADERS.step_14,
         dependencies: ['step_13'],
       },
       {
         id: 'step_15',
         name: 'UX Analysis',
         description: 'Analyze UX and accessibility',
-        class: Step15UxAnalysis,
+        handler: STEP_EXECUTOR_LOADERS.step_15,
         dependencies: ['step_14'],
       },
       {
         id: 'step_16',
         name: 'Version Update',
         description: 'Update semantic versions',
-        class: Step16VersionUpdate,
+        handler: STEP_EXECUTOR_LOADERS.step_16,
         dependencies: ['step_15'],
       },
       {
         id: 'step_18',
         name: 'Debugging Analysis',
         description: 'AI-powered debugging analysis (observer, async, data-structure personas)',
-        class: Step18Debugging,
+        handler: STEP_EXECUTOR_LOADERS.step_18,
         dependencies: ['step_16'],
       },
       {
@@ -524,7 +611,7 @@ export class MainOrchestrator {
         name: 'TypeScript Review',
         description:
           'AI-powered TypeScript review using the "Strider" TypeScript Developer persona',
-        class: Step19TypescriptReview,
+        handler: STEP_EXECUTOR_LOADERS.step_19,
         dependencies: ['step_18'],
       },
       {
@@ -532,7 +619,7 @@ export class MainOrchestrator {
         name: 'Async Performance Review',
         description:
           'AI-powered async performance review (overfetching, event loop, memory leaks, promise anti-patterns)',
-        class: Step20AsyncPerfReview,
+        handler: STEP_EXECUTOR_LOADERS.step_20,
         dependencies: ['step_19'],
       },
       {
@@ -540,7 +627,7 @@ export class MainOrchestrator {
         name: 'Accessibility Review',
         description:
           'AI-powered WCAG 2.1 AA/AAA accessibility review (ARIA, keyboard navigation, colour contrast, reduced-motion)',
-        class: Step22AccessibilityReview,
+        handler: STEP_EXECUTOR_LOADERS.step_22,
         dependencies: ['step_21'],
       },
       {
@@ -548,28 +635,28 @@ export class MainOrchestrator {
         name: 'Performance Review',
         description:
           'AI-powered performance review (algorithmic complexity, sync I/O, memory hotspots, missing memoization)',
-        class: Step23PerfReview,
+        handler: STEP_EXECUTOR_LOADERS.step_23,
         dependencies: ['step_22'],
       },
       {
         id: 'step_17',
         name: 'Workflow Summary',
         description: 'Generate workflow summary report',
-        class: WorkflowSummary,
+        handler: STEP_EXECUTOR_LOADERS.step_17,
         dependencies: ['step_20', 'step_23'],
       },
       {
         id: 'step_0f',
         name: 'Commit Artifacts',
         description: 'Commit workflow artifacts generated during the run',
-        class: Step0fCommitArtifacts,
+        handler: STEP_EXECUTOR_LOADERS.step_0f,
         dependencies: ['step_17'],
       },
       {
         id: 'step_12',
         name: 'Git Finalization',
         description: 'Stage, commit and push all modifications',
-        class: Step12GitFinalization,
+        handler: STEP_EXECUTOR_LOADERS.step_12,
         dependencies: ['step_0f'],
         critical: false,
       },
@@ -579,7 +666,7 @@ export class MainOrchestrator {
       this.stepRegistry.register(step.id, {
         name: step.name,
         description: step.description,
-        handler: step.class,
+        handler: step.handler,
         dependencies: step.dependencies,
         required: true,
         critical: step.critical !== undefined ? step.critical : true,
@@ -1011,7 +1098,7 @@ export class MainOrchestrator {
     return async (context) => {
       try {
         // Get executor class
-        const ExecutorClass = stepDef.handler;
+        const ExecutorClass = await this._resolveStepExecutor(stepId, stepDef.handler);
         if (!ExecutorClass) {
           throw new Error(`No executor class found for step: ${stepId}`);
         }
@@ -1147,6 +1234,23 @@ export class MainOrchestrator {
         throw error;
       }
     };
+  }
+
+  async _resolveStepExecutor(stepId, handler) {
+    if (!handler) {
+      return null;
+    }
+
+    if (isClassConstructor(handler)) {
+      return handler;
+    }
+
+    const ExecutorClass = await handler();
+    if (typeof ExecutorClass !== 'function') {
+      throw new Error(`Invalid executor loader for step: ${stepId}`);
+    }
+
+    return ExecutorClass;
   }
 
   /**

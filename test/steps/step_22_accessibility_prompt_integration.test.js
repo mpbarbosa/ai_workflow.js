@@ -21,6 +21,8 @@ describe('accessibility_review_prompt — evidence scoping', () => {
   test('uses generic UI artifact scope instead of hard-coded TypeDoc HTML', () => {
     const template = aiHelpers.accessibility_review_prompt.task_template;
 
+    expect(template).toContain('{partition_header}');
+    expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('provided UI-related artifacts');
     expect(template).toContain('Sampled UI-related source files and/or generated markup/styles');
     expect(template).not.toContain('TypeDoc-generated API documentation (HTML)');
@@ -37,7 +39,9 @@ describe('accessibility_review_prompt — evidence scoping', () => {
     expect(approach).toContain('Missing focus management, focus order, or focus-visible logic');
     expect(approach).toContain('Only raise a missing-label finding when the control itself');
     expect(approach).toContain('Text that appears only in `aria-label`');
-    expect(approach).toContain('includes a `prefers-reduced-motion` guard or a `:focus-visible` rule');
+    expect(approach).toContain(
+      'includes a `prefers-reduced-motion` guard or a `:focus-visible` rule'
+    );
     expect(approach).toContain('No issues detected in the visible excerpts');
   });
 
@@ -50,6 +54,9 @@ describe('accessibility_review_prompt — evidence scoping', () => {
 
   test('rendered prompt preserves excerpt-limited guidance alongside truncated source input', () => {
     const prompt = buildYamlStepPrompt(aiHelpers, 'accessibility_review_prompt', {
+      partition_header: '[Partition 1 of 2 — analyze ONLY this request scope]',
+      partition_scope_note:
+        'This request covers 1 of 2 files in the current accessibility-review run.',
       project_name: 'gitx',
       project_summary: 'TypeScript Ink TUI app',
       framework: 'vanilla',
@@ -67,6 +74,8 @@ describe('accessibility_review_prompt — evidence scoping', () => {
       ].join('\n'),
     });
 
+    expect(prompt).toContain('[Partition 1 of 2');
+    expect(prompt).toContain('This request covers 1 of 2 files');
     expect(prompt).toContain('excerpt-limited evidence');
     expect(prompt).toContain('unavailable or inconclusive');
     expect(prompt).toContain('... [truncated — remainder omitted]');

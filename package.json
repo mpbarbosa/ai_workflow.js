@@ -1,16 +1,21 @@
 {
   "name": "ai-workflow",
-  "version": "2.2.7",
+  "version": "2.2.8",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
   "types": "src/types/public-api.d.ts",
   "exports": {
     ".": "./src/index.js",
+    "./core": "./src/core/index.js",
     "./core/*": "./src/core/*.js",
+    "./utils": "./src/utils/index.js",
     "./utils/*": "./src/utils/*.js",
+    "./lib": "./src/lib/index.js",
     "./lib/*": "./src/lib/*.js",
+    "./orchestrator": "./src/orchestrator/index.js",
     "./orchestrator/*": "./src/orchestrator/*.js",
+    "./steps": "./src/steps/index.js",
     "./steps/*": "./src/steps/*.js",
     "./cli/*": "./src/cli/*.js"
   },

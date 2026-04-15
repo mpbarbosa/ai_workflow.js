@@ -21,7 +21,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { logger } from '../../core/logger.js';
 import { AiHelper } from '../../lib/ai_helpers.js';
-import { discoverLogFiles } from '../../lib/log_parser.js';
+import { discoverLogFilesAsync } from '../../lib/log_parser.js';
 
 // ============================================================================
 // CONSTANTS
@@ -320,7 +320,7 @@ export function buildFixLogPrompt(entries, projectRoot) {
  */
 async function printStreaming(text) {
   const CHUNK_SIZE = 6; // chars per write — gives a smooth print feel
-  const DELAY_MS = 0;   // no artificial delay needed; I/O pressure creates the effect
+  const DELAY_MS = 0; // no artificial delay needed; I/O pressure creates the effect
 
   for (let i = 0; i < text.length; i += CHUNK_SIZE) {
     process.stdout.write(text.slice(i, i + CHUNK_SIZE));
@@ -340,9 +340,8 @@ function printBatchHeader(batchNum, totalBatches, fileCount, estTokens) {
   console.log('');
   console.log(chalk.cyan(bar));
   console.log(
-    chalk.cyan.bold(
-      `  Batch ${batchNum}/${totalBatches}  `) +
-    chalk.gray(`${fileCount} file(s)  ~${estTokens.toLocaleString()} tokens`)
+    chalk.cyan.bold(`  Batch ${batchNum}/${totalBatches}  `) +
+      chalk.gray(`${fileCount} file(s)  ~${estTokens.toLocaleString()} tokens`)
   );
   console.log(chalk.cyan(bar));
   console.log('');
@@ -394,7 +393,7 @@ export async function fixLogIssuesCommand(options = {}) {
 
   // --- Discover log files ---
   const spinner = ora('Discovering log files...').start();
-  const runs = discoverLogFiles(logDir, latestOnly, fs);
+  const runs = await discoverLogFilesAsync(logDir, latestOnly, fs.promises);
 
   if (runs.length === 0) {
     spinner.fail(chalk.yellow(`No workflow log runs found in: ${logDir}`));
@@ -406,15 +405,18 @@ export async function fixLogIssuesCommand(options = {}) {
 
   // --- Load file contents ---
   const loadSpinner = ora('Loading log file contents...').start();
-  const logEntries = [];
-  for (const filePath of allLogFiles) {
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      logEntries.push({ filePath, content });
-    } catch (err) {
-      logger.warn(`Could not read: ${filePath} (${err.message})`);
-    }
-  }
+  const loadedEntries = await Promise.all(
+    allLogFiles.map(async (filePath) => {
+      try {
+        const content = await fs.promises.readFile(filePath, 'utf-8');
+        return { filePath, content };
+      } catch (err) {
+        logger.warn(`Could not read: ${filePath} (${err.message})`);
+        return null;
+      }
+    })
+  );
+  const logEntries = loadedEntries.filter(Boolean);
   loadSpinner.succeed(`Loaded ${logEntries.length} file(s) into context`);
 
   // --- Batch files to fit within the model's token window ---
@@ -426,7 +428,7 @@ export async function fixLogIssuesCommand(options = {}) {
     console.log('');
     console.log(
       chalk.yellow(`⚠  Content split into ${batches.length} batches`) +
-      chalk.gray(` (model: ${model}, limit: ~${tokenLimit.toLocaleString()} tokens)`)
+        chalk.gray(` (model: ${model}, limit: ~${tokenLimit.toLocaleString()} tokens)`)
     );
   }
 
@@ -569,4 +571,3 @@ export default {
   buildFixLogPrompt,
   buildMergePrompt,
 };
-

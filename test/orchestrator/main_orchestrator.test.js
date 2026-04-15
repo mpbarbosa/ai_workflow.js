@@ -357,6 +357,15 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(step1_5.name).toBe('Copilot Instructions Validation');
       expect(step1_5.dependencies).toContain('step_01');
     });
+
+    test('should lazy load built-in step executors', async () => {
+      orchestrator.registerAllSteps();
+
+      const step0 = orchestrator.stepRegistry.get('step_00');
+      const ExecutorClass = await orchestrator._resolveStepExecutor('step_00', step0.handler);
+
+      expect(ExecutorClass.name).toBe('Step0Analyzer');
+    });
   });
 
   describe('Health Checks', () => {

@@ -70,6 +70,17 @@ npm install --save-dev ai-workflow
 - **Git**: >= 2.0.0 (for git automation features)
 - **jq**: >= 1.6 (for JSON processing, optional)
 
+### Performance-sensitive imports
+
+If you do not need the full public API barrel, prefer the narrower package entry points to reduce module startup work:
+
+```javascript
+import { Logger } from 'ai-workflow/core';
+import { Config, FileOperations } from 'ai-workflow/lib';
+import { WorkflowEngine } from 'ai-workflow/orchestrator';
+import { Step0Analyzer } from 'ai-workflow/steps';
+```
+
 ---
 
 ## Current Implementation Status

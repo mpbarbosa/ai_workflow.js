@@ -33,7 +33,7 @@
 **Package Metadata:**
 
 - **Name**: `ai-workflow`
-- **Version**: `2.2.7`
+- **Version**: `2.2.8`
 - **Description**: AI-powered workflow automation for software development projects with GitHub Copilot integration
 - **License**: MIT
 
@@ -53,11 +53,12 @@
 ### Core Architectural Patterns
 
 1. **Layered Architecture**
-   - Core primitives: `src/core/` (5 modules), `src/utils/` (2 modules)
-   - Shared domain logic: `src/lib/` (44 modules)
-   - Workflow orchestration: `src/orchestrator/` (7 modules)
-   - CLI and TUI code: `src/cli/` (27 modules)
-   - Executable workflow steps: `src/steps/` (32 step files)
+   - Core primitives: `src/core/`
+   - Utilities: `src/utils/`
+   - Shared domain logic: `src/lib/`
+   - Workflow orchestration: `src/orchestrator/`
+   - CLI and TUI code: `src/cli/`
+   - Executable workflow steps: `src/steps/`
 
 2. **Referential Transparency**
    - Prefer pure functions for business logic.
@@ -80,19 +81,19 @@
 - **Workflow step files**: 32
 - **CLI commands**: 8
 - **GitHub Actions workflows**: 7
-- **Documentation**: 119 markdown files in `docs/`, plus root docs (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `README.md`, `ROADMAP.md`)
+- **Documentation**: 118 markdown files in `docs/`, plus root docs (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `README.md`, `ROADMAP.md`)
 
 ---
 
 ## Module & Directory Structure
 
-- `src/core/` — Core primitives (5 modules)
-- `src/utils/` — Utilities (2 modules)
-- `src/lib/` — Shared domain logic (44 modules)
-- `src/orchestrator/` — Workflow orchestration (7 modules)
+- `src/core/` — Core primitives (6 modules)
+- `src/utils/` — Utilities (3 modules)
+- `src/lib/` — Shared domain logic (46 modules)
+- `src/orchestrator/` — Workflow orchestration (8 modules)
 - `src/cli/` — CLI and TUI code (27 modules)
 - `src/steps/` — Executable workflow steps (32 files)
-- `docs/` — Documentation (119 markdown files)
+- `docs/` — Documentation (118 markdown files)
 
 ---
 
@@ -197,7 +198,7 @@
 ## Key Documentation References
 
 - Root documentation: `README.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `ROADMAP.md`
-- `docs/`: 119 markdown files with guides, API docs, and references
+- `docs/`: 118 markdown files with guides, API docs, and references
 
 ---
 
@@ -214,7 +215,18 @@
 
 - Unit and integration tests via `jest`
 - Test scripts:
-  - `test`, `test:watch`, `test:coverage`, `test:unit`, `test:integration`, `test:fast`, `test:slow`, `test:ci`, `test:docker`, `test:docker:coverage`, `test:docker:e2e`, `test:e2e`
+  - `test`
+  - `test:watch`
+  - `test:coverage`
+  - `test:unit`
+  - `test:integration`
+  - `test:fast`
+  - `test:slow`
+  - `test:ci`
+  - `test:docker`
+  - `test:docker:coverage`
+  - `test:docker:e2e`
+  - `test:e2e`
 - Linting: `lint`, `lint:fix`, `lint:md`, `lint:md:fix`, `fix:md`
 - Formatting: `format`, `format:check`
 - Validation: `validate`, `validate:exports`, `validate:versions`
@@ -240,11 +252,11 @@ This repository is a JavaScript/Node.js reimplementation of the original shell-b
 
 ## Quick Reference
 
-- **Package**: `ai-workflow` (v2.2.7)
+- **Package**: `ai-workflow` (v2.2.8)
 - **Workflow steps**: 32
 - **CLI commands**: 8
 - **GitHub Actions workflows**: 7
-- **Documentation**: 119 markdown files in `docs/`, plus root docs
+- **Documentation**: 118 markdown files in `docs/`, plus root docs
 
 ---
 

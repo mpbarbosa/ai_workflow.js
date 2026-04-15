@@ -43,6 +43,29 @@ const CONTENT_LENGTH = {
   DETAILED_THRESHOLD: 500, // Threshold for detailed response
 };
 
+// Prompt-log issue signal extraction heuristics
+const ISSUE_SNAPSHOT = {
+  MAX_LINES: 24,
+  EMPTY_MESSAGE: 'No concrete issue signals auto-detected from response text.',
+};
+const ISSUE_SECTION_RE =
+  /^(?:#{1,6}\s*)?(issues?|findings?|problems?|bugs?|fixes?|recommendations?|suggestions?|summary table)\b/i;
+const ISSUE_BULLET_RE = /^([-*+]|\d+\.)\s+/;
+const ISSUE_FINDING_HEADING_RE = /^#{2,6}\s+/;
+const ISSUE_KEYWORD_RE =
+  /\b(issue|bug|error|fail(?:ure|ing)?|broken|missing|incorrect|wrong|mismatch|outdated|stale|invalid|inconsistent|incomplete|unsupported|fix|update|remove|rename|add)\b/i;
+const ISSUE_ACTION_RE = /\b(should|must|needs to|need to|recommend(?:ed|ation)?|consider)\b/i;
+const ISSUE_METADATA_RE =
+  /^([-*+]|\d+\.)\s+\*\*(?:file|files|issue type|severity|impact|optimization example|recommended fix|root cause|status|finding):?\*\*:?/i;
+const ISSUE_PERFORMANCE_RE =
+  /\b(performance|startup|bundle|eager|lazy-?load|re-?export|memory|latency|throughput|sync(?:hronous)? i\/o)\b/i;
+const FILE_REFERENCE_RE = /\b[\w./-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx|md|json|ya?ml)\b/;
+const NO_ISSUES_RE = /\b(no (actionable )?(issues|findings)|nothing to fix|no changes needed)\b/i;
+const SUMMARY_TABLE_HEADER_RE =
+  /^\|\s*file\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
+const SUMMARY_TABLE_ROW_RE = /^\|.+\|.+\|.+\|.+\|?$/;
+const SUMMARY_TABLE_SEPARATOR_RE = /^\|\s*[-:| ]+\|$/;
+
 // Default AI request parameters
 const DEFAULT_REQUEST = {
   MODEL: 'gpt-4.1',
@@ -131,6 +154,113 @@ export function parseAiResponse(rawResponse) {
     confidence: calculateConfidenceScore(content),
     success: true,
   };
+}
+
+/**
+ * Extract concrete, file-specific issue signals from an AI response so prompt
+ * logs carry a normalized summary near the top of the file.
+ *
+ * @param {string} responseContent - Raw AI response text
+ * @returns {string[]} Ordered list of extracted issue-signal lines
+ *
+ * @pure
+ */
+export function extractActionableIssueSignals(responseContent) {
+  const text =
+    typeof responseContent === 'string' ? responseContent : String(responseContent ?? '');
+
+  if (text.trim() === '') return [];
+
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = (line) => {
+    if (!seen.has(line)) {
+      seen.add(line);
+      candidates.push(line);
+    }
+  };
+
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  let inIssueSection = false;
+  let inSummaryTable = false;
+
+  for (const line of lines) {
+    const isHeading = /^#{1,6}\s+\S/.test(line);
+    const isIssueSectionHeading = ISSUE_SECTION_RE.test(line);
+    const isBullet = ISSUE_BULLET_RE.test(line);
+    const isFindingHeading = ISSUE_FINDING_HEADING_RE.test(line);
+    const mentionsIssue = ISSUE_KEYWORD_RE.test(line);
+    const mentionsAction = ISSUE_ACTION_RE.test(line);
+    const mentionsMetadata = ISSUE_METADATA_RE.test(line);
+    const mentionsPerformance = ISSUE_PERFORMANCE_RE.test(line);
+    const mentionsFile = FILE_REFERENCE_RE.test(line);
+
+    if (isIssueSectionHeading) {
+      inIssueSection = true;
+      inSummaryTable = false;
+      continue;
+    }
+
+    if (SUMMARY_TABLE_HEADER_RE.test(line)) {
+      inIssueSection = true;
+      inSummaryTable = true;
+      addCandidate(line);
+      continue;
+    }
+
+    if (inSummaryTable) {
+      if (SUMMARY_TABLE_SEPARATOR_RE.test(line)) {
+        continue;
+      }
+      if (SUMMARY_TABLE_ROW_RE.test(line)) {
+        addCandidate(line);
+        continue;
+      }
+      inSummaryTable = false;
+    }
+
+    if (
+      isFindingHeading &&
+      inIssueSection &&
+      (mentionsIssue || mentionsAction || mentionsPerformance || mentionsFile)
+    ) {
+      addCandidate(line);
+      continue;
+    }
+
+    if (isHeading) {
+      inIssueSection = false;
+      inSummaryTable = false;
+      continue;
+    }
+
+    if (
+      (isBullet &&
+        (inIssueSection ||
+          mentionsIssue ||
+          mentionsAction ||
+          mentionsMetadata ||
+          mentionsPerformance ||
+          mentionsFile)) ||
+      (inIssueSection &&
+        (mentionsIssue ||
+          mentionsAction ||
+          mentionsMetadata ||
+          mentionsPerformance ||
+          mentionsFile))
+    ) {
+      addCandidate(line);
+    }
+  }
+
+  if (candidates.length === 0 && NO_ISSUES_RE.test(text)) {
+    return [];
+  }
+
+  return candidates;
 }
 
 /**
@@ -1063,6 +1193,10 @@ export class AiHelper {
       const persona = options.persona || 'default';
       const filename = `${ts}_${String(this._promptCounter).padStart(4, '0')}_${persona}.md`;
       const filePath = path.join(this.config.promptsDir, filename);
+      const responseContent = response.content || JSON.stringify(response);
+      const issueSignals = extractActionableIssueSignals(responseContent);
+      const snapshotLines = issueSignals.slice(0, ISSUE_SNAPSHOT.MAX_LINES);
+      const omittedSignals = issueSignals.length - snapshotLines.length;
       const content = [
         `# Prompt Log`,
         ``,
@@ -1079,6 +1213,15 @@ export class AiHelper {
           ? [`**Workflow Core Version:** ${this.config.workflowCoreVersion}`]
           : []),
         ``,
+        `## Auto-Extracted Issue Signals`,
+        ``,
+        `**Detected Signals:** ${issueSignals.length}`,
+        ``,
+        `\`\`\`text`,
+        ...(snapshotLines.length > 0 ? snapshotLines : [ISSUE_SNAPSHOT.EMPTY_MESSAGE]),
+        ...(omittedSignals > 0 ? [`... (+${omittedSignals} more signals omitted)`] : []),
+        `\`\`\``,
+        ``,
         `## Prompt`,
         ``,
         `\`\`\``,
@@ -1088,7 +1231,7 @@ export class AiHelper {
         `## Response`,
         ``,
         `\`\`\``,
-        response.content || JSON.stringify(response),
+        responseContent,
         `\`\`\``,
       ].join('\n');
       await fs.writeFile(filePath, content, 'utf8');

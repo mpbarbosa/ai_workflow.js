@@ -22,6 +22,7 @@ import yaml from 'js-yaml';
 import { execFile } from 'child_process';
 import { join, basename } from 'path';
 import { readdirSync, statSync } from 'fs';
+import { readFile as readFileAsync, readdir as readdirAsync, stat as statAsync } from 'fs/promises';
 
 // Constants
 export const SEMVER_PATTERN = /\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?/;
@@ -458,6 +459,50 @@ ${updatesSection}
  * @param {Function} [statFn] - Optional override for statSync
  * @returns {Array<string>} Absolute file paths that contain the version string
  */
+const VERSION_SCAN_SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  '.ai_workflow',
+  '.workflow_core',
+  '.workflow_fspec',
+  '__pycache__',
+]);
+
+const VERSION_SCAN_SKIP_EXTS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.lock',
+  '.min.js',
+  '.min.css',
+]);
+
+function shouldSkipVersionScanDirectory(entry) {
+  return VERSION_SCAN_SKIP_DIRS.has(entry);
+}
+
+function shouldSkipVersionScanFile(entry) {
+  const lower = entry.toLowerCase();
+  const extensionIndex = lower.lastIndexOf('.');
+  const extension = extensionIndex >= 0 ? lower.slice(extensionIndex) : '';
+  return (
+    VERSION_SCAN_SKIP_EXTS.has(extension) || lower.endsWith('.min.js') || lower.endsWith('.min.css')
+  );
+}
+
 export function scanFilesContainingVersion(
   dir,
   version,
@@ -465,36 +510,6 @@ export function scanFilesContainingVersion(
   readdirFn = readdirSync,
   statFn = statSync
 ) {
-  const SKIP_DIRS = new Set([
-    'node_modules',
-    '.git',
-    'dist',
-    'build',
-    'coverage',
-    '.ai_workflow',
-    '.workflow_core',
-    '.workflow_fspec',
-    '__pycache__',
-  ]);
-  const SKIP_EXTS = new Set([
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.gif',
-    '.svg',
-    '.ico',
-    '.woff',
-    '.woff2',
-    '.ttf',
-    '.eot',
-    '.zip',
-    '.tar',
-    '.gz',
-    '.lock',
-    '.min.js',
-    '.min.css',
-  ]);
-
   const results = [];
 
   function walk(current) {
@@ -515,15 +530,11 @@ export function scanFilesContainingVersion(
       }
 
       if (stat.isDirectory()) {
-        if (!SKIP_DIRS.has(entry)) walk(fullPath);
+        if (!shouldSkipVersionScanDirectory(entry)) walk(fullPath);
         continue;
       }
 
-      // Skip binary/undesired extensions
-      const lower = entry.toLowerCase();
-      if (SKIP_EXTS.has(lower.slice(lower.lastIndexOf('.')))) continue;
-      // Skip combined extensions like .min.js
-      if (lower.endsWith('.min.js') || lower.endsWith('.min.css')) continue;
+      if (shouldSkipVersionScanFile(entry)) continue;
 
       let content;
       try {
@@ -538,6 +549,69 @@ export function scanFilesContainingVersion(
   }
 
   walk(dir);
+  return results;
+}
+
+/**
+ * Async variant of scanFilesContainingVersion that avoids blocking the event loop
+ * during project-wide scans.
+ *
+ * @param {string} dir - Absolute directory path to search
+ * @param {string} version - Version string to search for
+ * @param {Function} [readFn] - Optional async read function
+ * @param {Function} [readdirFn] - Optional async directory listing function
+ * @param {Function} [statFn] - Optional async stat function
+ * @returns {Promise<Array<string>>} Absolute file paths that contain the version string
+ */
+export async function scanFilesContainingVersionAsync(
+  dir,
+  version,
+  readFn = (filePath) => readFileAsync(filePath, 'utf-8'),
+  readdirFn = readdirAsync,
+  statFn = statAsync
+) {
+  const results = [];
+
+  async function walk(current) {
+    let entries;
+    try {
+      entries = await readdirFn(current);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = join(current, entry);
+      let stat;
+      try {
+        stat = await statFn(fullPath);
+      } catch {
+        continue;
+      }
+
+      if (stat.isDirectory()) {
+        if (!shouldSkipVersionScanDirectory(entry)) {
+          await walk(fullPath);
+        }
+        continue;
+      }
+
+      if (shouldSkipVersionScanFile(entry)) continue;
+
+      let content;
+      try {
+        content = await readFn(fullPath);
+      } catch {
+        continue;
+      }
+
+      if (typeof content === 'string' && content.includes(version)) {
+        results.push(fullPath);
+      }
+    }
+  }
+
+  await walk(dir);
   return results;
 }
 
@@ -1495,8 +1569,7 @@ export class Step16VersionUpdate {
    */
   async _scanForVersionFiles(version) {
     const root = this.projectRoot;
-    const { readFileSync } = await import('fs');
-    const found = scanFilesContainingVersion(root, version, (p) => readFileSync(p, 'utf-8'));
+    const found = await scanFilesContainingVersionAsync(root, version);
     // Return relative paths
     return found.map((abs) => (abs.startsWith(root + '/') ? abs.slice(root.length + 1) : abs));
   }

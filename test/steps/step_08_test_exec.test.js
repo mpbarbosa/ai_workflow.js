@@ -4,14 +4,16 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   Step8TestExecutor,
   buildCiRetryCmd,
   describeCoveragePromptContext,
+  detectCiConfigPaths,
   detectTestConfigPaths,
+  detectTestTypes,
   getTestCommand,
   getCoverageFiles,
   hasTestScript,
@@ -96,16 +98,53 @@ describe('Step 8: Test Execution', () => {
   });
 
   describe('detectTestConfigPaths', () => {
-    test('includes integration-specific Jest config files when present', () => {
+    test('includes integration-specific Jest config files when present', async () => {
       const projectRoot = mkdtempSync(path.join(tmpdir(), 'step8-config-'));
 
       try {
         writeFileSync(path.join(projectRoot, 'jest.config.json'), '{}');
         writeFileSync(path.join(projectRoot, 'jest.integration.config.json'), '{}');
 
-        expect(detectTestConfigPaths(projectRoot)).toBe(
+        await expect(detectTestConfigPaths(projectRoot)).resolves.toBe(
           'jest.config.json, jest.integration.config.json'
         );
+      } finally {
+        rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('detectTestTypes', () => {
+    test('detects integration and e2e directories asynchronously', async () => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'step8-types-'));
+
+      try {
+        writeFileSync(path.join(projectRoot, 'jest.config.json'), '{}');
+        writeFileSync(path.join(projectRoot, 'playwright.config.js'), '{}');
+        const testDir = path.join(projectRoot, 'test');
+        mkdirSync(path.join(testDir, 'integration'), { recursive: true });
+        mkdirSync(path.join(testDir, 'end-to-end'), { recursive: true });
+
+        await expect(detectTestTypes(projectRoot)).resolves.toBe('unit, e2e, integration');
+      } finally {
+        rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('detectCiConfigPaths', () => {
+    test('returns workflow files discovered asynchronously', async () => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'step8-workflows-'));
+
+      try {
+        const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+        mkdirSync(workflowsDir, { recursive: true });
+        writeFileSync(path.join(workflowsDir, 'ci.yml'), 'name: CI');
+        writeFileSync(path.join(workflowsDir, 'release.yaml'), 'name: Release');
+        writeFileSync(path.join(workflowsDir, 'notes.txt'), 'ignore me');
+
+        const result = await detectCiConfigPaths(projectRoot);
+        expect(result.split(', ').sort()).toEqual(['ci.yml', 'release.yaml']);
       } finally {
         rmSync(projectRoot, { recursive: true, force: true });
       }
@@ -724,9 +763,7 @@ describe('Step 8: Test Execution', () => {
       expect(capturedPrompt).toContain(
         'do not cite unseen directories or patterns such as `test/`, `src/**/__tests__`, or file-naming conventions as evidence'
       );
-      expect(capturedPrompt).toContain(
-        'keep follow-up actions limited to neutral diagnostics'
-      );
+      expect(capturedPrompt).toContain('keep follow-up actions limited to neutral diagnostics');
       expect(capturedPrompt).toContain(
         'If the runner produced no output, or the prompt only names config/workflow files without'
       );
@@ -739,9 +776,7 @@ describe('Step 8: Test Execution', () => {
       expect(capturedPrompt).toContain(
         'explicitly conditional and avoid stating that a step is missing, present, or misconfigured.'
       );
-      expect(capturedPrompt).toContain(
-        'do not mention unseen config keys such'
-      );
+      expect(capturedPrompt).toContain('do not mention unseen config keys such');
       expect(capturedPrompt).toContain(
         'In an inconclusive run, keep next steps diagnostic and evidence-preserving rather than phrasing'
       );
@@ -789,15 +824,13 @@ describe('Step 8: Test Execution', () => {
       expect(capturedPrompt).toContain(
         'runner exited without output; root cause unavailable from captured evidence'
       );
-      expect(capturedPrompt).toContain(
-        'The test runner exited without output'
-      );
-      expect(capturedPrompt).toContain(
-        'root cause unavailable from captured evidence'
-      );
+      expect(capturedPrompt).toContain('The test runner exited without output');
+      expect(capturedPrompt).toContain('root cause unavailable from captured evidence');
       expect(capturedPrompt).not.toContain('possible crash or OOM kill');
       expect(capturedPrompt).not.toContain('runner likely crashed before writing');
-      expect(capturedPrompt).not.toContain('No tests were discovered or executed (runner produced no output');
+      expect(capturedPrompt).not.toContain(
+        'No tests were discovered or executed (runner produced no output'
+      );
     });
   });
 

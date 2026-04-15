@@ -141,7 +141,8 @@ const ISSUE_PATTERNS = [
     pattern: /⚠\s*\[(step_[^\]]+)\]\s*Test runner produced no output/,
     severity: SEVERITY.CRITICAL,
     category: CATEGORY.TEST_FAILURE,
-    extractMessage: (m) => `${m[1]}: Test runner produced no output; root cause unavailable from captured evidence`,
+    extractMessage: (m) =>
+      `${m[1]}: Test runner produced no output; root cause unavailable from captured evidence`,
     extractStep: (m) => m[1],
   },
   // Step completed with issues
@@ -291,21 +292,26 @@ export function extractIssues(logContent) {
  * @returns {string[]} Absolute file paths
  */
 export function collectFilesRecursive(dir, extensions, fs) {
-  let results = [];
+  const results = [];
   let entries;
   try {
-    entries = fs.readdirSync(dir);
+    entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
     return results;
   }
 
   for (const entry of entries) {
-    const fullPath = path.join(dir, entry);
+    const entryName = typeof entry === 'string' ? entry : entry.name;
+    const fullPath = path.join(dir, entryName);
     try {
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        results = results.concat(collectFilesRecursive(fullPath, extensions, fs));
-      } else if (extensions.some((ext) => entry.endsWith(ext))) {
+      const isDirectory =
+        typeof entry !== 'string' && typeof entry.isDirectory === 'function'
+          ? entry.isDirectory()
+          : fs.statSync(fullPath).isDirectory();
+
+      if (isDirectory) {
+        results.push(...collectFilesRecursive(fullPath, extensions, fs));
+      } else if (extensions.some((ext) => entryName.endsWith(ext))) {
         results.push(fullPath);
       }
     } catch {
@@ -317,39 +323,82 @@ export function collectFilesRecursive(dir, extensions, fs) {
 }
 
 /**
+ * Recursively collect files from a directory matching an extension filter using async I/O.
+ * @param {string} dir - Directory to walk
+ * @param {string[]} extensions - Allowed file extensions (e.g. ['.log', '.md'])
+ * @param {{ readdir: Function, stat: Function }} fs - Async filesystem interface
+ * @returns {Promise<string[]>} Absolute file paths
+ */
+export async function collectFilesRecursiveAsync(dir, extensions, fs) {
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const nestedResults = await Promise.all(
+    entries.map(async (entry) => {
+      const entryName = typeof entry === 'string' ? entry : entry.name;
+      const fullPath = path.join(dir, entryName);
+
+      try {
+        const isDirectory =
+          typeof entry !== 'string' && typeof entry.isDirectory === 'function'
+            ? entry.isDirectory()
+            : (await fs.stat(fullPath)).isDirectory();
+
+        if (isDirectory) {
+          return collectFilesRecursiveAsync(fullPath, extensions, fs);
+        }
+
+        return extensions.some((ext) => entryName.endsWith(ext)) ? [fullPath] : [];
+      } catch {
+        return [];
+      }
+    })
+  );
+
+  return nestedResults.flat();
+}
+
+/**
  * Discover log files within a log directory, including prompt logs (prompts/**\/*.md).
  * @pure
  * @param {string} logDir - Path to log directory
  * @param {boolean} latestOnly - Whether to use only the most recent run folder
- * @param {{ readdirSync: Function, statSync: Function, existsSync: Function }} fs - Filesystem interface
+ * @param {{ readdirSync: Function, statSync: Function }} fs - Filesystem interface
  * @returns {Array<{ runDir: string, files: string[] }>} Discovered run directories and their log files
  */
 export function discoverLogFiles(logDir, latestOnly, fs) {
-  if (!fs.existsSync(logDir)) {
-    return [];
-  }
-
   let entries;
   try {
-    entries = fs.readdirSync(logDir);
+    entries = fs.readdirSync(logDir, { withFileTypes: true });
   } catch {
     return [];
   }
 
   // Filter to workflow run directories (workflow_YYYYMMDD_HHMMSS pattern)
   const runDirs = entries
-    .filter((entry) => /^workflow_\d{8}_\d{6}$/.test(entry))
     .map((entry) => ({
-      name: entry,
-      fullPath: path.join(logDir, entry),
+      entry,
+      name: typeof entry === 'string' ? entry : entry.name,
     }))
-    .filter(({ fullPath }) => {
+    .filter(({ name }) => /^workflow_\d{8}_\d{6}$/.test(name))
+    .filter(({ entry, name }) => {
+      const fullPath = path.join(logDir, name);
       try {
-        return fs.statSync(fullPath).isDirectory();
+        return typeof entry !== 'string' && typeof entry.isDirectory === 'function'
+          ? entry.isDirectory()
+          : fs.statSync(fullPath).isDirectory();
       } catch {
         return false;
       }
     })
+    .map(({ name }) => ({
+      name,
+      fullPath: path.join(logDir, name),
+    }))
     .sort((a, b) => b.name.localeCompare(a.name)); // Most recent first
 
   const selected = latestOnly ? runDirs.slice(0, 1) : runDirs;
@@ -359,6 +408,54 @@ export function discoverLogFiles(logDir, latestOnly, fs) {
     const files = collectFilesRecursive(fullPath, ['.log', '.md'], fs);
     return { runDir: path.join(logDir, name), files };
   });
+}
+
+/**
+ * Discover log files within a log directory using async I/O, including prompt logs (prompts/**\/*.md).
+ * @param {string} logDir - Path to log directory
+ * @param {boolean} latestOnly - Whether to use only the most recent run folder
+ * @param {{ readdir: Function, stat: Function }} fs - Async filesystem interface
+ * @returns {Promise<Array<{ runDir: string, files: string[] }>>} Discovered run directories and their log files
+ */
+export async function discoverLogFilesAsync(logDir, latestOnly, fs) {
+  let entries;
+  try {
+    entries = await fs.readdir(logDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const runDirCandidates = await Promise.all(
+    entries.map(async (entry) => {
+      const name = typeof entry === 'string' ? entry : entry.name;
+      if (!/^workflow_\d{8}_\d{6}$/.test(name)) {
+        return null;
+      }
+
+      const fullPath = path.join(logDir, name);
+      try {
+        const isDirectory =
+          typeof entry !== 'string' && typeof entry.isDirectory === 'function'
+            ? entry.isDirectory()
+            : (await fs.stat(fullPath)).isDirectory();
+
+        return isDirectory ? { name, fullPath } : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const runDirs = runDirCandidates.filter(Boolean).sort((a, b) => b.name.localeCompare(a.name)); // Most recent first
+
+  const selected = latestOnly ? runDirs.slice(0, 1) : runDirs;
+
+  return Promise.all(
+    selected.map(async ({ name, fullPath }) => {
+      const files = await collectFilesRecursiveAsync(fullPath, ['.log', '.md'], fs);
+      return { runDir: path.join(logDir, name), files };
+    })
+  );
 }
 
 // ============================================================================
@@ -579,7 +676,9 @@ export default {
   parseLogLine,
   extractIssues,
   collectFilesRecursive,
+  collectFilesRecursiveAsync,
   discoverLogFiles,
+  discoverLogFilesAsync,
   suggestFix,
   filterBySeverity,
   sortIssuesByPriority,

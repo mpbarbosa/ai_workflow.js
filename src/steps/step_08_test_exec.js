@@ -8,7 +8,7 @@
 
 import { STEP_KIND } from './step_contract.js';
 import path from 'path';
-import fs from 'fs';
+import { access, readdir } from 'node:fs/promises';
 import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -77,6 +77,31 @@ export const TEST_RESULT_PATTERNS = {
 // PURE FUNCTIONS - Test Command Detection
 // ============================================================================
 
+async function pathExists(filePath) {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function hasMatchingConfig(projectRoot, candidates) {
+  const results = await Promise.all(
+    candidates.map((candidate) => pathExists(path.join(projectRoot, candidate)))
+  );
+  return results.some(Boolean);
+}
+
+async function findExistingConfigs(projectRoot, candidates) {
+  const matches = await Promise.all(
+    candidates.map(async (candidate) =>
+      (await pathExists(path.join(projectRoot, candidate))) ? candidate : null
+    )
+  );
+  return matches.filter(Boolean);
+}
+
 /**
  * Get test command for a language
  * @pure
@@ -122,11 +147,10 @@ export function extractTestCommand(packageJson) {
 /**
  * Detect which test types (unit, integration, e2e) are present in the project.
  * Inspects test config file names and the test directory for known patterns.
- * @pure
  * @param {string} projectRoot - Project root directory
- * @returns {string} Comma-separated list of detected test types (e.g. "unit, integration")
+ * @returns {Promise<string>} Comma-separated list of detected test types (e.g. "unit, integration")
  */
-export function detectTestTypes(projectRoot) {
+export async function detectTestTypes(projectRoot) {
   const types = [];
   try {
     const unitIndicators = [
@@ -162,15 +186,20 @@ export function detectTestTypes(projectRoot) {
       'wdio.conf.js',
     ];
 
-    if (unitIndicators.some((f) => fs.existsSync(path.join(projectRoot, f)))) types.push('unit');
-    if (integrationIndicators.some((f) => fs.existsSync(path.join(projectRoot, f))))
-      types.push('integration');
-    if (e2eIndicators.some((f) => fs.existsSync(path.join(projectRoot, f)))) types.push('e2e');
+    const [hasUnit, hasIntegration, hasE2e] = await Promise.all([
+      hasMatchingConfig(projectRoot, unitIndicators),
+      hasMatchingConfig(projectRoot, integrationIndicators),
+      hasMatchingConfig(projectRoot, e2eIndicators),
+    ]);
+
+    if (hasUnit) types.push('unit');
+    if (hasIntegration) types.push('integration');
+    if (hasE2e) types.push('e2e');
 
     // Also check for e2e or integration directories under test/
     const testDir = path.join(projectRoot, 'test');
-    if (fs.existsSync(testDir)) {
-      const entries = fs.readdirSync(testDir);
+    const entries = await readdir(testDir).catch(() => null);
+    if (entries) {
       if (!types.includes('integration') && entries.some((e) => /integrat/i.test(e)))
         types.push('integration');
       if (!types.includes('e2e') && entries.some((e) => /e2e|end.to.end/i.test(e)))
@@ -184,17 +213,15 @@ export function detectTestTypes(projectRoot) {
 
 /**
  * Detect CI/CD workflow config file paths under .github/workflows/.
- * @pure
  * @param {string} projectRoot - Project root directory
- * @returns {string} Comma-separated list of workflow filenames, or 'none found'
+ * @returns {Promise<string>} Comma-separated list of workflow filenames, or 'none found'
  */
-export function detectCiConfigPaths(projectRoot) {
+export async function detectCiConfigPaths(projectRoot) {
   const workflowsDir = path.join(projectRoot, '.github', 'workflows');
   try {
-    if (!fs.existsSync(workflowsDir)) return 'none found';
-    const files = fs
-      .readdirSync(workflowsDir)
-      .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+    const files = (await readdir(workflowsDir)).filter(
+      (f) => f.endsWith('.yml') || f.endsWith('.yaml')
+    );
     return files.length > 0 ? files.join(', ') : 'none found';
   } catch {
     return 'none found';
@@ -204,11 +231,10 @@ export function detectCiConfigPaths(projectRoot) {
 /**
  * Detect test runner config files in the project root.
  * Covers Jest, Vitest, Mocha, Jasmine, Karma, and Playwright.
- * @pure
  * @param {string} projectRoot - Project root directory
- * @returns {string} Comma-separated list of found config filenames, or 'none found'
+ * @returns {Promise<string>} Comma-separated list of found config filenames, or 'none found'
  */
-export function detectTestConfigPaths(projectRoot) {
+export async function detectTestConfigPaths(projectRoot) {
   const candidates = [
     'jest.config.js',
     'jest.config.ts',
@@ -248,7 +274,7 @@ export function detectTestConfigPaths(projectRoot) {
     'playwright.config.ts',
   ];
   try {
-    const found = candidates.filter((f) => fs.existsSync(path.join(projectRoot, f)));
+    const found = await findExistingConfigs(projectRoot, candidates);
     return found.length > 0 ? found.join(', ') : 'none found';
   } catch {
     return 'none found';
@@ -815,6 +841,11 @@ export class Step8TestExecutor {
           coverageGaps,
           coverageThreshold,
         });
+        const [testConfigPaths, testTypes, ciConfigPaths] = await Promise.all([
+          detectTestConfigPaths(projectRoot),
+          detectTestTypes(projectRoot),
+          detectCiConfigPaths(projectRoot),
+        ]);
 
         let prompt;
         try {
@@ -829,8 +860,8 @@ export class Step8TestExecutor {
               (await this._readTestFrameworkFromConfig(projectRoot)) ||
               language,
             test_command: testCommand,
-            test_config_paths: detectTestConfigPaths(projectRoot),
-            test_types: detectTestTypes(projectRoot),
+            test_config_paths: testConfigPaths,
+            test_types: testTypes,
             test_exit_code: noTestsFound
               ? silentRunnerExit
                 ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as non-blocking rather than as a confirmed test failure)`
@@ -841,7 +872,7 @@ export class Step8TestExecutor {
             tests_failed: String(testResults.failed ?? 0),
             tests_skipped: String(testResults.skipped ?? 0),
             project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
-            ci_config_paths: detectCiConfigPaths(projectRoot),
+            ci_config_paths: ciConfigPaths,
             execution_summary: noTestsFound
               ? silentRunnerExit
                 ? `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence`

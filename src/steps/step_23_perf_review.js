@@ -25,14 +25,21 @@ import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { CommitHistory } from '../lib/commit_history.js';
 import {
-  loadResolvedAiHelpers,
-  buildYamlStepPrompt,
-} from '../lib/ai_prompt_builder.js';
+  DEFAULT_MAX_PROMPT_ENTRY_CHARS,
+  DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION,
+  DEFAULT_MAX_PROMPT_PARTITION_CHARS,
+  buildPromptFileContentsBlock,
+  buildPromptPartitions,
+  filterReviewTargets,
+  loadReadableReviewFiles,
+  splitPromptEntry,
+} from '../lib/review_prompt_scope.js';
+import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
 
 const MAX_FILE_PATHS_IN_CONTEXT = 20;
-export const MAX_PROMPT_ENTRY_CHARS = 4_000;
-export const MAX_PROMPT_PARTITION_CHARS = 9_000;
-export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
+export const MAX_PROMPT_ENTRY_CHARS = DEFAULT_MAX_PROMPT_ENTRY_CHARS;
+export const MAX_PROMPT_PARTITION_CHARS = DEFAULT_MAX_PROMPT_PARTITION_CHARS;
+export const MAX_PROMPT_ENTRIES_PER_PARTITION = DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -73,16 +80,7 @@ export function isPerformanceReviewTarget(filePath) {
  * @returns {string[]}
  */
 export function filterPerformanceReviewTargets(files) {
-  const seen = new Set();
-
-  return (Array.isArray(files) ? files : []).filter((filePath) => {
-    const normalized = String(filePath ?? '').replace(/\\/g, '/');
-    if (!isPerformanceReviewTarget(normalized) || seen.has(normalized)) {
-      return false;
-    }
-    seen.add(normalized);
-    return true;
-  });
+  return filterReviewTargets(files, isPerformanceReviewTarget);
 }
 
 /**
@@ -149,36 +147,7 @@ export function scorePerfIssues(fileContents) {
  * @returns {Array<{relativePath: string, sourcePath: string, content: string}>}
  */
 export function splitPerformancePromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
-  const sourcePath = entry?.relativePath ?? '';
-  const content = entry?.content ?? '';
-
-  if (content.length <= maxEntryChars) {
-    return [{ relativePath: sourcePath, sourcePath, content }];
-  }
-
-  const parts = [];
-  let start = 0;
-  while (start < content.length) {
-    let end = Math.min(start + maxEntryChars, content.length);
-    if (end < content.length) {
-      const cutAt = content.lastIndexOf('\n', end);
-      if (cutAt > start) end = cutAt;
-    }
-    if (end <= start) end = Math.min(start + maxEntryChars, content.length);
-    parts.push(content.slice(start, end));
-    start = end;
-    if (content[start] === '\n') start += 1;
-  }
-
-  return parts.map((partContent, index) => ({
-    relativePath: `${sourcePath} (part ${index + 1}/${parts.length})`,
-    sourcePath,
-    content: partContent,
-  }));
-}
-
-function estimatePromptEntryChars(entry) {
-  return (entry?.relativePath?.length ?? 0) + (entry?.content?.length ?? 0) + 32;
+  return splitPromptEntry(entry, maxEntryChars);
 }
 
 /**
@@ -194,40 +163,11 @@ export function buildPerformancePromptPartitions(
   maxPartitionChars = MAX_PROMPT_PARTITION_CHARS,
   maxEntryChars = MAX_PROMPT_ENTRY_CHARS
 ) {
-  if (!Array.isArray(fileEntries) || fileEntries.length === 0) return [];
-
-  const promptEntries = fileEntries.flatMap((entry) =>
-    splitPerformancePromptEntry(entry, maxEntryChars)
-  );
-  const partitions = [];
-  let currentEntries = [];
-  let currentChars = 0;
-
-  const flush = () => {
-    if (currentEntries.length === 0) return;
-    partitions.push({
-      entries: currentEntries,
-      scopePaths: [...new Set(currentEntries.map((entry) => entry.sourcePath))],
-    });
-    currentEntries = [];
-    currentChars = 0;
-  };
-
-  for (const entry of promptEntries) {
-    const entryChars = estimatePromptEntryChars(entry);
-    const wouldOverflow =
-      currentEntries.length > 0 &&
-      (currentChars + entryChars > maxPartitionChars ||
-        currentEntries.length >= MAX_PROMPT_ENTRIES_PER_PARTITION);
-
-    if (wouldOverflow) flush();
-
-    currentEntries.push(entry);
-    currentChars += entryChars;
-  }
-
-  flush();
-  return partitions;
+  return buildPromptPartitions(fileEntries, {
+    maxPartitionChars,
+    maxEntryChars,
+    maxEntriesPerPartition: MAX_PROMPT_ENTRIES_PER_PARTITION,
+  });
 }
 
 /**
@@ -237,14 +177,7 @@ export function buildPerformancePromptPartitions(
  * @returns {string} Markdown file-content block
  */
 export function buildPerformanceFileContentsBlock(entries) {
-  if (!Array.isArray(entries) || entries.length === 0) return '';
-
-  return entries
-    .map(({ relativePath, sourcePath, content }) => {
-      const ext = (sourcePath || relativePath).split('.').pop() ?? '';
-      return `### \`${relativePath}\`\n\`\`\`${ext}\n${content}\n\`\`\``;
-    })
-    .join('\n\n');
+  return buildPromptFileContentsBlock(entries);
 }
 
 /**
@@ -416,14 +349,18 @@ export class Step23PerfReview {
             exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
           });
           relativeFiles = filterPerformanceReviewTargets(
-            allFiles.map((file) => (path.isAbsolute(file) ? path.relative(projectRoot, file) : file))
+            allFiles.map((file) =>
+              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+            )
           );
         }
       }
 
       if (!isPerformanceSensitiveProject(relativeFiles)) {
         if (analysisMode === 'since-last-successful-run') {
-          logger.info('Step 23: No JavaScript/TypeScript files changed since last successful run — skipping');
+          logger.info(
+            'Step 23: No JavaScript/TypeScript files changed since last successful run — skipping'
+          );
           return {
             success: true,
             skipped: true,
@@ -443,19 +380,11 @@ export class Step23PerfReview {
         logger.info(`Step 23: Analyzing ${relativeFiles.length} JS/TS files`);
       }
 
-      const fileContents = [];
-      const fileEntries = [];
-
-      for (const relFile of relativeFiles) {
-        try {
-          const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
-          const content = await this.fileOps.readFile(absPath);
-          fileContents.push(content);
-          fileEntries.push({ relativePath: relFile, content });
-        } catch {
-          // Skip unreadable files silently
-        }
-      }
+      const { fileContents, fileEntries } = await loadReadableReviewFiles(
+        this.fileOps,
+        projectRoot,
+        relativeFiles
+      );
 
       const scores = scorePerfIssues(fileContents);
       logger.info(
@@ -523,9 +452,11 @@ export class Step23PerfReview {
                   ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
                   : String(relativeFiles.length),
               file_paths:
-                filePathsContext || '      - (no readable JavaScript/TypeScript files were available)',
+                filePathsContext ||
+                '      - (no readable JavaScript/TypeScript files were available)',
               file_content_block:
-                fileContentBlock || '_No readable file excerpts were available in the current context window._',
+                fileContentBlock ||
+                '_No readable file excerpts were available in the current context window._',
             });
 
             if (!prompt) continue;

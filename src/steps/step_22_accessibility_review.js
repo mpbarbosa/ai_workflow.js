@@ -22,15 +22,33 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import { CommitHistory } from '../lib/commit_history.js';
 import {
-  loadResolvedAiHelpers,
-  buildYamlStepPrompt,
-  buildFileContentBlock,
-  MAX_CHARS_PER_FILE,
-  MAX_CHARS_TOTAL_CONTENTS,
-} from '../lib/ai_prompt_builder.js';
+  DEFAULT_MAX_PROMPT_ENTRY_CHARS,
+  DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION,
+  DEFAULT_MAX_PROMPT_PARTITION_CHARS,
+  buildPromptFileContentsBlock,
+  buildPromptPartitions,
+  filterReviewTargets,
+  loadReadableReviewFiles,
+  splitPromptEntry,
+} from '../lib/review_prompt_scope.js';
+import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
 
 const MAX_FILE_PATHS_IN_CONTEXT = 20;
+export const MAX_PROMPT_ENTRY_CHARS = DEFAULT_MAX_PROMPT_ENTRY_CHARS;
+export const MAX_PROMPT_PARTITION_CHARS = DEFAULT_MAX_PROMPT_PARTITION_CHARS;
+export const MAX_PROMPT_ENTRIES_PER_PARTITION = DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION;
+
+const GENERATED_ACCESSIBILITY_PATH_PREFIXES = [
+  '.ai_workflow/',
+  'docs/api/html/',
+  'api-generated/',
+  'typedoc/',
+  'api-docs/',
+  'jsdoc/',
+  'lcov-report/',
+];
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -48,6 +66,31 @@ const MAX_FILE_PATHS_IN_CONTEXT = 20;
  */
 export function isAccessibleProject(files) {
   return files.some((f) => /\.(html?|vue|[jt]sx|css)$/i.test(f));
+}
+
+/**
+ * Determine whether a file path is a valid step_22 accessibility-review target.
+ *
+ * @param {string} filePath - Relative or absolute file path
+ * @returns {boolean}
+ */
+export function isAccessibilityReviewTarget(filePath) {
+  const normalized = String(filePath ?? '').replace(/\\/g, '/');
+
+  return (
+    /\.(html?|vue|[jt]sx|css)$/i.test(normalized) &&
+    !GENERATED_ACCESSIBILITY_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+  );
+}
+
+/**
+ * Filter and deduplicate a list of file paths down to step_22 review targets.
+ *
+ * @param {string[]} files - File paths to normalize
+ * @returns {string[]}
+ */
+export function filterAccessibilityReviewTargets(files) {
+  return filterReviewTargets(files, isAccessibilityReviewTarget);
 }
 
 /**
@@ -102,6 +145,52 @@ export function scoreAccessibilityIssues(fileContents) {
     missingReducedMotionCount,
     totalIssues: missingAltCount + keyboardTrapRisk + missingAriaCount + missingReducedMotionCount,
   };
+}
+
+/**
+ * Split a single accessibility-review source file into prompt-safe entries
+ * without dropping content.
+ *
+ * Oversized files are sliced into labeled `(part X/Y)` segments so the AI sees
+ * the complete file across multiple prompt logs instead of a single truncated
+ * excerpt.
+ *
+ * @param {{relativePath: string, content: string}} entry - Source file entry
+ * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per entry
+ * @returns {Array<{relativePath: string, sourcePath: string, content: string}>}
+ */
+export function splitAccessibilityPromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
+  return splitPromptEntry(entry, maxEntryChars);
+}
+
+/**
+ * Partition the accessibility-review source payload into prompt-safe batches.
+ *
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - Raw file entries
+ * @param {number} [maxPartitionChars=MAX_PROMPT_PARTITION_CHARS] - Max chars per prompt batch
+ * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per prompt entry
+ * @returns {Array<{entries: Array<{relativePath: string, sourcePath: string, content: string}>, scopePaths: string[]}>}
+ */
+export function buildAccessibilityPromptPartitions(
+  fileEntries,
+  maxPartitionChars = MAX_PROMPT_PARTITION_CHARS,
+  maxEntryChars = MAX_PROMPT_ENTRY_CHARS
+) {
+  return buildPromptPartitions(fileEntries, {
+    maxPartitionChars,
+    maxEntryChars,
+    maxEntriesPerPartition: MAX_PROMPT_ENTRIES_PER_PARTITION,
+  });
+}
+
+/**
+ * Build a markdown block for the current accessibility-review prompt partition.
+ *
+ * @param {Array<{relativePath: string, sourcePath: string, content: string}>} entries - Prompt entries
+ * @returns {string} Markdown file-content block
+ */
+export function buildAccessibilityFileContentsBlock(entries) {
+  return buildPromptFileContentsBlock(entries);
 }
 
 /**
@@ -170,6 +259,60 @@ export class Step22AccessibilityReview {
     this.backlog = options.backlog || new Backlog();
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir ?? null });
     this.aiCache = options.aiCache || new AiCache();
+    this.gitOps = options.gitOps || null;
+  }
+
+  _getLastSuccessfulRunCommit(workflowDir) {
+    const commitHistory = new CommitHistory({ workflowDir });
+    return commitHistory.getLastRunCommit();
+  }
+
+  async _getFilesSinceLastSuccessfulRun(projectRoot, options = {}) {
+    if (
+      !this.gitOps ||
+      typeof this.gitOps.getChangedFilesSince !== 'function' ||
+      typeof this.gitOps.status !== 'function'
+    ) {
+      return { available: false, files: [] };
+    }
+
+    const rawWorkflowDir = options.workflowDir || '.ai_workflow';
+    const workflowDir = path.isAbsolute(rawWorkflowDir)
+      ? rawWorkflowDir
+      : path.join(projectRoot, rawWorkflowDir);
+    const baselineHash = this._getLastSuccessfulRunCommit(workflowDir);
+
+    if (!baselineHash) {
+      return { available: false, files: [] };
+    }
+
+    let committedChangedFiles;
+    try {
+      committedChangedFiles = this.gitOps
+        .getChangedFilesSince(baselineHash)
+        .filter((file) => file.status !== 'deleted' && !file.file?.startsWith('.ai_workflow/'));
+    } catch {
+      return { available: false, files: [] };
+    }
+
+    const status = await this.gitOps.status();
+    const uncommittedFiles = [
+      ...(status.staged || []),
+      ...(status.unstaged || []),
+      ...(status.untracked || []),
+    ].filter((file) => file.status !== 'deleted');
+
+    const seenPaths = new Set(committedChangedFiles.map((file) => file.file));
+    const mergedFiles = [
+      ...committedChangedFiles,
+      ...uncommittedFiles.filter((file) => !seenPaths.has(file.file)),
+    ];
+
+    return {
+      available: true,
+      files: filterAccessibilityReviewTargets(mergedFiles.map((file) => file.file || file)),
+      baselineHash,
+    };
   }
 
   /**
@@ -187,43 +330,72 @@ export class Step22AccessibilityReview {
     logger.step('Step 22: Accessibility Review');
 
     try {
-      const allFiles =
-        options.sourceFiles ??
-        (await this.fileOps.listDirectoryRecursive(projectRoot, {
-          extensions: ['.html', '.htm', '.vue', '.jsx', '.tsx', '.css'],
-          exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
-        }));
+      let analysisMode = 'full-scan';
+      let baselineHash = null;
+      let relativeFiles;
 
-      const relativeFiles = allFiles.map((f) =>
-        path.isAbsolute(f) ? path.relative(projectRoot, f) : f
-      );
+      if (Array.isArray(options.sourceFiles)) {
+        analysisMode = 'override';
+        relativeFiles = filterAccessibilityReviewTargets(
+          options.sourceFiles.map((file) =>
+            path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+          )
+        );
+      } else {
+        const successfulScope = await this._getFilesSinceLastSuccessfulRun(projectRoot, options);
+
+        if (successfulScope.available) {
+          analysisMode = 'since-last-successful-run';
+          baselineHash = successfulScope.baselineHash;
+          relativeFiles = successfulScope.files;
+        } else if (Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 0) {
+          analysisMode = 'modified-files';
+          relativeFiles = filterAccessibilityReviewTargets(
+            options.modifiedFiles.map((file) =>
+              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+            )
+          );
+        } else {
+          const allFiles = await this.fileOps.listDirectoryRecursive(projectRoot, {
+            extensions: ['.html', '.htm', '.vue', '.jsx', '.tsx', '.css'],
+            exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
+          });
+
+          relativeFiles = filterAccessibilityReviewTargets(
+            allFiles.map((file) =>
+              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+            )
+          );
+        }
+      }
 
       if (!isAccessibleProject(relativeFiles)) {
+        if (analysisMode === 'since-last-successful-run') {
+          logger.info('Step 22: No HTML/UI files changed since last successful run — skipping');
+          return {
+            success: true,
+            skipped: true,
+            message: 'No HTML/UI files changed since last successful run',
+          };
+        }
+
         logger.info('Step 22: No HTML/UI files found — skipping');
         return { success: true, skipped: true, message: 'No HTML/UI files found' };
       }
 
-      logger.info(`Step 22: Analyzing ${relativeFiles.length} HTML/UI files`);
-
-      let totalChars = 0;
-      const fileContents = [];
-      const fileBlocks = [];
-
-      for (const relFile of relativeFiles) {
-        if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) break;
-        try {
-          const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
-          let content = await this.fileOps.readFile(absPath);
-          if (content.length > MAX_CHARS_PER_FILE) {
-            content = content.slice(0, MAX_CHARS_PER_FILE) + '\n... [truncated]';
-          }
-          fileContents.push(content);
-          fileBlocks.push(buildFileContentBlock(relFile, content));
-          totalChars += content.length;
-        } catch {
-          // Skip unreadable files silently
-        }
+      if (analysisMode === 'since-last-successful-run') {
+        logger.info(
+          `Step 22: Analyzing ${relativeFiles.length} HTML/UI file(s) changed since last successful run (${baselineHash?.substring(0, 7) ?? 'unknown'})`
+        );
+      } else {
+        logger.info(`Step 22: Analyzing ${relativeFiles.length} HTML/UI files`);
       }
+
+      const { fileContents, fileEntries } = await loadReadableReviewFiles(
+        this.fileOps,
+        projectRoot,
+        relativeFiles
+      );
 
       const scores = scoreAccessibilityIssues(fileContents);
       logger.info(
@@ -240,47 +412,76 @@ export class Step22AccessibilityReview {
       if (aiAvailable) {
         await this.aiCache.init();
         try {
-          const filePathList = relativeFiles
-            .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
-            .map((f) => `      - ${f}`)
-            .join('\n');
-          const filePathsContext =
-            relativeFiles.length > MAX_FILE_PATHS_IN_CONTEXT
-              ? `${filePathList}\n      ... and ${relativeFiles.length - MAX_FILE_PATHS_IN_CONTEXT} more`
-              : filePathList;
-
-          const fileContentBlock =
-            fileBlocks.length > 0
-              ? fileBlocks.join('\n\n')
-              : '_No readable file excerpts were available in the current context window._';
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-          const prompt = buildYamlStepPrompt(parsedYaml, 'accessibility_review_prompt', {
-            project_name: options.projectName ?? path.basename(projectRoot),
-            project_description: options.projectDescription ?? 'Web application',
-            framework: options.framework ?? 'vanilla',
-            source_file_count: String(relativeFiles.length),
-            file_paths: filePathsContext,
-            file_content_block: fileContentBlock,
-          });
+          const promptPartitions =
+            fileEntries.length > 0 ? buildAccessibilityPromptPartitions(fileEntries) : [];
+          const partitionsToAnalyze =
+            promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
 
-          if (prompt) {
-            const fullPrompt = prompt;
-            const cacheKey = `step_22:${projectRoot}:${scores.totalIssues}`;
-            const cached = await this.aiCache.get(cacheKey);
+          if (partitionsToAnalyze.length > 1) {
+            logger.info(
+              `[step_22] Running AI analysis in ${partitionsToAnalyze.length} partition(s) to avoid prompt truncation`
+            );
+          }
 
-            if (cached) {
-              aiContent = cached;
-              logger.info('Step 22: Using cached AI response');
-            } else {
-              const aiResult = await this.aiHelper.executeRequest(fullPrompt, {
-                persona: 'accessibility_expert',
-              });
-              aiContent = aiResult?.content ?? '';
-              if (aiContent) {
-                await this.aiCache.set(cacheKey, aiContent);
+          const aiSections = [];
+          for (let i = 0; i < partitionsToAnalyze.length; i++) {
+            const partition = partitionsToAnalyze[i];
+            const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
+            const filePathList = partitionDisplayPaths
+              .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
+              .map((f) => `      - ${f}`)
+              .join('\n');
+            const filePathsContext =
+              partitionDisplayPaths.length > MAX_FILE_PATHS_IN_CONTEXT
+                ? `${filePathList}\n      ... and ${partitionDisplayPaths.length - MAX_FILE_PATHS_IN_CONTEXT} more`
+                : filePathList;
+            const fileContentBlock = buildAccessibilityFileContentsBlock(partition.entries);
+            const prompt = buildYamlStepPrompt(parsedYaml, 'accessibility_review_prompt', {
+              partition_header:
+                partitionsToAnalyze.length > 1
+                  ? `[Partition ${i + 1} of ${partitionsToAnalyze.length} — analyze ONLY the files or file-parts listed below for this request]`
+                  : '',
+              partition_scope_note:
+                partitionsToAnalyze.length > 1
+                  ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} HTML/UI file(s) in the current accessibility-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                  : `This request contains the full readable HTML/UI scope for this run (${fileEntries.length} readable file(s)).`,
+              project_name: options.projectName ?? path.basename(projectRoot),
+              project_description: options.projectDescription ?? 'Web application',
+              framework: options.framework ?? 'vanilla',
+              source_file_count:
+                partitionsToAnalyze.length > 1
+                  ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
+                  : String(relativeFiles.length),
+              file_paths: filePathsContext || '      - (no readable HTML/UI files were available)',
+              file_content_block:
+                fileContentBlock ||
+                '_No readable file excerpts were available in the current context window._',
+            });
+
+            if (!prompt) continue;
+
+            const response = await this.aiCache.withCache(
+              prompt,
+              `step_22:accessibility_expert:part:${i + 1}/${partitionsToAnalyze.length}:signals:${scores.totalIssues}`,
+              async () => {
+                const aiResult = await this.aiHelper.executeRequest(prompt, {
+                  persona: 'accessibility_expert',
+                });
+                return aiResult?.content ?? '';
               }
+            );
+
+            if (response) {
+              aiSections.push(
+                partitionsToAnalyze.length > 1
+                  ? `#### Partition ${i + 1} of ${partitionsToAnalyze.length}\n\n${response}`
+                  : response
+              );
             }
           }
+
+          aiContent = aiSections.join('\n\n');
         } catch (promptError) {
           logger.warn(`Step 22: AI analysis skipped — ${promptError.message}`);
         }

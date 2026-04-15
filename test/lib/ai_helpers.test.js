@@ -11,6 +11,7 @@ import path from 'path';
 import {
   parseAiResponse,
   parseErrorResponse,
+  extractActionableIssueSignals,
   formatBatchRequests,
   calculateRetryDelay,
   shouldRetry,
@@ -460,6 +461,46 @@ describe('AI Helpers Module - Pure Functions', () => {
 
       expect(result.stream).toBe(true);
       expect(result.cache).toBe(false);
+    });
+  });
+
+  describe('extractActionableIssueSignals', () => {
+    test('extracts concrete performance finding lines and summary table rows', () => {
+      const response = [
+        '### Findings',
+        '',
+        '#### 1. Eager Re-Export of Many Modules (Potential Startup/Bundle Impact)',
+        '- **File:** `src/index.js` (parts 1/6, 2/6)',
+        '- **Issue Type:** Eager re-export of many modules and functions',
+        '- **Severity:** Medium',
+        '- **Impact:** This file re-exports a large number of modules and functions at the top level. This can increase initial load time and bundle size.',
+        '- **Optimization Example:** Use dynamic imports or split exports into smaller entry points.',
+        '',
+        '### Summary Table',
+        '',
+        '| File         | Issue Type                | Severity | Impact                                |',
+        '|--------------|---------------------------|----------|----------------------------------------|',
+        '| src/index.js | Eager re-export of modules| Medium   | Increased startup time and bundle size |',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([
+        '#### 1. Eager Re-Export of Many Modules (Potential Startup/Bundle Impact)',
+        '- **File:** `src/index.js` (parts 1/6, 2/6)',
+        '- **Issue Type:** Eager re-export of many modules and functions',
+        '- **Severity:** Medium',
+        '- **Impact:** This file re-exports a large number of modules and functions at the top level. This can increase initial load time and bundle size.',
+        '- **Optimization Example:** Use dynamic imports or split exports into smaller entry points.',
+        '| File         | Issue Type                | Severity | Impact                                |',
+        '| src/index.js | Eager re-export of modules| Medium   | Increased startup time and bundle size |',
+      ]);
+    });
+
+    test('returns no signals for explicit no-issue responses', () => {
+      expect(
+        extractActionableIssueSignals(
+          'No actionable issues found in prompt response. No changes needed.'
+        )
+      ).toEqual([]);
     });
   });
 });
@@ -1634,5 +1675,55 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     const coreIdx = content.indexOf('**Workflow Core Version:**');
     expect(projectIdx).toBeLessThan(workflowIdx);
     expect(workflowIdx).toBeLessThan(coreIdx);
+  });
+
+  test('adds an auto-extracted issue snapshot ahead of the raw prompt and response blocks', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'performance_engineer', model: 'gpt-4.1' },
+      {
+        content: [
+          '### Findings',
+          '',
+          '#### 1. Eager Re-Export of Many Modules (Potential Startup/Bundle Impact)',
+          '- **File:** `src/index.js`',
+          '- **Issue Type:** Eager re-export of many modules and functions',
+          '- **Optimization Example:** Use dynamic imports or split exports into smaller entry points.',
+        ].join('\n'),
+      }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('## Auto-Extracted Issue Signals');
+    expect(content).toContain('**Detected Signals:** 4');
+    expect(content).toContain(
+      '#### 1. Eager Re-Export of Many Modules (Potential Startup/Bundle Impact)'
+    );
+    expect(content).toContain(
+      '- **Optimization Example:** Use dynamic imports or split exports into smaller entry points.'
+    );
+    expect(content.indexOf('## Auto-Extracted Issue Signals')).toBeLessThan(
+      content.indexOf('## Prompt')
+    );
+    expect(content.indexOf('## Prompt')).toBeLessThan(content.indexOf('## Response'));
+  });
+
+  test('records an explicit zero-signal snapshot when no actionable issue cues are detected', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'No actionable issues found in prompt response. No changes needed.' }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('## Auto-Extracted Issue Signals');
+    expect(content).toContain('**Detected Signals:** 0');
+    expect(content).toContain('No concrete issue signals auto-detected from response text.');
   });
 });

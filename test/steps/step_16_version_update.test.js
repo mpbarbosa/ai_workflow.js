@@ -26,6 +26,7 @@ import {
   parseConsistencyCheckOutput,
   buildDefaultVersionConstant,
   deriveVersionConstantName,
+  scanFilesContainingVersionAsync,
 } from '../../src/steps/step_16_version_update.js';
 
 describe('Step 16: Version Update', () => {
@@ -396,7 +397,9 @@ Confidence: high`;
       expect(prompt).toContain('Pre-Analysis Results');
       expect(prompt).toContain('CHANGELOG.md [Unreleased]');
       expect(prompt).toContain('say that the changelog check is unavailable or inconclusive');
-      expect(prompt).toContain('Do not let an artifact-only staged diff under .ai_workflow override');
+      expect(prompt).toContain(
+        'Do not let an artifact-only staged diff under .ai_workflow override'
+      );
       expect(prompt).toContain('Do not claim "the only staged changes are ..."');
       expect(prompt).toContain('MAJOR (X.0.0)');
       expect(prompt).toContain('Bump Type:');
@@ -456,6 +459,59 @@ Confidence: high`;
       expect(report).toContain('Files Updated**: 2');
       expect(report).toContain('package.json');
       expect(report).toContain('README.md');
+    });
+  });
+
+  describe('scanFilesContainingVersionAsync', () => {
+    test('finds version matches with async file operations', async () => {
+      const files = new Map([
+        ['/repo/README.md', 'version 1.2.3'],
+        ['/repo/src/app.js', 'const VERSION = "1.2.3";'],
+        ['/repo/src/other.js', 'no version here'],
+      ]);
+      const directories = new Map([
+        ['/repo', ['README.md', 'src']],
+        ['/repo/src', ['app.js', 'other.js']],
+      ]);
+
+      const results = await scanFilesContainingVersionAsync(
+        '/repo',
+        '1.2.3',
+        async (filePath) => files.get(filePath),
+        async (dirPath) => directories.get(dirPath) || [],
+        async (targetPath) => ({
+          isDirectory: () => directories.has(targetPath),
+        })
+      );
+
+      expect(results).toEqual(['/repo/README.md', '/repo/src/app.js']);
+    });
+
+    test('skips ignored directories and binary-like files', async () => {
+      const files = new Map([
+        ['/repo/src/app.js', 'version 1.2.3'],
+        ['/repo/assets/logo.png', '1.2.3'],
+        ['/repo/node_modules/pkg/index.js', '1.2.3'],
+      ]);
+      const directories = new Map([
+        ['/repo', ['src', 'assets', 'node_modules']],
+        ['/repo/src', ['app.js']],
+        ['/repo/assets', ['logo.png']],
+        ['/repo/node_modules', ['pkg']],
+        ['/repo/node_modules/pkg', ['index.js']],
+      ]);
+
+      const results = await scanFilesContainingVersionAsync(
+        '/repo',
+        '1.2.3',
+        async (filePath) => files.get(filePath),
+        async (dirPath) => directories.get(dirPath) || [],
+        async (targetPath) => ({
+          isDirectory: () => directories.has(targetPath),
+        })
+      );
+
+      expect(results).toEqual(['/repo/src/app.js']);
     });
   });
 
@@ -846,13 +902,11 @@ Confidence: high`;
         });
 
         // Mock execFile to call back with no error
-        const execFileSpy = jest
-          .spyOn(step, '_runVersionSyncSkill')
-          .mockResolvedValue({
-            ran: true,
-            exitCode: 0,
-            output: '✅  Synced version.ts → 1.2.3-alpha',
-          });
+        const execFileSpy = jest.spyOn(step, '_runVersionSyncSkill').mockResolvedValue({
+          ran: true,
+          exitCode: 0,
+          output: '✅  Synced version.ts → 1.2.3-alpha',
+        });
 
         const result = await step._runVersionSyncSkill({ command: 'npm run version:sync' });
         expect(result).toMatchObject({ ran: true, exitCode: 0 });
@@ -896,12 +950,10 @@ Confidence: high`;
         });
 
         // Spy on _runVersionSyncSkill to intercept the execFile call
-        jest
-          .spyOn(step, '_loadVersionSkillConfig')
-          .mockResolvedValue({
-            command: 'npm run version:sync',
-            check_command: 'npm run version:check',
-          });
+        jest.spyOn(step, '_loadVersionSkillConfig').mockResolvedValue({
+          command: 'npm run version:sync',
+          check_command: 'npm run version:check',
+        });
 
         const runSpy = jest
           .spyOn(step, 'runVersionConsistencyCheck')

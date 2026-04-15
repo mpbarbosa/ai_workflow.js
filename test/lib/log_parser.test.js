@@ -3,6 +3,7 @@
  * @module test/lib/log_parser.test
  */
 
+import path from 'path';
 import { describe, test, expect } from '@jest/globals';
 import {
   SEVERITY,
@@ -10,7 +11,9 @@ import {
   parseLogLine,
   extractIssues,
   collectFilesRecursive,
+  collectFilesRecursiveAsync,
   discoverLogFiles,
+  discoverLogFilesAsync,
   suggestFix,
   filterBySeverity,
   sortIssuesByPriority,
@@ -310,6 +313,64 @@ describe('collectFilesRecursive', () => {
   });
 });
 
+describe('collectFilesRecursiveAsync', () => {
+  const makeFs = (tree) => ({
+    readdir: async (dir) =>
+      Object.keys(tree[dir] || {}).map((name) => ({
+        name,
+        isDirectory: () =>
+          tree[path.join(dir, name)] !== undefined &&
+          typeof tree[path.join(dir, name)] === 'object',
+      })),
+    stat: async (p) => ({
+      isDirectory: () => tree[p] !== undefined && typeof tree[p] === 'object',
+    }),
+  });
+
+  test('returns files matching extensions in flat dir', async () => {
+    const tree = {
+      '/run': { 'workflow.log': null, 'step_01.log': null, 'README.md': null },
+    };
+    const result = await collectFilesRecursiveAsync('/run', ['.log'], makeFs(tree));
+    expect(result).toHaveLength(2);
+    expect(result.every((f) => f.endsWith('.log'))).toBe(true);
+  });
+
+  test('recurses into subdirectories', async () => {
+    const tree = {
+      '/run': { steps: {}, prompts: {} },
+      '/run/steps': { 'step_01.log': null },
+      '/run/prompts': { step_01: {} },
+      '/run/prompts/step_01': { 'response.md': null },
+    };
+    const result = await collectFilesRecursiveAsync('/run', ['.log', '.md'], makeFs(tree));
+    expect(result).toHaveLength(2);
+    expect(result.some((f) => f.endsWith('.log'))).toBe(true);
+    expect(result.some((f) => f.endsWith('.md'))).toBe(true);
+  });
+
+  test('returns empty array when readdir throws', async () => {
+    const fs = {
+      readdir: async () => {
+        throw new Error('EACCES');
+      },
+      stat: async () => ({}),
+    };
+    await expect(collectFilesRecursiveAsync('/bad', ['.log'], fs)).resolves.toEqual([]);
+  });
+
+  test('falls back to stat when readdir returns names', async () => {
+    const fs = {
+      readdir: async (dir) => (dir === '/run' ? ['ok.log', 'nested'] : []),
+      stat: async (p) => ({
+        isDirectory: () => p.endsWith('nested'),
+      }),
+    };
+    const result = await collectFilesRecursiveAsync('/run', ['.log'], fs);
+    expect(result).toEqual(['/run/ok.log']);
+  });
+});
+
 // ============================================================================
 // discoverLogFiles
 // ============================================================================
@@ -390,6 +451,76 @@ describe('discoverLogFiles', () => {
       }),
     };
     const result = discoverLogFiles('/fake/logs', false, fs);
+    expect(result).toHaveLength(1);
+    expect(result[0].files.some((f) => f.endsWith('.log'))).toBe(true);
+    expect(result[0].files.some((f) => f.endsWith('.md'))).toBe(true);
+  });
+});
+
+describe('discoverLogFilesAsync', () => {
+  const mockFs = (dirs, files = ['workflow.log']) => ({
+    readdir: async (p) => {
+      const base = p.split('/').pop();
+      if (base === 'logs') {
+        return dirs.map((name) => ({ name, isDirectory: () => true }));
+      }
+      if (dirs.includes(base)) {
+        return files.map((name) => ({
+          name,
+          isDirectory: () => false,
+        }));
+      }
+      return [];
+    },
+    stat: async (p) => ({
+      isDirectory: () => dirs.some((d) => p.endsWith(d)),
+    }),
+  });
+
+  test('returns empty array when log dir cannot be read', async () => {
+    const fs = {
+      readdir: async () => {
+        throw new Error('ENOENT');
+      },
+      stat: async () => ({}),
+    };
+    await expect(discoverLogFilesAsync('/nonexistent/logs', false, fs)).resolves.toEqual([]);
+  });
+
+  test('discovers run directories matching workflow_YYYYMMDD_HHMMSS pattern', async () => {
+    const fs = mockFs(['workflow_20260312_151321', 'workflow_20260312_114822']);
+    const result = await discoverLogFilesAsync('/fake/logs', false, fs);
+    expect(result).toHaveLength(2);
+  });
+
+  test('returns only latest run when latestOnly=true', async () => {
+    const fs = mockFs(['workflow_20260312_151321', 'workflow_20260312_114822']);
+    const result = await discoverLogFilesAsync('/fake/logs', true, fs);
+    expect(result).toHaveLength(1);
+  });
+
+  test('includes .md files from prompts subdirectory', async () => {
+    const run = 'workflow_20260312_151321';
+    const fs = {
+      readdir: async (p) => {
+        if (p.endsWith('logs')) return [{ name: run, isDirectory: () => true }];
+        if (p.endsWith(run)) {
+          return [
+            { name: 'steps', isDirectory: () => true },
+            { name: 'prompts', isDirectory: () => true },
+          ];
+        }
+        if (p.endsWith('steps')) return [{ name: 'step_01.log', isDirectory: () => false }];
+        if (p.endsWith('prompts')) return [{ name: 'step_01', isDirectory: () => true }];
+        if (p.endsWith('step_01')) return [{ name: 'response.md', isDirectory: () => false }];
+        return [];
+      },
+      stat: async (p) => ({
+        isDirectory: () =>
+          p.endsWith(run) || p.endsWith('steps') || p.endsWith('prompts') || p.endsWith('step_01'),
+      }),
+    };
+    const result = await discoverLogFilesAsync('/fake/logs', false, fs);
     expect(result).toHaveLength(1);
     expect(result[0].files.some((f) => f.endsWith('.log'))).toBe(true);
     expect(result[0].files.some((f) => f.endsWith('.md'))).toBe(true);
