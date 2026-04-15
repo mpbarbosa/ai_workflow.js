@@ -595,6 +595,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-15T17:55:24.551Z"
+    },
+    "src/lib/review_prompt_scope.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T20:18:17.688Z"
+    },
+    "src/lib/ai_cache.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T20:18:17.688Z"
+    },
+    "src/lib/ai_cache.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T20:18:17.688Z"
+    },
+    "src/lib/ai_script_generator.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T20:18:17.688Z"
+    },
+    "src/lib/auto_commit.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T20:18:17.688Z"
     }
   }
 }
