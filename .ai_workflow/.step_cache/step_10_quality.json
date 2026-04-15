@@ -64,7 +64,7 @@
     "src/steps/step_01_documentation.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-14T05:27:36.079Z"
+      "lastAnalyzed": "2026-04-15T23:19:28.405Z"
     },
     "src/steps/step_02_consistency.js": {
       "score": 100,
@@ -620,6 +620,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-15T20:18:17.688Z"
+    },
+    "src/steps/index.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T23:19:28.405Z"
+    },
+    "src/steps/step_01_5_copilot_instructions.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T23:19:28.405Z"
+    },
+    "src/steps/step_0f_commit_artifacts.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T23:19:28.405Z"
+    },
+    "src/steps/step_11_5_aws_lbs_validation.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T23:19:28.405Z"
     }
   }
 }
