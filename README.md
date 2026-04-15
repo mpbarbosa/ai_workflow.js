@@ -118,7 +118,7 @@ A comprehensive migration plan has been created that outlines:
 - Testing strategy
 - Timeline and resources
 
-📄 **See [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) for the complete migration plan.**
+📄 **See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for the migration path and implementation context.**
 
 ## Documentation
 
@@ -126,7 +126,7 @@ Key project documents:
 
 - **[API Reference](./docs/api/README.md)** - Complete API documentation for all modules with usage examples
 - **[Workflow Engine Requirements](./docs/WORKFLOW_ENGINE_REQUIREMENTS.md)** - Phase 7 planning, test validation, and orchestration specifications
-- **[MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md)** - Comprehensive migration plan with architecture, phases, and implementation details
+- **[Migration Guide](./docs/guides/MIGRATION_GUIDE.md)** - Migration path, compatibility notes, and implementation context
 - **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1-5 (Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration)
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and notable changes with semantic versioning
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guidelines for contributing to the project
@@ -206,7 +206,7 @@ ai_workflow.js/
 └── .workflow_fspec/      # Functional specification (submodule)
 ```
 
-See [docs/architecture/MODULE_STRUCTURE.md](./docs/architecture/MODULE_STRUCTURE.md) for the full module-level breakdown.
+See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the current architecture summary and links to the detailed architecture docs.
 
 ## Development Setup
 
@@ -287,8 +287,8 @@ ai-workflow run
 
 ### CLI Documentation
 
-- **Usage Guide**: [CLI_USAGE_GUIDE.md](./docs/guides/CLI_USAGE_GUIDE.md) - Complete CLI documentation
-- **Quick Reference**: [CLI_QUICK_REFERENCE.md](./docs/guides/CLI_QUICK_REFERENCE.md) - Command cheat sheet
+- **Usage Guide**: [CLI_USAGE_GUIDE.md](./docs/CLI_USAGE_GUIDE.md) - Complete CLI documentation
+- **Quick Reference**: [CLI_USAGE_GUIDE.md](./docs/CLI_USAGE_GUIDE.md#quick-reference) - Command cheat sheet
 
 ### Auto-Resume on Startup
 
@@ -356,7 +356,7 @@ ai-workflow resume --list
 
 ### Project Structure
 
-See [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) for detailed architecture.
+See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the current architecture overview.
 
 ## Development
 
@@ -390,7 +390,7 @@ mpbarbosa
 
 ## Links
 
-- **Migration Plan**: [MIGRATION_PLAN.md](./docs/reports/implementation/MIGRATION_PLAN.md) - Comprehensive migration framework
+- **Migration Guide**: [MIGRATION_GUIDE.md](./docs/guides/MIGRATION_GUIDE.md) - Migration framework and compatibility notes
 - **Source Repository**: [mpbarbosa/ai_workflow](https://github.com/mpbarbosa/ai_workflow)
 - **Core Configuration**: [mpbarbosa/ai_workflow_core](https://github.com/mpbarbosa/ai_workflow_core) - Shared configuration templates
 - **Functional Specification**: [mpbarbosa/ai_workflow_fspec](https://github.com/mpbarbosa/ai_workflow_fspec) - Language-independent functional specification

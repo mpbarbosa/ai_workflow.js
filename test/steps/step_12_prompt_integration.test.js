@@ -40,6 +40,15 @@ describe('step12_git_commit_prompt — config correctness', () => {
     expect(template).toContain('supplemental project metadata');
     expect(template).not.toContain('version defined in `package.json` and `.workflow-config.yaml`');
   });
+
+  test('task_template requires grounded wording when evidence is partial or counts disagree', () => {
+    const template = aiHelpers.step12_git_commit_prompt.task_template;
+    expect(template).toContain('Treat "Changed Files" as the authoritative list of project files in scope');
+    expect(template).toMatch(
+      /Do\s+not claim validation, synchronization, alignment, or completeness/
+    );
+    expect(template).toMatch(/If counts disagree or the\s+evidence is partial/);
+  });
 });
 
 describe('step12_git_commit_prompt — rendered prompt behavior', () => {
@@ -57,7 +66,8 @@ describe('step12_git_commit_prompt — rendered prompt behavior', () => {
       script_version: '1.1.8',
       change_scope: 'docs(documentation): 6 files changed',
       git_context: 'abc123 docs: prior change',
-      changed_files: '.workflow-config.yaml\nREADME.md',
+      changed_files:
+        '.github/skills/sync-workflow-config/SKILL.md\n.workflow-config.yaml\nREADME.md',
       diff_summary: '2 files changed, 4 insertions(+), 2 deletions(-)',
       git_analysis_content: 'docs(documentation): update docs and config',
       diff_sample: 'diff --git a/README.md b/README.md',
@@ -69,6 +79,8 @@ describe('step12_git_commit_prompt — rendered prompt behavior', () => {
     );
     expect(prompt).toContain('project version typically sourced from `package.json`');
     expect(prompt).toContain('`.workflow-config.yaml`');
+    expect(prompt).toContain('.github/skills/sync-workflow-config/SKILL.md');
+    expect(prompt).toContain('Treat "Changed Files" as the authoritative list of project files in scope');
     expect(prompt).not.toContain('version defined in `package.json` and `.workflow-config.yaml`');
   });
 });

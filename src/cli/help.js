@@ -214,11 +214,12 @@ export function getWorkflowStages() {
     quick: {
       name: 'Quick',
       description: 'Fast validation for rapid feedback',
-      steps: 5,
+      steps: 6,
       duration: '1-3 minutes',
       includes: [
         'Pre-analysis (step_00)',
         'Documentation validation (step_01)',
+        'Copilot instructions validation (step_01_5)',
         'Consistency checks (step_02)',
         'Config validation (step_04)',
         'Directory structure (step_05)',
@@ -227,11 +228,12 @@ export function getWorkflowStages() {
     medium: {
       name: 'Medium',
       description: 'Standard workflow with essential checks',
-      steps: 12,
+      steps: 14,
       duration: '5-15 minutes',
       includes: [
         'All quick steps',
         'Doc optimization (step_02_5)',
+        'Doc consolidation (step_21)',
         'Script refs (step_03)',
         'Test review (step_06)',
         'Test generation (step_07)',
@@ -243,7 +245,7 @@ export function getWorkflowStages() {
     full: {
       name: 'Full',
       description: 'Complete workflow with all steps',
-      steps: 25,
+      steps: 30,
       duration: '20-45 minutes',
       includes: [
         'All medium steps',
@@ -257,6 +259,9 @@ export function getWorkflowStages() {
         'Version update (step_16)',
         'Debugging analysis (step_18)',
         'TypeScript review (step_19)',
+        'Async performance review (step_20)',
+        'Accessibility review (step_22)',
+        'Performance review (step_23)',
         'Summary (step_17)',
         'Commit artifacts (step_0f)',
         'Git finalization (step_12)',

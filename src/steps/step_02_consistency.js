@@ -927,6 +927,7 @@ export class Step2ConsistencyAnalyzer {
       'dist',
       'build',
       'coverage',
+      '.test-e2e',
       'venv',
       '.venv',
       'env',

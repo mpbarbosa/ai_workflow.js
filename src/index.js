@@ -453,8 +453,7 @@ export {
 } from './lib/dependency_cache.js';
 
 // ============================================================================
-// Phase 9: Workflow Steps Implementation (17 steps) ✅ COMPLETE
-// Status: 17/17 steps complete (100%)
+// Phase 9: Workflow Steps Implementation
 // ============================================================================
 
 // Step 0: Pre-Analysis
@@ -477,6 +476,15 @@ export {
   classifyChangedFiles,
   shouldRunAiAnalysis,
 } from './steps/step_01_documentation.js';
+
+// Step 1.5: Copilot Instructions Validation
+export {
+  Step1_5CopilotInstructionsValidator,
+  COPILOT_INSTRUCTIONS_RELATIVE_PATH,
+  ensureTrailingNewline,
+  extractCorrectedCopilotInstructions,
+  buildCopilotInstructionsRepoFactsContext,
+} from './steps/step_01_5_copilot_instructions.js';
 
 // Step 2: Consistency Analysis
 export {

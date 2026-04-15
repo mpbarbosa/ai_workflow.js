@@ -4,8 +4,13 @@
  */
 
 import { jest } from '@jest/globals';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import {
+  filterPerformanceReviewTargets,
   isPerformanceSensitiveProject,
+  isPerformanceReviewTarget,
   scorePerfIssues,
   splitPerformancePromptEntry,
   buildPerformancePromptPartitions,
@@ -57,6 +62,32 @@ describe('step_23_perf_review - Pure Functions', () => {
 
     test('returns true for mixed list containing a .ts file', () => {
       expect(isPerformanceSensitiveProject(['README.md', 'src/index.ts'])).toBe(true);
+    });
+  });
+
+  describe('isPerformanceReviewTarget', () => {
+    test('accepts JavaScript and TypeScript source files', () => {
+      expect(isPerformanceReviewTarget('src/index.js')).toBe(true);
+      expect(isPerformanceReviewTarget('src/app.tsx')).toBe(true);
+    });
+
+    test('rejects declarations and workflow artifacts', () => {
+      expect(isPerformanceReviewTarget('src/types.d.ts')).toBe(false);
+      expect(isPerformanceReviewTarget('.ai_workflow/logs/run.js')).toBe(false);
+    });
+  });
+
+  describe('filterPerformanceReviewTargets', () => {
+    test('deduplicates and filters unsupported files', () => {
+      expect(
+        filterPerformanceReviewTargets([
+          'src/index.js',
+          'src/index.js',
+          'README.md',
+          '.ai_workflow/logs/run.js',
+          'src/app.ts',
+        ])
+      ).toEqual(['src/index.js', 'src/app.ts']);
     });
   });
 
@@ -540,6 +571,113 @@ describe('Step23PerfReview - Wrapper', () => {
 
     await step.execute('/project', { sourceFiles: ['custom/file.ts'] });
     expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
+  });
+
+  test('analyzes only modified JS/TS files since the last successful workflow execution', async () => {
+    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step23-success-'));
+    try {
+      await fs.writeFile(
+        path.join(workflowDir, 'commit_history.json'),
+        JSON.stringify(
+          {
+            version: '1.0.0',
+            lastRunCommit: 'aaaaaaa',
+            runs: [
+              {
+                hash: 'aaaaaaa',
+                runId: 'workflow_20260414_225733',
+                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
+              },
+            ],
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const gitOps = {
+        getChangedFilesSince: jest.fn().mockReturnValue([
+          { file: 'src/perf.ts', status: 'modified' },
+          { file: 'README.md', status: 'modified' },
+        ]),
+        status: jest.fn().mockResolvedValue({
+          staged: [],
+          unstaged: [{ file: 'src/extra.js', status: 'modified' }],
+          untracked: [{ file: 'notes.txt', status: 'untracked' }],
+        }),
+      };
+      const fileOps = makeFileOps(['src/ignored-by-full-scan.js']);
+      const step = new Step23PerfReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper: makeAiHelper(),
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+        gitOps,
+      });
+
+      const result = await step.execute('/project', {
+        workflowDir,
+        workflowRunId: 'workflow_20260415_003447',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fileCount).toBe(2);
+      expect(gitOps.getChangedFilesSince).toHaveBeenCalledWith('aaaaaaa');
+      expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
+    } finally {
+      await fs.rm(workflowDir, { recursive: true, force: true });
+    }
+  });
+
+  test('skips when no JS/TS files changed since the last successful workflow execution', async () => {
+    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step23-success-empty-'));
+    try {
+      await fs.writeFile(
+        path.join(workflowDir, 'commit_history.json'),
+        JSON.stringify(
+          {
+            version: '1.0.0',
+            lastRunCommit: 'aaaaaaa',
+            runs: [
+              {
+                hash: 'aaaaaaa',
+                runId: 'workflow_success',
+                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
+              },
+            ],
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const step = new Step23PerfReview({
+        fileOps: makeFileOps(['src/full-scan.js']),
+        backlog: makeBacklog(),
+        aiHelper: makeAiHelper(),
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+        gitOps: {
+          getChangedFilesSince: jest
+            .fn()
+            .mockReturnValue([{ file: 'README.md', status: 'modified' }]),
+          status: jest.fn().mockResolvedValue({ staged: [], unstaged: [], untracked: [] }),
+        },
+      });
+
+      const result = await step.execute('/project', {
+        workflowDir,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.message).toContain('last successful run');
+    } finally {
+      await fs.rm(workflowDir, { recursive: true, force: true });
+    }
   });
 
   test('prompt includes enriched context fields from tech stack', async () => {

@@ -99,7 +99,7 @@
     "src/cli/help.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-07T19:53:28.868Z"
+      "lastAnalyzed": "2026-04-15T03:32:18.433Z"
     },
     "src/cli/index.js": {
       "score": 100,
@@ -394,7 +394,7 @@
     "src/cli/tui/components/ErrorDetailPanel.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-07T04:03:38.104Z"
+      "lastAnalyzed": "2026-04-15T03:32:18.433Z"
     },
     "docs/api/html/assets/hierarchy.js": {
       "score": 100,
@@ -570,6 +570,21 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-15T03:02:54.263Z"
+    },
+    "src/cli/tui/components/ErrorDetailPanel.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T03:32:18.433Z"
+    },
+    "src/cli/tui/components/ErrorDetailPanel.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T03:32:18.433Z"
+    },
+    "src/cli/tui/helpers.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-15T03:32:18.433Z"
     }
   }
 }

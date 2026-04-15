@@ -12,6 +12,7 @@ import {
   validateShebang,
   isScriptDocumented,
   buildDocCoverageMap,
+  buildDocumentationExcerpts,
   formatDocCoverageMap,
   formatScriptReport,
   SCRIPT_ISSUE_TYPE,
@@ -395,6 +396,27 @@ describe('Step 3: Script Reference Validation', () => {
     });
   });
 
+  describe('buildDocumentationExcerpts', () => {
+    test('preserves later script-related sections beyond the initial document header', () => {
+      const lines = Array.from({ length: 130 }, (_, index) => `Line ${index + 1}`);
+      lines[95] = '## Automation Scripts';
+      lines[96] = '- `scripts/setup.sh`';
+      lines[97] = '- `scripts/validate.sh`';
+
+      const excerpt = buildDocumentationExcerpts(
+        [{ path: 'README.md', content: lines.join('\n') }],
+        ['scripts/setup.sh', 'scripts/validate.sh'],
+        4_000
+      );
+
+      expect(excerpt).toContain('Line 1');
+      expect(excerpt).toContain('## Automation Scripts');
+      expect(excerpt).toContain('scripts/setup.sh');
+      expect(excerpt).toContain('scripts/validate.sh');
+      expect(excerpt).toContain('... [excerpt omitted]');
+    });
+  });
+
   // ========================================================================
   // STEP 3 ANALYZER - Integration Tests
   // ========================================================================
@@ -645,6 +667,58 @@ describe('Step 3: Script Reference Validation', () => {
 
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true); // No scripts found
+    });
+
+    test('captures later script documentation in AI prompt excerpts instead of only the first 80 lines', async () => {
+      const lines = Array.from({ length: 140 }, (_, index) => `Line ${index + 1}`);
+      lines[100] = '## Automation Scripts';
+      lines[101] = '| `scripts/setup.sh` | Setup the repo |';
+      lines[102] = '| `scripts/validate.sh` | Run validation |';
+      const readme = lines.join('\n');
+
+      let capturedPrompt = '';
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          capturedPrompt = prompt;
+          return Promise.resolve({ content: 'ok' });
+        },
+      };
+
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'bash' });
+      mockFileOps.glob = () => Promise.resolve(['scripts/setup.sh', 'scripts/validate.sh']);
+      mockFileOps.readFile = (targetPath) => {
+        if (String(targetPath).includes('ai_helpers')) {
+          return Promise.resolve(
+            'step3_script_refs_prompt:\n' +
+              '  role_ref: step3_script_refs\n' +
+              '  task_template: |\n' +
+              '    {doc_context}\n' +
+              '  approach: "approach"\n'
+          );
+        }
+        if (String(targetPath).includes('prompt_roles')) {
+          return Promise.resolve('roles: {}');
+        }
+        return Promise.resolve(readme);
+      };
+
+      analyzer = new Step3ScriptAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper,
+        aiCache: {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_key, _files, fn) => fn(),
+        },
+      });
+
+      await analyzer.execute('/project');
+
+      expect(capturedPrompt).toContain('## Automation Scripts');
+      expect(capturedPrompt).toContain('scripts/setup.sh');
+      expect(capturedPrompt).toContain('scripts/validate.sh');
     });
   });
 

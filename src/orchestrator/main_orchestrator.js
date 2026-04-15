@@ -2,7 +2,7 @@
  * @fileoverview Main Workflow Orchestrator (v2.0.0)
  * @module orchestrator/main_orchestrator
  *
- * High-level workflow coordinator that integrates all 20 workflow steps
+ * High-level workflow coordinator that integrates all registered workflow steps
  * and provides complete workflow automation with checkpoint/resume, health
  * checks, and multi-stage pipeline support.
  *
@@ -45,6 +45,7 @@ import { CommitHistory, isValidCommitHash } from '../lib/commit_history.js';
 // Import all workflow steps
 import { Step0Analyzer } from '../steps/step_00_analyze.js';
 import { Step1DocumentationAnalyzer } from '../steps/step_01_documentation.js';
+import { Step1_5CopilotInstructionsValidator } from '../steps/step_01_5_copilot_instructions.js';
 import { Step2ConsistencyAnalyzer } from '../steps/step_02_consistency.js';
 import { DocumentationOptimizer } from '../steps/step_02_5_doc_optimize.js';
 import { Step3ScriptAnalyzer } from '../steps/step_03_script_refs.js';
@@ -146,6 +147,7 @@ export function getStepsForStage(stage) {
     [WORKFLOW_STAGES.QUICK]: [
       'step_00', // Pre-analysis
       'step_01', // Documentation
+      'step_01_5', // Copilot instructions validation
       'step_02', // Consistency
       'step_04', // Config validation
       'step_05', // Directory structure
@@ -153,6 +155,7 @@ export function getStepsForStage(stage) {
     [WORKFLOW_STAGES.MEDIUM]: [
       'step_00',
       'step_01',
+      'step_01_5', // Copilot instructions validation
       'step_02',
       'step_02_5', // Doc optimization
       'step_21', // Doc consolidation
@@ -169,6 +172,7 @@ export function getStepsForStage(stage) {
       'step_00',
       'step_0b', // Bootstrap docs
       'step_01',
+      'step_01_5', // Copilot instructions validation
       'step_02',
       'step_02_5',
       'step_21', // Doc consolidation
@@ -346,7 +350,7 @@ export class MainOrchestrator {
   }
 
   /**
-   * Register all 20 workflow steps
+   * Register all workflow steps
    */
   registerAllSteps() {
     logger.info('Registering workflow steps...');
@@ -374,11 +378,18 @@ export class MainOrchestrator {
         dependencies: ['step_00'],
       },
       {
+        id: 'step_01_5',
+        name: 'Copilot Instructions Validation',
+        description: 'Audit and refresh .github/copilot-instructions.md against live repo facts',
+        class: Step1_5CopilotInstructionsValidator,
+        dependencies: ['step_01'],
+      },
+      {
         id: 'step_02',
         name: 'Consistency Analysis',
         description: 'Check code and documentation consistency',
         class: Step2ConsistencyAnalyzer,
-        dependencies: ['step_01'],
+        dependencies: ['step_01_5'],
       },
       {
         id: 'step_02_5',

@@ -6,7 +6,7 @@ project:
   type: 'nodejs-application'
   description: 'JavaScript/Node.js migration of AI workflow automation system'
   kind: 'nodejs_automation'
-  version: '2.2.5'
+  version: '2.2.6'
 
 tech_stack:
   primary_language: 'javascript'

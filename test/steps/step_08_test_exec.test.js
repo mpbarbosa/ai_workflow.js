@@ -4,11 +4,14 @@
  */
 
 import { jest } from '@jest/globals';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
   Step8TestExecutor,
   buildCiRetryCmd,
   describeCoveragePromptContext,
+  detectTestConfigPaths,
   getTestCommand,
   getCoverageFiles,
   hasTestScript,
@@ -89,6 +92,23 @@ describe('Step 8: Test Execution', () => {
     test('returns null when no test script', () => {
       const pkg = { scripts: {} };
       expect(extractTestCommand(pkg)).toBeNull();
+    });
+  });
+
+  describe('detectTestConfigPaths', () => {
+    test('includes integration-specific Jest config files when present', () => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'step8-config-'));
+
+      try {
+        writeFileSync(path.join(projectRoot, 'jest.config.json'), '{}');
+        writeFileSync(path.join(projectRoot, 'jest.integration.config.json'), '{}');
+
+        expect(detectTestConfigPaths(projectRoot)).toBe(
+          'jest.config.json, jest.integration.config.json'
+        );
+      } finally {
+        rmSync(projectRoot, { recursive: true, force: true });
+      }
     });
   });
 
@@ -696,11 +716,88 @@ describe('Step 8: Test Execution', () => {
         'mark the result as unavailable or inconclusive instead of guessing a specific misconfiguration'
       );
       expect(capturedPrompt).toContain(
+        'Do not prescribe `testMatch`, `testRegex`, missing-test-file, or file-naming fixes as confirmed remediation'
+      );
+      expect(capturedPrompt).toContain(
+        'do not cite unseen keys such as `testMatch`, `testRegex`, or `roots`'
+      );
+      expect(capturedPrompt).toContain(
+        'do not cite unseen directories or patterns such as `test/`, `src/**/__tests__`, or file-naming conventions as evidence'
+      );
+      expect(capturedPrompt).toContain(
+        'keep follow-up actions limited to neutral diagnostics'
+      );
+      expect(capturedPrompt).toContain(
         'If the runner produced no output, or the prompt only names config/workflow files without'
       );
       expect(capturedPrompt).toContain(
         'do not assert a specific root cause or workflow gap unless the'
       );
+      expect(capturedPrompt).toContain(
+        'When workflow filenames are listed without YAML contents, keep repository-specific CI guidance'
+      );
+      expect(capturedPrompt).toContain(
+        'explicitly conditional and avoid stating that a step is missing, present, or misconfigured.'
+      );
+      expect(capturedPrompt).toContain(
+        'do not mention unseen config keys such'
+      );
+      expect(capturedPrompt).toContain(
+        'In an inconclusive run, keep next steps diagnostic and evidence-preserving rather than phrasing'
+      );
+    });
+
+    test('AI prompt treats silent runner exits as inconclusive instead of confirmed no-tests-found', async () => {
+      let capturedPrompt = '';
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 137,
+          stdout: '',
+          stderr: '',
+        };
+      };
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/package.json') {
+          return JSON.stringify({ scripts: { test: 'jest' } });
+        }
+        if (targetPath === AI_HELPERS_PATH) {
+          return readFileSync(AI_HELPERS_PATH, 'utf8');
+        }
+        throw new Error(`Unexpected readFile path: ${targetPath}`);
+      };
+
+      executor = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: () => Promise.resolve({ content: 'ok' }),
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withCache: async (prompt) => {
+            capturedPrompt = prompt;
+            return { content: 'ok' };
+          },
+        },
+      });
+
+      await executor.execute('/project');
+
+      expect(capturedPrompt).toContain(
+        'runner exited without output; root cause unavailable from captured evidence'
+      );
+      expect(capturedPrompt).toContain(
+        'The test runner exited without output'
+      );
+      expect(capturedPrompt).toContain(
+        'root cause unavailable from captured evidence'
+      );
+      expect(capturedPrompt).not.toContain('possible crash or OOM kill');
+      expect(capturedPrompt).not.toContain('runner likely crashed before writing');
+      expect(capturedPrompt).not.toContain('No tests were discovered or executed (runner produced no output');
     });
   });
 

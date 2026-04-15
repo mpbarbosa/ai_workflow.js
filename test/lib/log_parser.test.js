@@ -113,6 +113,14 @@ describe('parseLogLine', () => {
     expect(result.stepId).toBe('step_08');
   });
 
+  test('keeps silent runner exits inconclusive', () => {
+    const result = extractIssues(WARNING_TEST_LINE);
+    expect(result).toHaveLength(1);
+    expect(result[0].message).toBe(
+      'step_08: Test runner produced no output; root cause unavailable from captured evidence'
+    );
+  });
+
   test('returns null stepId when no step mentioned', () => {
     const result = parseLogLine(WARNING_NPM_LINE);
     expect(result.stepId).toBeNull();

@@ -92,9 +92,10 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return quick validation steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.QUICK);
 
-      expect(steps).toHaveLength(5);
+      expect(steps).toHaveLength(6);
       expect(steps).toContain('step_00');
       expect(steps).toContain('step_01');
+      expect(steps).toContain('step_01_5');
       expect(steps).toContain('step_02');
       expect(steps).toContain('step_04');
       expect(steps).toContain('step_05');
@@ -103,7 +104,8 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return medium validation steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.MEDIUM);
 
-      expect(steps).toHaveLength(13);
+      expect(steps).toHaveLength(14);
+      expect(steps).toContain('step_01_5'); // Copilot instructions validation
       expect(steps).toContain('step_08'); // Test execution
       expect(steps).toContain('step_10'); // Code quality
       expect(steps).toContain('step_21'); // Doc consolidation
@@ -112,10 +114,11 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return full workflow steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.FULL);
 
-      expect(steps).toHaveLength(29); // All 29 steps
+      expect(steps).toHaveLength(30); // All 30 steps
       expect(steps).toContain('step_00');
       expect(steps).toContain('step_0b');
       expect(steps).toContain('step_0f');
+      expect(steps).toContain('step_01_5'); // Copilot instructions validation
       expect(steps).toContain('step_17'); // Summary
       expect(steps).toContain('step_21'); // Doc consolidation
     });
@@ -123,7 +126,7 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should default to full workflow for invalid stage', () => {
       const steps = getStepsForStage('invalid');
 
-      expect(steps).toHaveLength(29);
+      expect(steps).toHaveLength(30);
     });
   });
 
@@ -332,11 +335,11 @@ describe('Main Orchestrator - Integration Tests', () => {
       orchestrator = new MainOrchestrator({ workflowDir: testDir });
     });
 
-    test('should register all 29 workflow steps', () => {
+    test('should register all 30 workflow steps', () => {
       orchestrator.registerAllSteps();
 
       const stepCount = orchestrator.stepRegistry.list().length;
-      expect(stepCount).toBe(29);
+      expect(stepCount).toBe(30);
     });
 
     test('should register steps with correct metadata', () => {
@@ -349,6 +352,10 @@ describe('Main Orchestrator - Integration Tests', () => {
       const step1 = orchestrator.stepRegistry.get('step_01');
       expect(step1.name).toBe('Documentation Updates');
       expect(step1.dependencies).toContain('step_00');
+
+      const step1_5 = orchestrator.stepRegistry.get('step_01_5');
+      expect(step1_5.name).toBe('Copilot Instructions Validation');
+      expect(step1_5.dependencies).toContain('step_01');
     });
   });
 
@@ -393,8 +400,8 @@ describe('Main Orchestrator - Integration Tests', () => {
       const status = orchestrator.getStatus();
 
       expect(status.completed).toBe(2);
-      expect(status.total).toBe(5); // Quick stage has 5 steps
-      expect(status.progress).toBe(40);
+      expect(status.total).toBe(6); // Quick stage has 6 steps
+      expect(status.progress).toBe(33);
     });
   });
 
@@ -574,9 +581,10 @@ describe('Main Orchestrator - Integration Tests', () => {
         steps: {
           step_00: { status: 'success', duration: 100 },
           step_01: { status: 'success', duration: 200 },
+          step_01_5: { status: 'success', duration: 125 },
           step_02: { status: 'success', duration: 150 },
           step_04: { status: 'success', duration: 50 },
-          step_0b: { status: 'success', duration: 75 },
+          step_05: { status: 'success', duration: 75 },
         },
       };
 
@@ -588,14 +596,14 @@ describe('Main Orchestrator - Integration Tests', () => {
         timestamp: Date.now(),
         state: {
           currentStep: null,
-          completedSteps: ['step_00', 'step_01', 'step_02', 'step_04', 'step_05'],
+          completedSteps: ['step_00', 'step_01', 'step_01_5', 'step_02', 'step_04', 'step_05'],
           failedSteps: [],
           skippedSteps: [],
           results: completeOrchestrator.results.steps,
           context: {},
         },
         metadata: {
-          totalSteps: 5,
+          totalSteps: 6,
           progress: 100,
         },
       });

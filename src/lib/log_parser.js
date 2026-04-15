@@ -136,12 +136,12 @@ const ISSUE_PATTERNS = [
       `Operation '${m[1]}' exceeded warning threshold: ${m[2]}s elapsed, ${m[3]} memory used`,
     extractStep: (m) => m[1],
   },
-  // Test runner crash / no output
+  // Test runner silent exit / no output
   {
     pattern: /⚠\s*\[(step_[^\]]+)\]\s*Test runner produced no output/,
     severity: SEVERITY.CRITICAL,
     category: CATEGORY.TEST_FAILURE,
-    extractMessage: (m) => `${m[1]}: Test runner produced no output (possible crash or OOM kill)`,
+    extractMessage: (m) => `${m[1]}: Test runner produced no output; root cause unavailable from captured evidence`,
     extractStep: (m) => m[1],
   },
   // Step completed with issues

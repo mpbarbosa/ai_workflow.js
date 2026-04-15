@@ -31,9 +31,21 @@ describe('accessibility_review_prompt — evidence scoping', () => {
 
     expect(approach).toContain('unavailable or inconclusive');
     expect(approach).toContain('source/test files rather than rendered HTML/CSS output');
+    expect(approach).toContain('conflicting version numbers');
     expect(approach).toContain('terminal/native UI source');
+    expect(approach).toContain('Do not infer `<main>`, `<nav>`, or any other semantic landmark');
     expect(approach).toContain('Missing focus management, focus order, or focus-visible logic');
+    expect(approach).toContain('Only raise a missing-label finding when the control itself');
+    expect(approach).toContain('Text that appears only in `aria-label`');
+    expect(approach).toContain('includes a `prefers-reduced-motion` guard or a `:focus-visible` rule');
     expect(approach).toContain('No issues detected in the visible excerpts');
+  });
+
+  test('makes link-text and landmark checks explicitly evidence-bound', () => {
+    const template = aiHelpers.accessibility_review_prompt.task_template;
+
+    expect(template).toContain('Verify navigation landmark structure where visible');
+    expect(template).toContain('do not treat `aria-label` text as visible anchor text');
   });
 
   test('rendered prompt preserves excerpt-limited guidance alongside truncated source input', () => {

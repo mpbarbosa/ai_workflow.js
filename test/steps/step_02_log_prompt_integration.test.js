@@ -206,6 +206,13 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(approach).toMatch(/output|format|list|recommendation/);
     });
 
+    test('approach distinguishes unverified broken-reference candidates from confirmed issues', () => {
+      const approach = parsed.step2_consistency_prompt.approach;
+      expect(approach).toContain('unverified from visible context');
+      expect(approach).toContain('broken-reference candidate');
+      expect(approach).toContain('not present in the provided context');
+    });
+
     describe('buildConsistencyPrompt() — inline prompt builder', () => {
       test('returns a non-empty string', () => {
         const prompt = buildConsistencyPrompt({
@@ -290,6 +297,8 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain('do not contradict the programmatic scan');
         expect(prompt).toContain('Provided file contents and excerpts');
         expect(prompt).toContain('### `README.md`');
+        expect(prompt).toContain('**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]');
+        expect(prompt).toContain('Do not explain a broken-reference candidate by saying only');
       });
 
       test('execute() injects markdown contents and uses documentation-specialist overlay', async () => {

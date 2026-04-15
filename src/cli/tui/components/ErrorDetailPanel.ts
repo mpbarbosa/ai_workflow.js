@@ -12,20 +12,29 @@
  * @since 2026-03-07
  */
 
-import React from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { type ReactElement } from 'react';
+import { Box, Text, useInput, type Key } from 'ink';
 import { truncateStackTrace } from '../helpers.js';
 
-/**
- * @param {{
- *   error: import('../hooks/useOrchestrator.js').ErrorEntry | null,
- *   onClose: () => void,
- * }} props
- */
-export function ErrorDetailPanel({ error, onClose }) {
-  useInput((input, key) => {
+export interface ErrorDetailPanelError {
+  stepId: string;
+  stepName: string;
+  message: string;
+  stack: string | null;
+}
+
+export interface ErrorDetailPanelProps {
+  error: ErrorDetailPanelError | null;
+  onClose: () => void;
+}
+
+export function ErrorDetailPanel({
+  error,
+  onClose,
+}: ErrorDetailPanelProps): ReactElement {
+  useInput((input: string, key: Key): void => {
     if (key.escape || input === 'e' || input === 'E') {
-      onClose?.();
+      onClose();
     }
   });
 
@@ -44,7 +53,7 @@ export function ErrorDetailPanel({ error, onClose }) {
     );
   }
 
-  const stackLines = truncateStackTrace(error?.stack ?? '', 20);
+  const stackLines: string[] = truncateStackTrace(error.stack, 20);
 
   return React.createElement(
     Box,
@@ -52,9 +61,9 @@ export function ErrorDetailPanel({ error, onClose }) {
     React.createElement(
       Text,
       { bold: true, color: 'red' },
-      `✗ Failed: ${error.stepName ?? '(unknown)'}`
+      `✗ Failed: ${error.stepName || '(unknown)'}`
     ),
-    React.createElement(Text, { color: 'white' }, error.message ?? 'Unknown error'),
+    React.createElement(Text, { color: 'white' }, error.message || 'Unknown error'),
     stackLines.length > 0
       ? React.createElement(
           React.Fragment,
@@ -65,8 +74,8 @@ export function ErrorDetailPanel({ error, onClose }) {
             { key: 'title', bold: true, color: 'gray', dimColor: true },
             '── Stack trace ──'
           ),
-          ...stackLines.map((line, i) =>
-            React.createElement(Text, { key: `s${i}`, color: 'gray', dimColor: true }, line)
+          ...stackLines.map((line: string, index: number) =>
+            React.createElement(Text, { key: `s${index}`, color: 'gray', dimColor: true }, line)
           )
         )
       : null,

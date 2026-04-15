@@ -340,7 +340,9 @@ ${preAnalysis ? `## Pre-Analysis Results\n${preAnalysis}\n` : ''}
 
 ## Evaluation Rules
 - Treat CHANGELOG.md [Unreleased] as the authoritative record of pending user-visible work when it is available.
+- If you cannot inspect or cite the [Unreleased] content from the provided context, say that the changelog check is unavailable or inconclusive instead of claiming there are no pending features or breaking changes.
 - Do not let an artifact-only staged diff under .ai_workflow override substantive [Unreleased] entries such as Added features, new capabilities, or breaking changes.
+- Treat changed-file excerpts and diff samples as partial evidence unless they clearly cover the full staged scope. Do not claim "the only staged changes are ..." unless the provided evidence fully supports that claim.
 - If primary sources conflict or are missing, explain the conflict and lower confidence instead of over-claiming certainty.
 
 Based on this context, determine the semantic version bump type:
@@ -350,7 +352,7 @@ Based on this context, determine the semantic version bump type:
 
 Output format:
 Bump Type: [major|minor|patch]
-Reasoning: [2-3 sentence explanation citing the strongest available evidence and reconciling any conflict]
+Reasoning: [2-3 sentence explanation citing the strongest available evidence, reconciling any conflict, and explicitly naming any unavailable or inconclusive checks]
 Confidence: [high|medium|low]`;
 }
 

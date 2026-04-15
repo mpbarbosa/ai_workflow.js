@@ -76,4 +76,34 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
     );
     expect(prompt).toContain('Apply shell-specific checks only to shell scripts in scope.');
   });
+
+  test('rendered prompt treats doc excerpts as partial evidence instead of proof of global gaps', () => {
+    const prompt = buildYamlStepPrompt(aiHelpers, 'step3_script_refs_prompt', {
+      project_name: '/tmp/project',
+      project_description: 'example',
+      primary_language: 'javascript',
+      project_kind: 'nodejs_api',
+      scripts_dir: 'scripts, bin',
+      script_count: '2',
+      change_scope: 'full_validation',
+      modified_count: '3',
+      issues: '1',
+      script_issues_content: '- scripts/setup.sh: missing usage docs',
+      doc_coverage_map: 'scripts/setup.sh: README.md',
+      all_scripts: ['scripts/setup.sh', 'bin/ai-workflow.js'].join('\n'),
+      doc_context: [
+        '### README.md',
+        '# Project',
+        '... [excerpt omitted]',
+        '## Automation Scripts',
+        '- `scripts/setup.sh`',
+      ].join('\n'),
+    });
+
+    expect(prompt).toContain('Treat these excerpts as partial evidence');
+    expect(prompt).toContain('do not claim that "no usage examples"');
+    expect(prompt).toContain(
+      'Treat README command examples, command tables, automation-script sections'
+    );
+  });
 });

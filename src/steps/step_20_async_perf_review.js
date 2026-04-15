@@ -50,6 +50,47 @@ export function isAsyncHeavyProject(files) {
 }
 
 /**
+ * Determine whether a file path is a runtime-oriented async review target.
+ *
+ * Excludes tests, declarations, submodules, and common tooling/config files so
+ * the async-performance review stays focused on production code paths by
+ * default.
+ *
+ * @param {string} filePath - Relative or absolute file path
+ * @returns {boolean}
+ */
+export function isAsyncRuntimeTarget(filePath) {
+  const normalized = String(filePath ?? '').replace(/\\/g, '/');
+
+  if (!/\.[cm]?[jt]sx?$/i.test(normalized) || /\.d\.ts$/i.test(normalized)) {
+    return false;
+  }
+
+  if (
+    normalized.startsWith('.workflow_core/') ||
+    normalized.startsWith('.workflow_fspec/') ||
+    /(^|\/)(__tests__|test|tests)\//.test(normalized) ||
+    /\.(test|spec)\.[cm]?[jt]sx?$/i.test(normalized)
+  ) {
+    return false;
+  }
+
+  return !/(^|\/)(eslint|jest|vite|vitest|babel|webpack|rollup|karma|playwright|cypress)(?:\.[\w-]+)?\.config\.[cm]?[jt]sx?$/i.test(
+    normalized
+  );
+}
+
+/**
+ * Filter a file list down to runtime-oriented async review targets.
+ *
+ * @param {string[]} files - Relative or absolute file paths
+ * @returns {string[]}
+ */
+export function filterAsyncRuntimeTargets(files) {
+  return files.filter((filePath) => isAsyncRuntimeTarget(filePath));
+}
+
+/**
  * Score the density of common async anti-patterns across an array of
  * source file contents.
  *
@@ -294,18 +335,24 @@ export class Step20AsyncPerfReview {
       const relativeFiles = allFiles.map((f) =>
         path.isAbsolute(f) ? path.relative(projectRoot, f) : f
       );
+      const runtimeFiles = filterAsyncRuntimeTargets(relativeFiles);
 
       if (!isAsyncHeavyProject(relativeFiles)) {
         logger.info('Step 20: No JavaScript/TypeScript files found — skipping');
         return { success: true, skipped: true, message: 'No JS/TS files found' };
       }
 
-      logger.info(`Step 20: Analyzing ${relativeFiles.length} JS/TS files`);
+      if (runtimeFiles.length === 0) {
+        logger.info('Step 20: Only test/tooling JS/TS files found — skipping runtime review');
+        return { success: true, skipped: true, message: 'No runtime JS/TS files found' };
+      }
+
+      logger.info(`Step 20: Analyzing ${runtimeFiles.length} runtime JS/TS files`);
 
       const fileContents = [];
       const fileEntries = [];
 
-      for (const relFile of relativeFiles) {
+      for (const relFile of runtimeFiles) {
         try {
           const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
           const content = await this.fileOps.readFile(absPath);

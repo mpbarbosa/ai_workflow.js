@@ -1,5 +1,3 @@
-## ENGLISH_FEEDBACK_GUIDE
-
 # English Feedback Guide for GitHub Copilot CLI
 
 **Purpose**: Improve English language skills while using GitHub Copilot

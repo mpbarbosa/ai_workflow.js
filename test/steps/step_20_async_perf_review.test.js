@@ -6,6 +6,8 @@
 import { jest } from '@jest/globals';
 import {
   isAsyncHeavyProject,
+  isAsyncRuntimeTarget,
+  filterAsyncRuntimeTargets,
   scoreAsyncIssues,
   splitAsyncPromptEntry,
   buildAsyncPromptPartitions,
@@ -57,6 +59,36 @@ describe('step_20_async_perf_review - Pure Functions', () => {
 
     test('returns true for mixed list containing a .ts file', () => {
       expect(isAsyncHeavyProject(['README.md', 'src/index.ts'])).toBe(true);
+    });
+  });
+
+  describe('isAsyncRuntimeTarget', () => {
+    test('includes runtime source files', () => {
+      expect(isAsyncRuntimeTarget('src/index.ts')).toBe(true);
+      expect(isAsyncRuntimeTarget('bin/cli.js')).toBe(true);
+    });
+
+    test('excludes tests, submodules, declarations, and tooling configs', () => {
+      expect(isAsyncRuntimeTarget('test/app.test.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('src/__tests__/app.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('.workflow_core/config/ai_helpers/index.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('src/types.d.ts')).toBe(false);
+      expect(isAsyncRuntimeTarget('jest.config.ts')).toBe(false);
+      expect(isAsyncRuntimeTarget('vitest.config.mts')).toBe(false);
+    });
+  });
+
+  describe('filterAsyncRuntimeTargets', () => {
+    test('keeps only runtime-oriented files', () => {
+      expect(
+        filterAsyncRuntimeTargets([
+          'src/index.ts',
+          'test/index.test.ts',
+          '.workflow_core/config/ai_helpers/index.js',
+          'vitest.config.ts',
+          'scripts/validate.js',
+        ])
+      ).toEqual(['src/index.ts', 'scripts/validate.js']);
     });
   });
 
@@ -362,6 +394,30 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     const result = await step.execute('/project');
     expect(result.success).toBe(true);
     expect(result.skipped).toBe(true);
+  });
+
+  test('skips runtime review when only tests and tooling files are present', async () => {
+    const fileOps = makeFileOps([
+      'test/app.test.js',
+      'src/__tests__/helpers.ts',
+      '.workflow_core/config/ai_helpers/index.js',
+      'vitest.config.ts',
+    ]);
+    const aiHelper = makeAiHelper();
+    const step = new Step20AsyncPerfReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    const result = await step.execute('/project');
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.message).toBe('No runtime JS/TS files found');
+    expect(aiHelper.executeRequest).not.toHaveBeenCalled();
   });
 
   test('calls AI with async_performance_engineer persona', async () => {

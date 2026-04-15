@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -40,7 +40,7 @@
     "test:docker:coverage": "bash scripts/run-tests-docker.sh -- --coverage",
     "test:docker:e2e": "bash scripts/run-tests-docker.sh --e2e",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.integration.config.json",
-    "docs:generate": "typedoc --options typedoc.json",
+    "docs:generate": "typedoc --options typedoc.json && node scripts/postprocess-typedoc-media-links.js",
     "validate": "npm run validate:exports && npm run validate:versions",
     "validate:exports": "node scripts/validate-exports.js",
     "validate:versions": "node scripts/check-version-consistency.js",

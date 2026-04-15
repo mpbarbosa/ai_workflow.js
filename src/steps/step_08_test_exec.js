@@ -215,8 +215,26 @@ export function detectTestConfigPaths(projectRoot) {
     'jest.config.cjs',
     'jest.config.mjs',
     'jest.config.json',
+    'jest.integration.config.js',
+    'jest.integration.config.ts',
+    'jest.integration.config.cjs',
+    'jest.integration.config.mjs',
+    'jest.integration.config.json',
     'jest.config.unit.js',
+    'jest.config.unit.ts',
+    'jest.config.unit.cjs',
+    'jest.config.unit.mjs',
+    'jest.config.unit.json',
     'jest.config.e2e.js',
+    'jest.config.e2e.ts',
+    'jest.config.e2e.cjs',
+    'jest.config.e2e.mjs',
+    'jest.config.e2e.json',
+    'jest.config.integration.js',
+    'jest.config.integration.ts',
+    'jest.config.integration.cjs',
+    'jest.config.integration.mjs',
+    'jest.config.integration.json',
     'vitest.config.js',
     'vitest.config.ts',
     'vitest.config.mjs',
@@ -752,11 +770,12 @@ export class Step8TestExecutor {
       //   2. Runner/compiler crashed before finding tests → exits 1, silent/different output
       //   3. All tests passed, no output issues
       // "runnerCrashed" is set by runTests() when both the initial run and the --ci retry
-      // produced 0 bytes of output with a non-zero exit code, indicating the process was
-      // killed (OOM, SIGKILL) or crashed before writing anything.  We treat this the same
-      // as "no tests found" — warn and continue rather than halting the whole workflow.
+      // produced 0 bytes of output with a non-zero exit code. We treat that silent exit
+      // the same as "no tests found" — warn and continue rather than halting the workflow —
+      // but keep the root cause explicitly inconclusive in prompts and summaries.
       const noTestsMessageInOutput = hasNoTestsFoundMessage(testResult.output);
       const runnerCrashed = !!testResult.runnerCrashed;
+      const silentRunnerExit = runnerCrashed && !noTestsMessageInOutput;
       const noTestsFound =
         testResults.total === 0 &&
         (testResults.suitesFailed ?? 0) === 0 &&
@@ -813,7 +832,9 @@ export class Step8TestExecutor {
             test_config_paths: detectTestConfigPaths(projectRoot),
             test_types: detectTestTypes(projectRoot),
             test_exit_code: noTestsFound
-              ? `${testResult.exitCode} (no tests discovered — runner exited without output${runnerCrashed ? ', possible crash or OOM kill' : ''}; treated as no-tests-found, not a test failure)`
+              ? silentRunnerExit
+                ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as non-blocking rather than as a confirmed test failure)`
+                : `${testResult.exitCode} (no tests found message detected in runner output; treated as no-tests-found, not a test failure)`
               : String(testResult.exitCode),
             tests_total: String(testResults.total ?? 0),
             tests_passed: String(testResults.passed ?? 0),
@@ -822,10 +843,15 @@ export class Step8TestExecutor {
             project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
             ci_config_paths: detectCiConfigPaths(projectRoot),
             execution_summary: noTestsFound
-              ? `No tests were discovered or executed (runner produced no output in ${duration}ms)`
+              ? silentRunnerExit
+                ? `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence`
+                : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
               : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
             test_output: noTestsFound
-              ? `none — test runner produced no output (exit code ${testResult.exitCode}${runnerCrashed ? ', runner likely crashed before writing' : ''}; workflow treated this as no-tests-found)`
+              ? silentRunnerExit
+                ? `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
+                : (testResult.output ?? '').slice(0, 2000) ||
+                  `runner reported no test files (exit code ${testResult.exitCode})`
               : (testResult.output ?? '').slice(0, 2000) || 'none',
             failed_test_list: anyFailure ? (testResult.output ?? '').slice(0, 1000) : 'none',
             coverage_threshold: String(coverageThreshold),
@@ -912,14 +938,14 @@ export class Step8TestExecutor {
         if (runnerCrashed) {
           logger.warn(
             `Step 8 completed - test runner exited with code ${testResult.exitCode} but produced no output ` +
-              `(possible OOM kill or crash before first write). Run \`${testCommand}\` manually to investigate.`
+              `on either attempt. Run \`${testCommand}\` manually to investigate.`
           );
           await this.backlog.saveStepSummary(
             8,
             'Test Execution',
-            `${report}\n\n## ⚠️ Runner Crash Detected\n\n` +
+            `${report}\n\n## ⚠️ Silent Runner Exit\n\n` +
               `The test runner exited with code ${testResult.exitCode} but produced no output on either attempt.\n` +
-              `This usually indicates the process was killed (OOM, SIGKILL) before writing anything.\n\n` +
+              `The root cause could not be confirmed from the captured evidence.\n\n` +
               `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate.\n`,
             '⚠️'
           );

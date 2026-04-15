@@ -41,6 +41,12 @@ describe('Step 12: Git Finalization', () => {
       expect(result.modified).toEqual(['src/file1.js', 'src/file2.js']);
     });
 
+    test('preserves leading dots in file paths', () => {
+      const output = 'M  .github/skills/sync-workflow-config/SKILL.md';
+      const result = parseGitStatus(output);
+      expect(result.staged).toEqual(['.github/skills/sync-workflow-config/SKILL.md']);
+    });
+
     test('parses untracked files', () => {
       const output = '?? new-file.js\n?? another.js';
       const result = parseGitStatus(output);
@@ -213,14 +219,17 @@ describe('Step 12: Git Finalization', () => {
         scope: 'implementation',
         description: 'add new feature',
         modifiedCount: 5,
+        projectFileCount: 5,
         categories: { code: 3, tests: 2 },
         totalChanges: 5,
       };
       const message = generateCommitMessage(options);
       expect(message).toContain('feat(implementation): add new feature');
-      expect(message).toContain('Modified files: 5');
+      expect(message).toContain('Changed project files: 5');
       expect(message).toContain('Code: 3 files');
       expect(message).toContain('Tests: 2 files');
+      expect(message).toContain('Workflow automation summarized the staged changes available to Step 12.');
+      expect(message).not.toContain('completed comprehensive validation');
     });
 
     test('generates message without scope', () => {
@@ -253,10 +262,25 @@ describe('Step 12: Git Finalization', () => {
         description: 'add endpoint',
         changeScope: 'User authentication',
         modifiedCount: 3,
+        projectFileCount: 3,
         totalChanges: 3,
       };
       const message = generateCommitMessage(options);
       expect(message).toContain('Scope: User authentication');
+    });
+
+    test('notes staged artifact count when it exceeds project file count', () => {
+      const options = {
+        type: 'docs',
+        scope: 'documentation',
+        description: 'update docs',
+        projectFileCount: 2,
+        stagedFileCount: 5,
+        totalChanges: 2,
+      };
+      const message = generateCommitMessage(options);
+      expect(message).toContain('Changed project files: 2');
+      expect(message).toContain('All staged files: 5 (includes workflow artifacts)');
     });
   });
 

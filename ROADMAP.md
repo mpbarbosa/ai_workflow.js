@@ -390,17 +390,17 @@ Whenever new loader functions are published in `.workflow_core`, the correspondi
 implementations must be added manually to `ai_prompt_builder.js` for full parity.
 
 The assessment of `.workflow_core` v1.3.0 → v1.4.1 (commits `f1950d2`…`2055f83`)
-revealed the following gaps, which were closed in **v2.2.5**:
+revealed the following gaps, which were closed in **v2.2.6**:
 
 | Gap                                                                                                                | Severity | Status             |
 | ------------------------------------------------------------------------------------------------------------------ | -------- | ------------------ |
-| `resolveRoleRef` used truthiness check instead of `hasOwnProperty.call()` — same bug that was fixed in `loader.ts` | Medium   | ✅ Fixed in v2.2.5 |
-| No `listPersonas()` equivalent reading from YAML                                                                   | Low      | ✅ Added in v2.2.5 |
-| No `validateConfig()` JS mirror for cross-validating `role_ref` integrity                                          | Low      | ✅ Added in v2.2.5 |
-| CHANGELOG did not mention `.workflow_core` v1.4.1                                                                  | Low      | ✅ Fixed in v2.2.5 |
+| `resolveRoleRef` used truthiness check instead of `hasOwnProperty.call()` — same bug that was fixed in `loader.ts` | Medium   | ✅ Fixed in v2.2.6 |
+| No `listPersonas()` equivalent reading from YAML                                                                   | Low      | ✅ Added in v2.2.6 |
+| No `validateConfig()` JS mirror for cross-validating `role_ref` integrity                                          | Low      | ✅ Added in v2.2.6 |
+| CHANGELOG did not mention `.workflow_core` v1.4.1                                                                  | Low      | ✅ Fixed in v2.2.6 |
 | `step_24_python_packaging.js` not yet implemented                                                                  | Future   | See Phase 15       |
 
-### 16.1 — Completed (v2.2.5)
+### 16.1 — Completed (v2.2.6)
 
 - [x] Fix `resolveRoleRef` in `src/lib/ai_prompt_builder.js` to use `Object.prototype.hasOwnProperty.call()` — prevents prototype-chain false positives for keys like `"constructor"` / `"toString"`
 - [x] Add `listPersonas(parsedYaml)` pure function to `src/lib/ai_prompt_builder.js` — sorted `string[]` of persona keys, mirroring `loader.ts → listPersonas()`

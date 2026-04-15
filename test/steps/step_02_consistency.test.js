@@ -406,6 +406,19 @@ describe('Step 2: Consistency Analysis', () => {
       expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.ai_workflow/**']));
     });
 
+    test('excludes .test-e2e fixtures from documentation discovery', async () => {
+      const ignorePatterns = [];
+      mockFileOps.glob = (pattern, options) => {
+        if (options?.ignore) ignorePatterns.push(...options.ignore);
+        return Promise.resolve([]);
+      };
+
+      await analyzer.execute('/project');
+
+      expect(ignorePatterns).toEqual(expect.arrayContaining(['.test-e2e/**']));
+      expect(ignorePatterns).toEqual(expect.arrayContaining(['**/.test-e2e/**']));
+    });
+
     test('[BUG FIX] .ai_workflow/backlog files are NOT included in Files to Analyze', async () => {
       // Root-cause: minimatch("ai_workflow/backlog/x.md", "**/.ai_workflow/**") → false
       // because there is no leading "/" before ".ai_workflow" at the project root.

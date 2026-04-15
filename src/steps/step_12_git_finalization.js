@@ -145,6 +145,32 @@ export function categorizeFiles(files) {
   return categories;
 }
 
+const PROMPT_ARTIFACT_DIRS = /^(\.ai_workflow\/|\.jest-cache\/|node_modules\/|\.git\/)/;
+
+/**
+ * Build the project-file scope used in Step 12 prompts and heuristics.
+ * @pure
+ * @param {Object} status - Parsed git status
+ * @returns {{ allFiles: string[], relevantFiles: string[], changedFiles: string }}
+ */
+export function collectPromptScopedFiles(status = {}) {
+  const allFiles = [
+    ...new Set([
+      ...(status.modified || []),
+      ...(status.staged || []),
+      ...(status.untracked || []),
+      ...(status.deleted || []),
+    ]),
+  ];
+  const relevantFiles = allFiles.filter((file) => !PROMPT_ARTIFACT_DIRS.test(file));
+
+  return {
+    allFiles,
+    relevantFiles,
+    changedFiles: relevantFiles.length > 0 ? relevantFiles.join('\n') : '(none)',
+  };
+}
+
 /**
  * Infer commit type from file changes
  * @pure
@@ -210,6 +236,8 @@ export function generateCommitMessage(options) {
     scope,
     description,
     modifiedCount = 0,
+    projectFileCount = 0,
+    stagedFileCount = 0,
     categories = {},
     changeScope = '',
     totalChanges = 0,
@@ -217,19 +245,22 @@ export function generateCommitMessage(options) {
   } = options;
 
   const header = scope ? `${type}(${scope}): ${description}` : `${type}: ${description}`;
-
-  const body = `
-Workflow automation completed comprehensive validation and updates.
-
-Changes:
-- Modified files: ${modifiedCount}
-- Documentation: ${categories.documentation || 0} files
-- Tests: ${categories.tests || 0} files
-- Scripts: ${categories.scripts || 0} files
-- Code: ${categories.code || 0} files
-${changeScope ? `\nScope: ${changeScope}` : ''}
-Total changes: ${totalChanges} files
-`.trim();
+  const visibleProjectFiles = projectFileCount || totalChanges || modifiedCount;
+  const visibleStagedFiles = stagedFileCount || 0;
+  const body = [
+    'Workflow automation summarized the staged changes available to Step 12.',
+    '',
+    'Changes:',
+    `- Changed project files: ${visibleProjectFiles}`,
+    `- Documentation: ${categories.documentation || 0} files`,
+    `- Tests: ${categories.tests || 0} files`,
+    `- Scripts: ${categories.scripts || 0} files`,
+    `- Code: ${categories.code || 0} files`,
+    ...(changeScope ? [`Scope: ${changeScope}`] : []),
+    ...(visibleStagedFiles > visibleProjectFiles
+      ? [`- All staged files: ${visibleStagedFiles} (includes workflow artifacts)`]
+      : []),
+  ].join('\n');
 
   const footer = version ? `[workflow-automation v${version}]` : '';
 
@@ -766,23 +797,13 @@ export class Step12GitFinalization {
    * @returns {Promise<Object>} { diffSummary, diffSample, gitLog, changedFiles }
    */
   async _gatherGitContext(gitState) {
-    const allFiles = [
-      ...new Set([
-        ...(gitState.status?.modified || []),
-        ...(gitState.status?.staged || []),
-        ...(gitState.status?.untracked || []),
-        ...(gitState.status?.deleted || []),
-      ]),
-    ];
-
     // Exclude artifact/third-party directories from the AI prompt context.
     // .ai_workflow/ and .jest-cache/ are intentionally committed but binary/artifact
     // content adds noise without useful context for commit message generation.
     // git diff HEAD returns files alphabetically, so without this filter the 100-line
     // diff budget is consumed by .ai_workflow/ artifact additions before reaching
     // actual source file diffs.
-    const ARTIFACT_DIRS = /^(\.ai_workflow\/|\.jest-cache\/|node_modules\/|\.git\/)/;
-    const relevantFiles = allFiles.filter((f) => !ARTIFACT_DIRS.test(f));
+    const { allFiles, relevantFiles, changedFiles } = collectPromptScopedFiles(gitState.status);
 
     let diffSummary;
     let diffSample;
@@ -815,12 +836,14 @@ export class Step12GitFinalization {
     // diffSummary reflects all staged files (including workflow artifacts added by
     // git add .) and may exceed gitState.totalChanges (project-level files only).
     const diffNote =
-      diffSummary && gitState.totalChanges > 0
-        ? ` (${gitState.totalChanges} project files + workflow artifacts)`
+      diffSummary && allFiles.length > relevantFiles.length && relevantFiles.length > 0
+        ? ` (${relevantFiles.length} project files + workflow artifacts)`
         : '';
 
     return {
-      changedFiles: relevantFiles.length > 0 ? relevantFiles.join('\n') : '(none)',
+      changedFiles,
+      projectFileCount: relevantFiles.length,
+      stagedFileCount: allFiles.length,
       diffSummary: diffSummary.trim()
         ? `${diffSummary.trim()}${diffNote}`
         : `${gitState.totalChanges} files changed`,
@@ -842,6 +865,9 @@ export class Step12GitFinalization {
       name: projectName,
       description: projectDescription,
     } = projectMeta;
+    const { allFiles, relevantFiles, changedFiles } = collectPromptScopedFiles(gitState.status);
+    const projectFileCount = relevantFiles.length || gitState.totalChanges;
+    const stagedFileCount = allFiles.length || projectFileCount;
 
     // Heuristic conventional commit message as base
     const baseMessage = generateCommitMessage({
@@ -849,8 +875,10 @@ export class Step12GitFinalization {
       scope: gitState.commitScope,
       description: 'update tests and documentation',
       modifiedCount: gitState.modifiedCount,
+      projectFileCount,
+      stagedFileCount,
       categories: gitState.categories,
-      totalChanges: gitState.totalChanges,
+      totalChanges: projectFileCount,
       version: projectVersion,
     });
 
@@ -859,13 +887,20 @@ export class Step12GitFinalization {
     if (aiAvailable) {
       try {
         await this.aiCache.init();
+        const gitCtx = await this._gatherGitContext(gitState).catch(() => ({
+          changedFiles,
+          projectFileCount,
+          stagedFileCount,
+          diffSummary: `${projectFileCount} files changed`,
+          diffSample: '(diff unavailable)',
+          gitLog: '(log unavailable)',
+        }));
         const cats = gitState.categories || {};
-        const changeScope = `${gitState.commitType}(${gitState.commitScope}): ${gitState.totalChanges} files changed (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})`;
+        const changeScope = `${gitState.commitType}(${gitState.commitScope}): ${projectFileCount} project files changed (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})`;
 
         let prompt;
         try {
           const parsedYaml = await loadResolvedAiHelpers(null);
-          const gitCtx = await this._gatherGitContext(gitState);
           // commit_types comes from the YAML config block itself
           const commitTypesText = parsedYaml?.step12_git_commit_prompt?.commit_types || '';
           prompt = buildYamlStepPrompt(parsedYaml, 'step12_git_commit_prompt', {
@@ -887,8 +922,8 @@ export class Step12GitFinalization {
           const role = `You are an expert Git commit message writer following the Conventional Commits specification.`;
           const task = `Generate a concise, accurate git commit message for these changes:
 - Type: ${gitState.commitType}(${gitState.commitScope})
-- Modified files: ${gitState.modifiedCount} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
-- Total changes: ${gitState.totalChanges}
+- Changed project files: ${projectFileCount} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
+${stagedFileCount > projectFileCount ? `- All staged files: ${stagedFileCount} (includes workflow artifacts)\n` : ''}- Changed Files list is the authoritative project-file scope
 - Base message: ${baseMessage}`;
           const approach = `Output ONLY the commit message (subject + optional body). Follow Conventional Commits. Subject ≤72 chars.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});

@@ -35,3 +35,10 @@ declare module '../utils/errors.js' {
     constructor(message: string, code?: string, details?: Record<string, unknown>);
   }
 }
+
+declare module '../helpers.js' {
+  export function truncateStackTrace(
+    stack: string | null | undefined,
+    maxLines?: number
+  ): string[];
+}

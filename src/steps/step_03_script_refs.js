@@ -332,6 +332,81 @@ export function formatScriptReport(results) {
   return lines.join('\n');
 }
 
+/**
+ * Build prompt-safe documentation excerpts that preserve both the document head
+ * and any later sections mentioning scripts in scope.
+ *
+ * @pure
+ * @param {Array<{path: string, content: string}>} docFiles - Documentation files
+ * @param {string[]} [scripts=[]] - Script paths in scope
+ * @param {number} [maxChars=2000] - Max total characters in the returned context
+ * @returns {string} Concatenated markdown excerpts
+ */
+export function buildDocumentationExcerpts(docFiles, scripts = [], maxChars = 2000) {
+  if (!Array.isArray(docFiles) || docFiles.length === 0) return '';
+
+  const tokenSet = new Set(
+    scripts.flatMap((scriptPath) => {
+      const normalized = String(scriptPath ?? '').replace(/^\.?\//, '').replace(/\\/g, '/');
+      const baseName = path.basename(normalized);
+      return [normalized.toLowerCase(), baseName.toLowerCase()].filter((token) => token.length >= 3);
+    })
+  );
+
+  const headingPattern = /^#{1,6}\s+(automation scripts|cli documentation|available cli commands)\b/i;
+
+  const excerpt = docFiles
+    .map(({ path: filePath, content }) => {
+      const lines = String(content ?? '').split('\n');
+      if (lines.length === 0) return `### ${filePath}`;
+
+      /** @type {Array<{start: number, end: number}>} */
+      const windows = [];
+      const addWindow = (start, end) => {
+        const bounded = {
+          start: Math.max(0, start),
+          end: Math.min(lines.length - 1, end),
+        };
+        if (bounded.start > bounded.end) return;
+        const previous = windows[windows.length - 1];
+        if (previous && bounded.start <= previous.end + 1) {
+          previous.end = Math.max(previous.end, bounded.end);
+          return;
+        }
+        windows.push(bounded);
+      };
+
+      if (lines.length <= 120) {
+        addWindow(0, lines.length - 1);
+      } else {
+        addWindow(0, Math.min(lines.length - 1, 59));
+      }
+
+      lines.forEach((line, index) => {
+        const normalizedLine = line.toLowerCase();
+        const mentionsScript = Array.from(tokenSet).some((token) => normalizedLine.includes(token));
+        if (mentionsScript || headingPattern.test(line)) {
+          addWindow(index - 3, index + 5);
+        }
+      });
+
+      const excerptLines = [];
+      windows.forEach((window, index) => {
+        const previous = windows[index - 1];
+        if (previous && window.start > previous.end + 1) {
+          excerptLines.push('... [excerpt omitted]');
+        }
+        excerptLines.push(...lines.slice(window.start, window.end + 1));
+      });
+
+      return `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
+    })
+    .join('\n\n---\n\n');
+
+  if (excerpt.length <= maxChars) return excerpt;
+  return excerpt.slice(0, maxChars) + '\n... [truncated]';
+}
+
 // ============================================================================
 // STEP 3 ANALYZER - Impure Wrapper
 // ============================================================================
@@ -474,17 +549,8 @@ export class Step3ScriptAnalyzer {
           if (docCoverageMap.length > DOC_COVERAGE_MAX) {
             docCoverageMap = docCoverageMap.slice(0, DOC_COVERAGE_MAX) + '\n... [truncated]';
           }
-          // Include first ~80 lines of each doc file so the AI can verify claims
           const DOC_CONTEXT_MAX = 2000;
-          let docContext = allDocFiles
-            .map(({ path: p, content }) => {
-              const excerpt = content.split('\n').slice(0, 80).join('\n');
-              return `### ${p}\n${excerpt}`;
-            })
-            .join('\n\n---\n\n');
-          if (docContext.length > DOC_CONTEXT_MAX) {
-            docContext = docContext.slice(0, DOC_CONTEXT_MAX) + '\n... [truncated]';
-          }
+          const docContext = buildDocumentationExcerpts(allDocFiles, scripts, DOC_CONTEXT_MAX);
           prompt = buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
             project_name: projectRoot,
             project_description: options.projectDescription || '',

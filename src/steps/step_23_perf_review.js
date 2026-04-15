@@ -23,6 +23,7 @@ import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
+import { CommitHistory } from '../lib/commit_history.js';
 import {
   loadResolvedAiHelpers,
   buildYamlStepPrompt,
@@ -47,6 +48,41 @@ export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
  */
 export function isPerformanceSensitiveProject(files) {
   return files.some((f) => /\.[cm]?[jt]sx?$/i.test(f));
+}
+
+/**
+ * Determine whether a file path is a valid step_23 review target.
+ *
+ * @param {string} filePath - Relative or absolute file path
+ * @returns {boolean}
+ */
+export function isPerformanceReviewTarget(filePath) {
+  const normalized = String(filePath ?? '').replace(/\\/g, '/');
+
+  return (
+    /\.[cm]?[jt]sx?$/i.test(normalized) &&
+    !/\.d\.ts$/i.test(normalized) &&
+    !normalized.startsWith('.ai_workflow/')
+  );
+}
+
+/**
+ * Filter and deduplicate a list of file paths down to step_23 review targets.
+ *
+ * @param {string[]} files - File paths to normalize
+ * @returns {string[]}
+ */
+export function filterPerformanceReviewTargets(files) {
+  const seen = new Set();
+
+  return (Array.isArray(files) ? files : []).filter((filePath) => {
+    const normalized = String(filePath ?? '').replace(/\\/g, '/');
+    if (!isPerformanceReviewTarget(normalized) || seen.has(normalized)) {
+      return false;
+    }
+    seen.add(normalized);
+    return true;
+  });
 }
 
 /**
@@ -278,6 +314,60 @@ export class Step23PerfReview {
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir ?? null });
     this.aiCache = options.aiCache || new AiCache();
     this.techStack = options.techStack || new TechStackDetector();
+    this.gitOps = options.gitOps || null;
+  }
+
+  _getLastSuccessfulRunCommit(workflowDir) {
+    const commitHistory = new CommitHistory({ workflowDir });
+    return commitHistory.getLastRunCommit();
+  }
+
+  async _getFilesSinceLastSuccessfulRun(projectRoot, options = {}) {
+    if (
+      !this.gitOps ||
+      typeof this.gitOps.getChangedFilesSince !== 'function' ||
+      typeof this.gitOps.status !== 'function'
+    ) {
+      return { available: false, files: [] };
+    }
+
+    const rawWorkflowDir = options.workflowDir || '.ai_workflow';
+    const workflowDir = path.isAbsolute(rawWorkflowDir)
+      ? rawWorkflowDir
+      : path.join(projectRoot, rawWorkflowDir);
+    const baselineHash = this._getLastSuccessfulRunCommit(workflowDir);
+
+    if (!baselineHash) {
+      return { available: false, files: [] };
+    }
+
+    let committedChangedFiles;
+    try {
+      committedChangedFiles = this.gitOps
+        .getChangedFilesSince(baselineHash)
+        .filter((file) => file.status !== 'deleted' && !file.file?.startsWith('.ai_workflow/'));
+    } catch {
+      return { available: false, files: [] };
+    }
+
+    const status = await this.gitOps.status();
+    const uncommittedFiles = [
+      ...(status.staged || []),
+      ...(status.unstaged || []),
+      ...(status.untracked || []),
+    ].filter((file) => file.status !== 'deleted');
+
+    const seenPaths = new Set(committedChangedFiles.map((file) => file.file));
+    const mergedFiles = [
+      ...committedChangedFiles,
+      ...uncommittedFiles.filter((file) => !seenPaths.has(file.file)),
+    ];
+
+    return {
+      available: true,
+      files: filterPerformanceReviewTargets(mergedFiles.map((file) => file.file || file)),
+      baselineHash,
+    };
   }
 
   /**
@@ -295,23 +385,63 @@ export class Step23PerfReview {
     logger.step('Step 23: Performance Review');
 
     try {
-      const allFiles =
-        options.sourceFiles ??
-        (await this.fileOps.listDirectoryRecursive(projectRoot, {
-          extensions: ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
-          exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
-        }));
+      let analysisMode = 'full-scan';
+      let baselineHash = null;
+      let relativeFiles;
 
-      const relativeFiles = allFiles.map((f) =>
-        path.isAbsolute(f) ? path.relative(projectRoot, f) : f
-      );
+      if (Array.isArray(options.sourceFiles)) {
+        analysisMode = 'override';
+        relativeFiles = filterPerformanceReviewTargets(
+          options.sourceFiles.map((file) =>
+            path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+          )
+        );
+      } else {
+        const successfulScope = await this._getFilesSinceLastSuccessfulRun(projectRoot, options);
+
+        if (successfulScope.available) {
+          analysisMode = 'since-last-successful-run';
+          baselineHash = successfulScope.baselineHash;
+          relativeFiles = successfulScope.files;
+        } else if (Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 0) {
+          analysisMode = 'modified-files';
+          relativeFiles = filterPerformanceReviewTargets(
+            options.modifiedFiles.map((file) =>
+              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
+            )
+          );
+        } else {
+          const allFiles = await this.fileOps.listDirectoryRecursive(projectRoot, {
+            extensions: ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
+            exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
+          });
+          relativeFiles = filterPerformanceReviewTargets(
+            allFiles.map((file) => (path.isAbsolute(file) ? path.relative(projectRoot, file) : file))
+          );
+        }
+      }
 
       if (!isPerformanceSensitiveProject(relativeFiles)) {
+        if (analysisMode === 'since-last-successful-run') {
+          logger.info('Step 23: No JavaScript/TypeScript files changed since last successful run — skipping');
+          return {
+            success: true,
+            skipped: true,
+            message: 'No JS/TS files changed since last successful run',
+          };
+        }
+
         logger.info('Step 23: No JavaScript/TypeScript files found — skipping');
         return { success: true, skipped: true, message: 'No JS/TS files found' };
       }
 
-      logger.info(`Step 23: Analyzing ${relativeFiles.length} JS/TS files`);
+      if (analysisMode === 'since-last-successful-run') {
+        logger.info(
+          `Step 23: Analyzing ${relativeFiles.length} JS/TS file(s) changed since last successful run (${baselineHash?.substring(0, 7) ?? 'unknown'})`
+        );
+      } else {
+        logger.info(`Step 23: Analyzing ${relativeFiles.length} JS/TS files`);
+      }
 
       const fileContents = [];
       const fileEntries = [];
