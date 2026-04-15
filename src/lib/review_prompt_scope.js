@@ -42,15 +42,22 @@ export async function loadReadableReviewFiles(fileOps, projectRoot, relativeFile
   const fileContents = [];
   const fileEntries = [];
 
-  for (const relFile of Array.isArray(relativeFiles) ? relativeFiles : []) {
-    try {
+  const readResults = await Promise.allSettled(
+    (Array.isArray(relativeFiles) ? relativeFiles : []).map(async (relFile) => {
       const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
       const content = await fileOps.readFile(absPath);
-      fileContents.push(content);
-      fileEntries.push({ relativePath: relFile, content });
-    } catch {
+      return { relativePath: relFile, content };
+    })
+  );
+
+  for (const result of readResults) {
+    if (result.status !== 'fulfilled') {
       // Skip unreadable files silently
+      continue;
     }
+
+    fileContents.push(result.value.content);
+    fileEntries.push(result.value);
   }
 
   return { fileContents, fileEntries };

@@ -193,6 +193,21 @@ describe('step_22_accessibility_review - Pure Functions', () => {
       const scores = scoreAccessibilityIssues([file1, file2]);
       expect(scores.missingAltCount).toBe(2);
     });
+
+    test('aggregates counts per file without requiring a combined buffer', () => {
+      const file1 = '<img src="a.png"><button>Submit</button>';
+      const file2 = '<div onclick="handler()">click</div>';
+      const file3 = '.spinner { animation: spin 1s; }';
+      const scores = scoreAccessibilityIssues([file1, file2, file3]);
+
+      expect(scores).toEqual({
+        missingAltCount: 1,
+        keyboardTrapRisk: 1,
+        missingAriaCount: 1,
+        missingReducedMotionCount: 1,
+        totalIssues: 4,
+      });
+    });
   });
 
   // -------------------------------------------------------------------------

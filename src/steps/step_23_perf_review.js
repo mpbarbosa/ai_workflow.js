@@ -40,6 +40,8 @@ const MAX_FILE_PATHS_IN_CONTEXT = 20;
 export const MAX_PROMPT_ENTRY_CHARS = DEFAULT_MAX_PROMPT_ENTRY_CHARS;
 export const MAX_PROMPT_PARTITION_CHARS = DEFAULT_MAX_PROMPT_PARTITION_CHARS;
 export const MAX_PROMPT_ENTRIES_PER_PARTITION = DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION;
+const TEST_FILE_PATH_PATTERN = /(^|\/)(test|tests|__tests__)(\/|$)/i;
+const TEST_FILE_NAME_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -65,11 +67,14 @@ export function isPerformanceSensitiveProject(files) {
  */
 export function isPerformanceReviewTarget(filePath) {
   const normalized = String(filePath ?? '').replace(/\\/g, '/');
+  const isTestFile =
+    TEST_FILE_PATH_PATTERN.test(normalized) || TEST_FILE_NAME_PATTERN.test(normalized);
 
   return (
     /\.[cm]?[jt]sx?$/i.test(normalized) &&
     !/\.d\.ts$/i.test(normalized) &&
-    !normalized.startsWith('.ai_workflow/')
+    !normalized.startsWith('.ai_workflow/') &&
+    !isTestFile
   );
 }
 

@@ -17,13 +17,31 @@ import { AiCache } from '../lib/ai_cache.js';
 import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 
 export const COPILOT_INSTRUCTIONS_RELATIVE_PATH = '.github/copilot-instructions.md';
+export const COPILOT_REFERENCE_DOCS = [
+  'README.md',
+  'docs/ARCHITECTURE.md',
+  'docs/CLI_USAGE_GUIDE.md',
+  'docs/guides/MIGRATION_GUIDE.md',
+  'CHANGELOG.md',
+  'CONTRIBUTING.md',
+];
+export const COPILOT_SOURCE_LAYERS = [
+  ['src/core/', 'Foundational runtime helpers'],
+  ['src/utils/', 'Shared low-level utilities'],
+  ['src/lib/', 'Reusable workflow domain logic'],
+  ['src/orchestrator/', 'Workflow execution and sequencing'],
+  ['src/cli/', 'CLI commands, prompts, and TUI code'],
+  ['src/steps/', 'Executable workflow-step implementations'],
+];
+export const COPILOT_SUPPORTING_SURFACES = [
+  ['.workflow-config.yaml', 'Project-local workflow configuration'],
+  ['.workflow_core/', 'Shared workflow templates and helper assets'],
+  ['.workflow_fspec/', 'Functional specification submodule'],
+  ['.ai_workflow/', 'Runtime artifacts, cache, and checkpoints'],
+];
 
 function sortNatural(values) {
   return [...values].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-}
-
-function stripExtension(filePath) {
-  return filePath.replace(/\.[^.]+$/, '');
 }
 
 export function ensureTrailingNewline(content) {
@@ -53,9 +71,17 @@ export function extractCorrectedCopilotInstructions(responseText) {
 }
 
 export function buildCopilotInstructionsRepoFactsContext(facts) {
-  const packageScripts = Object.entries(facts.packageScripts ?? {})
-    .map(([name, command]) => `  - \`${name}\`: \`${command}\``)
+  const validationCommands = Object.entries(facts.validationCommands ?? {})
+    .map(([label, command]) => `- ${label}: \`${command}\``)
     .join('\n');
+  const sourceLayers = (facts.sourceLayers ?? [])
+    .map(({ path: layerPath, purpose }) => `- \`${layerPath}\` - ${purpose}`)
+    .join('\n');
+  const referenceDocs = (facts.referenceDocs ?? []).map((doc) => `- \`${doc}\``).join('\n');
+  const supportingSurfaces = (facts.supportingSurfaces ?? [])
+    .map(({ path: surfacePath, purpose }) => `- \`${surfacePath}\` - ${purpose}`)
+    .join('\n');
+  const packageExports = (facts.packageExports ?? []).map((entry) => `- \`${entry}\``).join('\n');
 
   const lines = [
     '## Authoritative Repo Facts',
@@ -65,31 +91,24 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
     `- Package version: \`${facts.packageVersion || 'unknown'}\``,
     `- Package description: ${facts.packageDescription || 'Unavailable'}`,
     '',
-    '### Workflow Step Inventory',
-    `- Step file count: ${facts.stepIds.length}`,
-    `- Step ids: ${facts.stepIds.length > 0 ? facts.stepIds.map((stepId) => `\`${stepId}\``).join(', ') : 'Unavailable'}`,
+    '### Copilot File Purpose',
+    '- Keep `.github/copilot-instructions.md` focused on durable, high-signal guidance for Copilot-assisted edits.',
+    '- Prefer links to authoritative docs over duplicated inventories, counts, status snapshots, or long command lists.',
     '',
-    '### CLI Commands',
-    `- Command count: ${facts.cliCommands.length}`,
-    `- Commands: ${facts.cliCommands.length > 0 ? facts.cliCommands.map((command) => `\`${command}\``).join(', ') : 'Unavailable'}`,
+    '### Validation Commands',
+    validationCommands || '- No standard validation commands detected.',
     '',
-    '### GitHub Actions Workflows',
-    `- Workflow file count: ${facts.workflowFiles.length}`,
-    `- Workflow files: ${facts.workflowFiles.length > 0 ? facts.workflowFiles.map((workflow) => `\`${workflow}\``).join(', ') : 'Unavailable'}`,
+    '### Stable Source Layers',
+    sourceLayers || '- Unavailable',
     '',
-    '### Source Module Counts',
-    `- \`src/core\`: ${facts.moduleCounts.core}`,
-    `- \`src/utils\`: ${facts.moduleCounts.utils}`,
-    `- \`src/lib\`: ${facts.moduleCounts.lib}`,
-    `- \`src/orchestrator\`: ${facts.moduleCounts.orchestrator}`,
-    `- \`src/cli\`: ${facts.moduleCounts.cli}`,
+    '### Supporting Workflow Surfaces',
+    supportingSurfaces || '- Unavailable',
     '',
-    '### Documentation Inventory',
-    `- Root docs present: ${facts.rootDocs.length > 0 ? facts.rootDocs.map((doc) => `\`${doc}\``).join(', ') : 'Unavailable'}`,
-    `- \`docs/\` markdown file count: ${facts.docsMarkdownCount}`,
+    '### Authoritative Reference Docs',
+    referenceDocs || '- Unavailable',
     '',
-    '### npm Scripts',
-    packageScripts || '  - Unavailable',
+    '### Public Package Entry Points',
+    packageExports || '- Unavailable',
   ];
 
   return `${lines.join('\n')}\n`;
@@ -142,7 +161,9 @@ export class Step1_5CopilotInstructionsValidator {
     const facts = await this.collectRepoFacts(projectRoot);
     const repoFacts = buildCopilotInstructionsRepoFactsContext(facts);
     const parsedYaml =
-      options.parsedAiHelpers || this.parsedAiHelpers || (await loadResolvedAiHelpers(this.fileOps));
+      options.parsedAiHelpers ||
+      this.parsedAiHelpers ||
+      (await loadResolvedAiHelpers(this.fileOps));
     const prompt =
       buildYamlStepPrompt(parsedYaml, 'step1_5_copilot_instructions_prompt', {
         project_name: facts.packageName || path.basename(projectRoot),
@@ -186,9 +207,8 @@ export class Step1_5CopilotInstructionsValidator {
       '',
       `- **Target file**: \`${COPILOT_INSTRUCTIONS_RELATIVE_PATH}\``,
       `- **Updated**: ${updated ? 'yes' : 'no'}`,
-      `- **Step files counted**: ${facts.stepIds.length}`,
-      `- **Workflow files counted**: ${facts.workflowFiles.length}`,
-      `- **CLI commands counted**: ${facts.cliCommands.length}`,
+      `- **Validation commands surfaced**: ${Object.values(facts.validationCommands).join(', ') || 'none'}`,
+      `- **Reference docs surfaced**: ${facts.referenceDocs.map((doc) => `\`${doc}\``).join(', ') || 'none'}`,
       '',
       repoFacts.trim(),
       '',
@@ -207,57 +227,56 @@ export class Step1_5CopilotInstructionsValidator {
   }
 
   async collectRepoFacts(projectRoot) {
-    const [
-      packageJsonRaw,
-      workflowFilesYml,
-      workflowFilesYaml,
-      stepFiles,
-      cliCommandFiles,
-      docsFiles,
-      coreFiles,
-      utilsFiles,
-      libFiles,
-      orchestratorFiles,
-      cliFiles,
-    ] = await Promise.all([
-      this.fileOps.readFile(path.join(projectRoot, 'package.json')),
-      this.fileOps.glob('.github/workflows/*.yml', { cwd: projectRoot }),
-      this.fileOps.glob('.github/workflows/*.yaml', { cwd: projectRoot }),
-      this.fileOps.glob('src/steps/step_*.js', { cwd: projectRoot }),
-      this.fileOps.glob('src/cli/commands/*.js', { cwd: projectRoot }),
-      this.fileOps.glob('docs/**/*.md', { cwd: projectRoot }).catch(() => []),
-      this.fileOps.glob('src/core/*.js', { cwd: projectRoot }),
-      this.fileOps.glob('src/utils/*.js', { cwd: projectRoot }),
-      this.fileOps.glob('src/lib/*.js', { cwd: projectRoot }),
-      this.fileOps.glob('src/orchestrator/*.js', { cwd: projectRoot }),
-      this.fileOps.glob('src/cli/**/*.js', { cwd: projectRoot }),
-    ]);
-
+    const packageJsonRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
     const packageJson = JSON.parse(packageJsonRaw);
-    const rootDocs = [];
-    for (const docName of ['README.md', 'CHANGELOG.md', 'ROADMAP.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md']) {
-      if (await this.fileOps.exists(path.join(projectRoot, docName))) {
-        rootDocs.push(docName);
-      }
-    }
+    const [referenceDocs, sourceLayers, supportingSurfaces] = await Promise.all([
+      Promise.all(
+        COPILOT_REFERENCE_DOCS.map(async (relativePath) => ({
+          relativePath,
+          present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+        }))
+      ).then((entries) =>
+        sortNatural(
+          entries.filter(({ present }) => present).map(({ relativePath }) => relativePath)
+        )
+      ),
+      Promise.all(
+        COPILOT_SOURCE_LAYERS.map(async ([relativePath, purpose]) => ({
+          path: relativePath,
+          purpose,
+          present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+        }))
+      ).then((entries) =>
+        entries
+          .filter(({ present }) => present)
+          .map(({ path: layerPath, purpose }) => ({ path: layerPath, purpose }))
+      ),
+      Promise.all(
+        COPILOT_SUPPORTING_SURFACES.map(async ([relativePath, purpose]) => ({
+          path: relativePath,
+          purpose,
+          present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+        }))
+      ).then((entries) =>
+        entries
+          .filter(({ present }) => present)
+          .map(({ path: surfacePath, purpose }) => ({ path: surfacePath, purpose }))
+      ),
+    ]);
 
     return {
       packageName: packageJson.name || '',
       packageVersion: packageJson.version || '',
       packageDescription: packageJson.description || '',
-      packageScripts: packageJson.scripts || {},
-      workflowFiles: sortNatural([...workflowFilesYml, ...workflowFilesYaml]),
-      stepIds: sortNatural(stepFiles.map((filePath) => stripExtension(path.basename(filePath)))),
-      cliCommands: sortNatural(cliCommandFiles.map((filePath) => stripExtension(path.basename(filePath)))),
-      moduleCounts: {
-        core: coreFiles.length,
-        utils: utilsFiles.length,
-        lib: libFiles.length,
-        orchestrator: orchestratorFiles.length,
-        cli: cliFiles.length,
+      packageExports: sortNatural(Object.keys(packageJson.exports || {})),
+      validationCommands: {
+        ...(packageJson.scripts?.lint ? { Lint: 'npm run lint' } : {}),
+        ...(packageJson.scripts?.test ? { Test: 'npm test' } : {}),
+        ...(packageJson.scripts?.build ? { Build: 'npm run build' } : {}),
       },
-      docsMarkdownCount: docsFiles.length,
-      rootDocs: sortNatural(rootDocs),
+      referenceDocs,
+      sourceLayers,
+      supportingSurfaces,
     };
   }
 }

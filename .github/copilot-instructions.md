@@ -1,268 +1,82 @@
 # GitHub Copilot Instructions: ai-workflow
 
-> 🎯 **Project Context**: This is the authoritative Copilot guidance file for the `ai-workflow` repository. Keep it aligned with the live repository structure, scripts, workflows, architecture, and documentation.
+> This file provides durable, high-signal guidance for Copilot-assisted development in this repository. Keep it focused on stable architecture, design principles, documentation sync rules, and validation commands. Link to authoritative docs for detailed or volatile reference material.
 
 ---
 
-## Table of Contents
+## Purpose
 
-- [Project Overview](#project-overview)
-- [Architecture & Design Principles](#architecture--design-principles)
-- [Implementation Status](#implementation-status)
-- [Module & Directory Structure](#module--directory-structure)
-- [Dependency Flow](#dependency-flow)
-- [Workflow Steps](#workflow-steps)
-- [CLI Commands](#cli-commands)
-- [GitHub Actions Workflows](#github-actions-workflows)
-- [Referential Transparency Pattern](#referential-transparency-pattern)
-- [Coding Standards & Conventions](#coding-standards--conventions)
-- [Key Documentation References](#key-documentation-references)
-- [Development Workflow](#development-workflow)
-- [Testing Strategy](#testing-strategy)
-- [Common Assistance Patterns](#common-assistance-patterns)
-- [Migration Context](#migration-context)
-- [Quick Reference](#quick-reference)
-- [Contact & Resources](#contact--resources)
+`ai-workflow` is an AI-powered workflow automation package for software development projects, integrating with GitHub Copilot. This file guides Copilot to make high-quality, context-aware edits.
 
----
+## What to include
 
-## Project Overview
+- Stable architectural boundaries and source structure
+- Design and coding principles that shape edits
+- Documentation sync rules for user-facing changes
+- Standard validation commands for code changes
+- Pointers to authoritative reference documents
 
-**ai-workflow** is a Node.js package for AI-powered workflow automation in software development projects, with GitHub Copilot integration.
+## What to exclude
 
-**Package Metadata:**
+Do **not** duplicate:
 
-- **Name**: `ai-workflow`
-- **Version**: `2.2.8`
-- **Description**: AI-powered workflow automation for software development projects with GitHub Copilot integration
-- **License**: MIT
+- Implementation status, version snapshots, or numeric inventories
+- Exhaustive lists of modules, steps, workflows, or commands
+- Installation walkthroughs, migration procedures, or deep reference material
 
-**Key Characteristics:**
-
-- Orchestrates a multi-step, AI-driven development workflow.
-- Cross-platform: Linux, macOS, and Windows via Node.js.
-- Modern JavaScript: ES modules and async/await.
-- Layered architecture: code organized under `src/core/`, `src/utils/`, `src/lib/`, `src/orchestrator/`, `src/cli/`, and `src/steps/`.
-- Repository documentation: guides, API docs, architecture notes, and references under `docs/`.
-- Migration context: JavaScript/Node.js reimplementation of the original shell-based [`ai_workflow`](https://github.com/mpbarbosa/ai_workflow) project.
+Instead, link to the relevant document in `README.md` or `docs/`.
 
 ---
 
-## Architecture & Design Principles
+## Architecture and Source Layers
 
-### Core Architectural Patterns
+- `src/core/` – Foundational runtime helpers
+- `src/utils/` – Shared low-level utilities
+- `src/lib/` – Reusable workflow domain logic
+- `src/orchestrator/` – Workflow execution and sequencing
+- `src/cli/` – CLI commands, prompts, and TUI code
+- `src/steps/` – Executable workflow-step implementations
 
-1. **Layered Architecture**
-   - Core primitives: `src/core/`
-   - Utilities: `src/utils/`
-   - Shared domain logic: `src/lib/`
-   - Workflow orchestration: `src/orchestrator/`
-   - CLI and TUI code: `src/cli/`
-   - Executable workflow steps: `src/steps/`
+Supporting surfaces:
 
-2. **Referential Transparency**
-   - Prefer pure functions for business logic.
-   - Isolate I/O, mutable state, and environment access at boundaries.
-   - Pass time, randomness, and filesystem/process dependencies through wrappers when practical.
+- `.workflow-config.yaml` – Project-local workflow configuration
+- `.workflow_core/` – Shared workflow templates and helper assets
+- `.workflow_fspec/` – Functional specification submodule
+- `.ai_workflow/` – Runtime artifacts, cache, and checkpoints
 
-3. **Configuration-Driven Workflow**
-   - Project-local configuration: `.workflow-config.yaml`
-   - Shared templates and helper assets: `.workflow_core/`
-   - Workflow output and runtime artifacts: `.ai_workflow/`
+## Design Principles
 
-4. **Documentation as an Operational Surface**
-   - `README.md`, `docs/`, and `.github/copilot-instructions.md` are maintained as runtime guidance.
-   - Public-surface changes should keep exports, CLI docs, and reference docs in sync.
+- Prefer pure functions for business logic where practical
+- Keep I/O (filesystem, process, environment) at the boundaries
+- Reuse helpers and respect module boundaries
+- Keep documentation and public surfaces aligned with behavior
 
----
+## Documentation and Change Coordination
 
-## Implementation Status
+- Sync user-facing CLI changes with `README.md` and CLI/reference docs
+- Update `docs/ARCHITECTURE.md` for architecture or layout changes
+- Align package exports and entry points with `package.json` and API docs
+- Prefer linking to authoritative docs over duplicating volatile details
 
-- **Workflow step files**: 32
-- **CLI commands**: 8
-- **GitHub Actions workflows**: 7
-- **Documentation**: 118 markdown files in `docs/`, plus root docs (`CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `README.md`, `ROADMAP.md`)
+## Validation Commands
 
----
+For substantive code changes, always validate with:
 
-## Module & Directory Structure
+- `npm run lint`
+- `npm test`
+- `npm run build`
 
-- `src/core/` — Core primitives (6 modules)
-- `src/utils/` — Utilities (3 modules)
-- `src/lib/` — Shared domain logic (46 modules)
-- `src/orchestrator/` — Workflow orchestration (8 modules)
-- `src/cli/` — CLI and TUI code (27 modules)
-- `src/steps/` — Executable workflow steps (32 files)
-- `docs/` — Documentation (118 markdown files)
+Use narrower scripts from `package.json` only for intentionally scoped tasks.
 
----
+## Authoritative References
 
-## Dependency Flow
+Consult these documents for detailed or volatile information:
 
-- Core and utility modules are used by orchestrator, CLI, and step modules.
-- Workflow steps are executed by the orchestrator and may depend on shared logic in `src/lib/`.
-- CLI commands invoke orchestrator logic and steps.
-
----
-
-## Workflow Steps
-
-**Step file count:** 32
-**Step IDs:**
-
-- `step_00_analyze`
-- `step_0b_bootstrap_docs`
-- `step_0d_docker_preflight`
-- `step_0f_commit_artifacts`
-- `step_01_5_copilot_instructions`
-- `step_01_documentation`
-- `step_02_5_doc_optimize`
-- `step_02_consistency`
-- `step_03_script_refs`
-- `step_04_config_validation`
-- `step_05_directory`
-- `step_06_test_review`
-- `step_07_test_gen`
-- `step_08_test_exec`
-- `step_09_dependencies`
-- `step_10_code_quality`
-- `step_11_5_aws_lbs_validation`
-- `step_11_6_aws_serverless_review`
-- `step_11_context`
-- `step_12_git_finalization`
-- `step_13_markdown_lint`
-- `step_14_prompt_engineer`
-- `step_15_ux_analysis`
-- `step_16_version_update`
-- `step_17_summary`
-- `step_18_debugging`
-- `step_19_typescript_review`
-- `step_20_async_perf_review`
-- `step_21_doc_consolidation`
-- `step_22_accessibility_review`
-- `step_23_perf_review`
-- `step_contract`
-
----
-
-## CLI Commands
-
-**Command count:** 8
-**Commands:**
-
-- `clean`
-- `config`
-- `deploy`
-- `fix_log_issues`
-- `init`
-- `resume`
-- `run`
-- `status`
-
----
-
-## GitHub Actions Workflows
-
-**Workflow file count:** 7
-**Workflow files:**
-
-- `.github/workflows/ci.yml`
-- `.github/workflows/codeql.yml`
-- `.github/workflows/coverage-comment.yml`
-- `.github/workflows/dependency-review.yml`
-- `.github/workflows/release.yml`
-- `.github/workflows/test-docker.yml`
-- `.github/workflows/update-pajussara.yml`
-
----
-
-## Referential Transparency Pattern
-
-- Business logic is implemented as pure functions where possible.
-- I/O, state, and environment access are isolated at boundaries.
-- Time, randomness, and filesystem/process dependencies are passed through wrappers when practical.
-
----
-
-## Coding Standards & Conventions
-
-- Modern JavaScript (ES modules, async/await)
-- Layered architecture
-- Configuration-driven workflow
-- Documentation and code kept in sync
-- Linting and formatting via `eslint` and `prettier`
-- Testing via `jest` and custom scripts
-
----
-
-## Key Documentation References
-
-- Root documentation: `README.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `ROADMAP.md`
-- `docs/`: 118 markdown files with guides, API docs, and references
-
----
-
-## Development Workflow
-
-- Use the CLI commands to initialize, run, and manage workflows.
-- Configuration is managed via `.workflow-config.yaml`.
-- Workflow steps are executed in sequence by the orchestrator.
-- Artifacts and logs are stored in `.ai_workflow/`.
-
----
-
-## Testing Strategy
-
-- Unit and integration tests via `jest`
-- Test scripts:
-  - `test`
-  - `test:watch`
-  - `test:coverage`
-  - `test:unit`
-  - `test:integration`
-  - `test:fast`
-  - `test:slow`
-  - `test:ci`
-  - `test:docker`
-  - `test:docker:coverage`
-  - `test:docker:e2e`
-  - `test:e2e`
-- Linting: `lint`, `lint:fix`, `lint:md`, `lint:md:fix`, `fix:md`
-- Formatting: `format`, `format:check`
-- Validation: `validate`, `validate:exports`, `validate:versions`
-- Analysis: `analyze:readability`, `analyze:changes`, `analyze:changes:verbose`, `analyze:changes:json`
-- Build: `build`, `build:ts`, `type:check`
-
----
-
-## Common Assistance Patterns
-
-- Keep `.github/copilot-instructions.md` aligned with the live repository.
-- Use authoritative repo facts for all Copilot-assisted development.
-- Update documentation and code together to maintain consistency.
-- Reference this file for Copilot guidance and workflow automation.
-
----
-
-## Migration Context
-
-This repository is a JavaScript/Node.js reimplementation of the original shell-based [`ai_workflow`](https://github.com/mpbarbosa/ai_workflow) project.
-
----
-
-## Quick Reference
-
-- **Package**: `ai-workflow` (v2.2.8)
-- **Workflow steps**: 32
-- **CLI commands**: 8
-- **GitHub Actions workflows**: 7
-- **Documentation**: 118 markdown files in `docs/`, plus root docs
-
----
-
-## Contact & Resources
-
-- See `README.md` and `docs/` for usage, architecture, and contribution guidelines.
-- For issues or questions, refer to the repository's issue tracker.
+- `README.md` – Project overview, installation, usage
+- `docs/ARCHITECTURE.md` – Repository layout and architecture
+- `docs/CLI_USAGE_GUIDE.md` – CLI command and option reference
+- `docs/guides/MIGRATION_GUIDE.md` – Migration context
+- `CHANGELOG.md`, `CONTRIBUTING.md`
+- `package.json` – Package metadata, scripts, exports
 
 ---

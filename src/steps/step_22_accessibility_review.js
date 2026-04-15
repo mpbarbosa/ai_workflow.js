@@ -49,6 +49,14 @@ const GENERATED_ACCESSIBILITY_PATH_PREFIXES = [
   'jsdoc/',
   'lcov-report/',
 ];
+const IMG_TAG_PATTERN = /<img\b/gi;
+const IMG_ALT_PATTERN = /<img\b[^>]*\balt=/gi;
+const ONCLICK_PATTERN = /\bonclick\s*=/gi;
+const TABINDEX_NEG_PATTERN = /tabindex\s*=\s*["']-1["']/gi;
+const INTERACTIVE_ELEMENT_PATTERN = /<(button|input|select|textarea)\b/gi;
+const ARIA_LABEL_PATTERN = /\baria-label(ledby)?\s*=/gi;
+const ANIMATION_PATTERN = /\b(animation|transition)\s*:/g;
+const REDUCED_MOTION_PATTERN = /prefers-reduced-motion/g;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -95,7 +103,8 @@ export function filterAccessibilityReviewTargets(files) {
 
 /**
  * Score the density of common accessibility anti-patterns across an array of
- * source file contents.
+ * source file contents without concatenating the full review scope into a
+ * single large string.
  *
  * Scoring heuristics (per-file occurrences, case-insensitive):
  * - `<img` without `alt=`       → missing image alt text (WCAG 1.1.1)
@@ -113,29 +122,66 @@ export function filterAccessibilityReviewTargets(files) {
  *   totalIssues: number
  * }}
  */
-export function scoreAccessibilityIssues(fileContents) {
-  const combined = fileContents.join('\n');
+function countMatches(content, pattern) {
+  if (typeof content !== 'string' || content.length === 0) {
+    return 0;
+  }
 
-  // <img without alt= attribute
-  const imgCount = (combined.match(/<img\b/gi) || []).length;
-  const altCount = (combined.match(/<img\b[^>]*\balt=/gi) || []).length;
+  pattern.lastIndex = 0;
+  let count = 0;
+
+  while (pattern.exec(content) !== null) {
+    count += 1;
+  }
+
+  return count;
+}
+
+export function scoreAccessibilityIssues(fileContents) {
+  const contents = Array.isArray(fileContents) ? fileContents : [];
+  const imgCount = contents.reduce(
+    (total, content) => total + countMatches(content, IMG_TAG_PATTERN),
+    0
+  );
+  const altCount = contents.reduce(
+    (total, content) => total + countMatches(content, IMG_ALT_PATTERN),
+    0
+  );
   const missingAltCount = Math.max(0, imgCount - altCount);
 
   // onclick handlers outside of button/a elements (heuristic: onclick= not preceded by <button or <a)
-  const onclickCount = (combined.match(/\bonclick\s*=/gi) || []).length;
+  const onclickCount = contents.reduce(
+    (total, content) => total + countMatches(content, ONCLICK_PATTERN),
+    0
+  );
 
   // Interactive elements with tabindex="-1" (removing focus without alternative)
-  const tabindexNegCount = (combined.match(/tabindex\s*=\s*["']-1["']/gi) || []).length;
+  const tabindexNegCount = contents.reduce(
+    (total, content) => total + countMatches(content, TABINDEX_NEG_PATTERN),
+    0
+  );
   const keyboardTrapRisk = onclickCount + tabindexNegCount;
 
   // <button>, <input>, <select>, <textarea> without associated aria-label or aria-labelledby
-  const interactiveCount = (combined.match(/<(button|input|select|textarea)\b/gi) || []).length;
-  const ariaLabelledCount = (combined.match(/\baria-label(ledby)?\s*=/gi) || []).length;
+  const interactiveCount = contents.reduce(
+    (total, content) => total + countMatches(content, INTERACTIVE_ELEMENT_PATTERN),
+    0
+  );
+  const ariaLabelledCount = contents.reduce(
+    (total, content) => total + countMatches(content, ARIA_LABEL_PATTERN),
+    0
+  );
   const missingAriaCount = Math.max(0, interactiveCount - ariaLabelledCount);
 
   // CSS animation/transition without prefers-reduced-motion
-  const animationCount = (combined.match(/\b(animation|transition)\s*:/g) || []).length;
-  const reducedMotionCount = (combined.match(/prefers-reduced-motion/g) || []).length;
+  const animationCount = contents.reduce(
+    (total, content) => total + countMatches(content, ANIMATION_PATTERN),
+    0
+  );
+  const reducedMotionCount = contents.reduce(
+    (total, content) => total + countMatches(content, REDUCED_MOTION_PATTERN),
+    0
+  );
   const missingReducedMotionCount = Math.max(0, animationCount - reducedMotionCount);
 
   return {

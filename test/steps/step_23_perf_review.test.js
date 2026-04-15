@@ -71,8 +71,11 @@ describe('step_23_perf_review - Pure Functions', () => {
       expect(isPerformanceReviewTarget('src/app.tsx')).toBe(true);
     });
 
-    test('rejects declarations and workflow artifacts', () => {
+    test('rejects declarations, test files, and workflow artifacts', () => {
       expect(isPerformanceReviewTarget('src/types.d.ts')).toBe(false);
+      expect(isPerformanceReviewTarget('test/step_23_perf_review.test.js')).toBe(false);
+      expect(isPerformanceReviewTarget('src/lib/review_prompt_scope.spec.ts')).toBe(false);
+      expect(isPerformanceReviewTarget('src/__tests__/perf.ts')).toBe(false);
       expect(isPerformanceReviewTarget('.ai_workflow/logs/run.js')).toBe(false);
     });
   });
@@ -83,9 +86,11 @@ describe('step_23_perf_review - Pure Functions', () => {
         filterPerformanceReviewTargets([
           'src/index.js',
           'src/index.js',
+          'test/index.test.js',
           'README.md',
           '.ai_workflow/logs/run.js',
           'src/app.ts',
+          'src/helpers.spec.ts',
         ])
       ).toEqual(['src/index.js', 'src/app.ts']);
     });
@@ -230,7 +235,11 @@ export const greet = (name) => \`Hello, \${name}\`;
         content: `export const value${index} = ${index};\n`,
       }));
 
-      const partitions = buildPerformancePromptPartitions(fileEntries, 10_000, MAX_PROMPT_ENTRY_CHARS);
+      const partitions = buildPerformancePromptPartitions(
+        fileEntries,
+        10_000,
+        MAX_PROMPT_ENTRY_CHARS
+      );
 
       expect(partitions).toHaveLength(2);
       expect(partitions[0].scopePaths).toEqual([

@@ -42,23 +42,33 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.2.8',
+        packageVersion: '2.2.9',
         packageDescription: 'Workflow automation',
-        packageScripts: { test: 'npm test', lint: 'npm run lint' },
-        workflowFiles: ['.github/workflows/ci.yml'],
-        stepIds: ['step_00_analyze', 'step_01_documentation'],
-        cliCommands: ['run', 'status'],
-        moduleCounts: { core: 5, utils: 2, lib: 10, orchestrator: 6, cli: 7 },
-        docsMarkdownCount: 42,
-        rootDocs: ['README.md', 'CHANGELOG.md'],
+        validationCommands: {
+          Lint: 'npm run lint',
+          Test: 'npm test',
+          Build: 'npm run build',
+        },
+        sourceLayers: [
+          { path: 'src/lib/', purpose: 'Reusable workflow domain logic' },
+          { path: 'src/steps/', purpose: 'Executable workflow-step implementations' },
+        ],
+        supportingSurfaces: [
+          { path: '.workflow_core/', purpose: 'Shared workflow templates and helper assets' },
+        ],
+        referenceDocs: ['README.md', 'docs/ARCHITECTURE.md'],
+        packageExports: ['.', './core'],
       };
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
-      expect(context).toContain('Package version: `2.2.8`');
-      expect(context).toContain('Step file count: 2');
-      expect(context).toContain('`run`');
-      expect(context).toContain('`src/lib`');
+      expect(context).toContain('Package version: `2.2.9`');
+      expect(context).toContain('Prefer links to authoritative docs over duplicated inventories');
+      expect(context).toContain('- Lint: `npm run lint`');
+      expect(context).toContain('`src/lib/`');
+      expect(context).toContain('`.workflow_core/`');
       expect(context).toContain('`README.md`');
+      expect(context).toContain('`./core`');
+      expect(context).not.toContain('Step file count');
     });
   });
 
@@ -68,7 +78,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.2.8',
+            version: '2.2.9',
             description: 'Workflow automation',
             scripts: { test: 'npm test' },
           });
@@ -80,12 +90,6 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         exists: jest.fn(async () => true),
         readFile,
         writeFile: jest.fn(async () => {}),
-        glob: jest.fn(async (pattern) => {
-          if (pattern === 'src/steps/step_*.js') return ['src/steps/step_00_analyze.js'];
-          if (pattern === 'src/cli/commands/*.js') return ['src/cli/commands/run.js'];
-          if (pattern === '.github/workflows/*.yml') return ['.github/workflows/ci.yml'];
-          return [];
-        }),
       };
       const aiHelper = {
         initialize: jest.fn(async () => true),

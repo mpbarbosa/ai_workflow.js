@@ -41,6 +41,37 @@ describe('review_prompt_scope', () => {
     ]);
   });
 
+  test('loadReadableReviewFiles preserves input order across parallel reads', async () => {
+    const fileOps = {
+      readFile: jest.fn((filePath) => {
+        if (filePath.endsWith('src/slow.js')) {
+          return new Promise((resolve) => {
+            setTimeout(() => resolve('slow\n'), 20);
+          });
+        }
+
+        if (filePath.endsWith('src/fast.js')) {
+          return new Promise((resolve) => {
+            setTimeout(() => resolve('fast\n'), 1);
+          });
+        }
+
+        return Promise.reject(new Error('unreadable'));
+      }),
+    };
+
+    const result = await loadReadableReviewFiles(fileOps, '/project', [
+      'src/slow.js',
+      'src/fast.js',
+    ]);
+
+    expect(result.fileContents).toEqual(['slow\n', 'fast\n']);
+    expect(result.fileEntries).toEqual([
+      { relativePath: 'src/slow.js', content: 'slow\n' },
+      { relativePath: 'src/fast.js', content: 'fast\n' },
+    ]);
+  });
+
   test('splitPromptEntry preserves full content across labeled parts', () => {
     const content = Array.from({ length: 1200 }, (_, index) => `line ${index}`).join('\n');
     const entries = splitPromptEntry({ relativePath: 'src/large.ts', content }, 1000);
