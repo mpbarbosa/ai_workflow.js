@@ -68,11 +68,18 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     );
     expect(prompt).toContain('**Provided file contents and excerpts**:');
     expect(prompt).toContain('=== README.md ===');
+    expect(prompt).toContain(
+      'Use the provided file contents and changed-file excerpts to examine what was modified in each changed file'
+    );
+    expect(prompt).toContain(
+      'Avoid verbosity, creative expansion, and speculative rewrites beyond the visible change set'
+    );
     expect(prompt).toContain('Unavailable" or "Inconclusive"');
     expect(prompt).toContain('.github/copilot-instructions.md');
     expect(prompt).not.toContain('Quick links table of `CONTRIBUTING.md`');
     expect(prompt).not.toContain('docs/GETTING_STARTED.md');
     expect(prompt).not.toContain('src/index.js');
+    expect(prompt).not.toContain('@workspace');
   });
 
   test('fallback builder requires inconclusive output when scoped file content is missing', () => {

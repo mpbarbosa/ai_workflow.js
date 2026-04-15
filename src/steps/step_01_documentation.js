@@ -166,6 +166,43 @@ export function shouldRunAiAnalysis(classification, options = {}) {
   return true;
 }
 
+export const STEP1_DOCUMENTATION_PREFERRED_MODELS = [
+  'gpt-4.1',
+  'claude-sonnet-4.6',
+  'gpt-5.3-codex',
+];
+
+/**
+ * Pick the preferred model for Step 1 documentation analysis.
+ *
+ * Prefers the recommended documentation-focused models when they are available
+ * in the active Copilot session. Falls back to the caller-provided model (or
+ * the primary recommendation) when availability data is missing.
+ *
+ * @pure
+ * @param {Array<string|{id?: string}>} [availableModels=[]] - Available Copilot models
+ * @param {string} [fallbackModel=STEP1_DOCUMENTATION_PREFERRED_MODELS[0]] - Fallback model ID
+ * @returns {string} Selected model ID
+ */
+export function selectStep1DocumentationModel(
+  availableModels = [],
+  fallbackModel = STEP1_DOCUMENTATION_PREFERRED_MODELS[0]
+) {
+  const availableIds = Array.isArray(availableModels)
+    ? availableModels
+        .map((entry) => (typeof entry === 'string' ? entry : entry?.id))
+        .filter((id) => typeof id === 'string' && id.length > 0)
+    : [];
+
+  for (const model of STEP1_DOCUMENTATION_PREFERRED_MODELS) {
+    if (availableIds.includes(model)) {
+      return model;
+    }
+  }
+
+  return fallbackModel || STEP1_DOCUMENTATION_PREFERRED_MODELS[0];
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Source Code Documentation Validation
 // ============================================================================
@@ -475,12 +512,19 @@ export class Step1DocumentationAnalyzer {
               /* optional */
             }
             const cacheCategory = files.join(',');
+            const selectedModel = selectStep1DocumentationModel(
+              typeof this.aiHelper.getAvailableModels === 'function'
+                ? this.aiHelper.getAvailableModels()
+                : [],
+              this.aiHelper?.config?.model
+            );
             const response = await this.aiCache.withFileChangeGuard(
               `step_01|${cacheCategory}`,
               fileHashEntries,
               () =>
                 this.aiHelper.executeRequest(prompt, {
                   persona: 'documentation_expert',
+                  model: selectedModel,
                 })
             );
             return { success: response.success, response };

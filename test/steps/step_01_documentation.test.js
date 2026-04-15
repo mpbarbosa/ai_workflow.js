@@ -9,6 +9,7 @@ import {
   checkVersionReferences,
   classifyChangedFiles,
   shouldRunAiAnalysis,
+  selectStep1DocumentationModel,
   readProjectConventions,
 } from '../../src/steps/step_01_documentation.js';
 
@@ -224,6 +225,26 @@ describe('Step 1: Documentation Validation', () => {
     });
   });
 
+  describe('selectStep1DocumentationModel', () => {
+    test('prefers gpt-4.1 when it is available', () => {
+      expect(selectStep1DocumentationModel([{ id: 'claude-sonnet-4.6' }, { id: 'gpt-4.1' }])).toBe(
+        'gpt-4.1'
+      );
+    });
+
+    test('falls back to the next recommended model when gpt-4.1 is unavailable', () => {
+      expect(selectStep1DocumentationModel([{ id: 'claude-sonnet-4.6' }])).toBe(
+        'claude-sonnet-4.6'
+      );
+    });
+
+    test('uses the supplied fallback when no recommended model is available', () => {
+      expect(selectStep1DocumentationModel([{ id: 'claude-haiku-4.5' }], 'claude-haiku-4.5')).toBe(
+        'claude-haiku-4.5'
+      );
+    });
+  });
+
   // ========================================================================
   // STEP 1 ANALYZER - Integration Tests
   // ========================================================================
@@ -426,16 +447,20 @@ describe('Step 1: Documentation Validation', () => {
 
     describe('file content injection regression', () => {
       let capturedPrompt;
+      let capturedOptions;
       let mockAiHelper;
       let mockAiCache;
 
       beforeEach(() => {
         capturedPrompt = null;
+        capturedOptions = null;
 
         mockAiHelper = {
           initialize: () => Promise.resolve(true),
-          executeRequest: (prompt) => {
+          getAvailableModels: () => [{ id: 'claude-sonnet-4.6' }],
+          executeRequest: (prompt, options) => {
             capturedPrompt = prompt;
+            capturedOptions = options;
             return Promise.resolve({
               success: true,
               content: 'No updates needed',
@@ -515,6 +540,18 @@ doc_analysis_prompt:
 
         expect(capturedPrompt).not.toBeNull();
         expect(capturedPrompt).not.toContain('@workspace');
+      });
+
+      test('uses the preferred documentation model for the AI request', async () => {
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md']);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(capturedOptions).toMatchObject({
+          persona: 'documentation_expert',
+          model: 'claude-sonnet-4.6',
+        });
       });
 
       test('gracefully continues when a file cannot be read', async () => {

@@ -1,30 +1,22 @@
-# GitHub Copilot Instructions: ai-workflow
+# Copilot Instructions: ai-workflow
 
-> This file provides durable, high-signal guidance for Copilot-assisted development in this repository. Keep it focused on stable architecture, design principles, documentation sync rules, and validation commands. Link to authoritative docs for detailed or volatile reference material.
+> Durable, high-signal guidance for Copilot-assisted development in this repository. Focus on stable architecture, design principles, documentation sync, and validation. Link to authoritative docs for details.
 
 ---
 
 ## Purpose
 
-`ai-workflow` is an AI-powered workflow automation package for software development projects, integrating with GitHub Copilot. This file guides Copilot to make high-quality, context-aware edits.
+This file guides Copilot to make high-quality, context-aware edits for `ai-workflow`, an AI-powered workflow automation package for software development with GitHub Copilot integration.
 
-## What to include
+## Scope
 
-- Stable architectural boundaries and source structure
-- Design and coding principles that shape edits
-- Documentation sync rules for user-facing changes
-- Standard validation commands for code changes
-- Pointers to authoritative reference documents
+- Define stable architectural boundaries and source structure
+- State design and coding principles that shape edits
+- Specify documentation sync rules for user-facing changes
+- List standard validation commands for code changes
+- Point to authoritative reference documents
 
-## What to exclude
-
-Do **not** duplicate:
-
-- Implementation status, version snapshots, or numeric inventories
-- Exhaustive lists of modules, steps, workflows, or commands
-- Installation walkthroughs, migration procedures, or deep reference material
-
-Instead, link to the relevant document in `README.md` or `docs/`.
+Avoid duplicating implementation status, inventories, installation, or migration details—link to docs instead.
 
 ---
 
@@ -37,7 +29,7 @@ Instead, link to the relevant document in `README.md` or `docs/`.
 - `src/cli/` – CLI commands, prompts, and TUI code
 - `src/steps/` – Executable workflow-step implementations
 
-Supporting surfaces:
+Supporting workflow surfaces:
 
 - `.workflow-config.yaml` – Project-local workflow configuration
 - `.workflow_core/` – Shared workflow templates and helper assets
@@ -56,7 +48,7 @@ Supporting surfaces:
 - Sync user-facing CLI changes with `README.md` and CLI/reference docs
 - Update `docs/ARCHITECTURE.md` for architecture or layout changes
 - Align package exports and entry points with `package.json` and API docs
-- Prefer linking to authoritative docs over duplicating volatile details
+- Link to authoritative docs for volatile or detailed information
 
 ## Validation Commands
 
@@ -70,12 +62,12 @@ Use narrower scripts from `package.json` only for intentionally scoped tasks.
 
 ## Authoritative References
 
-Consult these documents for detailed or volatile information:
+Consult these documents for details:
 
-- `README.md` – Project overview, installation, usage
-- `docs/ARCHITECTURE.md` – Repository layout and architecture
-- `docs/CLI_USAGE_GUIDE.md` – CLI command and option reference
-- `docs/guides/MIGRATION_GUIDE.md` – Migration context
+- [README.md](../README.md) – Project overview, installation, usage
+- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) – Repository layout and architecture
+- [docs/CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md) – CLI command and option reference
+- [docs/guides/MIGRATION_GUIDE.md](../docs/guides/MIGRATION_GUIDE.md) – Migration context
 - `CHANGELOG.md`, `CONTRIBUTING.md`
 - `package.json` – Package metadata, scripts, exports
 

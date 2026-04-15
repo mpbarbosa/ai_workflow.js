@@ -42,7 +42,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.2.9',
+        packageVersion: '2.2.10',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -61,7 +61,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
       };
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
-      expect(context).toContain('Package version: `2.2.9`');
+      expect(context).toContain('Package version: `2.2.10`');
       expect(context).toContain('Prefer links to authoritative docs over duplicated inventories');
       expect(context).toContain('- Lint: `npm run lint`');
       expect(context).toContain('`src/lib/`');
@@ -78,7 +78,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.2.9',
+            version: '2.2.10',
             description: 'Workflow automation',
             scripts: { test: 'npm test' },
           });
