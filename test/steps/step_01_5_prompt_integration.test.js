@@ -28,7 +28,7 @@ describe('step1_5_copilot_instructions_prompt', () => {
       project_summary: 'Workflow automation',
       primary_language: 'javascript',
       copilot_instructions_path: '.github/copilot-instructions.md',
-      repo_facts: '## Authoritative Repo Facts\n- Package version: `2.2.6`',
+      repo_facts: '## Authoritative Repo Facts\n- Package version: `2.2.7`',
       copilot_instructions_content: '# GitHub Copilot Instructions: ai_workflow.js\n\nOld content.',
     });
 

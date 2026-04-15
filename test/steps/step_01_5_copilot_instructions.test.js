@@ -42,7 +42,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.2.6',
+        packageVersion: '2.2.7',
         packageDescription: 'Workflow automation',
         packageScripts: { test: 'npm test', lint: 'npm run lint' },
         workflowFiles: ['.github/workflows/ci.yml'],
@@ -54,7 +54,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
       };
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
-      expect(context).toContain('Package version: `2.2.6`');
+      expect(context).toContain('Package version: `2.2.7`');
       expect(context).toContain('Step file count: 2');
       expect(context).toContain('`run`');
       expect(context).toContain('`src/lib`');
@@ -68,7 +68,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.2.6',
+            version: '2.2.7',
             description: 'Workflow automation',
             scripts: { test: 'npm test' },
           });
@@ -90,7 +90,8 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
       const aiHelper = {
         initialize: jest.fn(async () => true),
         executeRequest: jest.fn(async () => ({
-          content: '```markdown\n# GitHub Copilot Instructions: ai_workflow.js\n\nNew content.\n```',
+          content:
+            '```markdown\n# GitHub Copilot Instructions: ai_workflow.js\n\nNew content.\n```',
         })),
       };
       const aiCache = {

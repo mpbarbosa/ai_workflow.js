@@ -32,27 +32,33 @@ const rewrites = [
   },
 ];
 
-let updatedFiles = 0;
+export function postprocessTypedocMediaLinks() {
+  let updatedFiles = 0;
 
-for (const { filePath, replacements } of rewrites) {
-  if (!existsSync(filePath)) {
-    continue;
-  }
+  for (const { filePath, replacements } of rewrites) {
+    if (!existsSync(filePath)) {
+      continue;
+    }
 
-  let content = readFileSync(filePath, 'utf-8');
-  let changed = false;
+    let content = readFileSync(filePath, 'utf-8');
+    let changed = false;
 
-  for (const [from, to] of replacements) {
-    if (content.includes(from)) {
-      content = content.replaceAll(from, to);
-      changed = true;
+    for (const [from, to] of replacements) {
+      if (content.includes(from)) {
+        content = content.replaceAll(from, to);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      writeFileSync(filePath, content, 'utf-8');
+      updatedFiles += 1;
     }
   }
 
-  if (changed) {
-    writeFileSync(filePath, content, 'utf-8');
-    updatedFiles += 1;
-  }
+  console.log(`TypeDoc media link post-processing complete (${updatedFiles} file(s) updated).`);
 }
 
-console.log(`TypeDoc media link post-processing complete (${updatedFiles} file(s) updated).`);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  postprocessTypedocMediaLinks();
+}

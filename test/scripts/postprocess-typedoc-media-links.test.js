@@ -1,8 +1,21 @@
-import fs from 'fs';
-import path from 'path';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
-jest.mock('fs');
-jest.mock('path', () => {
+const mockExistsSync = jest.fn();
+const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
+
+jest.unstable_mockModule('fs', () => ({
+  default: {
+    existsSync: mockExistsSync,
+    readFileSync: mockReadFileSync,
+    writeFileSync: mockWriteFileSync,
+  },
+  existsSync: mockExistsSync,
+  readFileSync: mockReadFileSync,
+  writeFileSync: mockWriteFileSync,
+}));
+
+jest.unstable_mockModule('path', () => {
   const actual = jest.requireActual('path');
   return {
     ...actual,
@@ -10,15 +23,13 @@ jest.mock('path', () => {
     dirname: jest.fn(() => '/mock/dirname'),
   };
 });
-jest.mock('url', () => ({
+
+jest.unstable_mockModule('url', () => ({
   fileURLToPath: jest.fn(() => '/mock/dirname/scripts/postprocess-typedoc-media-links.js'),
 }));
 
-// Re-import the script after mocks
-beforeEach(() => {
-  jest.clearAllMocks();
-  jest.resetModules();
-});
+const { postprocessTypedocMediaLinks } =
+  await import('../../scripts/postprocess-typedoc-media-links.js');
 
 describe('postprocess-typedoc-media-links.js', () => {
   const rewrites = [
@@ -41,36 +52,41 @@ describe('postprocess-typedoc-media-links.js', () => {
     },
   ];
 
-  it('should update files with matching content and log correct count', () => {
-    // Setup: all files exist, all have content to replace
-    fs.existsSync.mockImplementation((filePath) => true);
-    fs.readFileSync.mockImplementation((filePath) => {
+  let logSpy;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it('should update files with matching content and log correct count', async () => {
+    mockExistsSync.mockImplementation(() => true);
+    mockReadFileSync.mockImplementation((filePath) => {
       if (filePath === rewrites[0].filePath)
         return 'Some text (docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text';
-      if (filePath === rewrites[1].filePath)
-        return 'Link: (../../.ai_workflow/)';
-      if (filePath === rewrites[2].filePath)
-        return 'See (../../CHANGELOG.md)';
+      if (filePath === rewrites[1].filePath) return 'Link: (../../.ai_workflow/)';
+      if (filePath === rewrites[2].filePath) return 'See (../../CHANGELOG.md)';
       return '';
     });
-    fs.writeFileSync.mockImplementation(() => {});
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    postprocessTypedocMediaLinks();
 
-    require('./postprocess-typedoc-media-links.js');
-
-    expect(fs.writeFileSync).toHaveBeenCalledTimes(3);
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(3);
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
       rewrites[0].filePath,
       'Some text (../../../reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text',
       'utf-8'
     );
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
       rewrites[1].filePath,
       'Link: (../../../../.ai_workflow/)',
       'utf-8'
     );
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
       rewrites[2].filePath,
       'See (../../../../CHANGELOG.md)',
       'utf-8'
@@ -78,53 +94,50 @@ describe('postprocess-typedoc-media-links.js', () => {
     expect(logSpy).toHaveBeenCalledWith(
       'TypeDoc media link post-processing complete (3 file(s) updated).'
     );
-    logSpy.mockRestore();
   });
 
-  it('should skip files that do not exist', () => {
-    fs.existsSync.mockImplementation((filePath) => filePath !== rewrites[1].filePath);
-    fs.readFileSync.mockImplementation(() => 'irrelevant');
-    fs.writeFileSync.mockImplementation(() => {});
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('should skip files that do not exist', async () => {
+    mockExistsSync.mockImplementation((filePath) => filePath !== rewrites[1].filePath);
+    mockReadFileSync.mockImplementation((filePath) => {
+      if (filePath === rewrites[0].filePath) {
+        return 'Some text (docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text';
+      }
+      if (filePath === rewrites[2].filePath) return 'See (../../CHANGELOG.md)';
+      return '';
+    });
 
-    require('./postprocess-typedoc-media-links.js');
+    postprocessTypedocMediaLinks();
 
-    // Only 2 files exist, so only 2 writes
-    expect(fs.writeFileSync).toHaveBeenCalledTimes(2);
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(2);
     expect(logSpy).toHaveBeenCalledWith(
       'TypeDoc media link post-processing complete (2 file(s) updated).'
     );
-    logSpy.mockRestore();
   });
 
-  it('should not write files if no replacements are found', () => {
-    fs.existsSync.mockImplementation(() => true);
-    fs.readFileSync.mockImplementation(() => 'No links to replace here');
-    fs.writeFileSync.mockImplementation(() => {});
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('should not write files if no replacements are found', async () => {
+    mockExistsSync.mockImplementation(() => true);
+    mockReadFileSync.mockImplementation(() => 'No links to replace here');
 
-    require('./postprocess-typedoc-media-links.js');
+    postprocessTypedocMediaLinks();
 
-    expect(fs.writeFileSync).not.toHaveBeenCalled();
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(
       'TypeDoc media link post-processing complete (0 file(s) updated).'
     );
-    logSpy.mockRestore();
   });
 
-  it('should handle files with multiple occurrences of the same link', () => {
-    fs.existsSync.mockImplementation(() => true);
-    fs.readFileSync.mockImplementation((filePath) => {
-      if (filePath === rewrites[0].filePath)
+  it('should handle files with multiple occurrences of the same link', async () => {
+    mockExistsSync.mockImplementation(() => true);
+    mockReadFileSync.mockImplementation((filePath) => {
+      if (filePath === rewrites[0].filePath) {
         return '(docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) and again (docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md)';
+      }
       return '';
     });
-    fs.writeFileSync.mockImplementation(() => {});
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    require('./postprocess-typedoc-media-links.js');
+    postprocessTypedocMediaLinks();
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
       rewrites[0].filePath,
       '(../../../reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) and again (../../../reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md)',
       'utf-8'
@@ -132,37 +145,27 @@ describe('postprocess-typedoc-media-links.js', () => {
     expect(logSpy).toHaveBeenCalledWith(
       'TypeDoc media link post-processing complete (1 file(s) updated).'
     );
-    logSpy.mockRestore();
   });
 
-  it('should not throw if readFileSync throws (simulate read error)', () => {
-    fs.existsSync.mockImplementation(() => true);
-    fs.readFileSync.mockImplementation(() => {
+  it('should propagate read errors', async () => {
+    mockExistsSync.mockImplementation(() => true);
+    mockReadFileSync.mockImplementation(() => {
       throw new Error('Read error');
     });
-    fs.writeFileSync.mockImplementation(() => {});
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(() => require('./postprocess-typedoc-media-links.js')).not.toThrow();
-    expect(fs.writeFileSync).not.toHaveBeenCalled();
-    expect(logSpy).toHaveBeenCalledWith(
-      'TypeDoc media link post-processing complete (0 file(s) updated).'
-    );
-    logSpy.mockRestore();
+    expect(() => postprocessTypedocMediaLinks()).toThrow('Read error');
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
   });
 
-  it('should not throw if writeFileSync throws (simulate write error)', () => {
-    fs.existsSync.mockImplementation(() => true);
-    fs.readFileSync.mockImplementation(() => '(../../CHANGELOG.md)');
-    fs.writeFileSync.mockImplementation(() => {
+  it('should propagate write errors', async () => {
+    mockExistsSync.mockImplementation(() => true);
+    mockReadFileSync.mockImplementation(() => '(../../CHANGELOG.md)');
+    mockWriteFileSync.mockImplementation(() => {
       throw new Error('Write error');
     });
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(() => require('./postprocess-typedoc-media-links.js')).not.toThrow();
-    expect(logSpy).toHaveBeenCalledWith(
-      'TypeDoc media link post-processing complete (0 file(s) updated).'
-    );
-    logSpy.mockRestore();
+    expect(() => postprocessTypedocMediaLinks()).toThrow('Write error');
+    expect(logSpy).not.toHaveBeenCalled();
   });
 });
