@@ -1,48 +1,48 @@
-# Architecture Overview: guia_turistico
+# Architecture Overview: ai_workflow.js
 
-## System Overview
+`ai_workflow.js` is a Node.js automation project for AI-assisted software
+workflow execution. The repository is organized around a layered CLI and
+orchestration architecture, with supporting documentation, scripts, and
+workflow artifacts kept alongside the source.
 
-guia_turistico is a modular JavaScript/Node.js application for managing tourist guides, tours, and bookings. It follows a layered architecture for maintainability and scalability.
+## Main layers
 
-## Main Components
+- **CLI** - command entry points, help output, prompts, and the Ink-based TUI
+- **Orchestrator** - workflow engine, dependency resolution, execution flow, and checkpoints
+- **Library modules** - config, git, AI integration, analysis, caching, and helpers
+- **Core and utils** - low-level logging, colors, execution, versioning, and shared errors
 
-- **Express Server**: Handles HTTP requests and routing
-- **Controllers**: Business logic for tours, users, bookings
-- **Models**: Data schemas and database access (e.g., MongoDB, Sequelize)
-- **Routes**: API endpoint definitions
-- **Services**: External integrations (e.g., payment, maps)
-- **Utils**: Helper functions
+## Repository structure
 
-## Data Flow
+| Path | Purpose |
+| --- | --- |
+| `src/core/` | Foundational runtime helpers such as logging, colors, system, executor, and version utilities. |
+| `src/utils/` | Small shared helpers and error types. |
+| `src/lib/` | Main business logic: config, AI helpers, caching, git automation, parsing, and analysis. |
+| `src/orchestrator/` | Workflow engine and orchestration primitives. |
+| `src/steps/` | Individual workflow-step implementations. |
+| `src/cli/` | CLI commands, prompt handling, output helpers, and TUI components. |
+| `scripts/` | Developer automation scripts for setup, validation, testing, release preparation, and maintenance. |
+| `test/` | Unit, integration, fixture, and step-level coverage that mirrors the source layout. |
+| `docs/architecture/` | Detailed architecture references, including design principles and dependency graphs. |
+| `.workflow_core/` | Shared workflow templates and helper configuration maintained as a submodule. |
+| `.workflow_fspec/` | Functional specification submodule. |
+| `.ai_workflow/` | Runtime artifacts such as logs, checkpoints, metrics, cache, and summaries. |
 
-1. Client sends HTTP request to API endpoint
-2. Route forwards request to appropriate controller
-3. Controller interacts with models/services
-4. Response returned to client
+## Runtime artifact directories
 
-## Key Dependencies
+The repository also creates several gitignored working directories during local
+development and test runs:
 
-- Node.js (>=20.x)
-- Express.js
-- Database driver (e.g., Mongoose, Sequelize)
+- `.ai_workflow/` - workflow outputs, logs, summaries, metrics, and cache
+- `.test-cache/` - Jest transform and module cache
+- `.test-e2e/` - temporary end-to-end test work directories
+- `.test-step-11-5/` - isolated fixtures for step 11.5 tests
+- `coverage/` - generated Jest coverage output
 
-## Design Principles
+## Detailed references
 
-- Separation of concerns (controllers, models, routes)
-- RESTful API design
-- Modular, testable codebase
-
-## Version History
-
-| Version | Date       | Milestone                                                                                                          |
-| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| 0.1.0   | 2026-01-27 | Initial release — core foundation modules (Phase 1)                                                                |
-| 1.0.0   | 2026-01-30 | Phase 2 complete — configuration & state management (config, backlog, session_manager, metrics)                    |
-| 1.2.0   | 2026-02-07 | Phase 3 complete — file operations & utilities (file_operations, edit_operations, utils, argument_parser, cleanup) |
-| 1.6.3   | 2026-02-25 | Phase 4–5 complete — project detection & git integration; workflow steps scaffolded                                |
-| 1.9.11  | 2026-03-12 | Phase 6–9 complete — AI integration, orchestration, performance optimisation, CLI; streaming support added         |
-| 2.0.0   | 2026-04-09 | Breaking: Node.js >=20 required. SDK evolved to v0.5.1 (tools, hooks, SSE streaming, log validation, smoke tests)  |
-| 2.0.1   | 2026-04-09 | Implement real `workflowDirWritable` fs check; refresh stale Phase 11 doc references                               |
-| 2.0.2   | 2026-04-09 | Fix `mergeValidationResults()` ignoring TIMEOUT tasks; un-skip 3 step1_parallel tests; update FRS scope section    |
-| 2.1.0   | 2026-04-09 | Implement `loadWorkflow()` file loading (JSON/YAML); add `parseWorkflowFile` pure function; 6984 tests passing     |
-| 2.2.5   | 2026-04-09 | Add `saveWorkflow(path)` + `serializeWorkflow()` pure function (inverse of parseWorkflowFile); 6997 tests passing  |
+- [Architecture Overview](./architecture/OVERVIEW.md)
+- [Design Principles](./architecture/DESIGN_PRINCIPLES.md)
+- [Dependency Graph](./architecture/DEPENDENCY_GRAPH.md)
+- [Workflow Engine Requirements](./WORKFLOW_ENGINE_REQUIREMENTS.md)

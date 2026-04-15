@@ -1,5 +1,7 @@
 ## WORKFLOW_ENGINE_REQUIREMENTS
 
+## WORKFLOW_ENGINE_REQUIREMENTS
+
 # Workflow Engine Requirements (Phase 7)
 
 **Status:** ✅ Complete — Phases 7–11 implemented
@@ -155,10 +157,11 @@ post_conditions:
 
 #### Requirements
 
-- GitHub Copilot SDK integration
 
 
 ---
+
+## WORKFLOW_ENGINE_REQUIREMENTS
 
 ## WORKFLOW_ENGINE_REQUIREMENTS
 
@@ -317,4 +320,3 @@ post_conditions:
 
 #### Requirements
 
-- GitHub Copilot SDK integration

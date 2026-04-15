@@ -504,5 +504,5 @@ git add . && ai-workflow run --stage medium && git push
 
 **See Also:**
 
-- [CLI Usage Guide](CLI_USAGE_GUIDE.md)
-- [CLI Quick Reference](CLI_QUICK_REFERENCE.md)
+- [CLI Usage Guide](../CLI_USAGE_GUIDE.md)
+- [CLI Quick Reference](../CLI_USAGE_GUIDE.md#quick-reference)

@@ -14,7 +14,7 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 ### Phase 1: Core Modules
 
 - **[colors](./core/colors.md)** - ANSI color codes and terminal color support
-- **[logger](./logger.md)** - Colored logging with multiple log levels
+- **[logger](./core/logger.md)** - Colored logging with multiple log levels
 - **[system](./core/system.md)** - OS detection and system information
 - **[version](./core/version.md)** - Semantic version parsing and comparison
 - **[executor](./core/executor.md)** - Shell command execution utilities
@@ -25,15 +25,15 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 - **[config](./lib/config.md)** - Workflow configuration and path management
 - **[backlog](./lib/backlog.md)** - Workflow summaries and backlog reports
 - **[session_manager](./lib/session_manager.md)** - Session lifecycle management
-- **[metrics](./metrics.md)** - Metrics collection and reporting
+- **[metrics](./lib/metrics.md)** - Metrics collection and reporting
 
 ### Phase 3: File Operations & Utilities
 
 - **[file_operations](./lib/file_operations.md)** - File system operations
 - **[edit_operations](./lib/edit_operations.md)** - File content editing utilities
-- **[utils](./utils.md)** - General utility functions
+- **[utils](./lib/utils.md)** - General utility functions
 - **[argument_parser](./lib/argument_parser.md)** - CLI argument parsing
-- **[cleanup_handlers](./cleanup_handlers.md)** - Cleanup operations
+- **[cleanup_handlers](./lib/cleanup_handlers.md)** - Cleanup operations
 
 ### Phase 4: Project Detection
 
@@ -82,7 +82,7 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 | Module                    | Purpose           | Key Features                                   |
 | ------------------------- | ----------------- | ---------------------------------------------- |
 | [colors](./core/colors.md)     | Terminal colors   | ANSI codes, color support detection            |
-| [logger](./logger.md)     | Logging           | Multi-level logging, quiet/verbose modes       |
+| [logger](./core/logger.md)     | Logging           | Multi-level logging, quiet/verbose modes       |
 | [system](./core/system.md)     | System info       | OS detection, package manager detection        |
 | [version](./core/version.md)   | Versioning        | Semver parsing, version comparison             |
 | [executor](./core/executor.md) | Command execution | Shell commands, streaming output, sudo support |

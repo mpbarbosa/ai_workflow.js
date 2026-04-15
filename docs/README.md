@@ -23,8 +23,8 @@ In-depth guides for developers and users:
 - **[User Guide](./guides/USER_GUIDE.md)** - End-user documentation
 - **[Configuration Guide](./guides/CONFIGURATION_GUIDE.md)** - Configuration options and patterns
 - **[Testing Guide](./guides/TESTING_GUIDE.md)** - Testing patterns and best practices
-- **[CLI Usage Guide](./guides/CLI_USAGE_GUIDE.md)** ✨ NEW - Complete CLI documentation
-- **[CLI Quick Reference](./guides/CLI_QUICK_REFERENCE.md)** ✨ NEW - Command cheat sheet
+- **[CLI Usage Guide](./CLI_USAGE_GUIDE.md)** - Complete CLI documentation
+- **[CLI Quick Reference](./CLI_USAGE_GUIDE.md#quick-reference)** - Command cheat sheet
 - **[CLI Examples](./guides/CLI_EXAMPLES.md)** ✨ NEW - Practical CLI examples
 - **[Validation Scripts](./guides/VALIDATION_SCRIPTS.md)** - Automated validation tools
 - **[Cleanup Artifacts Guide](./guides/CLEANUP_ARTIFACTS.md)** - Artifact management and disk space cleanup
@@ -46,7 +46,7 @@ System design and architectural patterns:
 
 - **[Architecture Overview](./architecture/OVERVIEW.md)** - High-level system design
 - **[Design Principles](./architecture/DESIGN_PRINCIPLES.md)** - Design patterns and conventions
-- **[Module Structure](./architecture/MODULE_STRUCTURE.md)** - Module organization
+- **[Architecture Summary](./ARCHITECTURE.md)** - Stable architecture overview and links
 - **[Dependency Graph](./architecture/DEPENDENCY_GRAPH.md)** - Module dependencies
 
 ### Reference
@@ -55,7 +55,7 @@ Detailed reference documentation:
 
 - **[Error Codes](./reference/ERROR_CODES.md)** - Complete error reference
 - **[Configuration Schema](./reference/CONFIGURATION_SCHEMA.md)** - Configuration file schema
-- **[CLI Reference](./reference/CLI_REFERENCE.md)** - Command-line interface reference
+- **[CLI Quick Reference](./CLI_USAGE_GUIDE.md#quick-reference)** - Command-line interface quick reference
 
 ### Examples
 
@@ -68,7 +68,7 @@ Practical usage examples:
 ### Additional Resources
 
 - **[Functional Requirements](./FUNCTIONAL_REQUIREMENTS.md)** - Module requirements
-- **[Migration Plan](./reports/implementation/MIGRATION_PLAN.md)** - Migration strategy
+- **[Migration Guide](./guides/MIGRATION_GUIDE.md)** - Migration strategy
 - **[Bug Fix Reports](./reports/bugfixes/)** - Root cause analyses and bug fix documentation
 - **[Tutorials](./tutorials/YOUR_FIRST_WORKFLOW.md)** - Step-by-step workflow tutorials
 - **[Workflow Automation](./workflow-automation/README.md)** - Workflow automation usage documentation
