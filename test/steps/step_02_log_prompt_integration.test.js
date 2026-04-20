@@ -260,6 +260,11 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain('Provided file contents and excerpts');
         expect(prompt).toContain('### `README.md`');
         expect(prompt).toContain('# Project');
+        expect(prompt).toContain('truncated, omitted, or unavailable');
+        expect(prompt).toContain('Do not claim that no version numbers or badges are present');
+        expect(prompt).toContain(
+          'Do not claim heading, list, or code-fence consistency across files'
+        );
       });
 
       test('prompt injects language when provided via projectInfo', () => {
@@ -286,7 +291,8 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
             '**.github/ — Guides & Policies** (1): .github/copilot-instructions.md',
           ].join('\n'),
           file_contents: '### `README.md`\n```md\n# gitx\n```\n',
-          language_specific_documentation: '- Use TSDoc format when documentation examples include TypeScript API docs.',
+          language_specific_documentation:
+            '- Use TSDoc format when documentation examples include TypeScript API docs.',
         });
 
         expect(prompt).not.toContain('docs/GETTING_STARTED.md');
@@ -297,8 +303,17 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain('do not contradict the programmatic scan');
         expect(prompt).toContain('Provided file contents and excerpts');
         expect(prompt).toContain('### `README.md`');
-        expect(prompt).toContain('**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]');
+        expect(prompt).toContain(
+          '**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]'
+        );
+        expect(prompt).toContain("Resolve the target relative to the source file's directory");
+        expect(prompt).toContain('recommend the exact relative correction');
         expect(prompt).toContain('Do not explain a broken-reference candidate by saying only');
+        expect(prompt).toContain('keep the conclusion narrowly scoped to the evidence that was');
+        expect(prompt).toContain('Do not claim that no version numbers or badges are present');
+        expect(prompt).toContain(
+          'Do not claim heading, list, or code-fence consistency across files'
+        );
       });
 
       test('execute() injects markdown contents and uses documentation-specialist overlay', async () => {
@@ -659,7 +674,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(calls[0].content).toContain('⚠️');
     });
 
-    test('report contains "Broken Links" section when broken links found', async () => {
+    test('report contains broken-link candidate section when broken links found', async () => {
       await writeFile(path.join(tempDir, 'README.md'), '[see guide](docs/nonexistent.md)\n');
 
       const { stub, calls } = buildBacklogStub();
@@ -671,7 +686,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
 
       await analyzer.execute(tempDir);
 
-      expect(calls[0].content).toContain('Broken Links');
+      expect(calls[0].content).toContain('Broken Link Scan Candidates');
     });
 
     test('report contains "Version Issues" section when version mismatch found', async () => {

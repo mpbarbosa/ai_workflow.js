@@ -865,11 +865,11 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
         testFiles: ['test/app.test.ts'],
         testFramework: 'jest',
         testCommand: 'npm test',
-        coverageCommand: 'npm run coverage',
+        coverageCommand: 'npm run test:coverage',
       });
 
       expect(result).toContain('`npm test`');
-      expect(result).toContain('`npm run coverage`');
+      expect(result).toContain('`npm run test:coverage`');
     });
 
     test('omits command line when testCommand is empty', () => {
@@ -900,6 +900,25 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('assertion quality');
       expect(result).toContain('edge cases');
       expect(result).toContain('test isolation');
+    });
+
+    test('treats declarative files as artifacts instead of executable tests', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['test/index.test.ts', 'src/__tests__/loader.test.ts'],
+        testFramework: 'jest',
+        testCommand: 'npm test',
+      });
+
+      expect(result).toContain('test-related artifacts');
+      expect(result).toContain('Primary executable test command: `npm test`');
+      expect(result).toContain('declarative YAML/JSON/HCL');
+    });
+
+    test('requires inconclusive wording when evidence is missing or truncated', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('unavailable or inconclusive');
+      expect(result).toContain('Do not claim CI stability, performance health');
     });
   });
 

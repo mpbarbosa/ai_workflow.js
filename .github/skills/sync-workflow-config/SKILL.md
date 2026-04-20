@@ -209,7 +209,7 @@ Before making any changes, present a concise table of all gaps found:
 ```
 Gap  | Field                          | Current          | Required
 -----|--------------------------------|------------------|---------------------------
-  1  | project.version                | 1.0.0            | 2.2.10 (from package.json)
+  1  | project.version                | 1.0.0            | 2.2.11 (from package.json)
   2  | tech_stack.lint_commands       | missing          | {javascript: npm run lint}
   3  | version.config_files           | missing          | [package.json]
   4  | skills.version_sync            | missing          | command: npm run validate
@@ -261,7 +261,7 @@ git add .workflow-config.yaml
 git commit -m "chore(config): sync .workflow-config.yaml with codebase and template
 
 <summary of gaps fixed, e.g.:>
-- Fix project.version: 1.0.0 → 2.2.10
+- Fix project.version: 1.0.0 → 2.2.11
 - Add tech_stack.lint_commands map (step_10 parity)
 - Add version.config_files: [package.json] (step_16)
 - Add skills.version_sync (step_16)
@@ -280,7 +280,7 @@ was fixed, use a single-line description instead of a bullet list.
 A one-line summary per gap applied:
 
 ```
-✅ project.version updated: 1.0.0 → 2.2.10
+✅ project.version updated: 1.0.0 → 2.2.11
 ✅ tech_stack.lint_commands added (javascript, typescript)
 ✅ version.config_files added: [package.json]
 ✅ skills.version_sync added (check_command: npm run validate:versions)

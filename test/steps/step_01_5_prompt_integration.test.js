@@ -42,7 +42,17 @@ describe('step1_5_copilot_instructions_prompt', () => {
     expect(prompt).toContain('Authoritative Repo Facts');
     expect(prompt).toContain('First decide whether each section is');
     expect(prompt).toContain('Do NOT recreate exhaustive inventories');
-    expect(prompt).toContain('Return ONLY one fenced ```markdown block');
+    expect(prompt).toContain('including any surfaced reference-doc titles or snippets');
+    expect(prompt).toContain('omit it or rewrite it in generic terms');
+    expect(prompt).toContain(
+      'do not mark it unsupported solely because the full document is not reproduced'
+    );
+    expect(prompt).toContain('do not imply that `README.md` is the sole authority');
+    expect(prompt).toContain('Do NOT introduce repository-specific implementation details');
+    expect(prompt).toContain('Start with `## Findings`');
+    expect(prompt).toContain('**Classification**');
+    expect(prompt).toContain('## Corrected File');
+    expect(prompt).toContain('Do not use additional fenced code blocks');
     expect(prompt).toContain('.github/copilot-instructions.md');
     expect(prompt).toContain('Old content.');
   });

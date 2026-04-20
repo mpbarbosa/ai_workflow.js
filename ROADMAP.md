@@ -77,6 +77,32 @@ orchestrator, enabling live token display without extra configuration.
 - Token deltas forwarded as `ai:stream:chunk` events on `WorkflowEngine` for TUI consumption
 - See [`docs/guides/TUI_ROADMAP.md`](docs/guides/TUI_ROADMAP.md) §T3.5 for TUI integration
 
+### Workflow Execution Hardening _(Planned from workflow forensics review)_
+
+Follow-up work from execution-log analysis to reduce false failures, prompt sprawl, and
+misleading workflow summaries.
+
+- [ ] **Profile planner hardening** — make profile selection compute the dependency closure of
+      intended focus steps, and fall back to `full_validation` when an `infrastructure` or
+      other focused profile would otherwise collapse into an unrelated docs-only plan
+- [ ] **Step 0b bootstrap gate fix** — honor `needsBootstrap` when README / CHANGELOG
+      prerequisites are missing so doc-count shortcuts cannot skip required bootstrapping
+- [ ] **Project config prompt grounding** — always include `/<project>/.workflow-config.yaml`
+      in prompt context and, if it is missing, generate a minimal project-local config before
+      AI-heavy analysis continues
+- [ ] **Copilot instructions routing** — exclude `.github/copilot-instructions.md` from
+      generic Step 1 document review and reserve it for Step 1.5 so the same file is not
+      analyzed twice in adjacent steps
+- [ ] **Planner-first profile enforcement** — apply profile-derived step filtering before
+      workflow load so `docs_only` runs cannot fall through to the full step plan
+- [ ] **Step 8 precondition reclassification** — treat `no tests` / `no test command`
+      conditions in docs-only or markdown-only repositories as skip / not-applicable,
+      not critical failure
+- [ ] **Step 5 scope reduction** — remove or isolate the requirements-engineering
+      subprompt from directory validation so structure review stays evidence-bound
+- [ ] **Step 2 issue accounting cleanup** — report scan candidates separately from
+      confirmed issues so false positives do not inflate workflow summaries
+
 ---
 
 ## Phase 12 — Testing & Documentation
@@ -390,17 +416,17 @@ Whenever new loader functions are published in `.workflow_core`, the correspondi
 implementations must be added manually to `ai_prompt_builder.js` for full parity.
 
 The assessment of `.workflow_core` v1.3.0 → v1.4.1 (commits `f1950d2`…`2055f83`)
-revealed the following gaps, which were closed in **v2.2.10**:
+revealed the following gaps, which were closed in **v2.2.11**:
 
 | Gap                                                                                                                | Severity | Status              |
 | ------------------------------------------------------------------------------------------------------------------ | -------- | ------------------- |
-| `resolveRoleRef` used truthiness check instead of `hasOwnProperty.call()` — same bug that was fixed in `loader.ts` | Medium   | ✅ Fixed in v2.2.10 |
-| No `listPersonas()` equivalent reading from YAML                                                                   | Low      | ✅ Added in v2.2.10 |
-| No `validateConfig()` JS mirror for cross-validating `role_ref` integrity                                          | Low      | ✅ Added in v2.2.10 |
-| CHANGELOG did not mention `.workflow_core` v1.4.1                                                                  | Low      | ✅ Fixed in v2.2.10 |
+| `resolveRoleRef` used truthiness check instead of `hasOwnProperty.call()` — same bug that was fixed in `loader.ts` | Medium   | ✅ Fixed in v2.2.11 |
+| No `listPersonas()` equivalent reading from YAML                                                                   | Low      | ✅ Added in v2.2.11 |
+| No `validateConfig()` JS mirror for cross-validating `role_ref` integrity                                          | Low      | ✅ Added in v2.2.11 |
+| CHANGELOG did not mention `.workflow_core` v1.4.1                                                                  | Low      | ✅ Fixed in v2.2.11 |
 | `step_24_python_packaging.js` not yet implemented                                                                  | Future   | See Phase 15        |
 
-### 16.1 — Completed (v2.2.10)
+### 16.1 — Completed (v2.2.11)
 
 - [x] Fix `resolveRoleRef` in `src/lib/ai_prompt_builder.js` to use `Object.prototype.hasOwnProperty.call()` — prevents prototype-chain false positives for keys like `"constructor"` / `"toString"`
 - [x] Add `listPersonas(parsedYaml)` pure function to `src/lib/ai_prompt_builder.js` — sorted `string[]` of persona keys, mirroring `loader.ts → listPersonas()`

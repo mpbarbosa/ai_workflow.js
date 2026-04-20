@@ -43,11 +43,19 @@ describe('step12_git_commit_prompt — config correctness', () => {
 
   test('task_template requires grounded wording when evidence is partial or counts disagree', () => {
     const template = aiHelpers.step12_git_commit_prompt.task_template;
-    expect(template).toContain('Treat "Changed Files" as the authoritative list of project files in scope');
+    expect(template).toContain(
+      'Treat "Changed Files" as the authoritative list of project files in scope'
+    );
     expect(template).toMatch(
       /Do\s+not claim validation, synchronization, alignment, or completeness/
     );
     expect(template).toMatch(/If counts disagree or the\s+evidence is partial/);
+    expect(template).toMatch(
+      /Do not treat filenames, file categories, commit heuristics, or\s+auto-extracted issue summaries as proof/
+    );
+    expect(template).toMatch(
+      /Do not add "No\s+breaking changes detected" or similar certainty language/
+    );
   });
 });
 
@@ -80,7 +88,14 @@ describe('step12_git_commit_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('project version typically sourced from `package.json`');
     expect(prompt).toContain('`.workflow-config.yaml`');
     expect(prompt).toContain('.github/skills/sync-workflow-config/SKILL.md');
-    expect(prompt).toContain('Treat "Changed Files" as the authoritative list of project files in scope');
+    expect(prompt).toContain(
+      'Treat "Changed Files" as the authoritative list of project files in scope'
+    );
+    expect(prompt).toContain('Do not treat filenames, file categories, commit heuristics, or');
+    expect(prompt).toContain('Do not add "No');
+    expect(prompt).toContain(
+      'It is acceptable to return only the subject line when a fuller body would'
+    );
     expect(prompt).not.toContain('version defined in `package.json` and `.workflow-config.yaml`');
   });
 });

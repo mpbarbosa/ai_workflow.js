@@ -769,7 +769,7 @@ export function buildConsistencyPrompt(options) {
   const totalIssues = scanResults.totalIssues ?? 0;
   const primaryLanguage = projectInfo.language || projectInfo.primary_language || '';
   const fileContentsSection = fileContents
-    ? `\n\n**Provided file contents and excerpts**:\n${fileContents}`
+    ? `\n\n**Provided file contents and excerpts**:\n${fileContents}\n- Some excerpts may be truncated, omitted, or unavailable. Treat those markers as hard evidence limits: cite only the visible text, and mark any partition-wide or file-wide conclusion that depends on omitted content as limited or inconclusive.`
     : '\n\n**Provided file contents and excerpts**:\n(unavailable — if a conclusion requires exact wording, examples, headings, or inline code blocks, mark it unavailable or inconclusive rather than claiming success)';
 
   const task = `Perform a comprehensive documentation consistency analysis for project: ${docDirectory}
@@ -815,7 +815,12 @@ ${fileList}${fileContentsSection}`;
 - Describe the specific inconsistency without fabricating line numbers
 - Provide a concrete fix
 
-If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly. If key evidence is missing for a requested comparison, say so explicitly and mark that conclusion limited or inconclusive.`;
+If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly.
+- Do not claim that no version numbers or badges are present unless the relevant in-scope files or excerpts needed to support that absence are actually visible in the prompt or already established by the programmatic scan.
+- Do not claim heading, list, or code-fence consistency across files unless the exact supporting headings, list items, or fenced blocks are visible for each compared file; otherwise keep the claim scoped to the visible excerpts or mark it inconclusive.
+- Do not claim missing-documentation, missing-cross-reference, or stub-level checks passed merely because a file name appears in the file list; require visible file content or mark the check inconclusive.
+- Unlabelled fenced blocks are not automatically inconsistent; only report a code-block language-tag issue when the exact visible block and a visible project convention support that conclusion.
+If key evidence is missing for a requested comparison, say so explicitly and mark that conclusion limited or inconclusive.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -829,7 +834,7 @@ If no semantic issues are apparent from the provided context, respond with: "No 
  * @param {string} [options.framework] - Programming language (e.g. "typescript")
  * @param {string} [options.testFramework] - Test runner/framework (e.g. "jest", "pytest")
  * @param {string} [options.testCommand] - Command to run tests (e.g. "npm test")
- * @param {string} [options.coverageCommand] - Command to run coverage (e.g. "npm run coverage")
+ * @param {string} [options.coverageCommand] - Command to run coverage (e.g. "npm run test:coverage")
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Test review prompt
  */
@@ -859,24 +864,30 @@ export function buildTestReviewPrompt(options) {
 - Focus on test quality, not just coverage numbers
 - Identify gaps in edge case coverage and error handling; reference the actual test file and line number for each gap
 - Recommend practical improvements with effort estimates (e.g. "small: rename test description", "medium: extract shared fixture", "large: refactor mock strategy")
-- If the project includes CONTRIBUTING.md or documented testing conventions, align recommendations with those conventions`;
+- If the project includes CONTRIBUTING.md or documented testing conventions, align recommendations with those conventions
+- Review only the listed files and any explicit file contents provided for them
+- If a listed file is truncated, unavailable, or declarative rather than executable test code, say so explicitly and limit conclusions to the visible evidence
+- Do not claim CI stability, performance health, or repository-wide test quality unless that evidence is shown directly in the prompt`;
 
   const testList = buildFileListContext(testFiles);
 
   const taskFrameworkLabel = runner ? (lang ? `${runner} (${lang})` : runner) : lang;
   const taskFrameworkContext = taskFrameworkLabel ? ` using ${taskFrameworkLabel}` : '';
   const commandsNote = testCmd
-    ? `\nRun tests with: \`${testCmd}\`${covCmd ? `; coverage with: \`${covCmd}\`` : ''}`
+    ? `\nPrimary executable test command: \`${testCmd}\`${covCmd ? `; coverage command: \`${covCmd}\`` : ''}`
     : '';
 
-  const task = `Review test quality and coverage — including assertion quality, edge cases, error handling, and test isolation — for these test files${taskFrameworkContext}:
-${testList}${commandsNote}`;
+  const task = `Review test quality and coverage — including assertion quality, edge cases, error handling, and test isolation — for these discovered test files and test-related artifacts${taskFrameworkContext}:
+${testList}${commandsNote}
+
+If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact rather than executable test code, treat it as supporting context instead of pretending it runs under the primary test command.`;
 
   const approach = `**Review Methodology**:
 1. **Coverage Analysis**: Identify untested code paths, edge cases, and error handling gaps
 2. **Quality Assessment**: Evaluate assertion quality, test clarity, and maintainability
 3. **Best Practices**: Check for proper setup/teardown, mocking, test isolation, and descriptive naming
-4. **Recommendations**: Prioritize improvements by impact and effort
+4. **Evidence Handling**: Mark missing or truncated evidence as unavailable or inconclusive instead of inferring success
+5. **Recommendations**: Prioritize improvements by impact and effort
 
 **Focus**: Assertion quality, edge cases, error handling, test isolation, and maintainability`;
 

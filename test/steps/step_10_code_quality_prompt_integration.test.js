@@ -34,11 +34,19 @@ describe('step10_code_quality_prompt — config correctness', () => {
     const approach = aiHelpers.step10_code_quality_prompt.approach;
 
     expect(template).toContain('unavailable or inconclusive');
+    expect(template).toContain(
+      'Do not collapse multi-language or multi-file automated lint summaries'
+    );
+    expect(template).toContain('treat exported environment variables');
     expect(template).toContain('{partition_header}');
     expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('Entries labeled `(part X/Y)`');
     expect(approach).toContain('Do not assert JSDoc completeness');
     expect(approach).toContain('Do not assess commit-message quality');
+    expect(approach).toContain(
+      'Do not restate repository-wide or multi-language automated summaries'
+    );
+    expect(approach).toContain('do not say "no globals"');
     expect(approach).toContain('Separate confirmed findings from inconclusive checks');
   });
 
@@ -62,9 +70,12 @@ describe('step10_code_quality_prompt — config correctness', () => {
       quality_report_content: '# Code Quality Report',
       large_files_list: 'src/app.tsx',
       sample_code: '',
-      file_content_map: ['### src/app.tsx (part 1/2)', '```', 'export const App = () => null;', '```'].join(
-        '\n'
-      ),
+      file_content_map: [
+        '### src/app.tsx (part 1/2)',
+        '```',
+        'export const App = () => null;',
+        '```',
+      ].join('\n'),
     });
 
     expect(prompt).toContain('Slice 1 of 2 within partition 1/3');

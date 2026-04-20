@@ -9,11 +9,7 @@
 import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
-import { FileOperations } from '../lib/file_operations.js';
-import { Backlog } from '../lib/backlog.js';
 import yaml from 'js-yaml';
-import { AiHelper } from '../lib/ai_helpers.js';
-import { AiCache } from '../lib/ai_cache.js';
 import {
   buildConsistencyPrompt,
   buildFileContentBlock,
@@ -23,7 +19,12 @@ import {
   buildProjectKindPrompt,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
+import { getPrimaryLanguage } from '../lib/tech_stack.js';
+import {
+  buildStepDependencies,
+  initializeAiServices,
+  appendAiRecommendations,
+} from './step_analysis_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -83,7 +84,8 @@ export const SCOPE_DESCRIPTIONS = {
   docs_only: 'docs_only — documentation changes only',
   test_changes: 'test_changes — test file modifications',
   full_changes: 'full_changes — all file types modified',
-  full_validation: 'full_validation — complete codebase analysis, all files analyzed regardless of recent changes',
+  full_validation:
+    'full_validation — complete codebase analysis, all files analyzed regardless of recent changes',
 };
 
 // ============================================================================
@@ -288,6 +290,10 @@ export function validateFileReferences(links, existingFiles, sourceFile) {
  */
 export function formatConsistencyReport(results) {
   const lines = [];
+  const brokenLinkCandidates = results.brokenLinkCandidates ?? results.brokenLinks.length;
+  const confirmedBrokenLinks = results.confirmedBrokenLinks ?? results.brokenLinks.length;
+  const falsePositiveBrokenLinks = results.falsePositiveBrokenLinks ?? 0;
+  const unverifiedBrokenLinks = results.unverifiedBrokenLinks ?? 0;
 
   lines.push('## Step 2: Consistency Analysis\n');
 
@@ -295,19 +301,24 @@ export function formatConsistencyReport(results) {
   lines.push('### Summary');
   lines.push(`- **Files checked**: ${results.filesChecked}`);
   lines.push(`- **Total issues**: ${results.totalIssues}`);
-  lines.push(`- **Broken links**: ${results.brokenLinks.length}`);
+  lines.push(`- **Broken link scan candidates**: ${brokenLinkCandidates}`);
+  lines.push(`- **Confirmed broken links**: ${confirmedBrokenLinks}`);
+  lines.push(`- **False positives**: ${falsePositiveBrokenLinks}`);
+  lines.push(`- **Unverified broken-link candidates**: ${unverifiedBrokenLinks}`);
   lines.push(`- **Version issues**: ${results.versionIssues.length}\n`);
 
   // Status
-  if (results.totalIssues === 0) {
+  if (results.totalIssues === 0 && brokenLinkCandidates === 0) {
     lines.push('✅ **Status**: All consistency checks passed\n');
+  } else if (results.totalIssues === 0) {
+    lines.push('⚠️ **Status**: No confirmed issues, but scan candidates remain unverified\n');
   } else {
     lines.push('⚠️ **Status**: Issues found - review required\n');
   }
 
-  // Broken links
+  // Broken link candidates
   if (results.brokenLinks.length > 0) {
-    lines.push('### Broken Links');
+    lines.push('### Broken Link Scan Candidates');
     results.brokenLinks.slice(0, 10).forEach((issue) => {
       lines.push(`- **${issue.file}:${issue.line}** - [${issue.text}](${issue.link})`);
     });
@@ -522,6 +533,12 @@ export function buildPartitionContext(
  */
 export const MIN_COVERAGE_RATIO = 0.5;
 
+const AI_REFERENCE_STATUS_PATTERNS = {
+  confirmed: /confirmed broken/i,
+  falsePositive: /false positive/i,
+  unverified: /unverified from visible context/i,
+};
+
 /**
  * Validate that an AI response meaningfully addresses the flagged broken references.
  * Returns a quality assessment without performing any I/O.
@@ -559,8 +576,24 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
         normalized.includes('all cross-references are intact') ||
         normalized.includes('no critical or high-priority documentation consistency issues') ||
         normalized.includes('follows project-specific conventions');
+      const makesUnsupportedScopedPassClaim =
+        normalized.includes('no version numbers or badges are present') ||
+        normalized.includes('no version drift or badge mismatch is possible to flag') ||
+        normalized.includes('all files use atx-style headings') ||
+        normalized.includes('consistent capitalization') ||
+        normalized.includes('all code blocks use triple backticks') ||
+        normalized.includes('specify language tags where appropriate') ||
+        normalized.includes('all referenced files in tables and lists') ||
+        normalized.includes('no missing documentation') ||
+        normalized.includes('no incomplete or stub-level documentation') ||
+        normalized.includes('no referenced documentation files are missing') ||
+        normalized.includes('no inconsistent terminology detected');
 
-      if (!usesExplicitSafeForm && !usesUncertaintyLanguage && makesBroadSuccessClaim) {
+      if (
+        !usesExplicitSafeForm &&
+        !usesUncertaintyLanguage &&
+        (makesBroadSuccessClaim || makesUnsupportedScopedPassClaim)
+      ) {
         return { adequate: false, reason: 'unsupported_global_claim', coverage: 0 };
       }
     }
@@ -585,6 +618,57 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
   }
 
   return { adequate: true, reason: 'ok', coverage };
+}
+
+/**
+ * Summarize how an AI response classified broken-link scan candidates.
+ *
+ * @pure
+ * @param {string[]} flaggedItems - Candidate entries in "source:line → target" format
+ * @param {string} [aiResponse=''] - AI response text for the same partition
+ * @returns {{ totalCandidates: number, confirmed: number, falsePositive: number, unverified: number }}
+ */
+export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
+  const normalizedFlaggedItems = [
+    ...new Set((Array.isArray(flaggedItems) ? flaggedItems : []).filter(Boolean)),
+  ];
+  const assessmentMap = new Map();
+  const response = String(aiResponse ?? '');
+  const referencePattern =
+    /(?:^|\n)#{3,4}\s+Reference:\s*(.+?)\n-\s+\*\*Status:\*\*\s*(.+?)(?=\n|$)/g;
+  let match;
+
+  while ((match = referencePattern.exec(response)) !== null) {
+    const reference = match[1].trim();
+    const statusText = match[2].trim();
+    if (AI_REFERENCE_STATUS_PATTERNS.confirmed.test(statusText)) {
+      assessmentMap.set(reference, 'confirmed');
+    } else if (AI_REFERENCE_STATUS_PATTERNS.falsePositive.test(statusText)) {
+      assessmentMap.set(reference, 'false_positive');
+    } else if (AI_REFERENCE_STATUS_PATTERNS.unverified.test(statusText)) {
+      assessmentMap.set(reference, 'unverified');
+    }
+  }
+
+  const summary = {
+    totalCandidates: normalizedFlaggedItems.length,
+    confirmed: 0,
+    falsePositive: 0,
+    unverified: 0,
+  };
+
+  for (const item of normalizedFlaggedItems) {
+    const status = assessmentMap.get(item) || 'unverified';
+    if (status === 'confirmed') {
+      summary.confirmed += 1;
+    } else if (status === 'false_positive') {
+      summary.falsePositive += 1;
+    } else {
+      summary.unverified += 1;
+    }
+  }
+
+  return summary;
 }
 
 /**
@@ -663,11 +747,7 @@ export class Step2ConsistencyAnalyzer {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.fileOps = options.fileOps || new FileOperations();
-    this.backlog = options.backlog || new Backlog();
-    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
-    this.aiCache = options.aiCache || new AiCache();
-    this.techStack = options.techStack || new TechStackDetector();
+    Object.assign(this, buildStepDependencies(options));
   }
 
   /**
@@ -727,17 +807,27 @@ export class Step2ConsistencyAnalyzer {
       // Phase 4: Check file references
       const existingFiles = await this.buildFileIndex(projectRoot);
       const brokenLinks = await this.checkLinks(docFiles, existingFiles, projectRoot);
-      logger.info(`Link check: ${brokenLinks.length} broken link(s) found`);
+      logger.info(`Link check: ${brokenLinks.length} candidate broken link(s) found`);
 
       // Phase 4b: Build compact directory tree for architecture consistency analysis
       const directoryTree = buildCompactDirectoryTree(existingFiles, projectRoot);
 
       // Phase 5: Generate report
-      const totalIssues = versionIssues.length + brokenLinks.length;
+      let brokenLinkAssessment = {
+        totalCandidates: brokenLinks.length,
+        confirmed: 0,
+        falsePositive: 0,
+        unverified: brokenLinks.length,
+      };
+      const totalIssues = versionIssues.length + brokenLinkAssessment.confirmed;
       const results = {
         filesChecked: docFiles.length,
         totalIssues,
         brokenLinks,
+        brokenLinkCandidates: brokenLinkAssessment.totalCandidates,
+        confirmedBrokenLinks: brokenLinkAssessment.confirmed,
+        falsePositiveBrokenLinks: brokenLinkAssessment.falsePositive,
+        unverifiedBrokenLinks: brokenLinkAssessment.unverified,
         versionIssues,
       };
 
@@ -745,9 +835,8 @@ export class Step2ConsistencyAnalyzer {
       await this.backlog.saveStepSummary(2, 'Consistency Analysis', report);
 
       // Phase 6: AI-powered consistency analysis (partitioned to avoid prompt-size timeouts)
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
       if (aiAvailable) {
-        await this.aiCache.init();
         const language = options.language || (await this.detectLanguage(projectRoot));
 
         // Load YAML prompt config and optional project-kind role overlay once
@@ -782,6 +871,12 @@ export class Step2ConsistencyAnalyzer {
         const tsSourceCount = await countTypeScriptSourceFiles(this.fileOps, projectRoot);
 
         const aiParts = [];
+        brokenLinkAssessment = {
+          totalCandidates: 0,
+          confirmed: 0,
+          falsePositive: 0,
+          unverified: 0,
+        };
         for (let i = 0; i < totalParts; i++) {
           const partFiles = partitions[i];
           const { docFilesList, brokenRefsList, header } = buildPartitionContext(
@@ -810,7 +905,8 @@ export class Step2ConsistencyAnalyzer {
                 modified_count: `${partFiles.length} (files are batched in groups of ≤${PARTITION_SIZE} to stay within AI context limits)`,
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
-                file_contents: fileContentsSection || '(no readable markdown file contents were available)',
+                file_contents:
+                  fileContentsSection || '(no readable markdown file contents were available)',
                 directory_tree: directoryTree,
               });
               if (prompt && roleOverride) {
@@ -887,21 +983,40 @@ export class Step2ConsistencyAnalyzer {
               totalParts > 1 ? `### Partition ${i + 1} of ${totalParts}\n\n${aiContent}` : aiContent
             );
           }
+
+          const assessment = summarizeBrokenLinkAssessments(partitionBrokenRefs, aiContent);
+          brokenLinkAssessment.totalCandidates += assessment.totalCandidates;
+          brokenLinkAssessment.confirmed += assessment.confirmed;
+          brokenLinkAssessment.falsePositive += assessment.falsePositive;
+          brokenLinkAssessment.unverified += assessment.unverified;
         }
 
+        results.totalIssues = versionIssues.length + brokenLinkAssessment.confirmed;
+        results.brokenLinkCandidates = brokenLinkAssessment.totalCandidates;
+        results.confirmedBrokenLinks = brokenLinkAssessment.confirmed;
+        results.falsePositiveBrokenLinks = brokenLinkAssessment.falsePositive;
+        results.unverifiedBrokenLinks = brokenLinkAssessment.unverified;
+
         if (aiParts.length > 0) {
+          const updatedReport = formatConsistencyReport(results);
           const merged = aiParts.join('\n\n---\n\n');
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${merged}`;
+          const enrichedReport = appendAiRecommendations(updatedReport, merged);
           await this.backlog.saveStepSummary(2, 'Consistency Analysis', enrichedReport);
         }
       } else {
         logger.warn('AI helper not available - skipping AI consistency analysis');
       }
 
-      if (totalIssues === 0) {
+      if (results.totalIssues === 0 && results.brokenLinkCandidates === 0) {
         logger.success('Step 2 completed - no issues found');
+      } else if (results.totalIssues === 0) {
+        logger.warn(
+          `Step 2 completed - 0 confirmed issue(s), ${results.unverifiedBrokenLinks} unverified candidate(s), ${results.falsePositiveBrokenLinks} false positive(s)`
+        );
       } else {
-        logger.warn(`Step 2 completed - ${totalIssues} issue(s) found`);
+        logger.warn(
+          `Step 2 completed - ${results.totalIssues} confirmed issue(s) found (${results.brokenLinkCandidates} broken-link candidate(s) scanned)`
+        );
       }
 
       return {

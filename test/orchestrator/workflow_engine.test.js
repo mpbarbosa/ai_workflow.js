@@ -982,6 +982,24 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       expect(result.success).toBe(false);
       expect(result.error.message).toBe('Test error');
     });
+
+    test('propagates skipped handler output into normalized step results', async () => {
+      const step = {
+        id: 'step1',
+        name: 'Step 1',
+        handler: async () => ({
+          success: true,
+          skipped: true,
+          reason: 'project type not eligible',
+        }),
+      };
+
+      const result = await engine.executeStep(step, {});
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('project type not eligible');
+    });
   });
 
   describe('getStatus', () => {

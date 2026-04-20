@@ -10,12 +10,14 @@ import {
   extractScriptReferences,
   validateScriptReferences,
   validateShebang,
+  getScriptDocumentationMatch,
   isScriptDocumented,
   buildDocCoverageMap,
   buildDocumentationExcerpts,
   formatDocCoverageMap,
   formatScriptReport,
   SCRIPT_ISSUE_TYPE,
+  SCRIPT_DOC_MATCH_TYPE,
 } from '../../src/steps/step_03_script_refs.js';
 
 describe('Step 3: Script Reference Validation', () => {
@@ -264,6 +266,41 @@ describe('Step 3: Script Reference Validation', () => {
     });
   });
 
+  describe('getScriptDocumentationMatch', () => {
+    test('detects exact path matches', () => {
+      const match = getScriptDocumentationMatch(
+        'scripts/deploy.sh',
+        'Run `./scripts/deploy.sh` before release'
+      );
+      expect(match).toEqual({
+        type: SCRIPT_DOC_MATCH_TYPE.EXACT_PATH,
+        reference: './scripts/deploy.sh',
+      });
+    });
+
+    test('detects prefixed path variants separately from exact path matches', () => {
+      const match = getScriptDocumentationMatch(
+        'scripts/update_submodules.sh',
+        'Use `bash .workflow_core/scripts/update_submodules.sh` after syncing'
+      );
+      expect(match).toEqual({
+        type: SCRIPT_DOC_MATCH_TYPE.PATH_VARIANT,
+        reference: '.workflow_core/scripts/update_submodules.sh',
+      });
+    });
+
+    test('detects basename-only references', () => {
+      const match = getScriptDocumentationMatch(
+        'scripts/build.sh',
+        'Use `build.sh` to compile the project'
+      );
+      expect(match).toEqual({
+        type: SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY,
+        reference: 'build.sh',
+      });
+    });
+  });
+
   // ========================================================================
   // PURE FUNCTIONS - Doc Coverage Map
   // ========================================================================
@@ -280,6 +317,18 @@ describe('Step 3: Script Reference Validation', () => {
       expect(map[0].foundIn).toContain('README.md');
       expect(map[0].foundIn).toContain('docs/API.md');
       expect(map[0].missingFrom).toHaveLength(0);
+      expect(map[0].matchDetails).toEqual([
+        {
+          path: 'README.md',
+          type: SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY,
+          reference: 'deploy.sh',
+        },
+        {
+          path: 'docs/API.md',
+          type: SCRIPT_DOC_MATCH_TYPE.EXACT_PATH,
+          reference: 'scripts/deploy.sh',
+        },
+      ]);
     });
 
     test('marks script as missing from docs where it is absent', () => {
@@ -302,6 +351,7 @@ describe('Step 3: Script Reference Validation', () => {
       const map = buildDocCoverageMap(['deploy.sh'], []);
       expect(map[0].foundIn).toHaveLength(0);
       expect(map[0].missingFrom).toHaveLength(0);
+      expect(map[0].matchDetails).toEqual([]);
     });
   });
 
@@ -316,10 +366,21 @@ describe('Step 3: Script Reference Validation', () => {
 
     test('formats a partially documented script correctly', () => {
       const map = [
-        { script: 'cdn-delivery.sh', foundIn: ['README.md'], missingFrom: ['docs/API.md'] },
+        {
+          script: 'cdn-delivery.sh',
+          foundIn: ['README.md'],
+          missingFrom: ['docs/API.md'],
+          matchDetails: [
+            {
+              path: 'README.md',
+              type: SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY,
+              reference: 'cdn-delivery.sh',
+            },
+          ],
+        },
       ];
       const output = formatDocCoverageMap(map);
-      expect(output).toContain('documented in [README.md]');
+      expect(output).toContain('documented in [README.md (basename only: cdn-delivery.sh)]');
       // "MISSING from" is suppressed when the script is covered in at least one doc
       expect(output).not.toContain('MISSING from');
     });
@@ -332,12 +393,33 @@ describe('Step 3: Script Reference Validation', () => {
 
     test('handles multiple scripts', () => {
       const map = [
-        { script: 'a.sh', foundIn: ['README.md'], missingFrom: [] },
-        { script: 'b.sh', foundIn: [], missingFrom: ['README.md'] },
+        { script: 'a.sh', foundIn: ['README.md'], missingFrom: [], matchDetails: [] },
+        { script: 'b.sh', foundIn: [], missingFrom: ['README.md'], matchDetails: [] },
       ];
       const output = formatDocCoverageMap(map);
       expect(output).toContain('a.sh');
       expect(output).toContain('b.sh');
+    });
+
+    test('formats path variants explicitly so prompts can flag context mismatches', () => {
+      const map = [
+        {
+          script: 'scripts/update_submodules.sh',
+          foundIn: ['README.md'],
+          missingFrom: [],
+          matchDetails: [
+            {
+              path: 'README.md',
+              type: SCRIPT_DOC_MATCH_TYPE.PATH_VARIANT,
+              reference: '.workflow_core/scripts/update_submodules.sh',
+            },
+          ],
+        },
+      ];
+      const output = formatDocCoverageMap(map);
+      expect(output).toContain(
+        'README.md (path variant: .workflow_core/scripts/update_submodules.sh)'
+      );
     });
   });
 

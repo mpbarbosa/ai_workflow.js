@@ -169,6 +169,116 @@ export function parsePackageJson(packageJson) {
   };
 }
 
+function truncateDependencyMap(depMap, limit = 12) {
+  const entries = Object.entries(depMap || {});
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  const truncated = Object.fromEntries(entries.slice(0, limit));
+  if (entries.length > limit) {
+    truncated.__truncated__ = `+${entries.length - limit} more`;
+  }
+
+  return truncated;
+}
+
+/**
+ * Build prompt-safe evidence summaries so the dependency analyst can
+ * distinguish between direct manifest evidence and summary-only data.
+ *
+ * @pure
+ * @param {Object} options
+ * @param {string} options.language
+ * @param {string[]} [options.dependencyFiles]
+ * @param {Object|null} [options.packageJson]
+ * @param {string[]} [options.lockfileIssues]
+ * @param {string[]} [options.runtimePinFiles]
+ * @returns {{
+ *   manifestEvidenceLevel: string,
+ *   runtimeVersionEvidence: string,
+ *   lockfileEvidence: string,
+ *   dependencyTreeEvidence: string,
+ *   manifestSnippet: string
+ * }}
+ */
+export function buildDependencyPromptEvidence({
+  language,
+  dependencyFiles = [],
+  packageJson = null,
+  lockfileIssues = [],
+  runtimePinFiles = [],
+}) {
+  const isNodeProject = language === 'javascript' || language === 'typescript';
+  const hasLockfile = dependencyFiles.some((file) =>
+    ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb'].includes(file)
+  );
+
+  const manifestPayload = packageJson
+    ? Object.fromEntries(
+        Object.entries({
+          engines: packageJson.engines,
+          packageManager: packageJson.packageManager,
+          dependencies: truncateDependencyMap(packageJson.dependencies),
+          devDependencies: truncateDependencyMap(packageJson.devDependencies),
+          peerDependencies: truncateDependencyMap(packageJson.peerDependencies),
+        }).filter(([, value]) => {
+          if (value == null) {
+            return false;
+          }
+
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            return Object.keys(value).length > 0;
+          }
+
+          return true;
+        })
+      )
+    : null;
+
+  const manifestEvidenceLevel = manifestPayload
+    ? 'Manifest excerpt available for direct semver and runtime analysis.'
+    : isNodeProject
+      ? 'Summary-only evidence for dependency status; no manifest excerpt supplied.'
+      : 'Manifest excerpt not supplied; rely only on summarized dependency and audit data.';
+
+  const runtimeEvidenceParts = [];
+  if (packageJson?.engines) {
+    runtimeEvidenceParts.push(`package.json engines: ${JSON.stringify(packageJson.engines)}`);
+  } else if (isNodeProject) {
+    runtimeEvidenceParts.push('package.json engines: not declared in supplied manifest');
+  }
+
+  if (packageJson?.packageManager) {
+    runtimeEvidenceParts.push(`packageManager field: ${packageJson.packageManager}`);
+  }
+
+  runtimeEvidenceParts.push(
+    runtimePinFiles.length > 0
+      ? `runtime pin files: ${runtimePinFiles.join(', ')}`
+      : 'runtime pin files: none found'
+  );
+
+  const lockfileEvidence = hasLockfile
+    ? lockfileIssues.length > 0
+      ? `Lockfile detected with ${lockfileIssues.length} structural issue(s): ${lockfileIssues
+          .slice(0, 5)
+          .join('; ')}`
+      : 'Lockfile detected; structural validation passed.'
+    : 'No lockfile was supplied to support transitive dependency or resolution analysis.';
+
+  const dependencyTreeEvidence =
+    'Only the supplied manifest excerpt, top-level dependency names, audit results, and outdated-package output may support conclusions here. Unused dependencies, duplicate packages, peer-resolution issues, transitive conflicts, and bundle-size claims stay unavailable unless a tree or usage scan is explicitly provided.';
+
+  return {
+    manifestEvidenceLevel,
+    runtimeVersionEvidence: runtimeEvidenceParts.join('; '),
+    lockfileEvidence,
+    dependencyTreeEvidence,
+    manifestSnippet: manifestPayload ? JSON.stringify(manifestPayload, null, 2) : 'Not available',
+  };
+}
+
 /**
  * Parse npm audit output
  * @pure
@@ -964,6 +1074,29 @@ export class Step9DependencyValidator {
             const prodList = Object.keys(prodDepsObj).slice(0, 30).join(', ') || 'none';
             const devList = Object.keys(devDepsObj).slice(0, 30).join(', ') || 'none';
             const vulnSum = vulnerabilities.summary ?? {};
+            let promptPackageJson = null;
+            if (language === 'javascript' || language === 'typescript') {
+              try {
+                promptPackageJson = JSON.parse(
+                  await this.fileOps.readFile(`${projectRoot}/package.json`)
+                );
+              } catch {
+                promptPackageJson = null;
+              }
+            }
+            const runtimePinFiles = [];
+            for (const pinFile of ['.nvmrc', '.node-version']) {
+              if (await this.fileOps.exists(path.join(projectRoot, pinFile))) {
+                runtimePinFiles.push(pinFile);
+              }
+            }
+            const promptEvidence = buildDependencyPromptEvidence({
+              language,
+              dependencyFiles,
+              packageJson: promptPackageJson,
+              lockfileIssues,
+              runtimePinFiles,
+            });
             const auditSummary = vulnSum.total
               ? `${vulnSum.total} total (${vulnSum.critical ?? 0} critical, ${vulnSum.high ?? 0} high, ${vulnSum.moderate ?? 0} moderate, ${vulnSum.low ?? 0} low)`
               : 'No vulnerabilities found';
@@ -976,6 +1109,7 @@ export class Step9DependencyValidator {
             prompt = buildYamlStepPrompt(parsedYaml, 'step9_dependencies_prompt', {
               project_name: path.basename(projectRoot),
               project_description: options?.projectDescription ?? 'N/A',
+              project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
               primary_language: language,
               package_manager: pkgMgr,
               package_manager_version: 'N/A',
@@ -990,6 +1124,11 @@ export class Step9DependencyValidator {
               dev_deps: devList,
               audit_summary: auditSummary,
               outdated_list: outdatedList,
+              manifest_evidence_level: promptEvidence.manifestEvidenceLevel,
+              runtime_version_evidence: promptEvidence.runtimeVersionEvidence,
+              lockfile_evidence: promptEvidence.lockfileEvidence,
+              dependency_tree_evidence: promptEvidence.dependencyTreeEvidence,
+              manifest_snippet: promptEvidence.manifestSnippet,
             });
           } catch {
             /* fallback to generic prompt */

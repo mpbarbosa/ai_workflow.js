@@ -24,11 +24,14 @@ import {
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
-  buildFileContentBlock,
   formatProjectContextSection,
-  MAX_CHARS_PER_FILE,
-  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
+import {
+  buildPartitionFilePathsContext,
+  buildReviewFileContentsBlock,
+  buildReviewPromptPartitions,
+  runPartitionedAiResponses,
+} from '../lib/review_step_helpers.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -218,67 +221,105 @@ export class Step18Debugging {
           // Debugger templates use role_prefix/specific_expertise/approach/output_format
           // rather than the role/task_template/approach structure expected by
           // buildYamlStepPrompt. Assemble all sections manually so the AI receives
-          // the full role context, expertise spec, source file list, and output format.
+          // the full role context, expertise spec, scoped file list, and output format.
           const cfg = parsedYaml[personaKey];
-          let debugPrompt = null;
+          const readableFileEntries = sampleFiles.flatMap((relativePath, index) => {
+            const content = sampleContents[index] ?? '';
+            return content ? [{ relativePath, content }] : [];
+          });
+          const promptPartitions =
+            readableFileEntries.length > 0 ? buildReviewPromptPartitions(readableFileEntries) : [];
+          const partitionsToAnalyze =
+            promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
 
-          // Build a file-contents section shared by both prompt paths.
-          const fileContentBlocks = [];
-          let totalChars = 0;
-          for (let i = 0; i < sampleFiles.length; i++) {
-            const content = sampleContents[i] ?? '';
-            if (!content) continue;
-            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
-            if (totalChars + contribution > MAX_CHARS_TOTAL_CONTENTS) break;
-            fileContentBlocks.push(buildFileContentBlock(sampleFiles[i], content));
-            totalChars += contribution;
-          }
-          const fileContentsSection =
-            fileContentBlocks.length > 0
-              ? `**File Contents**:\n\n${fileContentBlocks.join('\n\n')}`
-              : '';
-
-          if (cfg && typeof cfg === 'object') {
-            const parts = [];
-            const role = (cfg.role_prefix || cfg.role || '').trim();
-            if (roleOverride) parts.push(`[Project-Kind Role: ${roleOverride}]`);
-            if (role) parts.push(`**Role**: ${role}`);
-            const ctxSection = formatProjectContextSection(projectContextContent);
-            if (ctxSection) parts.push(ctxSection);
-            if (cfg.specific_expertise) parts.push(cfg.specific_expertise.trim());
-            parts.push(
-              `**Source Files to Analyze** (${sourceFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
+          if (partitionsToAnalyze.length > 1) {
+            logger.info(
+              `[step_18] Running AI analysis in ${partitionsToAnalyze.length} partition(s) to avoid prompt truncation`
             );
-            if (fileContentsSection) parts.push(fileContentsSection);
-            if (cfg.approach) parts.push(cfg.approach.trim());
-            if (cfg.output_format) parts.push(`**Output Format**:\n${cfg.output_format.trim()}`);
-            debugPrompt = parts.join('\n\n');
-          } else {
-            // Fallback to generic builder for templates that use the standard structure
-            const builtPrompt = buildYamlStepPrompt(parsedYaml, personaKey, {
-              project_name: projectRoot,
-              source_files: sampleFiles.join(', '),
-              file_count: `${sourceFiles.length} total, sampling ${sampleFiles.length}`,
-            });
-            if (builtPrompt) {
+          }
+
+          const aiResult = await runPartitionedAiResponses({
+            partitions: partitionsToAnalyze,
+            buildPrompt: (partition, { index, total, isMultiPartition }) => {
+              const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
+              const filePathsContext = buildPartitionFilePathsContext(partition.entries);
+              const fileContentsSection = buildReviewFileContentsBlock(partition.entries);
+              const partitionHeader = isMultiPartition
+                ? `[Partition ${index + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
+                : '';
+              const partitionScopeNote = isMultiPartition
+                ? `This request covers ${partition.scopePaths.length} of ${sampleFiles.length} sampled source file(s) in the current debugging run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                : `This request contains the full readable debugging scope for this run (${readableFileEntries.length} readable sampled file(s)).`;
+
+              if (cfg && typeof cfg === 'object') {
+                const parts = [];
+                const role = (cfg.role_prefix || cfg.role || '').trim();
+                if (roleOverride) parts.push(`[Project-Kind Role: ${roleOverride}]`);
+                if (role) parts.push(`**Role**: ${role}`);
+                const ctxSection = formatProjectContextSection(projectContextContent);
+                if (ctxSection) parts.push(ctxSection);
+                if (cfg.specific_expertise) parts.push(cfg.specific_expertise.trim());
+                if (partitionHeader) parts.push(partitionHeader);
+                parts.push(partitionScopeNote);
+                parts.push(
+                  `**Source Files to Analyze** (${sampleFiles.length} total, ${partition.scopePaths.length} covered in this request): ${partitionDisplayPaths.join(', ')}`
+                );
+                parts.push(
+                  `**Files in This Request**:\n${
+                    filePathsContext || '      - (no readable source files were available)'
+                  }`
+                );
+                parts.push(
+                  fileContentsSection
+                    ? `**File Contents**:\n\n${fileContentsSection}`
+                    : '_No readable file excerpts were available in the current context window._'
+                );
+                if (cfg.approach) parts.push(cfg.approach.trim());
+                if (cfg.output_format)
+                  parts.push(`**Output Format**:\n${cfg.output_format.trim()}`);
+                return parts.join('\n\n');
+              }
+
+              // Fallback to generic builder for templates that use the standard structure
+              const builtPrompt = buildYamlStepPrompt(parsedYaml, personaKey, {
+                project_name: projectRoot,
+                source_files: partitionDisplayPaths.join(', '),
+                file_count: `${sampleFiles.length} total, ${partition.scopePaths.length} covered in this request`,
+              });
+              if (!builtPrompt) return '';
+
               const ctxSection = formatProjectContextSection(projectContextContent);
               const base = roleOverride
                 ? `[Project-Kind Role: ${roleOverride}]\n\n${builtPrompt}`
                 : builtPrompt;
-              const withCtx = ctxSection ? `${base}\n\n${ctxSection}` : base;
-              debugPrompt = fileContentsSection ? `${withCtx}\n\n${fileContentsSection}` : withCtx;
-            }
-          }
-          if (debugPrompt) {
-            const cacheKey = `step_18|${personaKey}|${projectRoot}|${sourceFiles.length}`;
-            const aiResult = await this.aiCache.withCache(cacheKey, cacheKey, () =>
-              this.aiHelper.executeRequest(debugPrompt, {
-                persona: personaKey,
-                model: 'claude-haiku-4.5',
-              })
-            );
-            aiContent = aiResult?.content ?? '';
-          }
+              const sections = [base];
+              if (ctxSection) sections.push(ctxSection);
+              if (partitionHeader) sections.push(partitionHeader);
+              sections.push(partitionScopeNote);
+              sections.push(
+                `**Files in This Request**:\n${
+                  filePathsContext || '      - (no readable source files were available)'
+                }`
+              );
+              sections.push(
+                fileContentsSection
+                  ? `**File Contents**:\n\n${fileContentsSection}`
+                  : '_No readable file excerpts were available in the current context window._'
+              );
+              return sections.join('\n\n');
+            },
+            executePartition: async (_partition, { index, total }, prompt) => {
+              const cacheKey = `step_18:${personaKey}:part:${index + 1}/${total}:files:${sampleFiles.length}`;
+              return this.aiCache.withCache(prompt, cacheKey, () =>
+                this.aiHelper.executeRequest(prompt, {
+                  persona: personaKey,
+                  model: 'claude-haiku-4.5',
+                })
+              );
+            },
+            extractContent: (response) => response?.content ?? response?.text ?? response ?? '',
+          });
+          aiContent = aiResult.content;
         } catch (err) {
           logger.warn(`Debugging AI analysis skipped: ${err.message}`);
         }

@@ -19,6 +19,7 @@ import {
   buildPartitionContext,
   categorizeFiles,
   validateAiResponseQuality,
+  summarizeBrokenLinkAssessments,
   MIN_COVERAGE_RATIO,
   ISSUE_TYPE,
 } from '../../src/steps/step_02_consistency.js';
@@ -299,6 +300,10 @@ describe('Step 2: Consistency Analysis', () => {
         filesChecked: 10,
         totalIssues: 0,
         brokenLinks: [],
+        brokenLinkCandidates: 0,
+        confirmedBrokenLinks: 0,
+        falsePositiveBrokenLinks: 0,
+        unverifiedBrokenLinks: 0,
         versionIssues: [],
       };
       const report = formatConsistencyReport(results);
@@ -313,13 +318,18 @@ describe('Step 2: Consistency Analysis', () => {
         filesChecked: 5,
         totalIssues: 2,
         brokenLinks: [{ file: 'README.md', line: 10, text: 'Link', link: 'missing.md' }],
+        brokenLinkCandidates: 1,
+        confirmedBrokenLinks: 1,
+        falsePositiveBrokenLinks: 0,
+        unverifiedBrokenLinks: 0,
         versionIssues: [{ file: 'CHANGELOG.md', found: '2.0.0', expected: '1.0.0' }],
       };
       const report = formatConsistencyReport(results);
 
       expect(report).toContain('Total issues**: 2');
+      expect(report).toContain('Broken link scan candidates**: 1');
       expect(report).toContain('⚠️');
-      expect(report).toContain('Broken Links');
+      expect(report).toContain('Broken Link Scan Candidates');
       expect(report).toContain('Version Issues');
     });
 
@@ -333,13 +343,40 @@ describe('Step 2: Consistency Analysis', () => {
 
       const results = {
         filesChecked: 20,
-        totalIssues: 15,
+        totalIssues: 10,
         brokenLinks,
+        brokenLinkCandidates: 15,
+        confirmedBrokenLinks: 10,
+        falsePositiveBrokenLinks: 3,
+        unverifiedBrokenLinks: 2,
         versionIssues: [],
       };
       const report = formatConsistencyReport(results);
 
       expect(report).toContain('... and 5 more');
+    });
+  });
+
+  describe('summarizeBrokenLinkAssessments', () => {
+    test('counts AI-confirmed, false-positive, and unverified scan candidates', () => {
+      const flaggedItems = [
+        'docs/a.md:10 → missing.md',
+        'docs/b.md:12 → placeholder',
+        'docs/c.md:9 → unknown.md',
+      ];
+      const aiResponse = [
+        '#### Reference: docs/a.md:10 → missing.md',
+        '- **Status:** Confirmed Broken',
+        '#### Reference: docs/b.md:12 → placeholder',
+        '- **Status:** False Positive',
+      ].join('\n');
+
+      expect(summarizeBrokenLinkAssessments(flaggedItems, aiResponse)).toEqual({
+        totalCandidates: 3,
+        confirmed: 1,
+        falsePositive: 1,
+        unverified: 1,
+      });
     });
   });
 
@@ -897,6 +934,23 @@ describe('Step 2: Consistency Analysis', () => {
 
       expect(result.adequate).toBe(true);
       expect(result.reason).toBe('no_items_to_cover');
+    });
+
+    test('returns adequate=false for scoped pass claims about versions and formatting without uncertainty', () => {
+      const response = `
+**Documentation Consistency Analysis — Example**
+
+- No version numbers or badges are present in the visible files; no version drift or badge mismatch is possible to flag.
+- All files use ATX-style headings with consistent capitalization.
+- All code blocks use triple backticks and specify language tags where appropriate.
+      `.repeat(3);
+
+      const result = validateAiResponseQuality(response, [], {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('unsupported_global_claim');
     });
 
     test('returns adequate=false when coverage is below threshold', () => {

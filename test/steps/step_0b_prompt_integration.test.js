@@ -608,16 +608,16 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
       expect(calls[0].prompt).toContain('CONTRIBUTING.md');
     });
 
-    test('prompt does NOT list README.md when README already exists', async () => {
+    test('prompt lists README.md when the existing README is too small', async () => {
       await writeMinimalProject(tempDir); // README.md is written by writeMinimalProject
       const { stub: aiStub, calls } = buildAiHelperStub('');
       const step = buildStep(tempDir, aiStub);
 
       await step.execute({});
 
-      // README.md must not appear in the "Documentation Gaps Identified" section
+      // The fixture README is intentionally tiny, so it should be re-bootstrapped.
       const gapSection = calls[0].prompt.split('Documentation Gaps Identified')[1] || '';
-      expect(gapSection).not.toContain('- README.md');
+      expect(gapSection).toContain('- README.md');
     });
 
     test('prompt does NOT list a doc that already exists on disk', async () => {

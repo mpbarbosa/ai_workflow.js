@@ -482,6 +482,7 @@ export {
   Step1_5CopilotInstructionsValidator,
   COPILOT_INSTRUCTIONS_RELATIVE_PATH,
   ensureTrailingNewline,
+  extractCopilotInstructionsFindings,
   extractCorrectedCopilotInstructions,
   buildCopilotInstructionsRepoFactsContext,
 } from './steps/step_01_5_copilot_instructions.js';

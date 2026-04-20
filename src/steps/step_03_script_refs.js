@@ -8,11 +8,7 @@
 
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
-import { FileOperations } from '../lib/file_operations.js';
-import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
-import { AiHelper } from '../lib/ai_helpers.js';
-import { AiCache } from '../lib/ai_cache.js';
+import { getPrimaryLanguage } from '../lib/tech_stack.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
@@ -22,6 +18,11 @@ import {
   loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
 import path from 'node:path';
+import {
+  appendAiRecommendations,
+  buildStepDependencies,
+  initializeAiServices,
+} from './step_analysis_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -61,6 +62,12 @@ export const SCRIPT_ISSUE_TYPE = {
   NON_EXECUTABLE: 'non_executable',
   UNDOCUMENTED: 'undocumented',
   INVALID_SHEBANG: 'invalid_shebang',
+};
+
+export const SCRIPT_DOC_MATCH_TYPE = {
+  EXACT_PATH: 'exact_path',
+  PATH_VARIANT: 'path_variant',
+  BASENAME_ONLY: 'basename_only',
 };
 
 // ============================================================================
@@ -147,6 +154,73 @@ export function validateScriptReferences(references, existingScripts) {
   return issues;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeScriptPath(scriptPath) {
+  return String(scriptPath ?? '')
+    .replace(/\\/g, '/')
+    .replace(/^\.?\//, '');
+}
+
+/**
+ * Detect how a documentation snippet references a script.
+ *
+ * @pure
+ * @param {string} scriptPath - Script file path
+ * @param {string} content - Documentation content
+ * @returns {{type: string, reference: string}|null} Match details or null
+ */
+export function getScriptDocumentationMatch(scriptPath, content) {
+  const normalized = normalizeScriptPath(scriptPath);
+  const baseName = path.basename(normalized);
+  const text = String(content ?? '');
+
+  if (!normalized || !text) return null;
+
+  const escapedNormalized = escapeRegExp(normalized);
+  const escapedBaseName = escapeRegExp(baseName);
+  const exactPathPattern = new RegExp(
+    `(^|[^A-Za-z0-9_./-])(\\.?/?${escapedNormalized})(?=$|[^A-Za-z0-9_./-])`,
+    'm'
+  );
+  const pathVariantPattern = new RegExp(
+    `(^|[^A-Za-z0-9_./-])((?:\\.?/)?(?:[A-Za-z0-9_.-]+/)+${escapedNormalized})(?=$|[^A-Za-z0-9_./-])`,
+    'm'
+  );
+  const baseNamePattern = new RegExp(
+    `(^|[^A-Za-z0-9_./-])(\\.?/?${escapedBaseName})(?=$|[^A-Za-z0-9_./-])`,
+    'm'
+  );
+
+  const exactPathMatch = text.match(exactPathPattern);
+  if (exactPathMatch?.[2]) {
+    return {
+      type: SCRIPT_DOC_MATCH_TYPE.EXACT_PATH,
+      reference: exactPathMatch[2],
+    };
+  }
+
+  const pathVariantMatch = text.match(pathVariantPattern);
+  if (pathVariantMatch?.[2]) {
+    return {
+      type: SCRIPT_DOC_MATCH_TYPE.PATH_VARIANT,
+      reference: pathVariantMatch[2],
+    };
+  }
+
+  const baseNameMatch = text.match(baseNamePattern);
+  if (baseNameMatch?.[2]) {
+    return {
+      type: SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY,
+      reference: baseNameMatch[2],
+    };
+  }
+
+  return null;
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Script Validation
 // ============================================================================
@@ -200,11 +274,7 @@ export function validateShebang(content, extension) {
  * @returns {boolean} True if documented in any provided content
  */
 export function isScriptDocumented(scriptPath, readmeContent, extraDocs = []) {
-  const scriptName = scriptPath.split('/').pop();
-  const normalized = scriptPath.replace(/^\.\//, '');
-
-  const mentionedIn = (content) =>
-    content.includes(scriptName) || content.includes(scriptPath) || content.includes(normalized);
+  const mentionedIn = (content) => getScriptDocumentationMatch(scriptPath, content) !== null;
 
   if (mentionedIn(readmeContent)) return true;
   return extraDocs.some(({ content }) => mentionedIn(content));
@@ -215,27 +285,25 @@ export function isScriptDocumented(scriptPath, readmeContent, extraDocs = []) {
  * @pure
  * @param {string[]} scripts - Script file paths found on disk
  * @param {Array<{path: string, content: string}>} docFiles - Doc files to check
- * @returns {Array<{script: string, foundIn: string[], missingFrom: string[]}>}
+ * @returns {Array<{script: string, foundIn: string[], missingFrom: string[], matchDetails: Array<{path: string, type: string, reference: string}>}>}
  */
 export function buildDocCoverageMap(scripts, docFiles) {
   return scripts.map((script) => {
-    const scriptName = script.split('/').pop();
-    const normalized = script.replace(/^\.\//, '');
-
     const foundIn = [];
     const missingFrom = [];
+    const matchDetails = [];
 
     for (const { path: docPath, content } of docFiles) {
-      const found =
-        content.includes(scriptName) || content.includes(script) || content.includes(normalized);
-      if (found) {
+      const match = getScriptDocumentationMatch(script, content);
+      if (match) {
         foundIn.push(docPath);
+        matchDetails.push({ path: docPath, ...match });
       } else {
         missingFrom.push(docPath);
       }
     }
 
-    return { script, foundIn, missingFrom };
+    return { script, foundIn, missingFrom, matchDetails };
   });
 }
 
@@ -247,9 +315,21 @@ export function buildDocCoverageMap(scripts, docFiles) {
  */
 export function formatDocCoverageMap(coverageMap) {
   return coverageMap
-    .map(({ script, foundIn, missingFrom }) => {
+    .map(({ script, foundIn, missingFrom, matchDetails = [] }) => {
+      const formattedMatches =
+        matchDetails.length > 0
+          ? matchDetails.map(({ path: docPath, type, reference }) => {
+              if (type === SCRIPT_DOC_MATCH_TYPE.PATH_VARIANT) {
+                return `${docPath} (path variant: ${reference})`;
+              }
+              if (type === SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY) {
+                return `${docPath} (basename only: ${reference})`;
+              }
+              return docPath;
+            })
+          : foundIn;
       const found = foundIn.length
-        ? `documented in [${foundIn.join(', ')}]`
+        ? `documented in [${formattedMatches.join(', ')}]`
         : 'NOT found in any doc file';
       // Only show "MISSING from" when the script has NO documentation at all — if it's
       // already covered in at least one doc the gap list is noise that misleads the AI.
@@ -347,13 +427,18 @@ export function buildDocumentationExcerpts(docFiles, scripts = [], maxChars = 20
 
   const tokenSet = new Set(
     scripts.flatMap((scriptPath) => {
-      const normalized = String(scriptPath ?? '').replace(/^\.?\//, '').replace(/\\/g, '/');
+      const normalized = String(scriptPath ?? '')
+        .replace(/^\.?\//, '')
+        .replace(/\\/g, '/');
       const baseName = path.basename(normalized);
-      return [normalized.toLowerCase(), baseName.toLowerCase()].filter((token) => token.length >= 3);
+      return [normalized.toLowerCase(), baseName.toLowerCase()].filter(
+        (token) => token.length >= 3
+      );
     })
   );
 
-  const headingPattern = /^#{1,6}\s+(automation scripts|cli documentation|available cli commands)\b/i;
+  const headingPattern =
+    /^#{1,6}\s+(automation scripts|cli documentation|available cli commands)\b/i;
 
   const excerpt = docFiles
     .map(({ path: filePath, content }) => {
@@ -418,11 +503,7 @@ export class Step3ScriptAnalyzer {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.fileOps = options.fileOps || new FileOperations();
-    this.backlog = options.backlog || new Backlog();
-    this.techStack = options.techStack || new TechStackDetector();
-    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
-    this.aiCache = options.aiCache || new AiCache();
+    Object.assign(this, buildStepDependencies(options));
   }
 
   /**
@@ -536,9 +617,8 @@ export class Step3ScriptAnalyzer {
 
       // Phase AI: AI-powered script reference analysis
       let parsedAlternatives = { alternatives: [], recommended: null };
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
       if (aiAvailable) {
-        await this.aiCache.init();
         let prompt;
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
@@ -600,7 +680,7 @@ export class Step3ScriptAnalyzer {
           ? parseAlternatives(aiContent)
           : { alternatives: [], recommended: null };
         if (aiContent) {
-          const enrichedReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          const enrichedReport = appendAiRecommendations(report, aiContent);
           await this.backlog.saveStepSummary(3, 'Script Reference Validation', enrichedReport);
         }
       } else {
@@ -711,6 +791,9 @@ export class Step3ScriptAnalyzer {
    */
   async loadExtraDocs(projectRoot) {
     const candidates = [
+      'scripts/README.md',
+      'docs/INTEGRATION.md',
+      'docs/reference/COMMAND_CHEAT_SHEET.md',
       'docs/API.md',
       'docs/ARCHITECTURE.md',
       'docs/GETTING_STARTED.md',
@@ -719,7 +802,7 @@ export class Step3ScriptAnalyzer {
     ];
     const results = [];
     for (const relPath of candidates) {
-      if (results.length >= 4) break; // cap to avoid bloating prompt
+      if (results.length >= 6) break; // cap to avoid bloating prompt
       try {
         const content = await this.fileOps.readFile(`${projectRoot}/${relPath}`);
         if (content.length > 0) results.push({ path: relPath, content });

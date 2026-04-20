@@ -92,6 +92,25 @@ export function getCoveragePaths(language) {
 }
 
 /**
+ * Get the default coverage command for a language.
+ * @pure
+ * @param {string} language - Programming language
+ * @returns {string} Coverage command
+ */
+export function getCoverageCommand(language) {
+  const normalized = language.toLowerCase();
+  const coverageCommands = {
+    javascript: 'npm run test:coverage',
+    typescript: 'npm run test:coverage',
+    python: 'pytest --cov',
+    go: 'go test -cover ./...',
+    ruby: 'rspec --format progress',
+    rust: 'cargo tarpaulin',
+  };
+  return coverageCommands[normalized] || 'npm run coverage';
+}
+
+/**
  * Determine if file is a test file
  * @pure
  * @param {string} filePath - File path
@@ -483,14 +502,6 @@ export class Step6TestReviewer {
             ruby: 'rspec',
             rust: 'cargo test',
           };
-          const covCmdMap = {
-            javascript: 'npm run coverage',
-            typescript: 'npm run coverage',
-            python: 'pytest --cov',
-            go: 'go test -cover ./...',
-            ruby: 'rspec --format progress',
-            rust: 'cargo tarpaulin',
-          };
           const testFrameworkMap = {
             javascript: 'jest',
             typescript: 'jest',
@@ -508,7 +519,7 @@ export class Step6TestReviewer {
             language;
           const configTestCommand =
             ctx.config?.tech_stack?.test_command ?? testCmdMap[language] ?? 'npm test';
-          const configCovCommand = covCmdMap[language] ?? 'npm run coverage';
+          const configCovCommand = getCoverageCommand(language);
           try {
             const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
             sharedParsedYaml = yaml.load(yamlContent);

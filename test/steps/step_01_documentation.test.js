@@ -5,6 +5,8 @@
 
 import {
   Step1DocumentationAnalyzer,
+  buildStep1PromptPartitions,
+  buildStep1FileContentsBlock,
   validateDocumentationCounts,
   checkVersionReferences,
   classifyChangedFiles,
@@ -174,6 +176,18 @@ describe('Step 1: Documentation Validation', () => {
 
       expect(result.counts.total).toBe(0);
       expect(result.counts.documentation).toBe(0);
+    });
+
+    test('excludes copilot instructions from generic step 1 ownership', () => {
+      const result = classifyChangedFiles([
+        '.github/copilot-instructions.md',
+        'README.md',
+        'package.json',
+      ]);
+
+      expect(result.documentation).toEqual(['README.md']);
+      expect(result.config).toEqual(['package.json']);
+      expect(result.counts.total).toBe(2);
     });
   });
 
@@ -447,12 +461,14 @@ describe('Step 1: Documentation Validation', () => {
 
     describe('file content injection regression', () => {
       let capturedPrompt;
+      let capturedPrompts;
       let capturedOptions;
       let mockAiHelper;
       let mockAiCache;
 
       beforeEach(() => {
         capturedPrompt = null;
+        capturedPrompts = [];
         capturedOptions = null;
 
         mockAiHelper = {
@@ -460,6 +476,7 @@ describe('Step 1: Documentation Validation', () => {
           getAvailableModels: () => [{ id: 'claude-sonnet-4.6' }],
           executeRequest: (prompt, options) => {
             capturedPrompt = prompt;
+            capturedPrompts.push(prompt);
             capturedOptions = options;
             return Promise.resolve({
               success: true,
@@ -482,8 +499,12 @@ describe('Step 1: Documentation Validation', () => {
 doc_analysis_prompt:
   role_prefix: "You are a documentation specialist."
   task_template: |
+    {partition_header}
+    {partition_scope_note}
     **Changed files**: {changed_files}
     **Documentation to review**: {doc_files}
+    **File Paths**:
+    {file_paths_in_request}
     **File Contents**: {file_contents}
   approach: "Analyze ONLY the documentation files listed. Read the file contents provided above."
 `);
@@ -554,6 +575,45 @@ doc_analysis_prompt:
         });
       });
 
+      test('splits oversized Step 1 evidence across multiple AI prompts without truncation', async () => {
+        const longReadme = Array.from({ length: 1800 }, (_, index) => `line ${index}`).join('\n');
+
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'package.json']);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+        mockFileOps.readFile = (path) => {
+          if (path.includes('ai_helpers')) {
+            return Promise.resolve(`
+doc_analysis_prompt:
+  role_prefix: "You are a documentation specialist."
+  task_template: |
+    {partition_header}
+    {partition_scope_note}
+    **Changed files**: {changed_files}
+    **Documentation to review**: {doc_files}
+    **File Paths**:
+    {file_paths_in_request}
+    **File Contents**:
+    {file_contents}
+  approach: "Analyze ONLY the documentation files listed. Read the file contents provided above."
+`);
+          }
+          if (path.includes('README.md')) return Promise.resolve(longReadme);
+          if (path.includes('package.json'))
+            return Promise.resolve(JSON.stringify({ name: 'demo', version: '0.4.8' }));
+          return Promise.resolve('');
+        };
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(capturedPrompts.length).toBeGreaterThan(1);
+        expect(capturedPrompts.some((prompt) => prompt.includes('Partition 1 of'))).toBe(true);
+        expect(capturedPrompts.some((prompt) => prompt.includes('README.md (part 1/'))).toBe(true);
+        expect(capturedPrompts.some((prompt) => prompt.includes('README.md (part 2/'))).toBe(true);
+        expect(
+          capturedPrompts.some((prompt) => prompt.includes('...(truncated — remainder omitted)'))
+        ).toBe(false);
+      });
+
       test('gracefully continues when a file cannot be read', async () => {
         mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'MISSING.md']);
         mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
@@ -568,6 +628,29 @@ doc_analysis_prompt:
         const result = await analyzer.execute('/project', { enableParallel: true });
         expect(result.success).toBe(true);
       });
+    });
+  });
+
+  describe('Step 1 prompt partition helpers', () => {
+    test('buildStep1PromptPartitions keeps complete oversized content across partitions', () => {
+      const longContent = Array.from({ length: 1200 }, (_, index) => `line ${index}`).join('\n');
+      const partitions = buildStep1PromptPartitions(
+        [{ relativePath: 'README.md', content: longContent }],
+        9000,
+        1000
+      );
+
+      expect(partitions.length).toBeGreaterThan(1);
+      expect(partitions[0].entries[0].relativePath).toBe('README.md (part 1/11)');
+      expect(partitions.at(-1)?.entries.at(-1)?.relativePath).toBe('README.md (part 11/11)');
+      expect(
+        partitions
+          .flatMap((partition) => partition.entries.map((entry) => entry.content))
+          .join('\n')
+      ).toBe(longContent);
+      expect(buildStep1FileContentsBlock(partitions[0].entries)).toContain(
+        '### `README.md (part 1/11)`'
+      );
     });
   });
 

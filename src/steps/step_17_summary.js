@@ -66,19 +66,46 @@ export function aggregateStepResults(metrics) {
 
   const results = [];
   for (const [stepId, stepData] of Object.entries(metrics.steps)) {
+    const rawStatus = stepData.status || 'unknown';
+    const status =
+      rawStatus === 'passed' ? 'success' : rawStatus === 'pass' ? 'success' : rawStatus;
+    const duration =
+      typeof stepData.duration_ms === 'number'
+        ? stepData.duration_ms
+        : typeof stepData.duration_seconds === 'number'
+          ? stepData.duration_seconds
+          : typeof stepData.duration === 'number'
+            ? stepData.duration
+            : 0;
     results.push({
       stepId,
-      name: stepData.name || `Unknown_${stepId}`,
-      status: stepData.status || 'unknown',
-      startTime: stepData.start_time || 0,
-      endTime: stepData.end_time || 0,
-      duration: stepData.duration_seconds || 0,
+      name: stepData.name || stepData.stepName || `Unknown_${stepId}`,
+      status,
+      startTime: stepData.start_time || stepData.startTime || 0,
+      endTime: stepData.end_time || stepData.endTime || 0,
+      duration,
       timestamp: stepData.timestamp || '',
     });
   }
 
   // Sort by start time
   return results.sort((a, b) => a.startTime - b.startTime);
+}
+
+export function normalizeRuntimeStepResults(stepResults = []) {
+  if (!Array.isArray(stepResults)) {
+    return [];
+  }
+
+  return stepResults.map((step) => ({
+    stepId: step.stepId || step.id || 'unknown',
+    name: step.stepName || step.name || `Unknown_${step.stepId || step.id || 'step'}`,
+    status: step.skipped ? 'skipped' : step.success === false ? 'failed' : 'success',
+    startTime: step.startTime || step.start_time || 0,
+    endTime: step.endTime || step.end_time || 0,
+    duration: step.duration || 0,
+    timestamp: step.timestamp || '',
+  }));
 }
 
 /**
@@ -215,11 +242,13 @@ export function calculateCacheEfficiency(metrics) {
     totalRequests,
     hitRate,
     quality:
-      hitRate >= PERFORMANCE_THRESHOLDS.goodCacheHitRate
-        ? 'excellent'
-        : hitRate >= PERFORMANCE_THRESHOLDS.acceptableCacheHitRate
-          ? 'good'
-          : 'poor',
+      totalRequests === 0
+        ? 'unknown'
+        : hitRate >= PERFORMANCE_THRESHOLDS.goodCacheHitRate
+          ? 'excellent'
+          : hitRate >= PERFORMANCE_THRESHOLDS.acceptableCacheHitRate
+            ? 'good'
+            : 'poor',
   };
 }
 
@@ -673,13 +702,17 @@ export class WorkflowSummary {
         options.workflowRunId || metrics.workflow_run_id || `workflow_${Date.now()}`;
 
       // Aggregate and calculate
-      const stepResults = aggregateStepResults(metrics);
+      const metricStepResults = aggregateStepResults(metrics);
+      const stepResults =
+        metricStepResults.length > 0
+          ? metricStepResults
+          : normalizeRuntimeStepResults(options.stepResults);
       const workflowMetrics = calculateWorkflowMetrics(stepResults, {
-        start_time: metrics.start_time,
-        end_time: metrics.end_time || new Date().toISOString(),
+        start_time: metrics.start_time || options.startTime,
+        end_time: metrics.end_time || options.endTime || new Date().toISOString(),
         workflow_run_id: workflowRunId,
-        version: metrics.version,
-        mode: metrics.mode,
+        version: metrics.version || options.version,
+        mode: metrics.mode || options.mode,
       });
 
       const timeline = generateExecutionTimeline(stepResults);

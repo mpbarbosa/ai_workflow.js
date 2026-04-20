@@ -6,6 +6,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { AI_HELPERS_PATH, PROMPT_ROLES_PATH } from '../../src/lib/ai_prompt_builder.js';
 import {
   Step9DependencyValidator,
   getDependencyFiles,
@@ -13,6 +14,7 @@ import {
   getOutdatedCommand,
   supportsDependencyValidation,
   parsePackageJson,
+  buildDependencyPromptEvidence,
   parseNpmAudit,
   parseNpmOutdated,
   parsePipAudit,
@@ -174,6 +176,41 @@ describe('Step 9: Dependency Validation', () => {
       const result = parsePackageJson(pkg);
 
       expect(result.total).toBe(0);
+    });
+  });
+
+  describe('buildDependencyPromptEvidence', () => {
+    test('includes manifest and runtime evidence when package.json data is available', () => {
+      const result = buildDependencyPromptEvidence({
+        language: 'typescript',
+        dependencyFiles: ['package.json', 'package-lock.json'],
+        packageJson: {
+          engines: { node: '>=20' },
+          packageManager: 'npm@10.0.0',
+          dependencies: { react: '^19.0.0' },
+          devDependencies: { jest: '^29.0.0' },
+        },
+        lockfileIssues: [],
+        runtimePinFiles: ['.nvmrc'],
+      });
+
+      expect(result.manifestEvidenceLevel).toContain('Manifest excerpt available');
+      expect(result.runtimeVersionEvidence).toContain('package.json engines');
+      expect(result.runtimeVersionEvidence).toContain('.nvmrc');
+      expect(result.lockfileEvidence).toContain('structural validation passed');
+      expect(result.manifestSnippet).toContain('"react": "^19.0.0"');
+    });
+
+    test('marks tree and manifest-only claims as inconclusive when evidence is summary-only', () => {
+      const result = buildDependencyPromptEvidence({
+        language: 'typescript',
+        dependencyFiles: ['package.json'],
+      });
+
+      expect(result.manifestEvidenceLevel).toContain('Summary-only evidence');
+      expect(result.lockfileEvidence).toContain('No lockfile');
+      expect(result.dependencyTreeEvidence).toContain('Unused dependencies');
+      expect(result.manifestSnippet).toBe('Not available');
     });
   });
 
@@ -875,6 +912,78 @@ describe('Step 9: Dependency Validation', () => {
       });
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+
+    test('passes project kind and evidence boundaries into the dependency analyst prompt', async () => {
+      const prompts = [];
+      mockFileOps.exists = async (targetPath) =>
+        targetPath.endsWith('package.json') ||
+        targetPath.endsWith('package-lock.json') ||
+        targetPath.endsWith('.nvmrc');
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === AI_HELPERS_PATH || targetPath === PROMPT_ROLES_PATH) {
+          return fs.readFileSync(targetPath, 'utf-8');
+        }
+        if (targetPath.endsWith('package.json')) {
+          return JSON.stringify({
+            engines: { node: '>=20.0.0' },
+            dependencies: { react: '^19.0.0' },
+            devDependencies: { jest: '^29.0.0' },
+          });
+        }
+        return '';
+      };
+      mockExecutor.execute = async (cmd) => {
+        if (cmd.includes('audit')) {
+          return {
+            stdout: JSON.stringify({
+              metadata: { vulnerabilities: { total: 0 } },
+              vulnerabilities: {},
+            }),
+          };
+        }
+        if (cmd.includes('outdated')) {
+          return { stdout: '{}' };
+        }
+        return { stdout: '{}' };
+      };
+
+      validator = new Step9DependencyValidator({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: async (prompt) => {
+            prompts.push(prompt);
+            return { content: '' };
+          },
+        },
+        aiCache: {
+          init: async () => {},
+          withFileChangeGuard: async (_stepId, _hashEntries, callback) => callback(),
+        },
+        depCache: {
+          init: async () => {},
+          has: async () => false,
+          get: async () => null,
+          set: async () => {},
+        },
+      });
+
+      const result = await validator.execute('/project', { projectKind: 'nodejs_api' });
+
+      expect(result.success).toBe(true);
+      const dependencyPrompt = prompts.find((prompt) =>
+        prompt.includes('**Dependency Analysis Results:**')
+      );
+      expect(dependencyPrompt).toBeTruthy();
+      expect(dependencyPrompt).toContain('- Project Kind: nodejs_api');
+      expect(dependencyPrompt).toContain('**Evidence Boundaries:**');
+      expect(dependencyPrompt).toContain('Manifest Detail Level: Manifest excerpt available');
+      expect(dependencyPrompt).toContain('Dependency Tree / Usage Evidence:');
+      expect(dependencyPrompt).toContain('"engines": {');
     });
   });
 

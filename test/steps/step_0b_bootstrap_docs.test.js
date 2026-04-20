@@ -10,6 +10,7 @@ import {
   AI_HELPERS_PATH,
   shouldBootstrapDocs,
   identifyMissingDocs,
+  determineBootstrapTargets,
   categorizeMissingDocs,
   filterSourceFiles,
   countFilesByExtension,
@@ -97,6 +98,24 @@ describe('Step 0b: Bootstrap Documentation', () => {
       const existing = Object.values(DOC_TYPES);
       const missing = identifyMissingDocs(existing);
       expect(missing).toEqual([]);
+    });
+  });
+
+  describe('determineBootstrapTargets', () => {
+    test('includes README when it exists but is undersized', () => {
+      const targets = determineBootstrapTargets(['README.md', 'CHANGELOG.md'], {
+        readmeSize: 90,
+      });
+
+      expect(targets[0]).toBe('README.md');
+    });
+
+    test('keeps missing docs when bootstrap is needed', () => {
+      const targets = determineBootstrapTargets(['README.md'], {
+        readmeSize: 1000,
+      });
+
+      expect(targets).toContain('CHANGELOG.md');
     });
   });
 

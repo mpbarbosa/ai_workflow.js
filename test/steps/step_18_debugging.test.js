@@ -9,6 +9,7 @@ import {
   STEP_DEFINITION,
 } from '../../src/steps/step_18_debugging.js';
 import { logger } from '../../src/core/logger.js';
+import { MAX_PROMPT_ENTRY_CHARS } from '../../src/lib/review_step_helpers.js';
 
 describe('detectDebugPersona', () => {
   it('detects observer pattern persona', () => {
@@ -265,6 +266,45 @@ describe('Step18Debugging', () => {
     expect(capturedPrompt).toContain('**File Contents**');
     expect(capturedPrompt).toContain('`src/utils/myfile.js`');
     expect(capturedPrompt).toContain(fileContent);
+  });
+
+  it('splits oversized source files into partitioned prompts instead of truncating them', async () => {
+    const personaYaml = [
+      'async_flow_debugger_prompt:',
+      '  role_prefix: RolePrefix',
+      '  specific_expertise: Expertise',
+      '  approach: Approach',
+      '  output_format: OutputFormat',
+    ].join('\n');
+    const longContent = `${'const item = await runStep();\n'.repeat(MAX_PROMPT_ENTRY_CHARS)}return item;\n`;
+    mockFileOps.glob.mockResolvedValue(['src/huge.js']);
+    mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT')) // PROJECT_CONTEXT.md absent
+      .mockResolvedValueOnce(longContent) // src/huge.js
+      .mockResolvedValueOnce(personaYaml) // AI_HELPERS_PATH
+      .mockResolvedValueOnce('{}'); // AI_PROJECT_KINDS_PATH
+    mockAiHelper.initialize.mockResolvedValue(true);
+    mockAiCache.init.mockResolvedValue(undefined);
+
+    const capturedPrompts = [];
+    let partitionCounter = 0;
+    mockAiCache.withCache.mockImplementation(async (_prompt, _context, fn) => fn());
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      partitionCounter += 1;
+      capturedPrompts.push(prompt);
+      return { content: `partition-response-${partitionCounter}` };
+    });
+
+    const result = await step.execute('/project/root');
+
+    expect(capturedPrompts.length).toBeGreaterThan(1);
+    expect(capturedPrompts[0]).toContain('[Partition 1 of');
+    expect(capturedPrompts[0]).toContain('src/huge.js (part 1/');
+    expect(
+      capturedPrompts.some((prompt) => prompt.includes('...(truncated — remainder omitted)'))
+    ).toBe(false);
+    expect(result.report).toContain('#### Partition 1 of');
+    expect(result.report).toContain('partition-response-1');
   });
 
   it('executes with AI unavailable and returns report with no AI content', async () => {

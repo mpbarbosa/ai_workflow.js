@@ -13,6 +13,7 @@ import {
   getDefaultCriticalDirs,
   isDirectoryDocumented,
   validateDirectoryStructure,
+  buildDirectoryDocumentationExcerpts,
   formatDirectoryReport,
   DIR_CATEGORIES,
   ISSUE_TYPE,
@@ -242,6 +243,16 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(isDirectoryDocumented('src', docs)).toBe(true);
     });
 
+    test('returns true if directory is listed in an INDEX.md inventory', () => {
+      const docs = [
+        {
+          path: 'INDEX.md',
+          content: ['## Repository Layout', 'ai_workflow_fspec/', '└── docs/'].join('\n'),
+        },
+      ];
+      expect(isDirectoryDocumented('docs', docs)).toBe(true);
+    });
+
     test('returns false if directory is not in docs', () => {
       const docs = ['This project has a src/ directory'];
       expect(isDirectoryDocumented('lib', docs)).toBe(false);
@@ -257,7 +268,7 @@ describe('Step 5: Directory Structure Validation', () => {
       const result = validateDirectoryStructure({
         existingDirs: ['src', 'docs'],
         criticalDirs: ['src', 'docs', 'test'],
-        docContents: [],
+        docEvidence: [],
       });
 
       expect(result.missingCritical).toBe(1);
@@ -272,7 +283,7 @@ describe('Step 5: Directory Structure Validation', () => {
       const result = validateDirectoryStructure({
         existingDirs: ['src', 'lib'],
         criticalDirs: ['src'],
-        docContents: ['Project has src directory'],
+        docEvidence: ['Project has src directory'],
       });
 
       expect(result.undocumented).toBe(1);
@@ -285,7 +296,7 @@ describe('Step 5: Directory Structure Validation', () => {
       const result = validateDirectoryStructure({
         existingDirs: ['src'],
         criticalDirs: ['src', 'lib'],
-        docContents: ['Project has src and lib directories'],
+        docEvidence: ['Project has src and lib directories'],
       });
 
       expect(result.docMismatch).toBe(1);
@@ -298,7 +309,7 @@ describe('Step 5: Directory Structure Validation', () => {
       const result = validateDirectoryStructure({
         existingDirs: ['src', 'docs'],
         criticalDirs: ['src', 'docs'],
-        docContents: ['Project has src and docs directories'],
+        docEvidence: ['Project has src and docs directories'],
       });
 
       expect(result.issues).toHaveLength(0);
@@ -311,11 +322,32 @@ describe('Step 5: Directory Structure Validation', () => {
       const result = validateDirectoryStructure({
         existingDirs: ['src', 'node_modules', '.git'],
         criticalDirs: ['src'],
-        docContents: ['Project has src'],
+        docEvidence: ['Project has src'],
       });
 
       // node_modules and .git should not be flagged as undocumented
       expect(result.undocumented).toBe(0);
+    });
+  });
+
+  describe('buildDirectoryDocumentationExcerpts', () => {
+    test('includes later directory structure evidence beyond the doc head', () => {
+      const lines = Array.from({ length: 140 }, (_, index) => `line ${index + 1}`);
+      lines[110] = '## Directory Structure';
+      lines[111] = '```';
+      lines[112] = 'ai_workflow_core/';
+      lines[113] = '├── docs/';
+      lines[114] = '│   └── misc/';
+      lines[115] = '```';
+
+      const excerpt = buildDirectoryDocumentationExcerpts(
+        [{ path: 'docs/ARCHITECTURE.md', content: lines.join('\n') }],
+        ['docs/misc']
+      );
+
+      expect(excerpt).toContain('### docs/ARCHITECTURE.md');
+      expect(excerpt).toContain('misc/');
+      expect(excerpt).toContain('... [excerpt omitted]');
     });
   });
 
@@ -510,6 +542,44 @@ describe('Step 5: Directory Structure Validation', () => {
 
       expect(result.success).toBe(true);
       expect(result.missingCritical).toBeGreaterThan(0);
+    });
+
+    test('validateStructure reads architecture docs before flagging undocumented directories', async () => {
+      analyzer._listDirsRecursive = () => Promise.resolve(['/project/docs', '/project/docs/misc']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/docs/ARCHITECTURE.md') {
+          return Promise.resolve(
+            ['## Directory Structure', 'ai_workflow_core/', '├── docs/', '│   └── misc/'].join('\n')
+          );
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      const result = await analyzer.validateStructure('/project');
+
+      expect(result.undocumented).toBe(0);
+      expect(result.issues).toEqual([]);
+      expect(result.documentationFiles).toEqual([
+        expect.objectContaining({ path: 'docs/ARCHITECTURE.md' }),
+      ]);
+    });
+
+    test('validateStructure reads INDEX.md before flagging documented directories', async () => {
+      analyzer._listDirsRecursive = () => Promise.resolve(['/project/docs']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/INDEX.md') {
+          return Promise.resolve(
+            ['## Repository Layout', 'ai_workflow_fspec/', '└── docs/'].join('\n')
+          );
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      const result = await analyzer.validateStructure('/project');
+
+      expect(result.undocumented).toBe(0);
+      expect(result.issues).toEqual([]);
+      expect(result.documentationFiles).toEqual([expect.objectContaining({ path: 'INDEX.md' })]);
     });
 
     test('saves report to backlog', async () => {

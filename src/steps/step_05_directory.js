@@ -124,6 +124,17 @@ export const EXCLUDED_DIR_PATHS = [
 ];
 
 /**
+ * Documentation files that define the repo structure for directory validation.
+ */
+export const DIRECTORY_VALIDATION_DOC_FILES = [
+  'README.md',
+  'INDEX.md',
+  'docs/ARCHITECTURE.md',
+  'CONTRIBUTING.md',
+  '.github/copilot-instructions.md',
+];
+
+/**
  * Issue types
  */
 export const ISSUE_TYPE = {
@@ -227,11 +238,29 @@ export function getDefaultCriticalDirs(existingDirs) {
  * Check if directory is documented
  * @pure
  * @param {string} dirName - Directory name
- * @param {string[]} docContents - Array of documentation file contents
+ * @param {Array<string|{path?: string, content?: string}>} docEvidence - Documentation evidence
  * @returns {boolean} True if directory is mentioned in docs
  */
-export function isDirectoryDocumented(dirName, docContents) {
-  return docContents.some((content) => content.includes(dirName));
+export function isDirectoryDocumented(dirName, docEvidence) {
+  const needle = String(dirName ?? '')
+    .trim()
+    .toLowerCase();
+  if (!needle) return false;
+
+  return docEvidence.some((entry) => {
+    if (typeof entry === 'string') {
+      return entry.toLowerCase().includes(needle);
+    }
+
+    const docPath = String(entry?.path ?? '');
+    const evidenceParts = [String(entry?.content ?? '')];
+    const fileName = path.basename(docPath).toLowerCase();
+    if (fileName === 'index.md' || fileName === 'readme.md') {
+      evidenceParts.push(docPath);
+    }
+
+    return evidenceParts.join('\n').toLowerCase().includes(needle);
+  });
 }
 
 /**
@@ -240,10 +269,10 @@ export function isDirectoryDocumented(dirName, docContents) {
  * @param {Object} params - Validation parameters
  * @param {string[]} params.existingDirs - Existing directories
  * @param {string[]} params.criticalDirs - Critical directories
- * @param {string[]} params.docContents - Documentation contents
+ * @param {Array<string|{path?: string, content?: string}>} params.docEvidence - Documentation evidence
  * @returns {Object} Validation results
  */
-export function validateDirectoryStructure({ existingDirs, criticalDirs, docContents }) {
+export function validateDirectoryStructure({ existingDirs, criticalDirs, docEvidence }) {
   const issues = [];
 
   // Check 1: Missing critical directories
@@ -262,7 +291,7 @@ export function validateDirectoryStructure({ existingDirs, criticalDirs, docCont
     return (
       !EXCLUDED_DIRS.includes(dirName) &&
       dir !== '.' &&
-      !isDirectoryDocumented(dirName, docContents)
+      !isDirectoryDocumented(dirName, docEvidence)
     );
   });
 
@@ -277,7 +306,7 @@ export function validateDirectoryStructure({ existingDirs, criticalDirs, docCont
   // Check 3: Documented but missing directories
   criticalDirs.forEach((dir) => {
     const dirName = path.basename(dir);
-    if (isDirectoryDocumented(dirName, docContents) && !existingDirs.includes(dir)) {
+    if (isDirectoryDocumented(dirName, docEvidence) && !existingDirs.includes(dir)) {
       issues.push({
         type: ISSUE_TYPE.DOC_MISMATCH,
         directory: dir,
@@ -292,6 +321,85 @@ export function validateDirectoryStructure({ existingDirs, criticalDirs, docCont
     undocumented: undocumented.length,
     docMismatch: issues.filter((i) => i.type === ISSUE_TYPE.DOC_MISMATCH).length,
   };
+}
+
+/**
+ * Build prompt-safe documentation excerpts for directory analysis.
+ * Preserve the document head and any later structure sections that mention
+ * directories in scope so the AI can cite visible evidence instead of guessing.
+ *
+ * @pure
+ * @param {Array<{path: string, content: string}>} docFiles - Documentation files
+ * @param {string[]} [directories=[]] - Directory paths in scope
+ * @param {number} [maxChars=2500] - Max total characters in the returned context
+ * @returns {string} Concatenated markdown excerpts
+ */
+export function buildDirectoryDocumentationExcerpts(docFiles, directories = [], maxChars = 2500) {
+  if (!Array.isArray(docFiles) || docFiles.length === 0) return '';
+
+  const noisyTokens = new Set(['docs', 'src', 'test', 'tests', 'lib', 'bin', 'config']);
+  const tokenSet = new Set(
+    directories.flatMap((dirPath) => {
+      const normalized = String(dirPath ?? '')
+        .replace(/^\.?\//, '')
+        .replace(/\\/g, '/');
+      const baseName = path.basename(normalized);
+      return [normalized.toLowerCase(), `${normalized.toLowerCase()}/`, baseName.toLowerCase()]
+        .filter((token) => token.length >= 4)
+        .filter((token) => !noisyTokens.has(token.replace(/\/$/, '')));
+    })
+  );
+  const headingPattern =
+    /^#{1,6}\s+(directory structure|project structure|architecture|documentation|repository layout|core library structure|folder structure)\b/i;
+
+  const excerpt = docFiles
+    .map(({ path: filePath, content }) => {
+      const lines = String(content ?? '').split('\n');
+      if (lines.length === 0) return `### ${filePath}`;
+
+      /** @type {Array<{start: number, end: number}>} */
+      const windows = [];
+      const addWindow = (start, end) => {
+        const bounded = {
+          start: Math.max(0, start),
+          end: Math.min(lines.length - 1, end),
+        };
+        if (bounded.start > bounded.end) return;
+        const previous = windows[windows.length - 1];
+        if (previous && bounded.start <= previous.end + 1) {
+          previous.end = Math.max(previous.end, bounded.end);
+          return;
+        }
+        windows.push(bounded);
+      };
+
+      addWindow(0, Math.min(lines.length - 1, 59));
+
+      lines.forEach((line, index) => {
+        const normalizedLine = line.toLowerCase();
+        const mentionsDirectory =
+          headingPattern.test(line) ||
+          Array.from(tokenSet).some((token) => normalizedLine.includes(token));
+        if (mentionsDirectory) {
+          addWindow(index - 3, index + 6);
+        }
+      });
+
+      const excerptLines = [];
+      windows.forEach((window, index) => {
+        const previous = windows[index - 1];
+        if (previous && window.start > previous.end + 1) {
+          excerptLines.push('... [excerpt omitted]');
+        }
+        excerptLines.push(...lines.slice(window.start, window.end + 1));
+      });
+
+      return `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
+    })
+    .join('\n\n---\n\n');
+
+  if (excerpt.length <= maxChars) return excerpt;
+  return excerpt.slice(0, maxChars) + '\n... [truncated]';
 }
 
 // ============================================================================
@@ -422,6 +530,36 @@ export class Step5DirectoryAnalyzer {
   }
 
   /**
+   * Collect authoritative documentation files for directory validation.
+   * @param {string} projectRoot - Project root directory
+   * @param {string[]} existingDirs - Existing directories relative to project root
+   * @returns {Promise<Array<{path: string, content: string}>>}
+   */
+  async collectDocumentationFiles(projectRoot, existingDirs = []) {
+    const candidatePaths = [
+      ...DIRECTORY_VALIDATION_DOC_FILES,
+      ...existingDirs.map((dir) => path.posix.join(String(dir).replace(/\\/g, '/'), 'README.md')),
+    ];
+    const seen = new Set();
+    const documentationFiles = [];
+
+    for (const relativePath of candidatePaths) {
+      if (!relativePath || seen.has(relativePath)) continue;
+      seen.add(relativePath);
+
+      try {
+        const fullPath = path.join(projectRoot, relativePath);
+        const content = await this.fileOps.readFile(fullPath);
+        documentationFiles.push({ path: relativePath, content: String(content ?? '') });
+      } catch {
+        // File doesn't exist, skip
+      }
+    }
+
+    return documentationFiles;
+  }
+
+  /**
    * Execute Step 5 directory structure validation
    * @param {string} projectRoot - Project root directory
    * @param {Object} _options - Execution options (reserved)
@@ -494,6 +632,12 @@ export class Step5DirectoryAnalyzer {
             (structureResults.existingDirs ?? []).length > 0
               ? structureResults.existingDirs.slice(0, 50).join('\n')
               : 'none';
+          const documentationFiles = structureResults.documentationFiles ?? [];
+          const docContext = buildDirectoryDocumentationExcerpts(
+            documentationFiles,
+            structureResults.existingDirs ?? [],
+            2500
+          );
           prompt = buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
             project_name: projectRoot,
             project_description: options.projectDescription || '',
@@ -507,6 +651,7 @@ export class Step5DirectoryAnalyzer {
             doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
             structure_issues_content: issueLines,
             dir_tree: dirTree,
+            doc_context: docContext || 'No documentation excerpts available.',
             language_specific_directory_standards: directoryStandards,
           });
         } catch {
@@ -524,59 +669,22 @@ export class Step5DirectoryAnalyzer {
           const approach = `Provide concise recommendations to improve the project directory structure. Be specific.`;
           prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
         }
-        const dirHashEntries = (structureResults.existingDirs ?? []).map((d) => `dir:${d}`);
-        const aiResult = await this.aiCache.withFileChangeGuard('step_05', dirHashEntries, () =>
+        const cacheEntries = [
+          ...(structureResults.existingDirs ?? []).map((d) => `dir:${d}`),
+          ...(structureResults.documentationFiles ?? []).map(
+            ({ path: docPath, content }) => `doc:${docPath}:${content}`
+          ),
+        ];
+        const aiResult = await this.aiCache.withFileChangeGuard('step_05', cacheEntries, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
         );
         const aiContent = aiResult?.content ?? '';
 
-        // Supplementary: requirements-engineering perspective on architecture
-        let requirementsContent = '';
-        try {
-          // Detect existing requirements documents so the AI doesn't hallucinate a gap
-          const REQUIREMENTS_PATTERN =
-            /requirements|[-_]frs\b|FRS\b|[-_]brd\b|BRD\b|[-_]srs\b|SRS\b|func.spec|FUNC.SPEC|user.stor/i;
-          let requirementsDocsCount = 0;
-          try {
-            const docsDir = path.join(projectRoot, 'docs');
-            const docsEntries = await fs.readdir(docsDir).catch(() => []);
-            requirementsDocsCount = docsEntries.filter((f) => REQUIREMENTS_PATTERN.test(f)).length;
-          } catch {
-            /* docs dir may not exist */
-          }
-
-          const reqPrompt = buildYamlStepPrompt(parsedYaml, 'requirements_engineer_prompt', {
-            project_name: projectRoot,
-            project_description: options?.projectDescription ?? '',
-            primary_language:
-              options?.primaryLanguage ??
-              options?.language ??
-              (await this.detectLanguage(projectRoot)),
-            source_files: (structureResults.existingDirs ?? []).join(', '),
-            requirements_docs_count: String(requirementsDocsCount),
-            stakeholder_count: '1',
-          });
-          if (reqPrompt) {
-            const reqResult = await this.aiCache.withFileChangeGuard(
-              'step_05_req',
-              dirHashEntries,
-              () => this.aiHelper.executeRequest(reqPrompt, { persona: 'architecture_reviewer' })
-            );
-            requirementsContent = reqResult?.content ?? '';
-          }
-        } catch {
-          /* optional supplementary analysis */
-        }
-
-        if (aiContent || requirementsContent) {
-          const sections = [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`];
-          if (requirementsContent) {
-            sections.push(`\n\n## Requirements Engineering Analysis\n\n${requirementsContent}`);
-          }
+        if (aiContent) {
           await this.backlog.saveStepSummary(
             5,
             'Directory Structure Validation',
-            sections.join('')
+            `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`
           );
         }
       } else {
@@ -663,37 +771,12 @@ export class Step5DirectoryAnalyzer {
         criticalDirs = getDefaultCriticalDirs(existingDirs);
       }
 
-      // Get documentation contents
-      const docContents = [];
-      const docFiles = ['README.md', '.github/copilot-instructions.md'];
-
-      for (const docFile of docFiles) {
-        try {
-          const fullPath = path.join(projectRoot, docFile);
-          const content = await this.fileOps.readFile(fullPath);
-          docContents.push(content);
-        } catch {
-          // File doesn't exist, skip
-        }
-      }
-
-      // Also read any README.md found directly inside subdirectories so that
-      // a directory that self-documents via its own README is not flagged.
-      for (const dir of existingDirs) {
-        try {
-          const readmePath = path.join(projectRoot, dir, 'README.md');
-          const content = await this.fileOps.readFile(readmePath);
-          docContents.push(content);
-        } catch {
-          // No README in this dir — skip silently
-        }
-      }
-
+      const documentationFiles = await this.collectDocumentationFiles(projectRoot, existingDirs);
       // Validate structure
       const validation = validateDirectoryStructure({
         existingDirs,
         criticalDirs,
-        docContents,
+        docEvidence: documentationFiles,
       });
 
       return {
@@ -702,6 +785,7 @@ export class Step5DirectoryAnalyzer {
         undocumented: validation.undocumented,
         docMismatch: validation.docMismatch,
         existingDirs,
+        documentationFiles,
       };
     } catch (error) {
       logger.error(`Structure validation failed: ${error.message}`);
@@ -710,6 +794,7 @@ export class Step5DirectoryAnalyzer {
         missingCritical: 0,
         undocumented: 0,
         docMismatch: 0,
+        documentationFiles: [],
       };
     }
   }

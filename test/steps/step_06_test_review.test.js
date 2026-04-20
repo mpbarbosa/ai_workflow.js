@@ -7,6 +7,7 @@ import {
   Step6TestReviewer,
   getTestPatterns,
   getCoveragePaths,
+  getCoverageCommand,
   isTestFile,
   categorizeTestFiles,
   parseCoveragePercentage,
@@ -60,6 +61,20 @@ describe('Step 6: Test Review', () => {
     test('defaults to JavaScript for unknown language', () => {
       const paths = getCoveragePaths('unknown');
       expect(paths).toContain('coverage/index.html');
+    });
+  });
+
+  describe('getCoverageCommand', () => {
+    test('returns npm test:coverage for JavaScript', () => {
+      expect(getCoverageCommand('javascript')).toBe('npm run test:coverage');
+    });
+
+    test('returns npm test:coverage for TypeScript', () => {
+      expect(getCoverageCommand('typescript')).toBe('npm run test:coverage');
+    });
+
+    test('falls back to a generic npm coverage command for unknown languages', () => {
+      expect(getCoverageCommand('unknown')).toBe('npm run coverage');
     });
   });
 

@@ -6,28 +6,20 @@
 
 ## Purpose
 
-This file guides Copilot to make high-quality, context-aware edits for `ai-workflow`, an AI-powered workflow automation package for software development with GitHub Copilot integration.
-
-## Scope
-
-- Define stable architectural boundaries and source structure
-- State design and coding principles that shape edits
-- Specify documentation sync rules for user-facing changes
-- List standard validation commands for code changes
-- Point to authoritative reference documents
-
-Avoid duplicating implementation status, inventories, installation, or migration details—link to docs instead.
+This file provides concise, project-specific guidance to help Copilot make high-quality, context-aware edits for `ai-workflow`, an AI-powered workflow automation package for software development with GitHub Copilot integration.
 
 ---
 
 ## Architecture and Source Layers
 
+Respect these stable source boundaries:
+
+- `src/cli/` – CLI commands, prompts, and TUI code
 - `src/core/` – Foundational runtime helpers
-- `src/utils/` – Shared low-level utilities
 - `src/lib/` – Reusable workflow domain logic
 - `src/orchestrator/` – Workflow execution and sequencing
-- `src/cli/` – CLI commands, prompts, and TUI code
 - `src/steps/` – Executable workflow-step implementations
+- `src/utils/` – Shared low-level utilities
 
 Supporting workflow surfaces:
 
@@ -36,19 +28,25 @@ Supporting workflow surfaces:
 - `.workflow_fspec/` – Functional specification submodule
 - `.ai_workflow/` – Runtime artifacts, cache, and checkpoints
 
+---
+
 ## Design Principles
 
-- Prefer pure functions for business logic where practical
-- Keep I/O (filesystem, process, environment) at the boundaries
-- Reuse helpers and respect module boundaries
-- Keep documentation and public surfaces aligned with behavior
+- Prefer pure functions for business logic where practical.
+- Keep I/O (filesystem, process, environment) at the boundaries.
+- Reuse helpers and respect module boundaries.
+- Keep documentation and public surfaces aligned with actual behavior.
+
+---
 
 ## Documentation and Change Coordination
 
-- Sync user-facing CLI changes with `README.md` and CLI/reference docs
-- Update `docs/ARCHITECTURE.md` for architecture or layout changes
-- Align package exports and entry points with `package.json` and API docs
-- Link to authoritative docs for volatile or detailed information
+- Sync user-facing CLI changes with `README.md` and CLI/reference docs.
+- Update `docs/ARCHITECTURE.md` for architecture or layout changes.
+- Align package exports and entry points with `package.json` and API docs.
+- For detailed or volatile information, link to the relevant authoritative docs instead of duplicating content.
+
+---
 
 ## Validation Commands
 
@@ -59,6 +57,8 @@ For substantive code changes, always validate with:
 - `npm run build`
 
 Use narrower scripts from `package.json` only for intentionally scoped tasks.
+
+---
 
 ## Authoritative References
 
@@ -72,3 +72,5 @@ Consult these documents for details:
 - `package.json` – Package metadata, scripts, exports
 
 ---
+
+> Avoid duplicating implementation status, inventories, installation, or migration details—link to the above docs instead.

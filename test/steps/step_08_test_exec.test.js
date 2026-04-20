@@ -24,6 +24,8 @@ import {
   parseJestCoverage,
   determineTestStatus,
   hasNoTestsFoundMessage,
+  getTestExecutionSkipDecision,
+  getMissingTestCommandDecision,
   formatTestReport,
 } from '../../src/steps/step_08_test_exec.js';
 import { AI_HELPERS_PATH } from '../../src/lib/ai_prompt_builder.js';
@@ -420,6 +422,58 @@ describe('Step 8: Test Execution', () => {
     });
   });
 
+  describe('getTestExecutionSkipDecision', () => {
+    test('skips when step 08 is disabled in workflow config', () => {
+      expect(
+        getTestExecutionSkipDecision({
+          workflow: {
+            steps: [{ id: '08', enabled: false, reason: 'No test suite' }],
+          },
+        })
+      ).toEqual({
+        skip: true,
+        reason: 'No test suite',
+      });
+    });
+
+    test('skips when workflow config explicitly declares no tests', () => {
+      expect(
+        getTestExecutionSkipDecision({
+          tech_stack: { test_framework: 'none', test_command: '' },
+        })
+      ).toEqual({
+        skip: true,
+        reason: 'Test framework is set to "none" in .workflow-config.yaml',
+      });
+    });
+  });
+
+  describe('getMissingTestCommandDecision', () => {
+    test('skips missing test commands for docs_only markdown workflows', () => {
+      expect(
+        getMissingTestCommandDecision({
+          language: 'markdown',
+          scope: 'docs_only',
+        })
+      ).toEqual({
+        skip: true,
+        reason: 'Test execution is not applicable to documentation-only Markdown projects',
+      });
+    });
+
+    test('keeps missing test command as failure outside docs-only markdown workflows', () => {
+      expect(
+        getMissingTestCommandDecision({
+          language: 'bash',
+          scope: 'full_validation',
+        })
+      ).toEqual({
+        skip: false,
+        reason: 'No test command configured',
+      });
+    });
+  });
+
   // ========================================================================
   // PURE FUNCTIONS - Reporting
   // ========================================================================
@@ -682,6 +736,53 @@ describe('Step 8: Test Execution', () => {
       expect(result.message).toContain('No test command');
     });
 
+    test('skips missing test command for docs_only markdown repositories', async () => {
+      mockFileOps.readFile = async () => JSON.stringify({ scripts: {} });
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'markdown',
+        languages: ['markdown'],
+      });
+
+      const result = await executor.execute('/project', { scope: 'docs_only' });
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('tests_not_applicable');
+      expect(result.message).toContain('not applicable');
+    });
+
+    test('skips test execution when workflow config disables step 08', async () => {
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/.workflow-config.yaml') {
+          return [
+            'tech_stack:',
+            '  primary_language: markdown',
+            '  test_framework: none',
+            '  test_command: ""',
+            'workflow:',
+            '  steps:',
+            '    - id: "08"',
+            '      enabled: false',
+            '      reason: "No test suite"',
+          ].join('\n');
+        }
+        if (targetPath === '/project/package.json') {
+          throw new Error('package.json should not be read when step 08 is disabled');
+        }
+        throw new Error(`Unexpected path: ${targetPath}`);
+      };
+      mockTechStack.detectTechStack = async () => ({
+        primaryLanguage: 'markdown',
+        languages: ['markdown'],
+      });
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(result.message).toContain('No test suite');
+    });
+
     test('saves report to backlog', async () => {
       let savedTitle = '';
       mockBacklog.saveStepSummary = async (step, title) => {
@@ -779,6 +880,18 @@ describe('Step 8: Test Execution', () => {
       expect(capturedPrompt).toContain('do not mention unseen config keys such');
       expect(capturedPrompt).toContain(
         'In an inconclusive run, keep next steps diagnostic and evidence-preserving rather than phrasing'
+      );
+      expect(capturedPrompt).toContain(
+        'Do not describe an inconclusive or silent run as a confirmed broken, non-functional, or misconfigured test setup'
+      );
+      expect(capturedPrompt).toContain(
+        'reserve `Critical` for explicitly confirmed blocking failures'
+      );
+      expect(capturedPrompt).toContain(
+        'use neutral forward-looking wording such as "consider adding a basic CI workflow" rather than repository-history claims such as "restore CI"'
+      );
+      expect(capturedPrompt).toContain(
+        'Specific code fixes or test modifications needed when the evidence supports them; otherwise diagnostic next steps'
       );
     });
 

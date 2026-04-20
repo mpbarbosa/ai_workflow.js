@@ -17,8 +17,6 @@ import {
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
   buildProjectKindPrompt,
-  buildFileContentBlock,
-  MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import { AiHelper } from '../lib/ai_helpers.js';
@@ -26,6 +24,25 @@ import { Backlog } from '../lib/backlog.js';
 import { Step1IncrementalProcessor } from '../lib/step1_incremental.js';
 import { Step1ParallelProcessor } from '../lib/step1_parallel.js';
 import { FileOperations } from '../lib/file_operations.js';
+import { loadReadableReviewFiles } from '../lib/review_prompt_scope.js';
+import {
+  buildPartitionFilePathsContext,
+  buildReviewFileContentsBlock,
+  buildReviewPromptPartitions,
+  MAX_PROMPT_ENTRY_CHARS,
+  MAX_PROMPT_PARTITION_CHARS,
+  MAX_PROMPT_ENTRIES_PER_PARTITION,
+  runPartitionedAiResponses,
+  splitReviewPromptEntry,
+} from '../lib/review_step_helpers.js';
+export {
+  buildReviewFileContentsBlock as buildStep1FileContentsBlock,
+  buildReviewPromptPartitions as buildStep1PromptPartitions,
+  MAX_PROMPT_ENTRY_CHARS,
+  MAX_PROMPT_PARTITION_CHARS,
+  MAX_PROMPT_ENTRIES_PER_PARTITION,
+  splitReviewPromptEntry as splitStep1PromptEntry,
+};
 
 // ============================================================================
 // PURE FUNCTIONS - Validation Logic
@@ -98,12 +115,21 @@ export function classifyChangedFiles(changedFiles) {
     tests: [],
     config: [],
   };
+  const excludedFiles = new Set(['.github/copilot-instructions.md']);
+  let totalConsidered = 0;
 
   for (const file of changedFiles) {
     // Skip workflow artifact directories — they must never appear in prompts.
-    if (file.startsWith('.ai_workflow/') || file.startsWith('.workflow_core/')) {
+    if (
+      file.startsWith('.ai_workflow/') ||
+      file.startsWith('.workflow_core/') ||
+      excludedFiles.has(file)
+    ) {
       continue;
     }
+
+    totalConsidered++;
+
     if (file.endsWith('.md') || file.includes('docs/')) {
       classification.documentation.push(file);
     } else if (file.endsWith('.test.js') || file.includes('test/')) {
@@ -132,7 +158,7 @@ export function classifyChangedFiles(changedFiles) {
       source: classification.source.length,
       tests: classification.tests.length,
       config: classification.config.length,
-      total: changedFiles.length,
+      total: totalConsidered,
     },
   };
 }
@@ -436,7 +462,6 @@ export class Step1DocumentationAnalyzer {
               language: this.configManager?.config?.tech_stack?.primary_language,
               projectKind: this.configManager?.config?.project?.kind,
             };
-            let prompt;
             // Build the relevant changed-files list from classified categories only.
             // Using the raw changedFiles array would include unclassified/binary files
             // (e.g. .jest-cache/*, node_modules/**) that waste tokens and add noise.
@@ -446,56 +471,23 @@ export class Step1DocumentationAnalyzer {
               ...classification.tests,
               ...classification.config,
             ];
-            // Try YAML-based doc_analysis_prompt first; fall back to hardcoded builder
-            // Read actual file contents for both doc files and changed files so the
-            // model can reason about real content rather than hallucinating.
-            let fileContentsSection = '';
-            const fileHashEntries = [];
-            try {
-              let totalChars = 0;
-              const blocks = [];
-              const allFiles = [...new Set([...files, ...relevantChangedFiles])];
-              for (const fp of allFiles) {
-                if (totalChars >= MAX_CHARS_TOTAL_CONTENTS) break;
-                try {
-                  const raw = await this.fileOps.readFile(`${projectRoot}/${fp}`);
-                  totalChars += raw.length;
-                  blocks.push(buildFileContentBlock(fp, raw));
-                  fileHashEntries.push(`${fp}:${raw}`);
-                } catch {
-                  // File unreadable — skip gracefully
-                }
-              }
-              if (blocks.length > 0) {
-                fileContentsSection = blocks.join('\n\n');
-              }
-            } catch {
-              // Content injection is best-effort; proceed without it if anything fails
-            }
+            const allFiles = [...new Set([...files, ...relevantChangedFiles])];
+            const { fileEntries } = await loadReadableReviewFiles(
+              this.fileOps,
+              projectRoot,
+              allFiles
+            );
+            const fileHashEntries = fileEntries.map(
+              ({ relativePath, content }) => `${relativePath}:${content}`
+            );
             const projectConventions = await readProjectConventions(this.fileOps, projectRoot);
+            let parsedYaml = null;
             try {
-              const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-              prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {
-                project_name: projectInfo.projectKind ?? projectRoot,
-                primary_language: projectInfo.language ?? 'unknown',
-                changed_files: relevantChangedFiles.join(', '),
-                doc_files: files.join(', '),
-                file_contents: fileContentsSection || '(no file contents available)',
-                project_conventions: projectConventions,
-              });
+              parsedYaml = await loadResolvedAiHelpers(this.fileOps);
             } catch {
               /* fallback */
             }
-            if (!prompt) {
-              prompt = buildDocAnalysisPrompt({
-                changedFiles: relevantChangedFiles,
-                docFiles: files,
-                projectInfo,
-              });
-              if (fileContentsSection) {
-                prompt += `\n\n# File Contents\n\n${fileContentsSection}`;
-              }
-            }
+            let projectKindRole = '';
             // Overlay project-kind documentation specialist role if available
             try {
               const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
@@ -506,7 +498,7 @@ export class Step1DocumentationAnalyzer {
                 'documentation_specialist'
               );
               if (pk?.role) {
-                prompt = `[Project-Kind Role: ${pk.role}]\n\n${prompt}`;
+                projectKindRole = pk.role;
               }
             } catch {
               /* optional */
@@ -518,16 +510,107 @@ export class Step1DocumentationAnalyzer {
                 : [],
               this.aiHelper?.config?.model
             );
-            const response = await this.aiCache.withFileChangeGuard(
-              `step_01|${cacheCategory}`,
-              fileHashEntries,
-              () =>
-                this.aiHelper.executeRequest(prompt, {
-                  persona: 'documentation_expert',
-                  model: selectedModel,
-                })
-            );
-            return { success: response.success, response };
+            const promptPartitions =
+              fileEntries.length > 0 ? buildReviewPromptPartitions(fileEntries) : [];
+            const partitionsToAnalyze =
+              promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
+
+            if (partitionsToAnalyze.length > 1) {
+              logger.info(
+                `[step_01] Running AI analysis in ${partitionsToAnalyze.length} partition(s) to avoid prompt truncation`
+              );
+            }
+
+            const { success, content: combinedContent } = await runPartitionedAiResponses({
+              partitions: partitionsToAnalyze,
+              buildPrompt: (partition, { index: i, total }) => {
+                const filePathsContext = buildPartitionFilePathsContext(partition.entries);
+                const fileContentsSection = buildReviewFileContentsBlock(partition.entries);
+                let prompt = null;
+
+                if (parsedYaml) {
+                  prompt = buildYamlStepPrompt(parsedYaml, 'doc_analysis_prompt', {
+                    partition_header:
+                      total > 1
+                        ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
+                        : '',
+                    partition_scope_note:
+                      total > 1
+                        ? `This request covers ${partition.scopePaths.length} of ${allFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
+                        : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
+                    project_name: projectInfo.projectKind ?? projectRoot,
+                    primary_language: projectInfo.language ?? 'unknown',
+                    changed_files: relevantChangedFiles.join(', '),
+                    doc_files: files.join(', '),
+                    file_paths_in_request:
+                      filePathsContext ||
+                      '      - (no readable file paths were available in the current context)',
+                    file_contents:
+                      fileContentsSection ||
+                      '(no readable file contents were available in the current context)',
+                    project_conventions: projectConventions,
+                  });
+                }
+
+                if (!prompt) {
+                  prompt = buildDocAnalysisPrompt({
+                    changedFiles: relevantChangedFiles,
+                    docFiles: files,
+                    projectInfo,
+                  });
+
+                  const partitionPreamble = [
+                    total > 1
+                      ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
+                      : '',
+                    total > 1
+                      ? `This request covers ${partition.scopePaths.length} of ${allFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
+                      : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n');
+
+                  if (partitionPreamble) {
+                    prompt = `${partitionPreamble}\n\n${prompt}`;
+                  }
+
+                  if (filePathsContext) {
+                    prompt += `\n\n# File Paths in This Request\n\n${filePathsContext}`;
+                  }
+
+                  if (fileContentsSection) {
+                    prompt += `\n\n# File Contents\n\n${fileContentsSection}`;
+                  }
+                }
+
+                if (projectKindRole) {
+                  prompt = `[Project-Kind Role: ${projectKindRole}]\n\n${prompt}`;
+                }
+
+                return prompt;
+              },
+              executePartition: (_partition, { index: i, total }, prompt) =>
+                this.aiCache.withFileChangeGuard(
+                  `step_01|${cacheCategory}|part:${i + 1}/${total}`,
+                  fileHashEntries,
+                  () =>
+                    this.aiHelper.executeRequest(prompt, {
+                      persona: 'documentation_expert',
+                      model: selectedModel,
+                    })
+                ),
+              trackSuccess: (response, currentSuccess) =>
+                currentSuccess && response?.success !== false,
+            });
+
+            return {
+              success,
+              response: {
+                success,
+                content: combinedContent,
+                text: combinedContent,
+              },
+            };
           },
           {
             strategy: options.parallelStrategy || 'BALANCED',

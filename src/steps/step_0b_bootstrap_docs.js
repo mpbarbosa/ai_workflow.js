@@ -106,6 +106,17 @@ export function identifyMissingDocs(existingFiles) {
   return missing;
 }
 
+export function determineBootstrapTargets(existingFiles, stats) {
+  const missingDocs = identifyMissingDocs(existingFiles);
+  const targets = [...missingDocs];
+
+  if (stats?.readmeSize < DOC_THRESHOLDS.minReadmeSize && !targets.includes(DOC_TYPES.readme)) {
+    targets.unshift(DOC_TYPES.readme);
+  }
+
+  return [...new Set(targets)];
+}
+
 /**
  * Categorize documentation gaps by priority
  * @param {Array<string>} missingDocs - List of missing doc paths
@@ -530,10 +541,10 @@ export class Step0bBootstrapDocs {
         `${colors.blue}Phase 3:${colors.reset} Identifying missing documentation...`
       );
       const existingFiles = await this.listExistingDocs();
-      const missingDocs = identifyMissingDocs(existingFiles);
+      const missingDocs = determineBootstrapTargets(existingFiles, stats);
       const categorized = categorizeMissingDocs(missingDocs);
 
-      if (missingDocs.length === 0) {
+      if (missingDocs.length === 0 && !needsBootstrap) {
         this.logger.info('Step 0b: All catalog docs present — nothing to generate');
 
         await this.backlog.saveStepSummary(
@@ -550,7 +561,7 @@ export class Step0bBootstrapDocs {
         };
       }
 
-      if (stats.docCount >= DOC_THRESHOLDS.sufficientDocsCount) {
+      if (!needsBootstrap && stats.docCount >= DOC_THRESHOLDS.sufficientDocsCount) {
         this.logger.info(
           `Step 0b: Project has ${stats.docCount} documentation files — sufficient coverage, skipping generation`
         );

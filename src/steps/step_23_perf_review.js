@@ -18,28 +18,29 @@
 import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
-import { FileOperations } from '../lib/file_operations.js';
-import { Backlog } from '../lib/backlog.js';
-import { AiHelper } from '../lib/ai_helpers.js';
-import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
-import { CommitHistory } from '../lib/commit_history.js';
-import {
-  DEFAULT_MAX_PROMPT_ENTRY_CHARS,
-  DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION,
-  DEFAULT_MAX_PROMPT_PARTITION_CHARS,
-  buildPromptFileContentsBlock,
-  buildPromptPartitions,
-  filterReviewTargets,
-  loadReadableReviewFiles,
-  splitPromptEntry,
-} from '../lib/review_prompt_scope.js';
+import { filterReviewTargets, loadReadableReviewFiles } from '../lib/review_prompt_scope.js';
 import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
+import {
+  buildPartitionFilePathsContext,
+  buildReviewFileContentsBlock,
+  buildReviewPromptPartitions,
+  MAX_PROMPT_ENTRY_CHARS,
+  MAX_PROMPT_PARTITION_CHARS,
+  MAX_PROMPT_ENTRIES_PER_PARTITION,
+  runPartitionedAiAnalysis,
+  splitReviewPromptEntry,
+} from '../lib/review_step_helpers.js';
+import { ReviewStepBase } from '../lib/review_step_base.js';
 
-const MAX_FILE_PATHS_IN_CONTEXT = 20;
-export const MAX_PROMPT_ENTRY_CHARS = DEFAULT_MAX_PROMPT_ENTRY_CHARS;
-export const MAX_PROMPT_PARTITION_CHARS = DEFAULT_MAX_PROMPT_PARTITION_CHARS;
-export const MAX_PROMPT_ENTRIES_PER_PARTITION = DEFAULT_MAX_PROMPT_ENTRIES_PER_PARTITION;
+export {
+  buildReviewFileContentsBlock as buildPerformanceFileContentsBlock,
+  buildReviewPromptPartitions as buildPerformancePromptPartitions,
+  MAX_PROMPT_ENTRY_CHARS,
+  MAX_PROMPT_PARTITION_CHARS,
+  MAX_PROMPT_ENTRIES_PER_PARTITION,
+  splitReviewPromptEntry as splitPerformancePromptEntry,
+};
 const TEST_FILE_PATH_PATTERN = /(^|\/)(test|tests|__tests__)(\/|$)/i;
 const TEST_FILE_NAME_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 
@@ -141,51 +142,6 @@ export function scorePerfIssues(fileContents) {
 }
 
 /**
- * Split a single source file into prompt-safe entries without dropping content.
- *
- * Oversized files are sliced into labeled `(part X/Y)` segments so the AI sees
- * the complete file across multiple prompt logs instead of a single truncated
- * excerpt.
- *
- * @param {{relativePath: string, content: string}} entry - Source file entry
- * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per entry
- * @returns {Array<{relativePath: string, sourcePath: string, content: string}>}
- */
-export function splitPerformancePromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
-  return splitPromptEntry(entry, maxEntryChars);
-}
-
-/**
- * Partition the performance-review source payload into prompt-safe batches.
- *
- * @param {Array<{relativePath: string, content: string}>} fileEntries - Raw file entries
- * @param {number} [maxPartitionChars=MAX_PROMPT_PARTITION_CHARS] - Max chars per prompt batch
- * @param {number} [maxEntryChars=MAX_PROMPT_ENTRY_CHARS] - Max chars per prompt entry
- * @returns {Array<{entries: Array<{relativePath: string, sourcePath: string, content: string}>, scopePaths: string[]}>}
- */
-export function buildPerformancePromptPartitions(
-  fileEntries,
-  maxPartitionChars = MAX_PROMPT_PARTITION_CHARS,
-  maxEntryChars = MAX_PROMPT_ENTRY_CHARS
-) {
-  return buildPromptPartitions(fileEntries, {
-    maxPartitionChars,
-    maxEntryChars,
-    maxEntriesPerPartition: MAX_PROMPT_ENTRIES_PER_PARTITION,
-  });
-}
-
-/**
- * Build a markdown block for the current performance-review prompt partition.
- *
- * @param {Array<{relativePath: string, sourcePath: string, content: string}>} entries - Prompt entries
- * @returns {string} Markdown file-content block
- */
-export function buildPerformanceFileContentsBlock(entries) {
-  return buildPromptFileContentsBlock(entries);
-}
-
-/**
  * Format the AI response and heuristic scores into a markdown summary block
  * suitable for saving to the backlog.
  *
@@ -245,67 +201,10 @@ export const STEP_DEFINITION = {
  *
  * Skips gracefully when the project contains no JavaScript/TypeScript files.
  */
-export class Step23PerfReview {
+export class Step23PerfReview extends ReviewStepBase {
   constructor(options = {}) {
-    this.fileOps = options.fileOps || new FileOperations();
-    this.backlog = options.backlog || new Backlog();
-    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir ?? null });
-    this.aiCache = options.aiCache || new AiCache();
+    super(options);
     this.techStack = options.techStack || new TechStackDetector();
-    this.gitOps = options.gitOps || null;
-  }
-
-  _getLastSuccessfulRunCommit(workflowDir) {
-    const commitHistory = new CommitHistory({ workflowDir });
-    return commitHistory.getLastRunCommit();
-  }
-
-  async _getFilesSinceLastSuccessfulRun(projectRoot, options = {}) {
-    if (
-      !this.gitOps ||
-      typeof this.gitOps.getChangedFilesSince !== 'function' ||
-      typeof this.gitOps.status !== 'function'
-    ) {
-      return { available: false, files: [] };
-    }
-
-    const rawWorkflowDir = options.workflowDir || '.ai_workflow';
-    const workflowDir = path.isAbsolute(rawWorkflowDir)
-      ? rawWorkflowDir
-      : path.join(projectRoot, rawWorkflowDir);
-    const baselineHash = this._getLastSuccessfulRunCommit(workflowDir);
-
-    if (!baselineHash) {
-      return { available: false, files: [] };
-    }
-
-    let committedChangedFiles;
-    try {
-      committedChangedFiles = this.gitOps
-        .getChangedFilesSince(baselineHash)
-        .filter((file) => file.status !== 'deleted' && !file.file?.startsWith('.ai_workflow/'));
-    } catch {
-      return { available: false, files: [] };
-    }
-
-    const status = await this.gitOps.status();
-    const uncommittedFiles = [
-      ...(status.staged || []),
-      ...(status.unstaged || []),
-      ...(status.untracked || []),
-    ].filter((file) => file.status !== 'deleted');
-
-    const seenPaths = new Set(committedChangedFiles.map((file) => file.file));
-    const mergedFiles = [
-      ...committedChangedFiles,
-      ...uncommittedFiles.filter((file) => !seenPaths.has(file.file)),
-    ];
-
-    return {
-      available: true,
-      files: filterPerformanceReviewTargets(mergedFiles.map((file) => file.file || file)),
-      baselineHash,
-    };
   }
 
   /**
@@ -323,58 +222,23 @@ export class Step23PerfReview {
     logger.step('Step 23: Performance Review');
 
     try {
-      let analysisMode = 'full-scan';
-      let baselineHash = null;
-      let relativeFiles;
-
-      if (Array.isArray(options.sourceFiles)) {
-        analysisMode = 'override';
-        relativeFiles = filterPerformanceReviewTargets(
-          options.sourceFiles.map((file) =>
-            path.isAbsolute(file) ? path.relative(projectRoot, file) : file
-          )
-        );
-      } else {
-        const successfulScope = await this._getFilesSinceLastSuccessfulRun(projectRoot, options);
-
-        if (successfulScope.available) {
-          analysisMode = 'since-last-successful-run';
-          baselineHash = successfulScope.baselineHash;
-          relativeFiles = successfulScope.files;
-        } else if (Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 0) {
-          analysisMode = 'modified-files';
-          relativeFiles = filterPerformanceReviewTargets(
-            options.modifiedFiles.map((file) =>
-              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
-            )
-          );
-        } else {
-          const allFiles = await this.fileOps.listDirectoryRecursive(projectRoot, {
-            extensions: ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
-            exclude: ['node_modules', 'dist', 'build', 'coverage', '.git'],
-          });
-          relativeFiles = filterPerformanceReviewTargets(
-            allFiles.map((file) =>
-              path.isAbsolute(file) ? path.relative(projectRoot, file) : file
-            )
-          );
+      const { analysisMode, baselineHash, relativeFiles } = await this._resolveAnalysisScope(
+        projectRoot,
+        options,
+        {
+          extensions: ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
+          filterFn: filterPerformanceReviewTargets,
         }
-      }
+      );
 
-      if (!isPerformanceSensitiveProject(relativeFiles)) {
-        if (analysisMode === 'since-last-successful-run') {
-          logger.info(
-            'Step 23: No JavaScript/TypeScript files changed since last successful run — skipping'
-          );
-          return {
-            success: true,
-            skipped: true,
-            message: 'No JS/TS files changed since last successful run',
-          };
-        }
-
-        logger.info('Step 23: No JavaScript/TypeScript files found — skipping');
-        return { success: true, skipped: true, message: 'No JS/TS files found' };
+      const skipResult = this._buildSkipResult(relativeFiles, isPerformanceSensitiveProject, {
+        emptyMessage: 'No JS/TS files found',
+        sinceLastRunMessage: 'No JS/TS files changed since last successful run',
+        analysisMode,
+      });
+      if (skipResult) {
+        logger.info(`Step 23: ${skipResult.message} — skipping`);
+        return skipResult;
       }
 
       if (analysisMode === 'since-last-successful-run') {
@@ -416,7 +280,7 @@ export class Step23PerfReview {
 
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const promptPartitions =
-            fileEntries.length > 0 ? buildPerformancePromptPartitions(fileEntries) : [];
+            fileEntries.length > 0 ? buildReviewPromptPartitions(fileEntries) : [];
           const partitionsToAnalyze =
             promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
 
@@ -426,67 +290,42 @@ export class Step23PerfReview {
             );
           }
 
-          const aiSections = [];
-          for (let i = 0; i < partitionsToAnalyze.length; i++) {
-            const partition = partitionsToAnalyze[i];
-            const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
-            const filePathList = partitionDisplayPaths
-              .slice(0, MAX_FILE_PATHS_IN_CONTEXT)
-              .map((f) => `      - ${f}`)
-              .join('\n');
-            const filePathsContext =
-              partitionDisplayPaths.length > MAX_FILE_PATHS_IN_CONTEXT
-                ? `${filePathList}\n      ... and ${partitionDisplayPaths.length - MAX_FILE_PATHS_IN_CONTEXT} more`
-                : filePathList;
-            const fileContentBlock = buildPerformanceFileContentsBlock(partition.entries);
-            const prompt = buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
-              partition_header:
-                partitionsToAnalyze.length > 1
-                  ? `[Partition ${i + 1} of ${partitionsToAnalyze.length} — analyze ONLY the files or file-parts listed below for this request]`
-                  : '',
-              partition_scope_note:
-                partitionsToAnalyze.length > 1
-                  ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current performance-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
-                  : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
-              project_name: options.projectName ?? path.basename(projectRoot),
-              project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
-              primary_language: 'JavaScript/TypeScript',
-              build_system: buildSystem,
-              source_file_count:
-                partitionsToAnalyze.length > 1
-                  ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
-                  : String(relativeFiles.length),
-              file_paths:
-                filePathsContext ||
-                '      - (no readable JavaScript/TypeScript files were available)',
-              file_content_block:
-                fileContentBlock ||
-                '_No readable file excerpts were available in the current context window._',
-            });
-
-            if (!prompt) continue;
-
-            const response = await this.aiCache.withCache(
-              prompt,
-              `step_23:performance_engineer:part:${i + 1}/${partitionsToAnalyze.length}:signals:${scores.totalIssues}`,
-              async () => {
-                const aiResult = await this.aiHelper.executeRequest(prompt, {
-                  persona: 'performance_engineer',
-                });
-                return aiResult?.content ?? '';
-              }
-            );
-
-            if (response) {
-              aiSections.push(
-                partitionsToAnalyze.length > 1
-                  ? `#### Partition ${i + 1} of ${partitionsToAnalyze.length}\n\n${response}`
-                  : response
-              );
-            }
-          }
-
-          aiContent = aiSections.join('\n\n');
+          aiContent = await runPartitionedAiAnalysis({
+            partitions: partitionsToAnalyze,
+            buildPrompt: (partition, { index: i, total }) => {
+              const filePathsContext = buildPartitionFilePathsContext(partition.entries);
+              const fileContentBlock = buildReviewFileContentsBlock(partition.entries);
+              return buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
+                partition_header:
+                  total > 1
+                    ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
+                    : '',
+                partition_scope_note:
+                  total > 1
+                    ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current performance-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                    : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
+                project_name: options.projectName ?? path.basename(projectRoot),
+                project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
+                primary_language: 'JavaScript/TypeScript',
+                build_system: buildSystem,
+                source_file_count:
+                  total > 1
+                    ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
+                    : String(relativeFiles.length),
+                file_paths:
+                  filePathsContext ||
+                  '      - (no readable JavaScript/TypeScript files were available)',
+                file_content_block:
+                  fileContentBlock ||
+                  '_No readable file excerpts were available in the current context window._',
+              });
+            },
+            buildCacheKey: (_partition, { index: i, total }) =>
+              `step_23:performance_engineer:part:${i + 1}/${total}:signals:${scores.totalIssues}`,
+            persona: 'performance_engineer',
+            aiCache: this.aiCache,
+            aiHelper: this.aiHelper,
+          });
         } catch (promptError) {
           logger.warn(`Step 23: AI analysis skipped — ${promptError.message}`);
         }

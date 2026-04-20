@@ -6,6 +6,12 @@
 import {
   validateOrchestratorConfig,
   getStepsForStage,
+  normalizeWorkflowConfigStepId,
+  buildWorkflowConfigStepIndex,
+  getConfiguredStepsForStage,
+  filterStepIdsByProfile,
+  detectWorkflowConfigStructure,
+  buildGeneratedWorkflowConfig,
   calculateProgress,
   determineWorkflowStatus,
   performHealthChecks,
@@ -127,6 +133,257 @@ describe('Main Orchestrator - Pure Functions', () => {
       const steps = getStepsForStage('invalid');
 
       expect(steps).toHaveLength(30);
+    });
+  });
+
+  describe('workflow config step helpers', () => {
+    test('normalizes workflow-config step ids to runtime step ids', () => {
+      expect(normalizeWorkflowConfigStepId('08')).toBe('step_08');
+      expect(normalizeWorkflowConfigStepId('step_14')).toBe('step_14');
+      expect(normalizeWorkflowConfigStepId(' 11_5 ')).toBe('step_11_5');
+      expect(normalizeWorkflowConfigStepId('bad-id!')).toBeNull();
+    });
+
+    test('builds registry overrides from workflow config', () => {
+      const workflowConfig = {
+        workflow: {
+          steps: [
+            {
+              id: '08',
+              enabled: false,
+              dependencies: ['07'],
+              phase: 'testing',
+              optional: true,
+            },
+          ],
+        },
+      };
+
+      expect(buildWorkflowConfigStepIndex(workflowConfig)).toEqual({
+        step_08: {
+          enabled: false,
+          dependencies: ['step_07'],
+          phase: 'testing',
+          critical: false,
+          name: undefined,
+          description: undefined,
+        },
+      });
+    });
+
+    test('uses enabled workflow-config steps for full stage', () => {
+      const workflowConfig = {
+        workflow: {
+          steps: [
+            { id: '00', enabled: true },
+            { id: '01', enabled: true },
+            { id: '08', enabled: false },
+            { id: '14', enabled: true },
+          ],
+        },
+      };
+
+      expect(getConfiguredStepsForStage(WORKFLOW_STAGES.FULL, workflowConfig)).toEqual([
+        'step_00',
+        'step_01',
+        'step_14',
+      ]);
+    });
+
+    test('filters quick stage through workflow-config enablement', () => {
+      const workflowConfig = {
+        workflow: {
+          steps: [
+            { id: '00', enabled: true },
+            { id: '01', enabled: true },
+            { id: '01_5', enabled: true },
+            { id: '02', enabled: true },
+            { id: '04', enabled: false },
+            { id: '05', enabled: true },
+          ],
+        },
+      };
+
+      expect(getConfiguredStepsForStage(WORKFLOW_STAGES.QUICK, workflowConfig)).toEqual([
+        'step_00',
+        'step_01',
+        'step_01_5',
+        'step_02',
+        'step_05',
+      ]);
+    });
+  });
+
+  describe('filterStepIdsByProfile', () => {
+    test('removes skipped steps and downstream dependencies from the plan', () => {
+      const plannedSteps = ['step_00', 'step_05', 'step_06', 'step_07', 'step_08', 'step_09'];
+      const dependencyIndex = {
+        step_06: ['step_05'],
+        step_07: ['step_06'],
+        step_08: ['step_07'],
+        step_09: ['step_08'],
+      };
+
+      expect(filterStepIdsByProfile(plannedSteps, [7, 8], dependencyIndex)).toEqual([
+        'step_00',
+        'step_05',
+        'step_06',
+      ]);
+    });
+
+    test('supports fractional step identifiers like 11.5', () => {
+      const plannedSteps = ['step_11', 'step_11_5', 'step_11_6'];
+      const dependencyIndex = {
+        step_11_5: ['step_11'],
+        step_11_6: ['step_11_5'],
+      };
+
+      expect(filterStepIdsByProfile(plannedSteps, [11.5], dependencyIndex)).toEqual(['step_11']);
+    });
+
+    test('preserves focus-step dependency closure even when skips conflict', () => {
+      const plannedSteps = [
+        'step_00',
+        'step_01',
+        'step_02',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_09',
+        'step_10',
+        'step_11',
+        'step_13',
+        'step_14',
+      ];
+      const dependencyIndex = {
+        step_01: ['step_00'],
+        step_02: ['step_01'],
+        step_04: ['step_00'],
+        step_05: ['step_04'],
+        step_06: ['step_05'],
+        step_07: ['step_06'],
+        step_08: ['step_07'],
+        step_09: ['step_08'],
+        step_10: ['step_09'],
+        step_13: ['step_10'],
+        step_14: ['step_13'],
+      };
+
+      expect(filterStepIdsByProfile(plannedSteps, [2, 4], dependencyIndex, [8, 9, 14])).toEqual([
+        'step_00',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_09',
+        'step_10',
+        'step_13',
+        'step_14',
+      ]);
+    });
+
+    test('preserves mandatory full-stage git finalization chain', () => {
+      const plannedSteps = [
+        'step_00',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_09',
+        'step_10',
+        'step_13',
+        'step_14',
+        'step_15',
+        'step_16',
+        'step_18',
+        'step_19',
+        'step_20',
+        'step_17',
+        'step_0f',
+        'step_12',
+      ];
+      const dependencyIndex = {
+        step_04: ['step_00'],
+        step_05: ['step_04'],
+        step_06: ['step_05'],
+        step_07: ['step_06'],
+        step_08: ['step_07'],
+        step_09: ['step_08'],
+        step_10: ['step_09'],
+        step_13: ['step_10'],
+        step_14: ['step_13'],
+        step_15: ['step_14'],
+        step_16: ['step_15'],
+        step_18: ['step_16'],
+        step_19: ['step_18'],
+        step_20: ['step_19'],
+        step_17: ['step_20'],
+        step_0f: ['step_17'],
+        step_12: ['step_0f'],
+      };
+
+      expect(
+        filterStepIdsByProfile(plannedSteps, [2, 4], dependencyIndex, ['step_08'], ['step_12'])
+      ).toEqual(plannedSteps);
+    });
+  });
+
+  describe('workflow config bootstrapping helpers', () => {
+    test('detects project structure from existing directories', () => {
+      const structure = detectWorkflowConfigStructure(
+        [
+          { name: 'src', isDirectory: true },
+          { name: 'test', isDirectory: true },
+          { name: 'docs', isDirectory: true },
+        ],
+        'javascript'
+      );
+
+      expect(structure).toEqual({
+        source_dirs: ['src'],
+        test_dirs: ['test'],
+        docs_dirs: ['docs'],
+      });
+    });
+
+    test('defaults markdown projects to docs-only structure when src/test are absent', () => {
+      const structure = detectWorkflowConfigStructure(
+        [{ name: 'docs', isDirectory: true }],
+        'markdown'
+      );
+
+      expect(structure).toEqual({
+        source_dirs: [],
+        test_dirs: [],
+        docs_dirs: ['docs'],
+      });
+    });
+
+    test('builds a minimal generated workflow config from detected facts', () => {
+      const config = buildGeneratedWorkflowConfig({
+        projectRoot: '/tmp/example-project',
+        projectKind: 'generic',
+        techStack: {
+          primary_language: 'markdown',
+          build_system: 'none',
+          test_framework: null,
+          test_command: '',
+        },
+        structure: {
+          source_dirs: ['src'],
+          test_dirs: ['tests'],
+          docs_dirs: ['docs'],
+        },
+      });
+
+      expect(config.project.name).toBe('example-project');
+      expect(config.project.kind).toBe('generic');
+      expect(config.tech_stack.primary_language).toBe('markdown');
+      expect(config.structure.docs_dirs).toEqual(['docs']);
     });
   });
 
@@ -378,6 +635,28 @@ describe('Main Orchestrator - Integration Tests', () => {
 
       expect(results.passed).toBe(true);
       expect(results.checks).toBeDefined();
+    });
+
+    test('should generate a missing workflow config from detected facts', async () => {
+      orchestrator.projectRoot = testDir;
+      orchestrator.projectDetection.detectProjectKind = async () => ({
+        kind: 'generic',
+        confidence: 40,
+      });
+      orchestrator.techStackDetection.detectTechStack = async () => ({
+        primary_language: 'markdown',
+        build_system: 'none',
+        test_framework: null,
+        test_command: '',
+      });
+
+      const config = await orchestrator._ensureProjectWorkflowConfig();
+      const configPath = path.join(testDir, '.workflow-config.yaml');
+      const writtenConfig = await fs.readFile(configPath, 'utf8');
+
+      expect(config.project.kind).toBe('generic');
+      expect(writtenConfig).toContain('kind: generic');
+      expect(writtenConfig).toContain('primary_language: markdown');
     });
   });
 

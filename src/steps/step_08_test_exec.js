@@ -577,6 +577,87 @@ export function hasNoTestsFoundMessage(output) {
   );
 }
 
+/**
+ * Decide whether test execution should be skipped based on repo-local workflow config.
+ *
+ * @pure
+ * @param {Object|null} workflowConfig - Parsed .workflow-config.yaml content
+ * @returns {{skip: boolean, reason: string|null}}
+ */
+export function getTestExecutionSkipDecision(workflowConfig) {
+  const steps = Array.isArray(workflowConfig?.workflow?.steps) ? workflowConfig.workflow.steps : [];
+  const step08 = steps.find((step) => String(step?.id ?? '').trim() === '08');
+  if (step08?.enabled === false) {
+    return {
+      skip: true,
+      reason: step08.reason || 'Test execution is disabled in .workflow-config.yaml',
+    };
+  }
+
+  const techStack = workflowConfig?.tech_stack;
+  const framework =
+    typeof techStack?.test_framework === 'string' ? techStack.test_framework.trim() : '';
+  if (framework.toLowerCase() === 'none') {
+    return {
+      skip: true,
+      reason: 'Test framework is set to "none" in .workflow-config.yaml',
+    };
+  }
+
+  if (
+    techStack &&
+    Object.prototype.hasOwnProperty.call(techStack, 'test_command') &&
+    typeof techStack.test_command === 'string' &&
+    techStack.test_command.trim() === ''
+  ) {
+    return {
+      skip: true,
+      reason: 'No test command is configured in .workflow-config.yaml',
+    };
+  }
+
+  return { skip: false, reason: null };
+}
+
+/**
+ * Decide whether a missing test command means the step is inapplicable rather
+ * than a real failure.
+ *
+ * @pure
+ * @param {Object} context
+ * @param {string} [context.language] - Detected primary language
+ * @param {string} [context.scope] - Workflow scope/profile key
+ * @param {Object|null} [context.workflowConfig] - Parsed .workflow-config.yaml
+ * @returns {{skip: boolean, reason: string}}
+ */
+export function getMissingTestCommandDecision({ language, scope, workflowConfig } = {}) {
+  const normalizedLanguage = String(language ?? '')
+    .trim()
+    .toLowerCase();
+  const normalizedScope = String(scope ?? '')
+    .trim()
+    .toLowerCase();
+  const configuredPrimaryLanguage = String(workflowConfig?.tech_stack?.primary_language ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedScope === 'docs_only' ||
+    normalizedLanguage === 'markdown' ||
+    configuredPrimaryLanguage === 'markdown'
+  ) {
+    return {
+      skip: true,
+      reason: 'Test execution is not applicable to documentation-only Markdown projects',
+    };
+  }
+
+  return {
+    skip: false,
+    reason: 'No test command configured',
+  };
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Reporting
 // ============================================================================
@@ -735,9 +816,54 @@ export class Step8TestExecutor {
       const language = await this.detectLanguage(projectRoot);
       logger.info(`Detected language: ${language}`);
 
+      const workflowConfig = await this._readWorkflowConfig(projectRoot);
+      const skipDecision = getTestExecutionSkipDecision(workflowConfig);
+      if (skipDecision.skip) {
+        logger.info(`Skipping test execution: ${skipDecision.reason}`);
+        await this.backlog.saveStepSummary(
+          8,
+          'Test Execution',
+          `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${skipDecision.reason}\n`
+        );
+
+        return {
+          success: true,
+          skipped: true,
+          language,
+          testResults: {},
+          coverage: {},
+          message: skipDecision.reason,
+          reason: 'tests_disabled',
+        };
+      }
+
       const testCommand = await this.determineTestCommand(projectRoot, language);
       if (!testCommand) {
-        logger.warn('No test command configured');
+        const missingCommandDecision = getMissingTestCommandDecision({
+          language,
+          scope: options.scope,
+          workflowConfig,
+        });
+        if (missingCommandDecision.skip) {
+          logger.info(`Skipping test execution: ${missingCommandDecision.reason}`);
+          await this.backlog.saveStepSummary(
+            8,
+            'Test Execution',
+            `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${missingCommandDecision.reason}\n`
+          );
+
+          return {
+            success: true,
+            skipped: true,
+            language,
+            testResults: {},
+            coverage: {},
+            message: missingCommandDecision.reason,
+            reason: 'tests_not_applicable',
+          };
+        }
+
+        logger.warn(missingCommandDecision.reason);
         const report = formatTestReport({
           success: false,
           language,
@@ -752,7 +878,7 @@ export class Step8TestExecutor {
           success: false,
           language,
           testResults: {},
-          message: 'No test command configured',
+          message: missingCommandDecision.reason,
         };
       }
 
@@ -1058,6 +1184,17 @@ export class Step8TestExecutor {
     }
 
     return null;
+  }
+
+  async _readWorkflowConfig(projectRoot) {
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const configContent = await this.fileOps.readFile(configPath);
+      const parsed = yaml.load(configContent);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
   }
 
   /**

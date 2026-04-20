@@ -55,16 +55,27 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     const { parsed } = await loadRealAiHelpersYaml();
 
     const prompt = buildYamlStepPrompt(parsed, 'doc_analysis_prompt', {
+      partition_header:
+        '[Partition 1 of 2 — analyze ONLY the files or file-parts listed below for this request]',
+      partition_scope_note:
+        'This request covers 1 of 2 scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.',
       project_name: 'gitx',
       primary_language: 'typescript',
       changed_files: 'README.md, ARCHITECTURE.md, package.json',
       doc_files: 'README.md, ARCHITECTURE.md',
+      file_paths_in_request: '      - README.md (part 1/2)\n      - package.json',
       file_contents: '=== README.md ===\nCurrent content excerpt',
       project_conventions: '### .github/copilot-instructions.md\nUse npm run lint.',
     });
 
+    expect(prompt).toContain('analyze ONLY the files or file-parts listed below for this request');
+    expect(prompt).toContain('split across multiple prompt requests to avoid truncated evidence');
+    expect(prompt).toContain('README.md (part 1/2)');
     expect(prompt).toContain(
       'Analyze ONLY the documentation files explicitly listed above plus any additional documentation files that already appear in the provided changed-file list.'
+    );
+    expect(prompt).toContain(
+      'Entries labeled "(part X/Y)" are sequential chunks of oversized files; treat unseen parts or omitted files as unavailable'
     );
     expect(prompt).toContain('**Provided file contents and excerpts**:');
     expect(prompt).toContain('=== README.md ===');

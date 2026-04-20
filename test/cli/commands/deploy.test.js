@@ -3,18 +3,26 @@
  * @module test/cli/commands/deploy.test
  */
 
-import { describe, test, expect } from '@jest/globals';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import {
+  deployCommand,
   validateDeployOptions,
   resolveDeployConfig,
   buildDeployCommand,
+  resolvePromptMergeStep,
   formatDeployResult,
   detectAlreadyDeployedError,
   detectNpmPublishError,
   resolveCdnFallbackConfig,
   hasNpmToken,
+  referencesNpmToken,
+  resolveMissingNpmTokenPreflight,
   shouldUseCdnFallback,
 } from '../../../src/cli/commands/deploy.js';
+import { logger } from '../../../src/core/logger.js';
 
 describe('Deploy Command - Pure Functions', () => {
   // ============================================================================
@@ -273,10 +281,83 @@ describe('Deploy Command - Pure Functions', () => {
   });
 
   // ============================================================================
+  // referencesNpmToken
+  // ============================================================================
+  describe('referencesNpmToken', () => {
+    test('should return true when text mentions NPM_TOKEN', () => {
+      expect(referencesNpmToken('if [[ -z "${NPM_TOKEN:-}" ]]; then')).toBe(true);
+    });
+
+    test('should return true when text mentions npm Automation token', () => {
+      expect(referencesNpmToken('Set this to an npm Automation token before publishing')).toBe(
+        true
+      );
+    });
+
+    test('should return false for unrelated text', () => {
+      expect(referencesNpmToken('npm run deploy')).toBe(false);
+    });
+  });
+
+  // ============================================================================
+  // resolveMissingNpmTokenPreflight
+  // ============================================================================
+  describe('resolveMissingNpmTokenPreflight', () => {
+    test('should return null when NPM_TOKEN is present', () => {
+      const result = resolveMissingNpmTokenPreflight({ command: 'echo "$NPM_TOKEN"' }, '/project', {
+        NPM_TOKEN: 'npm_abc123',
+      });
+      expect(result).toBeNull();
+    });
+
+    test('should return result when command explicitly references NPM_TOKEN and token is missing', () => {
+      const result = resolveMissingNpmTokenPreflight(
+        { command: 'test -n "$NPM_TOKEN" && npm publish' },
+        '/project',
+        {}
+      );
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/requires NPM_TOKEN/i);
+      expect(result.source).toBe('command');
+    });
+
+    test('should return result when deploy script explicitly references NPM_TOKEN and token is missing', () => {
+      const result = resolveMissingNpmTokenPreflight(
+        { script: 'scripts/deploy.sh' },
+        '/project',
+        {},
+        () => 'if [[ -z "${NPM_TOKEN:-}" ]]; then exit 1; fi',
+        () => true
+      );
+      expect(result).not.toBeNull();
+      expect(result.message).toMatch(/requires NPM_TOKEN/i);
+      expect(result.source).toBe('script');
+    });
+
+    test('should return null when deploy script does not mention NPM_TOKEN', () => {
+      const result = resolveMissingNpmTokenPreflight(
+        { script: 'scripts/deploy.sh' },
+        '/project',
+        {},
+        () => 'npm run deploy',
+        () => true
+      );
+      expect(result).toBeNull();
+    });
+  });
+
+  // ============================================================================
   // shouldUseCdnFallback
   // ============================================================================
   describe('shouldUseCdnFallback', () => {
-    const fakeFallback = { script: 'cdn.sh', command: null, description: 'CDN', args: null, env: {}, enabled: true };
+    const fakeFallback = {
+      script: 'cdn.sh',
+      command: null,
+      description: 'CDN',
+      args: null,
+      env: {},
+      enabled: true,
+    };
 
     test('should return true when fallback is configured and token is missing', () => {
       expect(shouldUseCdnFallback(fakeFallback, { PATH: '/bin' })).toBe(true);
@@ -327,11 +408,15 @@ describe('Deploy Command - Pure Functions', () => {
     });
 
     test('should throw when deployConfig is null', () => {
-      expect(() => buildDeployCommand(null, '/project')).toThrow('deployConfig must be a valid object');
+      expect(() => buildDeployCommand(null, '/project')).toThrow(
+        'deployConfig must be a valid object'
+      );
     });
 
     test('should throw when deployConfig is not an object', () => {
-      expect(() => buildDeployCommand('invalid', '/project')).toThrow('deployConfig must be a valid object');
+      expect(() => buildDeployCommand('invalid', '/project')).toThrow(
+        'deployConfig must be a valid object'
+      );
     });
 
     test('should append args from config to script command', () => {
@@ -366,9 +451,72 @@ describe('Deploy Command - Pure Functions', () => {
   });
 
   // ============================================================================
+  // resolvePromptMergeStep
+  // ============================================================================
+  describe('resolvePromptMergeStep', () => {
+    const projectRoot = '/repo';
+
+    test('should return a merge step when the helper sources are present', () => {
+      const existingPaths = new Set([
+        '/repo/.workflow_core/scripts/build_ai_helpers.py',
+        '/repo/.workflow_core/config/ai_helpers/index.yaml',
+      ]);
+
+      const result = resolvePromptMergeStep(projectRoot, (candidatePath) =>
+        existingPaths.has(candidatePath)
+      );
+
+      expect(result).toEqual({
+        description: 'Merge prompt configuration',
+        command: 'python3 "/repo/.workflow_core/scripts/build_ai_helpers.py" --validate',
+        cwd: '/repo',
+        outputPath: '/repo/.workflow_core/config/ai_helpers.yaml',
+      });
+    });
+
+    test('should return a merge step for project-local helper sources', () => {
+      const existingPaths = new Set([
+        '/repo/scripts/build_ai_helpers.py',
+        '/repo/config/ai_helpers/index.yaml',
+      ]);
+
+      const result = resolvePromptMergeStep(projectRoot, (candidatePath) =>
+        existingPaths.has(candidatePath)
+      );
+
+      expect(result).toEqual({
+        description: 'Merge prompt configuration',
+        command: 'python3 "/repo/scripts/build_ai_helpers.py" --validate',
+        cwd: '/repo',
+        outputPath: '/repo/config/ai_helpers.yaml',
+      });
+    });
+
+    test('should return null when the merge script is missing', () => {
+      const result = resolvePromptMergeStep(projectRoot, () => false);
+      expect(result).toBeNull();
+    });
+
+    test('should return null when projectRoot is invalid', () => {
+      expect(resolvePromptMergeStep('', () => true)).toBeNull();
+      expect(resolvePromptMergeStep(null, () => true)).toBeNull();
+    });
+  });
+
+  // ============================================================================
   // formatDeployResult
   // ============================================================================
   describe('formatDeployResult', () => {
+    test('should format skipped result with reason', () => {
+      const result = formatDeployResult({
+        success: true,
+        skipped: true,
+        reason: 'Deployment requires NPM_TOKEN, but it is not set.',
+      });
+      expect(result).toContain('skipped');
+      expect(result).toContain('NPM_TOKEN');
+    });
+
     test('should format successful result', () => {
       const result = formatDeployResult({ success: true });
       expect(result).toContain('successfully');
@@ -481,7 +629,8 @@ describe('Deploy Command - Pure Functions', () => {
     });
 
     test('should detect missing NPM_TOKEN from deploy script output', () => {
-      const output = '[deploy] ✗ NPM_TOKEN is not set.\n[deploy] To fix this, create an Automation token on npm.';
+      const output =
+        '[deploy] ✗ NPM_TOKEN is not set.\n[deploy] To fix this, create an Automation token on npm.';
       const result = detectNpmPublishError(output);
       expect(result).not.toBeNull();
       expect(result.message).toMatch(/NPM_TOKEN.*not set/i);
@@ -539,5 +688,181 @@ describe('Deploy Command - Pure Functions', () => {
       expect(result.message).toMatch(/not found/i);
       expect(result.hint).toMatch(/scope/i);
     });
+  });
+});
+
+describe('deployCommand (impure wrapper)', () => {
+  let exitSpy;
+  let tempProjectRoot;
+  let stdoutWriteSpy;
+  let stderrWriteSpy;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+    stdoutWriteSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrWriteSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-command-test-'));
+  });
+
+  afterEach(() => {
+    if (tempProjectRoot && fs.existsSync(tempProjectRoot)) {
+      fs.rmSync(tempProjectRoot, { recursive: true, force: true });
+    }
+    jest.restoreAllMocks();
+  });
+
+  test('runs prompt merge before skipping for missing NPM_TOKEN', async () => {
+    const workflowCoreRoot = path.join(tempProjectRoot, '.workflow_core');
+    const helperSourceDir = path.join(workflowCoreRoot, 'config', 'ai_helpers');
+    const mergeScriptPath = path.join(workflowCoreRoot, 'scripts', 'build_ai_helpers.py');
+    const mergeOutputPath = path.join(workflowCoreRoot, 'config', 'ai_helpers.yaml');
+    const deployScriptPath = path.join(tempProjectRoot, 'scripts', 'deploy.sh');
+
+    fs.mkdirSync(path.dirname(mergeScriptPath), { recursive: true });
+    fs.mkdirSync(helperSourceDir, { recursive: true });
+    fs.mkdirSync(path.dirname(deployScriptPath), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(tempProjectRoot, '.workflow-config.yaml'),
+      [
+        'deploy:',
+        '  script: scripts/deploy.sh',
+        '  description: Validate and publish ai_workflow_core to npm',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(helperSourceDir, 'index.yaml'), 'helpers: []\n');
+    fs.writeFileSync(
+      mergeScriptPath,
+      [
+        'from pathlib import Path',
+        'import sys',
+        '',
+        'output = Path(__file__).resolve().parent.parent / "config" / "ai_helpers.yaml"',
+        'output.write_text("merged: true\\n", encoding="utf-8")',
+        'sys.exit(0)',
+      ].join('\n')
+    );
+    fs.writeFileSync(
+      deployScriptPath,
+      [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'if [[ -z "${NPM_TOKEN:-}" ]]; then',
+        '  echo "NPM_TOKEN is not set"',
+        '  exit 1',
+        'fi',
+      ].join('\n')
+    );
+    fs.chmodSync(deployScriptPath, 0o755);
+
+    await expect(deployCommand({ projectRoot: tempProjectRoot, verbose: true })).rejects.toThrow(
+      'process.exit'
+    );
+
+    expect(fs.readFileSync(mergeOutputPath, 'utf8')).toContain('merged: true');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  test('runs project-local prompt merge before skipping for missing NPM_TOKEN', async () => {
+    const helperSourceDir = path.join(tempProjectRoot, 'config', 'ai_helpers');
+    const mergeScriptPath = path.join(tempProjectRoot, 'scripts', 'build_ai_helpers.py');
+    const mergeOutputPath = path.join(tempProjectRoot, 'config', 'ai_helpers.yaml');
+    const deployScriptPath = path.join(tempProjectRoot, 'scripts', 'deploy.sh');
+
+    fs.mkdirSync(path.dirname(mergeScriptPath), { recursive: true });
+    fs.mkdirSync(helperSourceDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(tempProjectRoot, '.workflow-config.yaml'),
+      [
+        'deploy:',
+        '  script: scripts/deploy.sh',
+        '  description: Validate and publish ai_workflow_core to npm',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(helperSourceDir, 'index.yaml'), 'helpers: []\n');
+    fs.writeFileSync(
+      mergeScriptPath,
+      [
+        'from pathlib import Path',
+        'import sys',
+        '',
+        'output = Path(__file__).resolve().parent.parent / "config" / "ai_helpers.yaml"',
+        'output.write_text("merged: true\\n", encoding="utf-8")',
+        'sys.exit(0)',
+      ].join('\n')
+    );
+    fs.writeFileSync(
+      deployScriptPath,
+      [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'if [[ -z "${NPM_TOKEN:-}" ]]; then',
+        '  echo "NPM_TOKEN is not set"',
+        '  exit 1',
+        'fi',
+      ].join('\n')
+    );
+    fs.chmodSync(deployScriptPath, 0o755);
+
+    await expect(deployCommand({ projectRoot: tempProjectRoot, verbose: true })).rejects.toThrow(
+      'process.exit'
+    );
+
+    expect(fs.readFileSync(mergeOutputPath, 'utf8')).toContain('merged: true');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  test('streams deploy step output without requiring verbose mode', async () => {
+    const workflowCoreRoot = path.join(tempProjectRoot, '.workflow_core');
+    const helperSourceDir = path.join(workflowCoreRoot, 'config', 'ai_helpers');
+    const mergeScriptPath = path.join(workflowCoreRoot, 'scripts', 'build_ai_helpers.py');
+    const deployScriptPath = path.join(tempProjectRoot, 'scripts', 'deploy.sh');
+
+    fs.mkdirSync(path.dirname(mergeScriptPath), { recursive: true });
+    fs.mkdirSync(helperSourceDir, { recursive: true });
+    fs.mkdirSync(path.dirname(deployScriptPath), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(tempProjectRoot, '.workflow-config.yaml'),
+      [
+        'deploy:',
+        '  script: scripts/deploy.sh',
+        '  description: Validate and publish ai_workflow_core to npm',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(helperSourceDir, 'index.yaml'), 'helpers: []\n');
+    fs.writeFileSync(
+      mergeScriptPath,
+      ['print("merge-step-1")', 'print("merge-step-2")'].join('\n')
+    );
+    fs.writeFileSync(
+      deployScriptPath,
+      [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'echo "deploy-step-1"',
+        'echo "deploy-step-2"',
+        'echo "deploy-warning" >&2',
+      ].join('\n')
+    );
+    fs.chmodSync(deployScriptPath, 0o755);
+
+    await expect(deployCommand({ projectRoot: tempProjectRoot })).rejects.toThrow('process.exit');
+
+    const stdoutOutput = stdoutWriteSpy.mock.calls.map(([chunk]) => String(chunk)).join('');
+    const stderrOutput = stderrWriteSpy.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+    expect(stdoutOutput).toContain('merge-step-1');
+    expect(stdoutOutput).toContain('merge-step-2');
+    expect(stdoutOutput).toContain('deploy-step-1');
+    expect(stdoutOutput).toContain('deploy-step-2');
+    expect(stderrOutput).toContain('deploy-warning');
+    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });

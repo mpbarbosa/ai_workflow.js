@@ -759,11 +759,17 @@ export class WorkflowEngine extends EventEmitter {
           stepId: step.id,
           stepName: step.name,
           success: output?.success !== false,
+          skipped: output?.skipped === true,
+          reason: output?.reason,
           output,
           duration,
         };
 
-        logger.success(`Step ${step.id} completed in ${duration}ms`);
+        if (result.skipped) {
+          logger.info(`Step ${step.id} skipped in ${duration}ms`);
+        } else {
+          logger.success(`Step ${step.id} completed in ${duration}ms`);
+        }
         this.emit('step:complete', { step, result });
 
         return result;

@@ -41,6 +41,13 @@ describe('step3_script_refs_prompt — config correctness', () => {
     );
     expect(template).toContain('Apply shell-specific checks only to shell scripts in scope.');
   });
+
+  test('task_template treats path variants as ambiguity instead of a clean pass', () => {
+    const template = aiHelpers.step3_script_refs_prompt.task_template;
+    expect(template).toContain('path variant: ...');
+    expect(template).toContain('repository-root context agree with the scoped path');
+    expect(template).toContain('path-context mismatch or ambiguity');
+  });
 });
 
 describe('step3_script_refs_prompt — rendered prompt behavior', () => {
@@ -105,5 +112,29 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain(
       'Treat README command examples, command tables, automation-script sections'
     );
+  });
+
+  test('rendered prompt forces inconclusive integration outcomes and interface-faithful examples', () => {
+    const prompt = buildYamlStepPrompt(aiHelpers, 'step3_script_refs_prompt', {
+      project_name: '/tmp/project',
+      project_description: 'example',
+      primary_language: 'typescript',
+      project_kind: 'configuration_library',
+      scripts_dir: 'scripts',
+      script_count: '1',
+      change_scope: 'infrastructure',
+      modified_count: '0',
+      issues: '1',
+      script_issues_content: 'Undocumented scripts: 1',
+      doc_coverage_map:
+        'scripts/update_submodules.sh: documented in [README.md (path variant: .workflow_core/scripts/update_submodules.sh)]',
+      all_scripts: 'scripts/update_submodules.sh',
+      doc_context:
+        '### README.md\nUse `bash .workflow_core/scripts/update_submodules.sh` after updates.',
+    });
+
+    expect(prompt).toContain('mark CI/container conclusions as unavailable or inconclusive');
+    expect(prompt).toContain('Do not invent placeholder flags, positional arguments');
+    expect(prompt).toContain('path-context mismatch or ambiguity');
   });
 });

@@ -5,6 +5,7 @@
 
 import {
   aggregateStepResults,
+  normalizeRuntimeStepResults,
   calculateWorkflowMetrics,
   generateExecutionTimeline,
   groupStepsByPhase,
@@ -100,6 +101,47 @@ describe('Step 17: Workflow Summary - Pure Functions', () => {
       expect(results[0].name).toBe('Unknown_step_0');
       expect(results[0].status).toBe('unknown');
       expect(results[0].duration).toBe(0);
+    });
+
+    test('normalizes metrics written by Metrics collector', () => {
+      const metrics = {
+        steps: {
+          step_08: {
+            stepName: 'Test Execution',
+            status: 'passed',
+            start_time: 10,
+            end_time: 30,
+            duration_ms: 20,
+          },
+        },
+      };
+
+      const results = aggregateStepResults(metrics);
+
+      expect(results).toEqual([
+        expect.objectContaining({
+          stepId: 'step_08',
+          name: 'Test Execution',
+          status: 'success',
+          duration: 20,
+        }),
+      ]);
+    });
+  });
+
+  describe('normalizeRuntimeStepResults', () => {
+    test('maps workflow engine results to summary step results', () => {
+      expect(
+        normalizeRuntimeStepResults([
+          { stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 100 },
+          { stepId: 'step_08', stepName: 'Test Execution', success: true, skipped: true },
+          { stepId: 'step_10', stepName: 'Code Quality', success: false, duration: 50 },
+        ])
+      ).toEqual([
+        expect.objectContaining({ stepId: 'step_00', status: 'success', duration: 100 }),
+        expect.objectContaining({ stepId: 'step_08', status: 'skipped', duration: 0 }),
+        expect.objectContaining({ stepId: 'step_10', status: 'failed', duration: 50 }),
+      ]);
     });
   });
 
@@ -277,7 +319,7 @@ describe('Step 17: Workflow Summary - Pure Functions', () => {
       const efficiency = calculateCacheEfficiency({ cache_hits: 0, cache_misses: 0 });
 
       expect(efficiency.hitRate).toBe(0);
-      expect(efficiency.quality).toBe('poor');
+      expect(efficiency.quality).toBe('unknown');
     });
 
     test('should handle missing cache metrics', () => {
@@ -285,6 +327,7 @@ describe('Step 17: Workflow Summary - Pure Functions', () => {
 
       expect(efficiency.cacheHits).toBe(0);
       expect(efficiency.cacheMisses).toBe(0);
+      expect(efficiency.quality).toBe('unknown');
     });
   });
 
@@ -871,6 +914,33 @@ describe('Step 17: Workflow Summary - Integration Tests', () => {
       expect(result.success).toBe(true);
       expect(result.summary).toBeDefined();
       expect(result.summary.metrics.totalSteps).toBe(0);
+    });
+
+    test('falls back to runtime step results when metrics file is empty', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'metrics', 'current_run.json'),
+        JSON.stringify({
+          workflow_run_id: 'test_run',
+          version: '1.0.0',
+          mode: 'interactive',
+          steps: {},
+        })
+      );
+
+      const summary = await workflowSummary.generateSummary({
+        dryRun: true,
+        workflowRunId: 'test_run',
+        stepResults: [
+          { stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 100 },
+          { stepId: 'step_08', stepName: 'Test Execution', success: false, duration: 50 },
+        ],
+      });
+
+      expect(summary.metrics.totalSteps).toBe(2);
+      expect(summary.metrics.successfulSteps).toBe(1);
+      expect(summary.metrics.failedSteps).toBe(1);
+      expect(summary.report).toContain('Pre-Analysis');
+      expect(summary.report).toContain('Test Execution');
     });
   });
 

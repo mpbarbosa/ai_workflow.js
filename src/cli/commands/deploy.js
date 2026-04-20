@@ -18,7 +18,6 @@ import path from 'path';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import ora from 'ora';
 import { logger } from '../../core/logger.js';
 import { executeStream } from '../../core/executor.js';
 
@@ -65,12 +64,16 @@ export function resolveDeployConfig(workflowConfig) {
   if (!deploySection) {
     return {
       config: null,
-      error: 'No deploy: section found in .workflow-config.yaml. Add a deploy: section to enable deployment.',
+      error:
+        'No deploy: section found in .workflow-config.yaml. Add a deploy: section to enable deployment.',
     };
   }
 
   if (deploySection.enabled === false) {
-    return { config: null, error: 'Deployment is disabled (enabled: false) in .workflow-config.yaml' };
+    return {
+      config: null,
+      error: 'Deployment is disabled (enabled: false) in .workflow-config.yaml',
+    };
   }
 
   if (!deploySection.script && !deploySection.command) {
@@ -107,7 +110,7 @@ export function buildDeployCommand(deployConfig, projectRoot, extraArgs = null) 
   }
 
   // CLI-supplied extraArgs take priority over YAML-configured args
-  const resolvedArgs = extraArgs !== null ? extraArgs : (deployConfig.args || '');
+  const resolvedArgs = extraArgs !== null ? extraArgs : deployConfig.args || '';
   const argsSuffix = resolvedArgs ? ` ${resolvedArgs}` : '';
 
   // script: takes priority over command:
@@ -125,6 +128,53 @@ export function buildDeployCommand(deployConfig, projectRoot, extraArgs = null) 
     command: `${deployConfig.command}${argsSuffix}`,
     cwd: projectRoot,
   };
+}
+
+/**
+ * Resolve the ai_workflow.js prompt-merge preflight step when the project embeds
+ * split prompt sources under `.workflow_core/config/ai_helpers/`.
+ *
+ * The deploy flow should regenerate the merged `ai_helpers.yaml` artifact before
+ * executing the actual deployment so released prompt assets stay in sync with the
+ * authoritative sub-files.
+ *
+ * @pure
+ * @param {string} projectRoot - Absolute project root path
+ * @param {(path: string) => boolean} [existsFn] - File-existence probe for testing
+ * @returns {{ description: string, command: string, cwd: string, outputPath: string }|null}
+ */
+export function resolvePromptMergeStep(projectRoot, existsFn = fs.existsSync) {
+  if (typeof projectRoot !== 'string' || projectRoot.trim() === '') {
+    return null;
+  }
+
+  const candidateLayouts = [
+    {
+      scriptPath: path.join(projectRoot, '.workflow_core', 'scripts', 'build_ai_helpers.py'),
+      indexPath: path.join(projectRoot, '.workflow_core', 'config', 'ai_helpers', 'index.yaml'),
+      outputPath: path.join(projectRoot, '.workflow_core', 'config', 'ai_helpers.yaml'),
+    },
+    {
+      scriptPath: path.join(projectRoot, 'scripts', 'build_ai_helpers.py'),
+      indexPath: path.join(projectRoot, 'config', 'ai_helpers', 'index.yaml'),
+      outputPath: path.join(projectRoot, 'config', 'ai_helpers.yaml'),
+    },
+  ];
+
+  for (const candidate of candidateLayouts) {
+    if (!existsFn(candidate.scriptPath) || !existsFn(candidate.indexPath)) {
+      continue;
+    }
+
+    return {
+      description: 'Merge prompt configuration',
+      command: `python3 "${candidate.scriptPath}" --validate`,
+      cwd: projectRoot,
+      outputPath: candidate.outputPath,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -146,8 +196,10 @@ export function parseEnvFile(content) {
     const key = line.slice(0, eqIdx).trim();
     let value = line.slice(eqIdx + 1).trim();
     // Strip surrounding quotes
-    if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
     if (key) result[key] = value;
@@ -164,6 +216,10 @@ export function parseEnvFile(content) {
 export function formatDeployResult(result) {
   if (!result) {
     return 'No result available';
+  }
+
+  if (result.skipped) {
+    return `Deployment skipped: ${result.reason || 'No deployment action was taken'}`;
   }
 
   if (result.success) {
@@ -223,18 +279,18 @@ export function resolveCdnFallbackConfig(deploySection) {
   const fallback = deploySection.cdn_fallback;
   const script = Object.prototype.hasOwnProperty.call(fallback, 'script')
     ? fallback.script
-    : (deploySection.script || null);
+    : deploySection.script || null;
   const command = Object.prototype.hasOwnProperty.call(fallback, 'command')
     ? fallback.command
-    : (deploySection.command || null);
+    : deploySection.command || null;
   return {
     script,
     command,
     description: fallback.description || 'Deploy to CDN only (npm publish skipped)',
     args: Object.prototype.hasOwnProperty.call(fallback, 'args')
       ? fallback.args
-      : (deploySection.args || null),
-    env: (fallback.env && typeof fallback.env === 'object') ? fallback.env : {},
+      : deploySection.args || null,
+    env: fallback.env && typeof fallback.env === 'object' ? fallback.env : {},
     enabled: true,
   };
 }
@@ -246,8 +302,85 @@ export function resolveCdnFallbackConfig(deploySection) {
  * @returns {boolean}
  */
 export function hasNpmToken(env) {
-  return typeof env === 'object' && env !== null &&
-    typeof env.NPM_TOKEN === 'string' && env.NPM_TOKEN.length > 0;
+  return (
+    typeof env === 'object' &&
+    env !== null &&
+    typeof env.NPM_TOKEN === 'string' &&
+    env.NPM_TOKEN.length > 0
+  );
+}
+
+/**
+ * Detect whether a deploy command or script text explicitly depends on NPM_TOKEN.
+ * This is used as a conservative preflight guard so ai-workflow can fail fast
+ * with a clear message before invoking a project script that would immediately
+ * abort for the same reason.
+ *
+ * @pure
+ * @param {string} text - Deploy command or script content
+ * @returns {boolean}
+ */
+export function referencesNpmToken(text) {
+  if (!text || typeof text !== 'string') return false;
+
+  return /\bNPM_TOKEN\b/.test(text) || /npm Automation token/i.test(text);
+}
+
+/**
+ * Resolve a preflight failure when the configured deploy entry explicitly
+ * requires NPM_TOKEN but the effective environment does not provide one.
+ *
+ * Returns null when the token is present or when the deploy configuration does
+ * not visibly depend on NPM_TOKEN, allowing non-npm deploy scripts to proceed.
+ *
+ * @param {Object} deployConfig - Resolved deploy configuration
+ * @param {string} projectRoot - Absolute project root path
+ * @param {Object} deployEnv - Effective environment variables for the deployment
+ * @param {(path: string) => string} [readFileFn] - File reader for testing
+ * @param {(path: string) => boolean} [existsFn] - File existence probe for testing
+ * @returns {{ message: string, hint: string, source: string }|null}
+ */
+export function resolveMissingNpmTokenPreflight(
+  deployConfig,
+  projectRoot,
+  deployEnv,
+  readFileFn = (candidatePath) => fs.readFileSync(candidatePath, 'utf8'),
+  existsFn = fs.existsSync
+) {
+  if (!deployConfig || typeof deployConfig !== 'object') return null;
+  if (typeof projectRoot !== 'string' || projectRoot.trim() === '') return null;
+  if (hasNpmToken(deployEnv)) return null;
+
+  if (referencesNpmToken(deployConfig.command)) {
+    return {
+      message: 'Deployment requires NPM_TOKEN, but it is not set.',
+      hint: 'Set NPM_TOKEN to an npm Automation token before deploying.',
+      source: 'command',
+    };
+  }
+
+  if (!deployConfig.script || typeof deployConfig.script !== 'string') {
+    return null;
+  }
+
+  const scriptPath = path.isAbsolute(deployConfig.script)
+    ? deployConfig.script
+    : path.join(projectRoot, deployConfig.script);
+
+  if (!existsFn(scriptPath)) return null;
+
+  try {
+    const scriptContent = readFileFn(scriptPath);
+    if (!referencesNpmToken(scriptContent)) return null;
+  } catch {
+    return null;
+  }
+
+  return {
+    message: 'Deployment requires NPM_TOKEN, but it is not set.',
+    hint: 'Set NPM_TOKEN to an npm Automation token before deploying.',
+    source: 'script',
+  };
 }
 
 /**
@@ -312,7 +445,11 @@ export function detectNpmPublishError(output) {
   }
 
   // 409 Conflict — version already published
-  if (/npm error code E409/i.test(output) || /409 Conflict/i.test(output) || /cannot publish over/i.test(output)) {
+  if (
+    /npm error code E409/i.test(output) ||
+    /409 Conflict/i.test(output) ||
+    /cannot publish over/i.test(output)
+  ) {
     return {
       message: 'npm publish failed: this version is already published (E409).',
       hint: 'Bump the version in package.json before publishing.',
@@ -354,14 +491,12 @@ export function detectNpmPublishError(output) {
  * @param {boolean} [options.verbose] - Verbose output
  */
 export async function deployCommand(options = {}) {
-  const projectRoot = options.projectRoot
-    ? path.resolve(options.projectRoot)
-    : process.cwd();
+  const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
 
   const configPath = options.config
-    ? (path.isAbsolute(options.config)
-        ? options.config
-        : path.join(projectRoot, options.config))
+    ? path.isAbsolute(options.config)
+      ? options.config
+      : path.join(projectRoot, options.config)
     : path.join(projectRoot, '.workflow-config.yaml');
 
   // Validate options
@@ -429,14 +564,24 @@ export async function deployCommand(options = {}) {
     }
   }
 
+  const promptMergeStep = resolvePromptMergeStep(projectRoot);
+
   // Build the command
   const extraArgs = options.source ? `--source ${options.source}` : null;
   const { command, cwd } = buildDeployCommand(activeDeployConfig, projectRoot, extraArgs);
 
   console.log();
+  if (promptMergeStep) {
+    console.log(chalk.cyan(`🧩 ${promptMergeStep.description}`));
+    console.log(chalk.gray(`   Command: ${promptMergeStep.command}`));
+    console.log(chalk.gray(`   Output: ${promptMergeStep.outputPath}`));
+    console.log();
+  }
   console.log(chalk.cyan(`📦 ${activeDeployConfig.description}`));
   if (usingCdnFallback) {
-    console.log(chalk.yellow('⚠ NPM_TOKEN not set – delivering via CDN only (npm publish skipped)'));
+    console.log(
+      chalk.yellow('⚠ NPM_TOKEN not set – delivering via CDN only (npm publish skipped)')
+    );
     console.log(chalk.gray('  Set NPM_TOKEN to also publish to npm.'));
   }
   console.log(chalk.gray(`   Command: ${command}`));
@@ -449,13 +594,65 @@ export async function deployCommand(options = {}) {
     process.exit(0);
   }
 
+  if (promptMergeStep) {
+    const promptMergeOutput = [];
+
+    try {
+      await executeStream(promptMergeStep.command, {
+        cwd: promptMergeStep.cwd,
+        env: deployEnv,
+        onStdout: (line) => {
+          promptMergeOutput.push(line);
+          process.stdout.write(line);
+        },
+        onStderr: (line) => {
+          promptMergeOutput.push(line);
+          process.stderr.write(chalk.yellow(line));
+        },
+      });
+
+      console.log(chalk.green('✓ Prompt merge complete'));
+      console.log();
+    } catch (error) {
+      const capturedOutput = promptMergeOutput.join('');
+      console.log(chalk.red(`✗ Prompt merge failed: ${error.message}`));
+
+      if (error.stderr) {
+        console.log(chalk.gray(error.stderr));
+      } else if (!options.verbose && capturedOutput.trim()) {
+        const lines = capturedOutput.trim().split('\n');
+        console.log(chalk.gray(lines.slice(-5).join('\n')));
+      }
+
+      console.log();
+      process.exit(1);
+    }
+  }
+
+  const missingTokenPreflight = usingCdnFallback
+    ? null
+    : resolveMissingNpmTokenPreflight(activeDeployConfig, projectRoot, deployEnv);
+  if (missingTokenPreflight) {
+    const skipMessage = formatDeployResult({
+      success: true,
+      skipped: true,
+      reason: missingTokenPreflight.message,
+    });
+    console.log(chalk.yellow(`⚠ ${skipMessage}`));
+    console.log(chalk.yellow(`  ${missingTokenPreflight.hint}`));
+    if (cdnFallbackConfig === null) {
+      console.log(
+        chalk.yellow(
+          '  Tip: add a cdn_fallback: section in .workflow-config.yaml to deliver via CDN when NPM_TOKEN is absent.'
+        )
+      );
+    }
+    console.log();
+    process.exit(0);
+  }
+
   // Execute deployment
   const startTime = Date.now();
-  let spinner;
-
-  if (!options.verbose) {
-    spinner = ora('Deploying...').start();
-  }
 
   // Buffer all output so we can analyse it for known errors on failure
   const outputBuffer = [];
@@ -466,25 +663,15 @@ export async function deployCommand(options = {}) {
       env: deployEnv,
       onStdout: (line) => {
         outputBuffer.push(line);
-        if (options.verbose) {
-          process.stdout.write(line);
-        } else if (spinner) {
-          // Update spinner text with last output line for progress feedback
-          const trimmed = line.trim();
-          if (trimmed) spinner.text = `Deploying... ${trimmed.slice(0, 60)}`;
-        }
+        process.stdout.write(line);
       },
       onStderr: (line) => {
         outputBuffer.push(line);
-        if (options.verbose) {
-          process.stderr.write(chalk.yellow(line));
-        }
+        process.stderr.write(chalk.yellow(line));
       },
     });
 
     const duration = Date.now() - startTime;
-
-    if (spinner) spinner.succeed('Deploy complete');
 
     const resultMessage = formatDeployResult({ success: true, duration });
     console.log(chalk.green(`✓ ${resultMessage}`));
@@ -498,14 +685,11 @@ export async function deployCommand(options = {}) {
     // Idempotency: if the artifact already exists this run is a no-op, not a failure.
     const alreadyDeployed = detectAlreadyDeployedError(error.exitCode ?? null, capturedOutput);
     if (alreadyDeployed) {
-      if (spinner) spinner.succeed('Already deployed');
       console.log(chalk.yellow(`⚠ ${alreadyDeployed.message}`));
       console.log(chalk.gray(`  ${alreadyDeployed.hint}`));
       console.log();
       process.exit(0);
     }
-
-    if (spinner) spinner.fail('Deploy failed');
 
     const npmError = detectNpmPublishError(capturedOutput);
 
@@ -513,7 +697,11 @@ export async function deployCommand(options = {}) {
       // If npm token is missing and a CDN fallback is configured but we somehow
       // ended up in the primary path, suggest configuring cdn_fallback.
       if (!usingCdnFallback && cdnFallbackConfig === null && /NPM_TOKEN/i.test(capturedOutput)) {
-        console.log(chalk.yellow('  Tip: add a cdn_fallback: section in .workflow-config.yaml to deliver via CDN when NPM_TOKEN is absent.'));
+        console.log(
+          chalk.yellow(
+            '  Tip: add a cdn_fallback: section in .workflow-config.yaml to deliver via CDN when NPM_TOKEN is absent.'
+          )
+        );
         console.log();
       }
       console.log(chalk.red(`✗ ${npmError.message}`));
@@ -540,4 +728,19 @@ export async function deployCommand(options = {}) {
   }
 }
 
-export default { deployCommand, validateDeployOptions, resolveDeployConfig, buildDeployCommand, formatDeployResult, detectAlreadyDeployedError, detectNpmPublishError, parseEnvFile, resolveCdnFallbackConfig, hasNpmToken, shouldUseCdnFallback };
+export default {
+  deployCommand,
+  validateDeployOptions,
+  resolveDeployConfig,
+  buildDeployCommand,
+  resolvePromptMergeStep,
+  formatDeployResult,
+  detectAlreadyDeployedError,
+  detectNpmPublishError,
+  parseEnvFile,
+  resolveCdnFallbackConfig,
+  hasNpmToken,
+  referencesNpmToken,
+  resolveMissingNpmTokenPreflight,
+  shouldUseCdnFallback,
+};
