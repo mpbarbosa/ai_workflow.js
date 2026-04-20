@@ -215,3 +215,55 @@
 - **Description:** Five scripts (`analyze-jsdoc-coverage.js`, `postinstall.js`, `security-audit.js`, `smoke-test-copilot-sdk.js`, `colors.sh`) exist on disk and are used (e.g., `postinstall.js` runs on `npm install`; `security-audit.js` is invoked in CI; `colors.sh` is sourced by shell scripts) but none are mentioned in `scripts/README.md` or any other documentation file, leaving their purpose and invocation opaque.
 - **Fix:** Add one-line descriptions for all five scripts to the appropriate sections in `scripts/README.md`: `colors.sh` under Shell Scripts; `postinstall.js` under Lifecycle; `security-audit.js` under Code Quality; `analyze-jsdoc-coverage.js` under Analysis; `smoke-test-copilot-sdk.js` under Testing.
 - **Status:** done
+
+---
+
+### RI-017 — Functional requirements and quick-start docs still point at missing migration plan
+
+- **ID:** RI-017
+- **Source step:** step_02
+- **Type:** docs-outdated
+- **Priority:** Medium
+- **Path:** docs/FUNCTIONAL_REQUIREMENTS.md:46,121; docs/getting-started/QUICK_START.md:404
+- **Description:** Multiple live docs still link to `docs/reports/implementation/MIGRATION_PLAN.md`, but that path no longer exists in the repository while `docs/guides/MIGRATION_GUIDE.md` is the current migration doc.
+- **Fix:** Replace the stale `MIGRATION_PLAN.md` links with `docs/guides/MIGRATION_GUIDE.md` where migration guidance is intended, or remove the migration-plan reference if the section no longer needs it.
+- **Status:** open
+
+---
+
+### RI-018 — Architecture docs reference missing MODULE_STRUCTURE.md
+
+- **ID:** RI-018
+- **Source step:** step_02
+- **Type:** docs-outdated
+- **Priority:** Medium
+- **Path:** docs/architecture/OVERVIEW.md:527; docs/architecture/DEPENDENCY_GRAPH.md:599; docs/architecture/DESIGN_PRINCIPLES.md:757
+- **Description:** Three architecture docs still reference `docs/architecture/MODULE_STRUCTURE.md`, but that file does not exist in the live repository.
+- **Fix:** Update those links to an existing architecture document that covers module organization, or add the missing `docs/architecture/MODULE_STRUCTURE.md` file if that reference is still intended.
+- **Status:** open
+
+---
+
+### RI-019 — Migration guide points at missing CLI reference
+
+- **ID:** RI-019
+- **Source step:** step_02
+- **Type:** docs-outdated
+- **Priority:** Low
+- **Path:** docs/guides/MIGRATION_GUIDE.md:1005
+- **Description:** `docs/guides/MIGRATION_GUIDE.md` links to `docs/reference/CLI_REFERENCE.md`, but no `docs/reference/` directory or `CLI_REFERENCE.md` file exists in the live repository.
+- **Fix:** Point the migration guide at the current CLI reference document (for example `docs/CLI_USAGE_GUIDE.md`) or restore the missing reference file if it still belongs in the docs set.
+- **Status:** open
+
+---
+
+### RI-020 — Bugfix report index links to missing implementation reports directory
+
+- **ID:** RI-020
+- **Source step:** step_02
+- **Type:** docs-outdated
+- **Priority:** Low
+- **Path:** docs/reports/bugfixes/README.md:18
+- **Description:** The bugfix report index links to `docs/reports/implementation/`, but that directory does not exist in the live repository.
+- **Fix:** Remove or retarget the "Implementation reports" link to an existing reports location, or recreate the missing `docs/reports/implementation/` directory if it is still part of the documentation structure.
+- **Status:** open
