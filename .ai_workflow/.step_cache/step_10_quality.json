@@ -640,6 +640,11 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-15T23:19:28.405Z"
+    },
+    "scripts/update-submodules.sh": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-20T12:58:09.325Z"
     }
   }
 }
