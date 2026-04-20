@@ -25,15 +25,27 @@ import { CheckpointManager } from '../orchestrator/checkpoint_manager.js';
 // ============================================================================
 
 /**
- * Log lines that unambiguously mark a workflow as complete.
- * Both success and "completed with failures" are considered terminal states —
- * neither should trigger an auto-resume.
+ * Log lines that unambiguously mark a workflow as completed.
  */
 export const COMPLETION_MARKERS = Object.freeze([
   '✓ Workflow completed successfully',
   '⚠ Workflow completed with failures',
   '⚠ Workflow completed with', // covers future wording variations
 ]);
+
+/**
+ * Log lines that mark a workflow as terminally failed before normal completion.
+ * These runs should not trigger auto-resume.
+ */
+export const TERMINAL_FAILURE_MARKERS = Object.freeze(['✗ Workflow terminated before completion']);
+
+export const WORKFLOW_TERMINAL_STATES = Object.freeze({
+  COMPLETED: 'completed',
+  COMPLETED_WITH_FAILURES: 'completed_with_failures',
+  FAILED: 'failed',
+  INCOMPLETE: 'incomplete',
+  NONE: 'none',
+});
 
 /**
  * Pattern for log-directory names created by MainOrchestrator.
@@ -94,6 +106,27 @@ export function detectWorkflowCompletion(logContent) {
 }
 
 /**
+ * Determines the terminal state recorded in a workflow log, if any.
+ *
+ * @param {string} logContent - Full text content of a workflow.log file
+ * @returns {string|null} Terminal state, or null when the run is incomplete
+ * @pure
+ */
+export function detectWorkflowTerminalState(logContent) {
+  if (typeof logContent !== 'string' || logContent.length === 0) return null;
+  if (logContent.includes(COMPLETION_MARKERS[0])) {
+    return WORKFLOW_TERMINAL_STATES.COMPLETED;
+  }
+  if (COMPLETION_MARKERS.slice(1).some((marker) => logContent.includes(marker))) {
+    return WORKFLOW_TERMINAL_STATES.COMPLETED_WITH_FAILURES;
+  }
+  if (TERMINAL_FAILURE_MARKERS.some((marker) => logContent.includes(marker))) {
+    return WORKFLOW_TERMINAL_STATES.FAILED;
+  }
+  return null;
+}
+
+/**
  * Builds a structured auto-resume decision object from evaluation inputs.
  *
  * @param {Object} params
@@ -107,26 +140,36 @@ export function detectWorkflowCompletion(logContent) {
  * @property {boolean}     shouldResume - Whether auto-resume should be triggered
  * @property {string|null} checkpointId - ID of the checkpoint to resume from
  * @property {string|null} workflowId   - Workflow ID derived from the log dir
+ * @property {string}      lastRunState - Terminal state of the last run
  * @property {string}      reason       - Human-readable explanation
  * @property {string|null} logDirName   - The log directory that was evaluated
  */
-export function buildAutoResumeDecision({ logDirName, isIncomplete, checkpoint }) {
+export function buildAutoResumeDecision({ logDirName, isIncomplete, checkpoint, terminalState }) {
   if (!logDirName) {
     return {
       shouldResume: false,
       checkpointId: null,
       workflowId: null,
+      lastRunState: WORKFLOW_TERMINAL_STATES.NONE,
       reason: 'No previous workflow execution logs found',
       logDirName: null,
     };
   }
 
   if (!isIncomplete) {
+    const lastRunState = terminalState || WORKFLOW_TERMINAL_STATES.COMPLETED;
+    const reason =
+      lastRunState === WORKFLOW_TERMINAL_STATES.FAILED
+        ? `Most recent workflow (${logDirName}) failed before completion`
+        : lastRunState === WORKFLOW_TERMINAL_STATES.COMPLETED_WITH_FAILURES
+          ? `Most recent workflow (${logDirName}) completed with failures`
+          : `Most recent workflow (${logDirName}) completed normally`;
     return {
       shouldResume: false,
       checkpointId: null,
       workflowId: logDirName,
-      reason: `Most recent workflow (${logDirName}) completed normally`,
+      lastRunState,
+      reason,
       logDirName,
     };
   }
@@ -136,6 +179,7 @@ export function buildAutoResumeDecision({ logDirName, isIncomplete, checkpoint }
       shouldResume: false,
       checkpointId: null,
       workflowId: logDirName,
+      lastRunState: WORKFLOW_TERMINAL_STATES.INCOMPLETE,
       reason: `Incomplete workflow detected (${logDirName}) but no valid checkpoint found`,
       logDirName,
     };
@@ -145,6 +189,7 @@ export function buildAutoResumeDecision({ logDirName, isIncomplete, checkpoint }
     shouldResume: true,
     checkpointId: checkpoint.id,
     workflowId: logDirName,
+    lastRunState: WORKFLOW_TERMINAL_STATES.INCOMPLETE,
     reason: `Incomplete workflow detected (${logDirName}); resuming from checkpoint ${checkpoint.id}`,
     logDirName,
   };
@@ -209,8 +254,30 @@ export class StartupResumeEvaluator {
   }
 
   /**
+   * Reads the workflow.log inside `logDirName` and returns the recorded
+   * terminal state, or null when the run appears incomplete.
+   *
+   * Returns `null` for any of: file missing, unreadable, empty, or incomplete.
+   *
+   * @param {string} logDirName - Name of the log subdirectory
+   * @returns {Promise<string|null>}
+   */
+  async getWorkflowTerminalState(logDirName) {
+    const logFilePath = path.join(this.logsDir, logDirName, 'workflow.log');
+    let content;
+    try {
+      content = await fs.readFile(logFilePath, 'utf8');
+    } catch (err) {
+      logger.debug(`[StartupResumeEvaluator] Could not read log file: ${err.message}`);
+      return null;
+    }
+
+    return detectWorkflowTerminalState(content);
+  }
+
+  /**
    * Reads the workflow.log inside `logDirName` and returns `true` when the
-   * execution was incomplete (i.e. the log exists but contains no completion
+   * execution was incomplete (i.e. the log exists but contains no terminal
    * marker).
    *
    * Returns `false` for any of: file missing, unreadable, empty, or complete.
@@ -219,18 +286,21 @@ export class StartupResumeEvaluator {
    * @returns {Promise<boolean>}
    */
   async isWorkflowIncomplete(logDirName) {
+    const terminalState = await this.getWorkflowTerminalState(logDirName);
+    if (terminalState) {
+      return false;
+    }
+
     const logFilePath = path.join(this.logsDir, logDirName, 'workflow.log');
-    let content;
     try {
-      content = await fs.readFile(logFilePath, 'utf8');
+      const content = await fs.readFile(logFilePath, 'utf8');
+      return typeof content === 'string' && content.length > 0;
     } catch (err) {
       // Missing log → treat as indeterminate (not incomplete); we don't
       // want to falsely trigger a resume when there's nothing to recover.
       logger.debug(`[StartupResumeEvaluator] Could not read log file: ${err.message}`);
       return false;
     }
-
-    return !detectWorkflowCompletion(content);
   }
 
   /**
@@ -238,8 +308,6 @@ export class StartupResumeEvaluator {
    *
    * The log-directory name equals the `workflowRunId` which is also stored as
    * `checkpoint.workflowId` when the checkpoint is saved by MainOrchestrator.
-   * Falls back to the globally latest checkpoint when no run-specific one
-   * exists (e.g. the checkpoint was saved before the workflowId convention).
    *
    * @param {string} workflowRunId - The log-directory name (== workflowId)
    * @returns {Promise<{id: string, workflowId: string, timestamp: number}|null>}
@@ -250,16 +318,10 @@ export class StartupResumeEvaluator {
       const runCheckpoints = await this.checkpointManager.list({ workflowId: workflowRunId });
       if (runCheckpoints.length > 0) {
         // list() returns newest-first; validate the winner
-        const candidate = runCheckpoints[0];
-        const validation = await this.checkpointManager.validate(candidate.id);
-        if (validation.valid) return candidate;
-      }
-
-      // 2. Fall back: pick the globally latest checkpoint and validate it.
-      const allCheckpoints = await this.checkpointManager.list();
-      for (const cp of allCheckpoints) {
-        const validation = await this.checkpointManager.validate(cp.id);
-        if (validation.valid) return cp;
+        for (const candidate of runCheckpoints) {
+          const validation = await this.checkpointManager.validate(candidate.id);
+          if (validation.valid) return candidate;
+        }
       }
     } catch (err) {
       logger.debug(`[StartupResumeEvaluator] Checkpoint lookup failed: ${err.message}`);
@@ -296,11 +358,18 @@ export class StartupResumeEvaluator {
         return buildAutoResumeDecision({ logDirName: null, isIncomplete: false, checkpoint: null });
       }
 
-      const isIncomplete = await this.isWorkflowIncomplete(logDirName);
+      const terminalState = await this.getWorkflowTerminalState(logDirName);
+      const isIncomplete =
+        terminalState === null ? await this.isWorkflowIncomplete(logDirName) : false;
       logger.debug(`[StartupResumeEvaluator] Is incomplete: ${isIncomplete}`);
 
       if (!isIncomplete) {
-        return buildAutoResumeDecision({ logDirName, isIncomplete: false, checkpoint: null });
+        return buildAutoResumeDecision({
+          logDirName,
+          isIncomplete: false,
+          checkpoint: null,
+          terminalState,
+        });
       }
 
       const checkpoint = await this.findLatestCheckpoint(logDirName);
@@ -308,12 +377,22 @@ export class StartupResumeEvaluator {
         `[StartupResumeEvaluator] Checkpoint found: ${checkpoint ? checkpoint.id : 'none'}`
       );
 
-      return buildAutoResumeDecision({ logDirName, isIncomplete: true, checkpoint });
+      return buildAutoResumeDecision({
+        logDirName,
+        isIncomplete: true,
+        checkpoint,
+        terminalState: WORKFLOW_TERMINAL_STATES.INCOMPLETE,
+      });
     } catch (err) {
       logger.warn(
         `[StartupResumeEvaluator] Evaluation failed (proceeding normally): ${err.message}`
       );
-      return buildAutoResumeDecision({ logDirName: null, isIncomplete: false, checkpoint: null });
+      return buildAutoResumeDecision({
+        logDirName: null,
+        isIncomplete: false,
+        checkpoint: null,
+        terminalState: WORKFLOW_TERMINAL_STATES.NONE,
+      });
     }
   }
 }
@@ -322,8 +401,11 @@ export default {
   parseLogDirTimestamp,
   sortLogDirsByRecency,
   detectWorkflowCompletion,
+  detectWorkflowTerminalState,
   buildAutoResumeDecision,
   StartupResumeEvaluator,
   COMPLETION_MARKERS,
+  TERMINAL_FAILURE_MARKERS,
+  WORKFLOW_TERMINAL_STATES,
   LOG_DIR_PATTERN,
 };

@@ -645,4 +645,47 @@ describe('Step19TypescriptReview', () => {
     expect(capturedPrompt).toContain('Runtime Constraints (from PROJECT_CONTEXT.md)');
     expect(capturedPrompt).toContain(projectCtxContent);
   });
+
+  it('uses evidence-based default toolchain context in the AI prompt', async () => {
+    mockFileOps.glob.mockResolvedValue(['src/index.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce('export const x: string = "hi";') // index.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n' +
+          '  role_prefix: "You are Strider"\n' +
+          '  task_template: |\n' +
+          '    Build System: {build_system}\n' +
+          '    Test Framework: {test_framework}\n' +
+          '    Project Kind: {project_kind}\n' +
+          '  approach: "Type-first"'
+      ) // ai_helpers.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // prompt_roles.yaml
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.esm.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // tsconfig.base.json
+      .mockRejectedValueOnce(new Error('ENOENT')) // typescript_profile.md
+      .mockRejectedValueOnce(new Error('ENOENT')); // PROJECT_CONTEXT.md
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain(
+      'Build System: Visible TypeScript toolchain (verify from provided config)'
+    );
+    expect(capturedPrompt).toContain('Test Framework: Visible test tooling only');
+    expect(capturedPrompt).toContain('Project Kind: unknown');
+    expect(capturedPrompt).not.toContain('tsc / Vite / Webpack');
+    expect(capturedPrompt).not.toContain('Jest / ts-jest / Vitest');
+  });
 });

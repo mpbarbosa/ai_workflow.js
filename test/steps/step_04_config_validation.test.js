@@ -761,8 +761,10 @@ describe('Step 4: Configuration Validation', () => {
         Promise.resolve(['.workflow-config.yaml', 'package.json', '.github/workflows/ci.yml']);
       mockFileOps.readFile = (filePath) => {
         if (filePath.endsWith('.workflow-config.yaml')) return Promise.resolve(longYaml);
-        if (filePath.endsWith('package.json')) return Promise.resolve('{"name":"test","version":"1.0.0"}');
-        if (filePath.endsWith('.github/workflows/ci.yml')) return Promise.resolve('name: CI\non: push');
+        if (filePath.endsWith('package.json'))
+          return Promise.resolve('{"name":"test","version":"1.0.0"}');
+        if (filePath.endsWith('.github/workflows/ci.yml'))
+          return Promise.resolve('name: CI\non: push');
         return Promise.reject(new Error('not found'));
       };
       mockBacklog.saveStepSummary = (_step, _title, content) => {
@@ -1237,6 +1239,16 @@ describe('Step 4: Configuration Validation', () => {
     test('handles deeply nested paths', () => {
       const result = groupConfigFilesList(['.github/actions/security-check/action.yml']);
       expect(result).toBe('**.github/actions/security-check**: action.yml');
+    });
+
+    test('keeps partition suffixes attached to filenames instead of directory labels', () => {
+      const result = groupConfigFilesList([
+        '.workflow_core/config/ai_helpers.yaml (part 64/98)',
+        '.workflow_core/config/ai_helpers.yaml (part 65/98)',
+      ]);
+      expect(result).toBe(
+        '**.workflow_core/config**: ai_helpers.yaml (part 64/98), ai_helpers.yaml (part 65/98)'
+      );
     });
   });
 

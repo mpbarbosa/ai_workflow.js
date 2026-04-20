@@ -158,6 +158,19 @@ export function categorizeTestFiles(testFiles) {
   return categories;
 }
 
+/**
+ * Count test files that live under dedicated test directories such as `test/`
+ * or `__tests__/`, regardless of whether those directories are at the repo root
+ * or nested under source folders.
+ *
+ * @pure
+ * @param {string[]} testFiles - Array of test file paths
+ * @returns {number} Count of files in dedicated test directories
+ */
+export function countDedicatedTestDirectoryFiles(testFiles) {
+  return testFiles.filter((file) => /(?:^|\/)(?:test|__tests__)\//.test(file)).length;
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Coverage Analysis
 // ============================================================================
@@ -451,6 +464,8 @@ export class Step6TestReviewer {
               testFiles.map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f))
             ),
           ];
+          const totalDedicatedDirTests = countDedicatedTestDirectoryFiles(uniqueTestFiles);
+          const totalColocatedTests = uniqueTestFiles.length - totalDedicatedDirTests;
 
           const partitionCache = new Step10PartitionCache({
             cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
@@ -553,9 +568,6 @@ export class Step6TestReviewer {
                 return `### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``;
               });
               const testFileContents = fileContentSections.join('\n\n');
-              const testsInTestsDir = sliceFiles.filter((f) =>
-                /\/__tests__\/|\/test\//.test(f)
-              ).length;
 
               let prompt;
               if (sharedParsedYaml) {
@@ -572,8 +584,9 @@ export class Step6TestReviewer {
                     test_command: configTestCommand,
                     coverage_command: configCovCommand,
                     test_count: String(testFiles.length),
-                    tests_in_tests_dir: String(testsInTestsDir),
-                    tests_colocated: String(sliceFiles.length - testsInTestsDir),
+                    scoped_test_count: String(sliceFiles.length),
+                    tests_in_tests_dir: String(totalDedicatedDirTests),
+                    tests_colocated: String(totalColocatedTests),
                     test_files: sliceFiles.join(', '),
                     test_file_contents: testFileContents,
                   });

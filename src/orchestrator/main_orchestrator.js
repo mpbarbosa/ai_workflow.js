@@ -56,9 +56,68 @@ export const WORKFLOW_STAGES = Object.freeze({
 export const HEALTH_CHECK_CATEGORIES = Object.freeze({
   ENVIRONMENT: 'environment',
   CONFIGURATION: 'configuration',
-  DEPENDENCIES: 'dependencies',
+  PREFLIGHT: 'preflight',
   FILESYSTEM: 'filesystem',
 });
+
+const PRE_FLIGHT_QUALITY_SCRIPT_ORDER = Object.freeze(['lint', 'test', 'build']);
+const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
+const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
+
+function buildPackageScriptCommand(packageManager, scriptName) {
+  switch (packageManager) {
+    case 'yarn':
+      return `yarn ${scriptName}`;
+    case 'pnpm':
+      return scriptName === 'test' ? 'pnpm test' : `pnpm run ${scriptName}`;
+    case 'bun':
+      return `bun run ${scriptName}`;
+    case 'npm':
+    default:
+      return scriptName === 'test' ? 'npm test' : `npm run ${scriptName}`;
+  }
+}
+
+/**
+ * Detect the package manager to use for Node.js quality scripts.
+ * @pure
+ * @param {Object} [packageJson={}] - Parsed package.json
+ * @param {string[]} [availableFiles=[]] - Files present in the project root
+ * @returns {string} Package manager name
+ */
+export function detectPreflightPackageManager(packageJson = {}, availableFiles = []) {
+  const packageManagerField = packageJson?.packageManager;
+  if (typeof packageManagerField === 'string' && packageManagerField.trim()) {
+    const [name] = packageManagerField.split('@');
+    if (name) {
+      return name;
+    }
+  }
+
+  const files = new Set(availableFiles);
+  if (files.has('pnpm-lock.yaml')) return 'pnpm';
+  if (files.has('yarn.lock')) return 'yarn';
+  if (files.has('bun.lockb') || files.has('bun.lock')) return 'bun';
+  return 'npm';
+}
+
+/**
+ * Build the ordered list of pre-flight quality commands from package scripts.
+ * @pure
+ * @param {Object} [packageJson={}] - Parsed package.json
+ * @param {string} [packageManager='npm'] - Package manager command prefix
+ * @returns {{name: string, command: string}[]} Ordered commands to run
+ */
+export function getPreflightQualityCommands(packageJson = {}, packageManager = 'npm') {
+  const scripts = packageJson?.scripts ?? {};
+
+  return PRE_FLIGHT_QUALITY_SCRIPT_ORDER.filter((scriptName) => Boolean(scripts[scriptName])).map(
+    (scriptName) => ({
+      name: scriptName,
+      command: buildPackageScriptCommand(packageManager, scriptName),
+    })
+  );
+}
 
 const STEP_EXECUTOR_LOADERS = Object.freeze({
   step_00: () => import('../steps/step_00_analyze.js').then(({ Step0Analyzer }) => Step0Analyzer),
@@ -1125,6 +1184,35 @@ export class MainOrchestrator {
     const results = performHealthChecks(environment);
 
     if (results.passed) {
+      const qualityChecks = await this._runPreflightQualitySuites(this.projectRoot);
+      results.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] = qualityChecks;
+      results.passed = results.passed && qualityChecks.passed;
+
+      if (qualityChecks.skipped) {
+        logger.info(`Skipping pre-flight quality suites: ${qualityChecks.message}`);
+      } else if (qualityChecks.passed) {
+        logger.info(
+          `${colors.green}✓${colors.reset} Pre-flight quality suites passed (${qualityChecks.commands.map((check) => check.name).join(', ')})`
+        );
+      } else {
+        logger.error(
+          `${colors.red}✗${colors.reset} Pre-flight quality suites failed: ${qualityChecks.failedCommand}`
+        );
+        if (qualityChecks.failureOutput) {
+          logger.error(qualityChecks.failureOutput);
+        }
+        if (qualityChecks.failureArtifact) {
+          logger.error(`Full pre-flight failure output saved to: ${qualityChecks.failureArtifact}`);
+        }
+        if (qualityChecks.failureArtifactError) {
+          logger.warn(
+            `Failed to persist full pre-flight failure output: ${qualityChecks.failureArtifactError}`
+          );
+        }
+      }
+    }
+
+    if (results.passed) {
       logger.info(`${colors.green}✓${colors.reset} All health checks passed`);
     } else {
       logger.warn(`${colors.yellow}⚠${colors.reset} Some health checks failed`);
@@ -1136,6 +1224,112 @@ export class MainOrchestrator {
     }
 
     return results;
+  }
+
+  async _runPreflightQualitySuites(projectRoot) {
+    let packageJson;
+    try {
+      const packageJsonRaw = await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8');
+      packageJson = JSON.parse(packageJsonRaw);
+    } catch {
+      return {
+        passed: true,
+        skipped: true,
+        commands: [],
+        message: 'No package.json found in project root',
+      };
+    }
+
+    const projectEntries = await fs.readdir(projectRoot).catch(() => []);
+    const packageManager = detectPreflightPackageManager(packageJson, projectEntries);
+    const commands = getPreflightQualityCommands(packageJson, packageManager);
+
+    if (commands.length === 0) {
+      return {
+        passed: true,
+        skipped: true,
+        commands: [],
+        packageManager,
+        message: 'No lint/test/build scripts found',
+      };
+    }
+
+    const results = [];
+    for (const suite of commands) {
+      logger.info(`Running pre-flight quality suite: ${suite.command}`);
+      try {
+        await executorModule(suite.command, {
+          cwd: projectRoot,
+          shell: true,
+          timeout: PRE_FLIGHT_COMMAND_TIMEOUT_MS,
+        });
+        results.push({ ...suite, passed: true });
+      } catch (error) {
+        const fullFailureOutput = [error?.stdout, error?.stderr, error?.output]
+          .filter((value) => typeof value === 'string' && value.trim())
+          .join('\n')
+          .trim();
+        const failureOutput = fullFailureOutput
+          .split('\n')
+          .slice(-PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES)
+          .join('\n');
+        let failureArtifact = null;
+        let failureArtifactError = null;
+        if (fullFailureOutput) {
+          try {
+            failureArtifact = await this._writePreflightFailureArtifact(
+              suite.name,
+              suite.command,
+              fullFailureOutput
+            );
+          } catch (artifactError) {
+            failureArtifactError = artifactError.message;
+          }
+        }
+
+        results.push({
+          ...suite,
+          passed: false,
+          exitCode: error?.exitCode ?? 1,
+        });
+
+        return {
+          passed: false,
+          skipped: false,
+          packageManager,
+          commands: results,
+          failedCommand: suite.command,
+          failureOutput,
+          failureArtifact,
+          failureArtifactError,
+          message: `Command failed: ${suite.command}`,
+        };
+      }
+    }
+
+    return {
+      passed: true,
+      skipped: false,
+      packageManager,
+      commands: results,
+      message: `Ran ${results.length} pre-flight quality suite(s)`,
+    };
+  }
+
+  async _writePreflightFailureArtifact(suiteName, command, output) {
+    if (!this.logsRunDir) {
+      return null;
+    }
+
+    const artifactDir = path.join(this.logsRunDir, 'preflight');
+    const safeSuiteName = suiteName.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase();
+    const artifactPath = path.join(artifactDir, `${safeSuiteName || 'preflight'}.log`);
+    const artifactContent = [`Command: ${command}`, '', output].join('\n');
+
+    await fs.mkdir(artifactDir, { recursive: true });
+    await fs.writeFile(artifactPath, artifactContent, 'utf8');
+
+    return artifactPath;
   }
 
   /**
@@ -1576,6 +1770,7 @@ export class MainOrchestrator {
         duration,
       };
     } catch (error) {
+      logger.error(`${colors.red}✗ Workflow terminated before completion${colors.reset}`);
       logger.error(`${colors.red}✗ Workflow failed: ${error.message}${colors.reset}`);
       await logger.closeLogFile();
 

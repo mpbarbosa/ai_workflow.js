@@ -262,9 +262,6 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
   const sourceLayers = (facts.sourceLayers ?? [])
     .map(({ path: layerPath, purpose }) => `- \`${layerPath}\` - ${purpose}`)
     .join('\n');
-  const referenceDocSignals = (facts.referenceDocSignals ?? [])
-    .map((signal) => `- ${signal}`)
-    .join('\n');
   const referenceDocs = (facts.referenceDocs ?? []).map((doc) => `- \`${doc}\``).join('\n');
   const supportingSurfaces = (facts.supportingSurfaces ?? [])
     .map(({ path: surfacePath, purpose }) => `- \`${surfacePath}\` - ${purpose}`)
@@ -302,9 +299,6 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
     '',
     '### Supporting Workflow Surfaces',
     supportingSurfaces || '- Unavailable',
-    '',
-    '### Reference Doc Signals',
-    referenceDocSignals || '- Unavailable',
     '',
     '### Authoritative Reference Docs',
     referenceDocs || '- Unavailable',

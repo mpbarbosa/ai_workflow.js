@@ -260,10 +260,10 @@ export class Step19TypescriptReview {
           const promptContext = {
             project_name: options.projectName ?? path.basename(projectRoot),
             project_description: options.projectDescription ?? '',
-            project_kind: options.projectKind ?? 'nodejs_api',
+            project_kind: options.projectKind ?? 'unknown',
             primary_language: 'TypeScript',
-            build_system: 'tsc / Vite / Webpack',
-            test_framework: 'Jest / ts-jest / Vitest',
+            build_system: 'Visible TypeScript toolchain (verify from provided config)',
+            test_framework: 'Visible test tooling only',
             test_command: 'npm test',
             lint_command: 'npm run lint',
             source_file_count: String(tsFiles.length),

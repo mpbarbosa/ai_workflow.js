@@ -1,19 +1,8 @@
 // test/review_step_helpers.test.js
 
-import {
-  MAX_PROMPT_ENTRY_CHARS,
-  MAX_PROMPT_PARTITION_CHARS,
-  MAX_PROMPT_ENTRIES_PER_PARTITION,
-  MAX_FILE_PATHS_IN_CONTEXT,
-  splitReviewPromptEntry,
-  buildReviewPromptPartitions,
-  buildReviewFileContentsBlock,
-  buildPartitionFilePathsContext,
-  runPartitionedAiResponses,
-  runPartitionedAiAnalysis,
-} from '../src/lib/review_step_helpers.js';
+import { jest } from '@jest/globals';
 
-jest.mock('../src/lib/review_prompt_scope.js', () => ({
+jest.unstable_mockModule('../../src/lib/review_prompt_scope.js', () => ({
   buildPromptFileContentsBlock: jest.fn((entries) => entries.map((e) => e.content).join('\n')),
   buildPromptPartitions: jest.fn((fileEntries, _opts) => [
     {
@@ -53,6 +42,19 @@ jest.mock('../src/lib/review_prompt_scope.js', () => ({
     return chunks;
   }),
 }));
+
+const {
+  MAX_PROMPT_ENTRY_CHARS,
+  MAX_PROMPT_PARTITION_CHARS,
+  MAX_PROMPT_ENTRIES_PER_PARTITION,
+  MAX_FILE_PATHS_IN_CONTEXT,
+  splitReviewPromptEntry,
+  buildReviewPromptPartitions,
+  buildReviewFileContentsBlock,
+  buildPartitionFilePathsContext,
+  runPartitionedAiResponses,
+  runPartitionedAiAnalysis,
+} = await import('../../src/lib/review_step_helpers.js');
 
 describe('review_step_helpers', () => {
   describe('constants', () => {

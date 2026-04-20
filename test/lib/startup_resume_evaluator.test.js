@@ -9,8 +9,11 @@ import {
   parseLogDirTimestamp,
   sortLogDirsByRecency,
   detectWorkflowCompletion,
+  detectWorkflowTerminalState,
   buildAutoResumeDecision,
   COMPLETION_MARKERS,
+  TERMINAL_FAILURE_MARKERS,
+  WORKFLOW_TERMINAL_STATES,
   LOG_DIR_PATTERN,
   StartupResumeEvaluator,
 } from '../../src/lib/startup_resume_evaluator.js';
@@ -141,6 +144,37 @@ describe('startup_resume_evaluator - Pure Functions', () => {
       ].join('\n');
       expect(detectWorkflowCompletion(log)).toBe(true);
     });
+
+    test('returns false for terminal failure markers that are not completion markers', () => {
+      const log = `[T] ${TERMINAL_FAILURE_MARKERS[0]}\n[T] Health checks failed`;
+      expect(detectWorkflowCompletion(log)).toBe(false);
+    });
+  });
+
+  describe('detectWorkflowTerminalState', () => {
+    test('returns completed for success markers', () => {
+      expect(detectWorkflowTerminalState('[T] ✓ Workflow completed successfully')).toBe(
+        WORKFLOW_TERMINAL_STATES.COMPLETED
+      );
+    });
+
+    test('returns completed_with_failures for warning markers', () => {
+      expect(detectWorkflowTerminalState('[T] ⚠ Workflow completed with failures')).toBe(
+        WORKFLOW_TERMINAL_STATES.COMPLETED_WITH_FAILURES
+      );
+    });
+
+    test('returns failed for terminal failure markers', () => {
+      expect(detectWorkflowTerminalState(`[T] ${TERMINAL_FAILURE_MARKERS[0]}`)).toBe(
+        WORKFLOW_TERMINAL_STATES.FAILED
+      );
+    });
+
+    test('returns null when the run is incomplete', () => {
+      expect(
+        detectWorkflowTerminalState('[T] Starting workflow...\n[T] step_02 started')
+      ).toBeNull();
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -154,6 +188,7 @@ describe('startup_resume_evaluator - Pure Functions', () => {
       expect(result.shouldResume).toBe(false);
       expect(result.checkpointId).toBeNull();
       expect(result.workflowId).toBeNull();
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.NONE);
       expect(typeof result.reason).toBe('string');
     });
 
@@ -167,6 +202,7 @@ describe('startup_resume_evaluator - Pure Functions', () => {
       expect(result.checkpointId).toBeNull();
       expect(result.workflowId).toBe('workflow_20260312_151321');
       expect(result.logDirName).toBe('workflow_20260312_151321');
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.COMPLETED);
     });
 
     test('returns no-resume when incomplete but no checkpoint', () => {
@@ -177,6 +213,7 @@ describe('startup_resume_evaluator - Pure Functions', () => {
       });
       expect(result.shouldResume).toBe(false);
       expect(result.checkpointId).toBeNull();
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.INCOMPLETE);
       expect(result.reason).toContain('no valid checkpoint');
     });
 
@@ -195,6 +232,7 @@ describe('startup_resume_evaluator - Pure Functions', () => {
       expect(result.checkpointId).toBe('workflow_20260312_151321-1741796001481');
       expect(result.workflowId).toBe('workflow_20260312_151321');
       expect(result.logDirName).toBe('workflow_20260312_151321');
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.INCOMPLETE);
       expect(result.reason).toContain('workflow_20260312_151321');
     });
 
@@ -337,6 +375,15 @@ describe('StartupResumeEvaluator - Integration', () => {
       await writeLog(RUN, '[T] ⚠ Workflow completed with failures\n[T] Duration: 60s');
       const result = await evaluator.evaluate();
       expect(result.shouldResume).toBe(false);
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.COMPLETED_WITH_FAILURES);
+    });
+
+    test('returns no-resume when last log contains a terminal pre-completion failure marker', async () => {
+      const RUN = 'workflow_20260312_151321';
+      await writeLog(RUN, `[T] ${TERMINAL_FAILURE_MARKERS[0]}\n[T] Health checks failed`);
+      const result = await evaluator.evaluate();
+      expect(result.shouldResume).toBe(false);
+      expect(result.lastRunState).toBe(WORKFLOW_TERMINAL_STATES.FAILED);
     });
 
     test('evaluates only the most recent directory when multiple exist', async () => {
@@ -373,16 +420,16 @@ describe('StartupResumeEvaluator - Integration', () => {
       expect(result.logDirName).toBe(RUN);
     });
 
-    test('falls back to globally latest checkpoint when no run-specific one exists', async () => {
+    test('does not resume a checkpoint from a different run when no run-specific one exists', async () => {
       const RUN = 'workflow_20260312_151321';
       await writeLog(RUN, '[T] Starting workflow...');
-      // Checkpoint belongs to a different (older) run
-      const cpId = await writeCheckpoint('workflow_20260101_100000');
+      await writeCheckpoint('workflow_20260101_100000');
 
       const result = await evaluator.evaluate();
 
-      expect(result.shouldResume).toBe(true);
-      expect(result.checkpointId).toBe(cpId);
+      expect(result.shouldResume).toBe(false);
+      expect(result.checkpointId).toBeNull();
+      expect(result.reason).toContain('no valid checkpoint');
     });
 
     test('chooses the most recent log dir even when older dirs are present', async () => {
@@ -491,6 +538,15 @@ describe('StartupResumeEvaluator - Integration', () => {
       await writeLog('workflow_20260312_151321', '[T] Starting...\n[T] step_02 started');
       const result = await evaluator.isWorkflowIncomplete('workflow_20260312_151321');
       expect(result).toBe(true);
+    });
+
+    test('returns false when log contains a terminal failure marker', async () => {
+      await writeLog(
+        'workflow_20260312_151321',
+        `[T] ${TERMINAL_FAILURE_MARKERS[0]}\n[T] Health checks failed`
+      );
+      const result = await evaluator.isWorkflowIncomplete('workflow_20260312_151321');
+      expect(result).toBe(false);
     });
   });
 });

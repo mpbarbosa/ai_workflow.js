@@ -75,7 +75,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.2.11',
+        packageVersion: '2.2.12',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -99,14 +99,15 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
       expect(context).toContain('package.json present: yes');
-      expect(context).toContain('Package version: `2.2.11`');
+      expect(context).toContain('Package version: `2.2.12`');
       expect(context).toContain('Prefer links to authoritative docs over duplicated inventories');
       expect(context).toContain('- Lint: `npm run lint`');
       expect(context).toContain('`src/lib/`');
       expect(context).toContain('`.workflow_core/`');
-      expect(context).toContain('README.md: # ai-workflow Workflow automation toolkit');
       expect(context).toContain('`README.md`');
       expect(context).toContain('`main -> dist/index.js`');
+      expect(context).not.toContain('### Reference Doc Signals');
+      expect(context).not.toContain('README.md: # ai-workflow Workflow automation toolkit');
       expect(context).not.toContain('Step file count');
     });
   });
@@ -176,7 +177,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.2.11',
+            version: '2.2.12',
             description: 'Workflow automation',
             main: 'dist/index.js',
             types: 'dist/index.d.ts',
@@ -400,7 +401,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         expect.stringContaining('package.json present: no'),
         expect.any(Object)
       );
-      expect(aiHelper.executeRequest).toHaveBeenCalledWith(
+      expect(aiHelper.executeRequest).not.toHaveBeenCalledWith(
         expect.stringContaining('### Reference Doc Signals'),
         expect.any(Object)
       );

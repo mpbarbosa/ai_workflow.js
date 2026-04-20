@@ -307,13 +307,16 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
           '**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]'
         );
         expect(prompt).toContain("Resolve the target relative to the source file's directory");
+        expect(prompt).toContain('classify it as **False Positive** and recommend no action');
         expect(prompt).toContain('recommend the exact relative correction');
+        expect(prompt).toContain('never suggest a repo-root-looking path for a nested source file');
         expect(prompt).toContain('Do not explain a broken-reference candidate by saying only');
         expect(prompt).toContain('keep the conclusion narrowly scoped to the evidence that was');
         expect(prompt).toContain('Do not claim that no version numbers or badges are present');
         expect(prompt).toContain(
           'Do not claim heading, list, or code-fence consistency across files'
         );
+        expect(prompt).toContain('Do not write negative pass findings such as');
       });
 
       test('execute() injects markdown contents and uses documentation-specialist overlay', async () => {

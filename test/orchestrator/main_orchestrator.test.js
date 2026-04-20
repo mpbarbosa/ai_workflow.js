@@ -15,13 +15,38 @@ import {
   calculateProgress,
   determineWorkflowStatus,
   performHealthChecks,
+  detectPreflightPackageManager,
+  getPreflightQualityCommands,
   MainOrchestrator,
   WORKFLOW_STAGES,
   HEALTH_CHECK_CATEGORIES,
 } from '../../src/orchestrator/main_orchestrator.js';
 
+import { jest } from '@jest/globals';
 import fs from 'fs/promises';
 import path from 'path';
+
+function mockSkippedPreflightSuites(orchestrator) {
+  return jest.spyOn(orchestrator, '_runPreflightQualitySuites').mockResolvedValue({
+    passed: true,
+    skipped: true,
+    commands: [],
+    message: 'No package.json found in project root',
+  });
+}
+
+beforeEach(() => {
+  jest.spyOn(MainOrchestrator.prototype, '_runPreflightQualitySuites').mockResolvedValue({
+    passed: true,
+    skipped: true,
+    commands: [],
+    message: 'No package.json found in project root',
+  });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 // ============================================================================
 // PURE FUNCTION TESTS
@@ -511,6 +536,39 @@ describe('Main Orchestrator - Pure Functions', () => {
     });
   });
 
+  describe('pre-flight quality helpers', () => {
+    test('detects package manager from packageManager field first', () => {
+      expect(
+        detectPreflightPackageManager({ packageManager: 'pnpm@10.0.0' }, ['package-lock.json'])
+      ).toBe('pnpm');
+    });
+
+    test('falls back to lockfiles when packageManager field is absent', () => {
+      expect(detectPreflightPackageManager({}, ['yarn.lock'])).toBe('yarn');
+      expect(detectPreflightPackageManager({}, ['pnpm-lock.yaml'])).toBe('pnpm');
+      expect(detectPreflightPackageManager({}, [])).toBe('npm');
+    });
+
+    test('builds ordered pre-flight quality commands from package scripts', () => {
+      expect(
+        getPreflightQualityCommands(
+          {
+            scripts: {
+              build: 'tsc',
+              lint: 'eslint .',
+              test: 'jest',
+            },
+          },
+          'npm'
+        )
+      ).toEqual([
+        { name: 'lint', command: 'npm run lint' },
+        { name: 'test', command: 'npm test' },
+        { name: 'build', command: 'npm run build' },
+      ]);
+    });
+  });
+
   describe('Constants', () => {
     test('WORKFLOW_STAGES should be frozen', () => {
       expect(Object.isFrozen(WORKFLOW_STAGES)).toBe(true);
@@ -628,6 +686,7 @@ describe('Main Orchestrator - Integration Tests', () => {
   describe('Health Checks', () => {
     beforeEach(() => {
       orchestrator = new MainOrchestrator({ workflowDir: testDir });
+      mockSkippedPreflightSuites(orchestrator);
     });
 
     test('should perform health checks successfully', async () => {
@@ -1706,6 +1765,7 @@ describe('Main Orchestrator - Integration Tests', () => {
 
     test('healthCheck returns results with passed flag', async () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      mockSkippedPreflightSuites(orch);
       const result = await orch.healthCheck();
       expect(result).toHaveProperty('passed');
       expect(result).toHaveProperty('checks');
@@ -1713,12 +1773,14 @@ describe('Main Orchestrator - Integration Tests', () => {
 
     test('healthCheck reports workflowDirWritable=true for a writable dir', async () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      mockSkippedPreflightSuites(orch);
       const result = await orch.healthCheck();
       expect(result.checks.filesystem.workflowDirWritable).toBe(true);
     });
 
     test('healthCheck reports workflowDirWritable=false for a non-existent dir', async () => {
       const orch = new MainOrchestrator({ workflowDir: '/nonexistent/path/abc123' });
+      mockSkippedPreflightSuites(orch);
       const result = await orch.healthCheck();
       expect(result.checks.filesystem.workflowDirWritable).toBe(false);
     });
@@ -1769,6 +1831,7 @@ describe('Main Orchestrator - Integration Tests', () => {
 
     test('healthCheck warns when config check fails', async () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      mockSkippedPreflightSuites(orch);
       // Null out configManager so the config health check fails
       orch.configManager = null;
       const result = await orch.healthCheck();
@@ -1776,13 +1839,38 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result.checks.configuration.passed).toBe(false);
     });
 
+    test('healthCheck fails when a pre-flight quality suite fails', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      jest.spyOn(orch, '_runPreflightQualitySuites').mockResolvedValue({
+        passed: false,
+        skipped: false,
+        commands: [
+          { name: 'lint', command: 'npm run lint', passed: true },
+          { name: 'test', command: 'npm test', passed: false, exitCode: 1 },
+        ],
+        failedCommand: 'npm test',
+        failureOutput: 'Test failure',
+        message: 'Command failed: npm test',
+      });
+
+      const result = await orch.healthCheck();
+
+      expect(result.passed).toBe(false);
+      expect(result.checks.preflight.failedCommand).toBe('npm test');
+    });
+
     test('execute returns failure when health checks fail', async () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
       // Override healthCheck to return failure
       orch.healthCheck = async () => ({ passed: false, checks: {} });
       const result = await orch.execute({});
+      const logContent = await fs.readFile(
+        path.join(localTestDir, 'logs', orch.configManager.workflowRunId, 'workflow.log'),
+        'utf8'
+      );
       expect(result.success).toBe(false);
       expect(result.error).toContain('Health checks failed');
+      expect(logContent).toContain('✗ Workflow terminated before completion');
     });
 
     test('resume emits step events during workflow execution', async () => {

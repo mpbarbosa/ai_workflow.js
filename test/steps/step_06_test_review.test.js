@@ -3,6 +3,10 @@
  * @group steps
  */
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import {
   Step6TestReviewer,
   getTestPatterns,
@@ -10,6 +14,7 @@ import {
   getCoverageCommand,
   isTestFile,
   categorizeTestFiles,
+  countDedicatedTestDirectoryFiles,
   parseCoveragePercentage,
   getCoverageStatus,
   calculateTestStatistics,
@@ -137,6 +142,24 @@ describe('Step 6: Test Review', () => {
       expect(result.integration).toHaveLength(0);
       expect(result.e2e).toHaveLength(0);
       expect(result.other).toHaveLength(0);
+    });
+  });
+
+  describe('countDedicatedTestDirectoryFiles', () => {
+    test('counts root and nested dedicated test directories', () => {
+      const files = [
+        'test/cli/commands/clean.test.js',
+        'src/__tests__/helpers.test.js',
+        'src/lib/utils.test.js',
+      ];
+
+      expect(countDedicatedTestDirectoryFiles(files)).toBe(2);
+    });
+
+    test('returns zero for co-located tests only', () => {
+      const files = ['src/lib/utils.test.js', 'src/cli/output.test.js'];
+
+      expect(countDedicatedTestDirectoryFiles(files)).toBe(0);
     });
   });
 
@@ -460,6 +483,51 @@ describe('Step 6: Test Review', () => {
       });
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
+    });
+
+    test('uses global test-directory counts and per-slice scope in AI prompts', async () => {
+      const prompts = [];
+      const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-review-'));
+      mockFileOps.glob = () =>
+        Promise.resolve([
+          'test/cli/commands/clean.test.js',
+          'src/__tests__/helpers.test.js',
+          'src/lib/utils.test.js',
+        ]);
+      mockFileOps.readFile = (filePath) => {
+        if (String(filePath).endsWith('ai_helpers.yaml')) {
+          return Promise.resolve(`
+step6_test_review_prompt:
+  role: Test reviewer
+  task_template: |
+    total={test_count}
+    dedicated={tests_in_tests_dir}
+    colocated={tests_colocated}
+    scope={scoped_test_count}
+  approach: |
+    noop
+`);
+        }
+        return Promise.resolve('// visible test content');
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve({ content: 'ok' });
+      };
+      mockAiCache.withFileChangeGuard = (_key, _entries, fn) => fn();
+      try {
+        const result = await reviewer.execute(tempProjectRoot);
+
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain('total=3');
+        expect(prompts[0]).toContain('dedicated=2');
+        expect(prompts[0]).toContain('colocated=1');
+        expect(prompts[0]).toContain('scope=3');
+      } finally {
+        fs.rmSync(tempProjectRoot, { recursive: true, force: true });
+      }
     });
   });
 });

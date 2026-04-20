@@ -1,32 +1,31 @@
 // test/step_analysis_helpers.test.js
 
-import {
-  buildStepDependencies,
-  initializeAiServices,
-  appendAiRecommendations,
-} from '../src/steps/step_analysis_helpers.js';
+import { jest } from '@jest/globals';
 
-jest.mock('../src/lib/file_operations.js', () => ({
-  FileOperations: jest.fn().mockImplementation(() => ({ type: 'FileOperations' })),
+const FileOperations = jest.fn().mockImplementation(() => ({ type: 'FileOperations' }));
+const Backlog = jest.fn().mockImplementation(() => ({ type: 'Backlog' }));
+const AiHelper = jest.fn().mockImplementation((opts) => ({ type: 'AiHelper', opts }));
+const AiCache = jest.fn().mockImplementation(() => ({ type: 'AiCache' }));
+const TechStackDetector = jest.fn().mockImplementation(() => ({ type: 'TechStackDetector' }));
+
+jest.unstable_mockModule('../../src/lib/file_operations.js', () => ({
+  FileOperations,
 }));
-jest.mock('../src/lib/backlog.js', () => ({
-  Backlog: jest.fn().mockImplementation(() => ({ type: 'Backlog' })),
+jest.unstable_mockModule('../../src/lib/backlog.js', () => ({
+  Backlog,
 }));
-jest.mock('../src/lib/ai_helpers.js', () => ({
-  AiHelper: jest.fn().mockImplementation((opts) => ({ type: 'AiHelper', opts })),
+jest.unstable_mockModule('../../src/lib/ai_helpers.js', () => ({
+  AiHelper,
 }));
-jest.mock('../src/lib/ai_cache.js', () => ({
-  AiCache: jest.fn().mockImplementation(() => ({ type: 'AiCache' })),
+jest.unstable_mockModule('../../src/lib/ai_cache.js', () => ({
+  AiCache,
 }));
-jest.mock('../src/lib/tech_stack.js', () => ({
-  TechStackDetector: jest.fn().mockImplementation(() => ({ type: 'TechStackDetector' })),
+jest.unstable_mockModule('../../src/lib/tech_stack.js', () => ({
+  TechStackDetector,
 }));
 
-const { FileOperations } = require('../src/lib/file_operations.js');
-const { Backlog } = require('../src/lib/backlog.js');
-const { AiHelper } = require('../src/lib/ai_helpers.js');
-const { AiCache } = require('../src/lib/ai_cache.js');
-const { TechStackDetector } = require('../src/lib/tech_stack.js');
+const { buildStepDependencies, initializeAiServices, appendAiRecommendations } =
+  await import('../../src/steps/step_analysis_helpers.js');
 
 describe('step_analysis_helpers', () => {
   describe('buildStepDependencies', () => {

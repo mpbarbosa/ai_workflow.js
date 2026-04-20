@@ -42,7 +42,9 @@ describe('step1_5_copilot_instructions_prompt', () => {
     expect(prompt).toContain('Authoritative Repo Facts');
     expect(prompt).toContain('First decide whether each section is');
     expect(prompt).toContain('Do NOT recreate exhaustive inventories');
-    expect(prompt).toContain('including any surfaced reference-doc titles or snippets');
+    expect(prompt).toContain(
+      'Treat the authoritative repo facts block and the current file excerpt above as the only visible evidence'
+    );
     expect(prompt).toContain('omit it or rewrite it in generic terms');
     expect(prompt).toContain(
       'do not mark it unsupported solely because the full document is not reproduced'

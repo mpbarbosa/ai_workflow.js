@@ -920,6 +920,14 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('unavailable or inconclusive');
       expect(result).toContain('Do not claim CI stability, performance health');
     });
+
+    test('forbids unsupported positive summaries about mocks or performance', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('all mocks are restored');
+      expect(result).toContain('no performance issues');
+      expect(result).toContain('no major anti-patterns');
+    });
   });
 
   describe('buildTestGenPrompt', () => {

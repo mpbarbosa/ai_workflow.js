@@ -500,10 +500,15 @@ export function groupConfigFilesList(relPaths) {
   /** @type {Map<string, string[]>} */
   const groups = new Map();
   for (const p of relPaths) {
-    const slash = p.lastIndexOf('/');
-    const dir = slash === -1 ? 'Root' : p.slice(0, slash);
+    const normalizedPath = String(p ?? '').replace(/\\/g, '/');
+    const partitionSuffixMatch = normalizedPath.match(/^(.*?)( \(part \d+\/\d+\))$/);
+    const basePath = partitionSuffixMatch?.[1] ?? normalizedPath;
+    const suffix = partitionSuffixMatch?.[2] ?? '';
+    const slash = basePath.lastIndexOf('/');
+    const dir = slash === -1 ? 'Root' : basePath.slice(0, slash);
+    const fileName = slash === -1 ? basePath : basePath.slice(slash + 1);
     if (!groups.has(dir)) groups.set(dir, []);
-    groups.get(dir).push(slash === -1 ? p : p.slice(slash + 1));
+    groups.get(dir).push(`${fileName}${suffix}`);
   }
   return Array.from(groups.entries())
     .map(([dir, files]) => `**${dir}**: ${files.join(', ')}`)

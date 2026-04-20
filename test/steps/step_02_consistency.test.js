@@ -953,6 +953,26 @@ describe('Step 2: Consistency Analysis', () => {
       expect(result.reason).toBe('unsupported_global_claim');
     });
 
+    test('returns adequate=false when flagged-item responses also include unsupported negative pass claims', () => {
+      const response = `
+### Reference: docs/api/html/media/SETUP.md:21 → ../getting-started/INSTALLATION.md
+- **Status**: Confirmed Broken
+- **Root Cause**: The target is missing.
+- **Recommended Fix**: Update the link.
+
+- No visible inconsistencies with other files in this partition.
+- No evidence of mismatched terminology or naming conventions.
+- No missing cross-references detected in the visible content.
+      `.repeat(4);
+
+      const result = validateAiResponseQuality(response, flaggedItems, {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('unsupported_global_claim');
+    });
+
     test('returns adequate=false when coverage is below threshold', () => {
       // Response doesn't mention any broken targets
       const longResponse = 'A'.repeat(300);

@@ -10,9 +10,9 @@ This file provides concise, project-specific guidance to help Copilot make high-
 
 ---
 
-## Architecture and Source Layers
+## Architecture and Source Boundaries
 
-Respect these stable source boundaries:
+Respect these stable source layers:
 
 - `src/cli/` – CLI commands, prompts, and TUI code
 - `src/core/` – Foundational runtime helpers
@@ -68,8 +68,8 @@ Consult these documents for details:
 - [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) – Repository layout and architecture
 - [docs/CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md) – CLI command and option reference
 - [docs/guides/MIGRATION_GUIDE.md](../docs/guides/MIGRATION_GUIDE.md) – Migration context
-- `CHANGELOG.md`, `CONTRIBUTING.md`
-- `package.json` – Package metadata, scripts, exports
+- `CHANGELOG.md`, `CONTRIBUTING.md`, `ROADMAP.md`
+- `package.json` – Package metadata, scripts, exports, and entry points
 
 ---
 

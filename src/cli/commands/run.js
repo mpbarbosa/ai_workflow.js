@@ -131,7 +131,13 @@ export function formatLastExecutionStatus(projectRoot, decision, checkpoint) {
     const stepInfo = checkpoint ? ` (${checkpoint.state.completedSteps} steps done)` : '';
     lines.push(chalk.yellow(`Last run: ⚠ incomplete on ${dateStr}${stepInfo}`));
   } else {
-    lines.push(chalk.gray(`Last run: ✓ completed on ${dateStr}`));
+    if (decision.lastRunState === 'failed') {
+      lines.push(chalk.red(`Last run: ✗ failed before completion on ${dateStr}`));
+    } else if (decision.lastRunState === 'completed_with_failures') {
+      lines.push(chalk.yellow(`Last run: ⚠ completed with failures on ${dateStr}`));
+    } else {
+      lines.push(chalk.gray(`Last run: ✓ completed on ${dateStr}`));
+    }
   }
 
   return lines;

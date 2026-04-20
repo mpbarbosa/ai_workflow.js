@@ -554,50 +554,53 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
     return { adequate: false, reason: 'empty_response', coverage: 0 };
   }
 
+  const normalized = aiResponse.toLowerCase();
+
   // Generic catch-all responses (< 200 chars) that contain no per-item analysis
   if (aiResponse.trim().length < 200 && flaggedItems.length > 0) {
     return { adequate: false, reason: 'too_short', coverage: 0 };
   }
 
+  const usesExplicitSafeForm = normalized.includes(
+    'no additional issues found beyond the programmatic scan'
+  );
+  const usesUncertaintyLanguage =
+    normalized.includes('limited or inconclusive') ||
+    normalized.includes('limited') ||
+    normalized.includes('inconclusive') ||
+    normalized.includes('unavailable');
+  const makesBroadSuccessClaim =
+    normalized.includes('all present documentation is consistent') ||
+    normalized.includes('all docs are consistent') ||
+    normalized.includes('all cross-references are intact') ||
+    normalized.includes('no critical or high-priority documentation consistency issues') ||
+    normalized.includes('follows project-specific conventions');
+  const makesUnsupportedScopedPassClaim =
+    normalized.includes('no version numbers or badges are present') ||
+    normalized.includes('no version drift or badge mismatch is possible to flag') ||
+    normalized.includes('all files use atx-style headings') ||
+    normalized.includes('consistent capitalization') ||
+    normalized.includes('all code blocks use triple backticks') ||
+    normalized.includes('specify language tags where appropriate') ||
+    normalized.includes('all referenced files in tables and lists') ||
+    normalized.includes('no missing documentation') ||
+    normalized.includes('no incomplete or stub-level documentation') ||
+    normalized.includes('no referenced documentation files are missing') ||
+    normalized.includes('no inconsistent terminology detected') ||
+    normalized.includes('no visible inconsistencies') ||
+    normalized.includes('no evidence of mismatched terminology') ||
+    normalized.includes('no missing cross-references detected');
+
+  if (
+    options.requireGroundedNoIssueResponse &&
+    !usesExplicitSafeForm &&
+    !usesUncertaintyLanguage &&
+    (makesBroadSuccessClaim || makesUnsupportedScopedPassClaim)
+  ) {
+    return { adequate: false, reason: 'unsupported_global_claim', coverage: 0 };
+  }
+
   if (flaggedItems.length === 0) {
-    if (options.requireGroundedNoIssueResponse) {
-      const normalized = aiResponse.toLowerCase();
-      const usesExplicitSafeForm = normalized.includes(
-        'no additional issues found beyond the programmatic scan'
-      );
-      const usesUncertaintyLanguage =
-        normalized.includes('limited or inconclusive') ||
-        normalized.includes('limited') ||
-        normalized.includes('inconclusive') ||
-        normalized.includes('unavailable');
-      const makesBroadSuccessClaim =
-        normalized.includes('all present documentation is consistent') ||
-        normalized.includes('all docs are consistent') ||
-        normalized.includes('all cross-references are intact') ||
-        normalized.includes('no critical or high-priority documentation consistency issues') ||
-        normalized.includes('follows project-specific conventions');
-      const makesUnsupportedScopedPassClaim =
-        normalized.includes('no version numbers or badges are present') ||
-        normalized.includes('no version drift or badge mismatch is possible to flag') ||
-        normalized.includes('all files use atx-style headings') ||
-        normalized.includes('consistent capitalization') ||
-        normalized.includes('all code blocks use triple backticks') ||
-        normalized.includes('specify language tags where appropriate') ||
-        normalized.includes('all referenced files in tables and lists') ||
-        normalized.includes('no missing documentation') ||
-        normalized.includes('no incomplete or stub-level documentation') ||
-        normalized.includes('no referenced documentation files are missing') ||
-        normalized.includes('no inconsistent terminology detected');
-
-      if (
-        !usesExplicitSafeForm &&
-        !usesUncertaintyLanguage &&
-        (makesBroadSuccessClaim || makesUnsupportedScopedPassClaim)
-      ) {
-        return { adequate: false, reason: 'unsupported_global_claim', coverage: 0 };
-      }
-    }
-
     return { adequate: true, reason: 'no_items_to_cover', coverage: 1 };
   }
 

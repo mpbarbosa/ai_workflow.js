@@ -820,6 +820,8 @@ If no semantic issues are apparent from the provided context, respond with: "No 
 - Do not claim heading, list, or code-fence consistency across files unless the exact supporting headings, list items, or fenced blocks are visible for each compared file; otherwise keep the claim scoped to the visible excerpts or mark it inconclusive.
 - Do not claim missing-documentation, missing-cross-reference, or stub-level checks passed merely because a file name appears in the file list; require visible file content or mark the check inconclusive.
 - Unlabelled fenced blocks are not automatically inconsistent; only report a code-block language-tag issue when the exact visible block and a visible project convention support that conclusion.
+- Do not write negative pass findings such as "No visible inconsistencies", "No evidence of mismatched terminology", or "No missing cross-references detected" unless the exact compared artifacts are visibly supported; otherwise phrase the remaining check as limited or inconclusive.
+- If a file path appears in the provided file list but its content is omitted or truncated, do not say the file or section is "not visible"; describe the comparison as unavailable from the visible excerpt instead.
 If key evidence is missing for a requested comparison, say so explicitly and mark that conclusion limited or inconclusive.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
@@ -867,7 +869,8 @@ export function buildTestReviewPrompt(options) {
 - If the project includes CONTRIBUTING.md or documented testing conventions, align recommendations with those conventions
 - Review only the listed files and any explicit file contents provided for them
 - If a listed file is truncated, unavailable, or declarative rather than executable test code, say so explicitly and limit conclusions to the visible evidence
-- Do not claim CI stability, performance health, or repository-wide test quality unless that evidence is shown directly in the prompt`;
+- Do not claim CI stability, performance health, repository-wide test quality, or cross-file mock hygiene unless that evidence is shown directly in the prompt
+- Do not write unsupported positive summaries such as "all mocks are restored", "no performance issues", or "no major anti-patterns" unless the exact supporting file sections are visible and cited`;
 
   const testList = buildFileListContext(testFiles);
 
@@ -887,7 +890,8 @@ If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact 
 2. **Quality Assessment**: Evaluate assertion quality, test clarity, and maintainability
 3. **Best Practices**: Check for proper setup/teardown, mocking, test isolation, and descriptive naming
 4. **Evidence Handling**: Mark missing or truncated evidence as unavailable or inconclusive instead of inferring success
-5. **Recommendations**: Prioritize improvements by impact and effort
+5. **Execution Risk**: Only comment on slow, flaky, CI-sensitive, or non-deterministic behavior when the visible code shows it directly; otherwise mark that area inconclusive
+6. **Recommendations**: Prioritize improvements by impact and effort
 
 **Focus**: Assertion quality, edge cases, error handling, test isolation, and maintainability`;
 
