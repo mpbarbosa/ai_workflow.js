@@ -9,12 +9,12 @@
 import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
-import { FileOperations } from '../lib/file_operations.js';
-import { Backlog } from '../lib/backlog.js';
 import { GitAutomation } from '../lib/git_automation.js';
-import { AiHelper } from '../lib/ai_helpers.js';
-import { AiCache } from '../lib/ai_cache.js';
-import { TechStackDetector } from '../lib/tech_stack.js';
+import {
+  buildStepDependencies,
+  initializeAiServices,
+  appendAiRecommendations,
+} from './step_analysis_helpers.js';
 import {
   buildStructuredPrompt,
   injectProjectContext,
@@ -848,12 +848,8 @@ export class Step4ConfigAnalyzer {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.fileOps = options.fileOps || new FileOperations();
-    this.backlog = options.backlog || new Backlog();
+    Object.assign(this, buildStepDependencies(options));
     this.gitOps = options.gitOps || new GitAutomation();
-    this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
-    this.aiCache = options.aiCache || new AiCache();
-    this.techStack = options.techStack || new TechStackDetector();
   }
 
   /**
@@ -925,11 +921,9 @@ export class Step4ConfigAnalyzer {
 
       // Phase AI: AI-powered configuration analysis
       let parsedAlternatives = { alternatives: [], recommended: null };
-      const aiAvailable = await this.aiHelper.initialize();
       const totalIssues = syntaxErrors.length + securityFindings.length + bestPracticeIssues.length;
+      const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
       if (aiAvailable) {
-        await this.aiCache.init();
-
         // Detect tech stack for prompt context
         let projectKind = options.projectKind ?? '';
         let techStackSummary = '';
@@ -1105,9 +1099,7 @@ ${filesContentBlock}`;
 
         if (aiSections.length > 0 || qualityContent) {
           const aiSection = aiSections.join('\n\n');
-          const sections = aiSection
-            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiSection}`]
-            : [report];
+          const sections = aiSection ? [appendAiRecommendations(report, aiSection)] : [report];
           if (qualityContent) sections.push(`\n\n## Quality Review\n\n${qualityContent}`);
           await this.backlog.saveStepSummary(4, 'Configuration Validation', sections.join(''));
         }
