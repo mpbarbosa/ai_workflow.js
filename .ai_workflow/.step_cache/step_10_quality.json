@@ -44,7 +44,7 @@
     "src/lib/ai_prompt_builder.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-14T10:01:47.592Z"
+      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
     },
     "src/lib/ai_validation.js": {
       "score": 100,
@@ -645,6 +645,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-20T12:58:09.325Z"
+    },
+    "src/lib/startup_resume_evaluator.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
+    },
+    "src/lib/backlog.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
+    },
+    "src/lib/change_detection.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
+    },
+    "src/lib/cleanup_handlers.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
     }
   }
 }
