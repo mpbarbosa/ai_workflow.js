@@ -49,6 +49,16 @@ describe('step1_5_copilot_instructions_prompt', () => {
     );
     expect(prompt).toContain('do not imply that `README.md` is the sole authority');
     expect(prompt).toContain('Do NOT introduce repository-specific implementation details');
+    expect(prompt).toContain(
+      'Mark a finding as `supported guidance` only when the `Repo-fact evidence` bullet cites a surfaced repo fact'
+    );
+    expect(prompt).toContain('Do NOT cite invented repo-fact headings, labels, or document titles');
+    expect(prompt).toContain(
+      'If repo-fact support is absent, write `Repo-fact evidence: not available`'
+    );
+    expect(prompt).toContain(
+      'Do not emit findings for topics that are absent from the current file unless the omission itself is explicitly required by the task'
+    );
     expect(prompt).toContain('Start with `## Findings`');
     expect(prompt).toContain('**Classification**');
     expect(prompt).toContain('## Corrected File');

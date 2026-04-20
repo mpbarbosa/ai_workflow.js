@@ -267,3 +267,42 @@
 - **Description:** The bugfix report index links to `docs/reports/implementation/`, but that directory does not exist in the live repository.
 - **Fix:** Remove or retarget the "Implementation reports" link to an existing reports location, or recreate the missing `docs/reports/implementation/` directory if it is still part of the documentation structure.
 - **Status:** open
+
+---
+
+### RI-021 — Step 1.5 allows supported-guidance findings without surfaced repo-fact support
+
+- **ID:** RI-021
+- **Source step:** step_01_5
+- **Type:** docs-outdated
+- **Priority:** Medium
+- **Path:** .workflow_core/config/ai_helpers/workflow_steps.yaml
+- **Description:** The Step 1.5 Copilot-instructions prompt still allows findings to classify a section as `supported guidance` even when the surfaced repo facts do not explicitly support that claim, which led the historical log to justify a supported finding with generic best-practice reasoning instead of visible prompt evidence.
+- **Fix:** Tighten the Step 1.5 prompt so `supported guidance` is only allowed when `Repo-fact evidence` cites a surfaced repo fact; otherwise the finding must use `not available` and a non-supported classification.
+- **Status:** done
+
+---
+
+### RI-022 — Step 1.5 allows invented repo-fact citations
+
+- **ID:** RI-022
+- **Source step:** step_01_5
+- **Type:** docs-outdated
+- **Priority:** Medium
+- **Path:** .workflow_core/config/ai_helpers/workflow_steps.yaml
+- **Description:** The Step 1.5 prompt does not explicitly forbid invented repo-fact headings or labels, which allowed the historical log to cite a nonexistent `Documentation-sync rules` repo-fact section.
+- **Fix:** Tighten the Step 1.5 prompt so repo-fact evidence can only quote or paraphrase surfaced repo-fact sections that are visibly present; missing support must be reported as `not available`.
+- **Status:** done
+
+---
+
+### RI-023 — Step 1.5 allows findings that do not map to the current file
+
+- **ID:** RI-023
+- **Source step:** step_01_5
+- **Type:** docs-outdated
+- **Priority:** Medium
+- **Path:** .workflow_core/config/ai_helpers/workflow_steps.yaml
+- **Description:** The Step 1.5 prompt does not clearly forbid findings for topics that are absent from the current Copilot instructions file, which allowed the historical log to emit a finding about package metadata and entry points even though the current file evidence was `Not present`.
+- **Fix:** Tighten the Step 1.5 prompt so each finding must map to an actual visible current-file section or claim, unless the omission itself is explicitly required by the task.
+- **Status:** done
