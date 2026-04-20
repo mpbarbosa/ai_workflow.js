@@ -45,6 +45,17 @@
 
 This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are complete but documented separately in the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
 
+## Roadmap — Minor Issues
+
+> Populated by the `fix-log-issues` skill. Each item was verified against
+> the live codebase before being marked done.
+
+| ID     | Source step | Description                                                                                          | File / Path                                          | Priority | Status |
+| ------ | ----------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------- | ------ |
+| RI-021 | step_01_5   | Require explicit repo-fact support before classifying a finding as `supported guidance`.             | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
+| RI-022 | step_01_5   | Forbid invented repo-fact headings or labels in Step 1.5 finding evidence.                           | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
+| RI-023 | step_01_5   | Require Step 1.5 findings to map to visible current-file sections or explicitly requested omissions. | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
+
 ### 1.2 Scope
 
 This document covers the requirements for **23 core modules** implemented in Phases 1–5 of the full 60+ module, 11-phase implementation:
@@ -69,6 +80,7 @@ Detailed specifications for each module are provided in the sections below.
 | `src/core/system.js`   | v1.0.0  | ~137          | Operating system and package manager detection     |
 | `src/core/version.js`  | v1.0.0  | ~117          | Semantic version parsing and comparison            |
 | `src/core/executor.js` | v1.0.0  | ~112          | Command execution with async and streaming support |
+
 | `src/index.js`
 
 ---
@@ -144,4 +156,5 @@ Detailed specifications for each module are provided in the sections below.
 | `src/core/system.js`   | v1.0.0  | ~137          | Operating system and package manager detection     |
 | `src/core/version.js`  | v1.0.0  | ~117          | Semantic version parsing and comparison            |
 | `src/core/executor.js` | v1.0.0  | ~112          | Command execution with async and streaming support |
+
 | `src/index.js`
