@@ -10,6 +10,10 @@ import {
   validateDocumentationCounts,
   checkVersionReferences,
   classifyChangedFiles,
+  consolidateStep1DocAnalysis,
+  isLowSignalStep1Evidence,
+  rankStep1EvidenceFile,
+  selectStep1EvidenceFiles,
   shouldRunAiAnalysis,
   selectStep1DocumentationModel,
   readProjectConventions,
@@ -255,6 +259,82 @@ describe('Step 1: Documentation Validation', () => {
     test('uses the supplied fallback when no recommended model is available', () => {
       expect(selectStep1DocumentationModel([{ id: 'claude-haiku-4.5' }], 'claude-haiku-4.5')).toBe(
         'claude-haiku-4.5'
+      );
+    });
+  });
+
+  describe('Step 1 evidence scoping', () => {
+    test('marks generated and transient workflow artifacts as low-signal evidence', () => {
+      expect(isLowSignalStep1Evidence('assets/js/index.js')).toBe(true);
+      expect(isLowSignalStep1Evidence('.playwright-mcp/page.yml')).toBe(true);
+      expect(isLowSignalStep1Evidence('.mcp.json')).toBe(true);
+      expect(isLowSignalStep1Evidence('src/index.ts')).toBe(false);
+      expect(isLowSignalStep1Evidence('package.json')).toBe(false);
+    });
+
+    test('prioritizes source evidence for API docs and filters low-signal files', () => {
+      const selected = selectStep1EvidenceFiles(['docs/API.md'], {
+        documentation: ['README.md', 'docs/API.md'],
+        source: ['src/shared.ts', 'assets/js/shared.js'],
+        config: ['package.json', '.playwright-mcp/page.yml'],
+      });
+
+      expect(selected).toContain('docs/API.md');
+      expect(selected).toContain('README.md');
+      expect(selected).toContain('src/shared.ts');
+      expect(selected).toContain('package.json');
+      expect(selected).not.toContain('assets/js/shared.js');
+      expect(selected).not.toContain('.playwright-mcp/page.yml');
+      expect(
+        rankStep1EvidenceFile('src/shared.ts', 'api', new Set(['docs/API.md']))
+      ).toBeGreaterThan(rankStep1EvidenceFile('package.json', 'api', new Set(['docs/API.md'])));
+    });
+
+    test('prefers key config and static pages over source churn for README docs', () => {
+      const selected = selectStep1EvidenceFiles(['README.md'], {
+        documentation: ['README.md', 'CHANGELOG.md'],
+        source: ['src/index.ts', 'assets/js/index.js'],
+        config: ['package.json', 'index.html', '.mcp.json'],
+      });
+
+      expect(selected).toEqual(
+        expect.arrayContaining(['README.md', 'CHANGELOG.md', 'package.json', 'index.html'])
+      );
+      expect(selected).not.toContain('assets/js/index.js');
+      expect(selected).not.toContain('.mcp.json');
+    });
+  });
+
+  describe('Step 1 partition consolidation', () => {
+    test('collapses repeated no-update partition responses into one summary', () => {
+      const content = [
+        '#### Partition 1 of 2',
+        '',
+        'No updates required — docs are current.',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'No updates required — docs are current.',
+      ].join('\n');
+
+      expect(consolidateStep1DocAnalysis(content, ['README.md'])).toBe(
+        'No updates required — consolidated across 2 prompt partition(s) for README.md. The visible evidence did not identify documentation-impacting changes for the scoped documentation files.'
+      );
+    });
+
+    test('collapses repeated inconclusive responses into one summary', () => {
+      const content = [
+        '#### Partition 1 of 2',
+        '',
+        'Inconclusive — missing direct file content.',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'Not applicable — visible files are unrelated to README.md.',
+      ].join('\n');
+
+      expect(consolidateStep1DocAnalysis(content, ['README.md'])).toBe(
+        'Inconclusive — consolidated across 2 prompt partition(s) for README.md. The visible evidence was incomplete, tangential, or out of scope for a confident documentation verdict.'
       );
     });
   });
@@ -561,6 +641,46 @@ doc_analysis_prompt:
 
         expect(capturedPrompt).not.toBeNull();
         expect(capturedPrompt).not.toContain('@workspace');
+      });
+
+      test('prompt excludes low-signal generated and transient files from README evidence', async () => {
+        mockGitOps.getModifiedFiles = () =>
+          Promise.resolve([
+            'README.md',
+            'src/index.ts',
+            'assets/js/index.js',
+            '.playwright-mcp/page.yml',
+            'package.json',
+          ]);
+        mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve([files[0]]);
+        mockFileOps.readFile = (path) => {
+          if (path.includes('ai_helpers')) {
+            return Promise.resolve(`
+doc_analysis_prompt:
+  role_prefix: "You are a documentation specialist."
+  task_template: |
+    **Changed files**: {changed_files}
+    **Documentation to review**: {doc_files}
+    **File Paths**:
+    {file_paths_in_request}
+    **File Contents**:
+    {file_contents}
+  approach: "Analyze ONLY the documentation files listed. Read the file contents provided above."
+`);
+          }
+          if (path.includes('README.md')) return Promise.resolve('# Demo');
+          if (path.includes('src/index.ts')) return Promise.resolve('export const demo = true;');
+          if (path.includes('package.json'))
+            return Promise.resolve(JSON.stringify({ name: 'demo', version: '0.4.8' }));
+          return Promise.resolve('');
+        };
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(capturedPrompt).toContain('README.md');
+        expect(capturedPrompt).toContain('package.json');
+        expect(capturedPrompt).not.toContain('assets/js/index.js');
+        expect(capturedPrompt).not.toContain('.playwright-mcp/page.yml');
       });
 
       test('uses the preferred documentation model for the AI request', async () => {

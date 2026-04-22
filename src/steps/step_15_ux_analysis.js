@@ -427,7 +427,24 @@ Provide your analysis in the following markdown format:
 
 ---
 
-Please analyze the UI files and provide your detailed assessment.`;
+  Please analyze the UI files and provide your detailed assessment.`;
+}
+
+export function buildUiReviewEvidenceBlock(context = {}) {
+  const { fileCount = 0, fileSample = [], fileContents = [] } = context;
+  const fileList = fileSample.map((file) => `- ${file}`).join('\n');
+  const moreFiles =
+    fileCount > fileSample.length
+      ? `\n- ... and ${fileCount - fileSample.length} more UI files`
+      : '';
+  const sourceBlock =
+    fileContents.length > 0
+      ? fileContents
+          .map(({ file, content }) => `### ${file}\n\`\`\`\n${content}\n\`\`\``)
+          .join('\n\n')
+      : '(no visible UI source snippets were captured)';
+
+  return `**UI Files in Scope:**\n${fileList}${moreFiles}\n\n**Evidence Rules:**\n- Base findings only on the visible UI source snippets below.\n- If a snippet is truncated or a needed file is missing, mark that check unavailable or inconclusive.\n- Do not infer UX behavior from filenames alone.\n\n**Visible UI Source Snippets:**\n\n${sourceBlock}`;
 }
 
 /**
@@ -602,7 +619,9 @@ export class Step15UxAnalysis {
         // TUI dependencies before routing to the framework-file fallback or skipping.
         let pkg = null;
         try {
-          const pkgContent = await this.fileOps.readFile(path.join(this.projectRoot, 'package.json'));
+          const pkgContent = await this.fileOps.readFile(
+            path.join(this.projectRoot, 'package.json')
+          );
           pkg = JSON.parse(pkgContent);
         } catch {
           /* package.json absent or unparseable — treat as no TUI deps */
@@ -717,13 +736,9 @@ export class Step15UxAnalysis {
       // Web projects: use the existing ui_ux_designer_prompt + project-kind overlay.
       this.logger.info(`${colors.blue}Phase 3:${colors.reset} Building UX analysis prompt...`);
       let prompt;
+      const fileBlock = buildUiReviewEvidenceBlock(analysisContext);
 
       if (isTui) {
-        // Build file-content block for grounding (tui_ux_designer_prompt has no {file_content_map})
-        const fileBlock = Object.entries(fileContents)
-          .map(([file, content]) => `### ${file}\n\`\`\`tsx\n${content}\n\`\`\``)
-          .join('\n\n');
-
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const tuiPrompt = buildYamlStepPrompt(parsedYaml, 'tui_ux_designer_prompt', {
@@ -735,9 +750,7 @@ export class Step15UxAnalysis {
             modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
           });
           if (tuiPrompt) {
-            prompt = fileBlock
-              ? `${tuiPrompt}\n\n---\n\n**Files to Review:**\n\n${fileBlock}`
-              : tuiPrompt;
+            prompt = fileBlock ? `${tuiPrompt}\n\n---\n\n${fileBlock}` : tuiPrompt;
           }
         } catch {
           /* non-fatal */
@@ -747,8 +760,6 @@ export class Step15UxAnalysis {
           prompt = `Review the following terminal UI components for keyboard navigation, focus management, status clarity, and scroll UX.\n\n${fileBlock}`;
         }
       } else {
-        prompt = buildUxAnalysisPrompt(analysisContext);
-        // Enrich with YAML ui_ux_designer_prompt and project-kind ux_designer overlay
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const uiUxPrompt = buildYamlStepPrompt(parsedYaml, 'ui_ux_designer_prompt', {
@@ -775,10 +786,16 @@ export class Step15UxAnalysis {
               /* optional */
             }
             const prefix = roleOverride ? `[Project-Kind Role: ${roleOverride}]\n\n` : '';
-            prompt = `${prefix}${uiUxPrompt}\n\n---\n\n${prompt}`;
+            prompt = fileBlock
+              ? `${prefix}${uiUxPrompt}\n\n---\n\n${fileBlock}`
+              : `${prefix}${uiUxPrompt}`;
           }
         } catch {
           /* non-fatal: use base prompt */
+        }
+
+        if (!prompt) {
+          prompt = buildUxAnalysisPrompt(analysisContext);
         }
       }
 

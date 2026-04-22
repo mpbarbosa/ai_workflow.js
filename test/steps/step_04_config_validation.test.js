@@ -24,6 +24,7 @@ import {
   validateAiResponseEvidenceHandling,
   normalizeAiResponseForPartialEvidence,
   EXCLUDE_DIRS,
+  GENERATED_CONFIG_REPLACEMENTS,
   MAX_FILE_CONTENT_CHARS,
   MAX_PROMPT_ENTRY_CHARS,
   MIN_FILE_MENTION_RATIO,
@@ -686,6 +687,61 @@ describe('Step 4: Configuration Validation', () => {
       expect(result.filesChecked).toBe(2);
     });
 
+    test('replaces generated ai_helpers.yaml with workflow config files for validation and AI reporting', async () => {
+      const seenReads = [];
+      let seenPrompt = '';
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          seenPrompt = prompt;
+          return Promise.resolve({
+            content:
+              'Checked .workflow_core/.workflow-config.yaml and .workflow-config.yaml for the generated helper bundle context.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve(['.workflow_core/config/ai_helpers.yaml']);
+      mockFileOps.readFile = (filePath) => {
+        seenReads.push(filePath);
+        if (filePath.endsWith('.workflow_core/.workflow-config.yaml')) {
+          return Promise.resolve('workflow:\n  settings:\n    auto_mode: false');
+        }
+        if (filePath.endsWith('.workflow-config.yaml')) {
+          return Promise.resolve('project:\n  name: ai_workflow.js');
+        }
+        return Promise.reject(new Error(`unexpected read: ${filePath}`));
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.filesChecked).toBe(2);
+      expect(
+        seenReads.filter((filePath) => filePath.endsWith('.workflow_core/.workflow-config.yaml'))
+          .length
+      ).toBeGreaterThan(0);
+      expect(
+        seenReads.filter((filePath) => filePath.endsWith('.workflow-config.yaml')).length
+      ).toBeGreaterThan(0);
+      expect(seenPrompt).toContain('.workflow_core/.workflow-config.yaml');
+      expect(seenPrompt).toContain('.workflow-config.yaml');
+      expect(seenPrompt).not.toContain('.workflow_core/config/ai_helpers.yaml');
+    });
+
     test('detects syntax errors', async () => {
       mockGitOps.getModifiedFiles = () => Promise.resolve(['config.json']);
       mockFileOps.readFile = () => Promise.resolve('{"name":}'); // Invalid JSON
@@ -1206,6 +1262,13 @@ describe('Step 4: Configuration Validation', () => {
   // ========================================================================
 
   describe('groupConfigFilesList', () => {
+    test('documents generated config replacement mapping for ai_helpers.yaml', () => {
+      expect(GENERATED_CONFIG_REPLACEMENTS['.workflow_core/config/ai_helpers.yaml']).toEqual([
+        '.workflow_core/.workflow-config.yaml',
+        '.workflow-config.yaml',
+      ]);
+    });
+
     test('returns empty string for empty input', () => {
       expect(groupConfigFilesList([])).toBe('');
       expect(groupConfigFilesList(null)).toBe('');

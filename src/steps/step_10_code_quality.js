@@ -7,7 +7,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { join, basename } from 'path';
+import { join } from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
@@ -17,17 +17,24 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { AnalysisCache } from '../lib/analysis_cache.js';
-import {
-  buildCodeQualityPrompt,
-  loadResolvedAiHelpers,
-  AI_PROJECT_KINDS_PATH,
-  buildYamlStepPrompt,
-  buildProjectKindPrompt,
-  buildAlternativesDirective,
-  parseAlternatives,
-} from '../lib/ai_prompt_builder.js';
-import yaml from 'js-yaml';
-import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
+import { Step10AiReviewService, isStep10CodeReviewableFile } from './step_10_ai_review.js';
+
+export {
+  AI_MAX_CHARS_PER_PROMPT_ENTRY,
+  AI_MAX_PROMPT_ENTRIES_PER_SLICE,
+  AI_MAX_PROMPT_SLICE_CHARS,
+  buildCodeContentHash,
+  buildCodePromptSlices,
+  buildFileContentMap,
+  buildPromptFileEntries,
+  formatFileContentMap,
+  formatPromptFileEntries,
+  isErrorResilienceReviewableFile,
+  isStep10CodeReviewableFile,
+  isStep10GeneratedArtifactPath,
+  prioritizeSourceFiles,
+  shouldRunErrorResiliencePrompt,
+} from './step_10_ai_review.js';
 
 // ============================================================================
 // CONSTANTS
@@ -38,23 +45,6 @@ import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
  * Keeps prompts well below model context limits and avoids timeout errors.
  */
 export const AI_FILES_PER_SLICE = 5;
-
-/**
- * Maximum characters from a single source file included in one AI prompt entry.
- * Larger files are split into sequential `(part X/Y)` prompt entries instead of
- * relying on one truncated excerpt.
- */
-export const AI_MAX_CHARS_PER_PROMPT_ENTRY = 4000;
-
-/**
- * Maximum combined character budget for code-content entries in one AI request.
- */
-export const AI_MAX_PROMPT_SLICE_CHARS = 9000;
-
-/**
- * Maximum number of prompt entries included in one Step 10 AI request.
- */
-export const AI_MAX_PROMPT_ENTRIES_PER_SLICE = 4;
 
 /**
  * Linter commands by language
@@ -144,7 +134,16 @@ export function getAllDetectedLanguages(techStackResult, extraLanguages = []) {
  */
 export function getLanguageLinterCommands(languages, configLintCommands = {}) {
   const result = {};
-  for (const lang of languages) {
+  const configuredLanguages = Object.keys(configLintCommands || {}).filter(
+    (language) =>
+      typeof configLintCommands[language] === 'string' && configLintCommands[language].trim()
+  );
+  const languagesToAnalyze =
+    configuredLanguages.length > 0
+      ? languages.filter((lang) => configuredLanguages.includes(lang.toLowerCase()))
+      : languages;
+
+  for (const lang of languagesToAnalyze) {
     const normalized = lang.toLowerCase();
     const cmd = configLintCommands[normalized] || getLinterCommand(normalized);
     if (cmd) {
@@ -546,261 +545,6 @@ export function formatMultiLanguageQualityReport(perLanguageResults, aggregateTo
 }
 
 // ============================================================================
-// PURE FUNCTIONS - AI Prompt Context
-// ============================================================================
-
-/**
- * Sort file paths so source files (src/) appear before test files (test/).
- * Within each group, alphabetical order is preserved.
- * This ensures AI code samples show implementation code first.
- * @pure
- * @param {string[]} files - Relative file paths
- * @returns {string[]} Sorted file paths (source files first)
- */
-export function prioritizeSourceFiles(files) {
-  if (!Array.isArray(files)) return [];
-  const isTestFile = (f) => /[\\/](test|tests|spec|__tests__)[\\/]|\.test\.|\.spec\./.test(f);
-  const src = files.filter((f) => !isTestFile(f)).sort();
-  const test = files.filter((f) => isTestFile(f)).sort();
-  return [...src, ...test];
-}
-
-const STEP10_REVIEWABLE_EXTENSIONS = [
-  '.js',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.ts',
-  '.tsx',
-  '.py',
-  '.go',
-  '.java',
-  '.rb',
-  '.rs',
-  '.sh',
-  '.bash',
-];
-
-/**
- * Check whether a file is suitable for the Step 10 AI code-quality pass.
- *
- * This excludes metadata-only files such as lockfiles by limiting the AI review
- * to source-like code and script extensions.
- *
- * @pure
- * @param {string} filePath - Relative file path
- * @returns {boolean} True if the file should be considered for Step 10 AI review
- */
-export function isStep10CodeReviewableFile(filePath) {
-  if (typeof filePath !== 'string' || filePath.length === 0) return false;
-  const normalized = filePath.toLowerCase();
-  return STEP10_REVIEWABLE_EXTENSIONS.some((ext) => normalized.endsWith(ext));
-}
-
-/**
- * Check whether a file is suitable for the supplementary Error Resilience pass.
- *
- * This pass should only run on executable source-like files, not declaration-only
- * files or metadata/config artifacts that are not executed.
- *
- * @pure
- * @param {string} filePath - Relative file path
- * @returns {boolean} True if error resilience analysis should consider the file
- */
-export function isErrorResilienceReviewableFile(filePath) {
-  if (!isStep10CodeReviewableFile(filePath)) return false;
-  return !filePath.toLowerCase().endsWith('.d.ts');
-}
-
-/**
- * Build a structured map of file content excerpts for AI prompt injection.
- * Prioritises source files and caps each file's content to avoid token overflow.
- * @pure
- * @param {Object} fileContents - Map of { relPath: fileContent }
- * @param {Object} [options={}]
- * @param {number} [options.maxCharsPerFile=600] - Max characters per file excerpt
- * @param {number} [options.maxFiles=8] - Max number of files to include
- * @returns {Array<{path: string, excerpt: string, truncated: boolean}>}
- */
-export function buildFileContentMap(fileContents, options = {}) {
-  const { maxCharsPerFile = 600, maxFiles = 8 } = options;
-  if (!fileContents || typeof fileContents !== 'object') return [];
-  const prioritized = prioritizeSourceFiles(Object.keys(fileContents));
-  return prioritized.slice(0, maxFiles).map((path) => {
-    const content = fileContents[path] ?? '';
-    const truncated = content.length > maxCharsPerFile;
-    return { path, excerpt: content.slice(0, maxCharsPerFile), truncated };
-  });
-}
-
-/**
- * Split oversized source files into prompt-safe sequential entries.
- *
- * @pure
- * @param {Object} fileContents - Map of { relPath: fileContent }
- * @param {Object} [options={}]
- * @param {number} [options.maxCharsPerEntry=AI_MAX_CHARS_PER_PROMPT_ENTRY]
- * @returns {Array<{displayPath: string, sourcePath: string, excerpt: string}>}
- */
-export function buildPromptFileEntries(fileContents, options = {}) {
-  const { maxCharsPerEntry = AI_MAX_CHARS_PER_PROMPT_ENTRY } = options;
-  if (!fileContents || typeof fileContents !== 'object') return [];
-
-  const prioritized = prioritizeSourceFiles(Object.keys(fileContents));
-  const entries = [];
-
-  for (const sourcePath of prioritized) {
-    const content = fileContents[sourcePath];
-    if (typeof content !== 'string' || content.length === 0) continue;
-
-    if (content.length <= maxCharsPerEntry) {
-      entries.push({ displayPath: sourcePath, sourcePath, excerpt: content });
-      continue;
-    }
-
-    const totalParts = Math.ceil(content.length / maxCharsPerEntry);
-    for (let i = 0; i < totalParts; i++) {
-      const start = i * maxCharsPerEntry;
-      const end = start + maxCharsPerEntry;
-      entries.push({
-        displayPath: `${sourcePath} (part ${i + 1}/${totalParts})`,
-        sourcePath,
-        excerpt: content.slice(start, end),
-      });
-    }
-  }
-
-  return entries;
-}
-
-function estimatePromptEntrySize(entry) {
-  return (entry?.displayPath?.length ?? 0) + (entry?.excerpt?.length ?? 0) + 32;
-}
-
-/**
- * Build prompt-safe AI slices from real source file contents.
- *
- * @pure
- * @param {Object} fileContents - Map of { relPath: fileContent }
- * @param {Object} [options={}]
- * @param {number} [options.maxCharsPerEntry=AI_MAX_CHARS_PER_PROMPT_ENTRY]
- * @param {number} [options.maxPromptChars=AI_MAX_PROMPT_SLICE_CHARS]
- * @param {number} [options.maxEntriesPerSlice=AI_MAX_PROMPT_ENTRIES_PER_SLICE]
- * @returns {Array<{entries: Array<{displayPath: string, sourcePath: string, excerpt: string}>, scopePaths: string[], oversizedPaths: string[]}>}
- */
-export function buildCodePromptSlices(fileContents, options = {}) {
-  const {
-    maxCharsPerEntry = AI_MAX_CHARS_PER_PROMPT_ENTRY,
-    maxPromptChars = AI_MAX_PROMPT_SLICE_CHARS,
-    maxEntriesPerSlice = AI_MAX_PROMPT_ENTRIES_PER_SLICE,
-  } = options;
-  const entries = buildPromptFileEntries(fileContents, { maxCharsPerEntry });
-  if (entries.length === 0) return [];
-
-  const entryCounts = entries.reduce((acc, entry) => {
-    acc[entry.sourcePath] = (acc[entry.sourcePath] || 0) + 1;
-    return acc;
-  }, {});
-
-  const slices = [];
-  let currentEntries = [];
-  let currentChars = 0;
-
-  const flush = () => {
-    if (currentEntries.length === 0) return;
-    const scopePaths = [...new Set(currentEntries.map((entry) => entry.sourcePath))];
-    const oversizedPaths = scopePaths.filter((path) => entryCounts[path] > 1);
-    slices.push({ entries: currentEntries, scopePaths, oversizedPaths });
-    currentEntries = [];
-    currentChars = 0;
-  };
-
-  for (const entry of entries) {
-    const entrySize = estimatePromptEntrySize(entry);
-    const wouldOverflow =
-      currentEntries.length > 0 &&
-      (currentChars + entrySize > maxPromptChars || currentEntries.length >= maxEntriesPerSlice);
-
-    if (wouldOverflow) flush();
-
-    currentEntries.push(entry);
-    currentChars += entrySize;
-  }
-
-  flush();
-  return slices;
-}
-
-/**
- * Format a file content map as a human-readable string for the AI prompt.
- * @pure
- * @param {Array<{path: string, excerpt: string, truncated: boolean}>} contentMap
- * @returns {string}
- */
-export function formatFileContentMap(contentMap) {
-  if (!Array.isArray(contentMap) || contentMap.length === 0) return '(no source files provided)';
-  return contentMap
-    .map(({ path, excerpt, truncated }) => {
-      const note = truncated ? ' [truncated]' : '';
-      return `### ${path}${note}\n\`\`\`\n${excerpt}\n\`\`\``;
-    })
-    .join('\n\n');
-}
-
-/**
- * Format split prompt entries as a human-readable string for AI prompt injection.
- *
- * @pure
- * @param {Array<{displayPath: string, excerpt: string}>} entries
- * @returns {string}
- */
-export function formatPromptFileEntries(entries) {
-  if (!Array.isArray(entries) || entries.length === 0) return '(no source files provided)';
-  return entries
-    .map(
-      ({ displayPath, excerpt }) => `### ${displayPath}\n\`\`\`\n${excerpt}\n\`\`\``
-    )
-    .join('\n\n');
-}
-
-/**
- * Build an 8-character content hash from file contents for cache-key freshness.
- * Combines the first 80 chars of each file (sorted by path) into a simple checksum.
- * @pure
- * @param {Object} fileContents - Map of { relPath: fileContent }
- * @returns {string} 8-character hex-like hash string
- */
-export function buildCodeContentHash(fileContents) {
-  if (!fileContents || typeof fileContents !== 'object') return '00000000';
-  const sorted = Object.keys(fileContents).sort();
-  let hash = 0;
-  for (const key of sorted) {
-    const snippet = (fileContents[key] ?? '').slice(0, 80);
-    for (let i = 0; i < snippet.length; i++) {
-      hash = (hash * 31 + snippet.charCodeAt(i)) >>> 0;
-    }
-  }
-  return hash.toString(16).padStart(8, '0');
-}
-
-/**
- * Determine whether the error resilience supplementary prompt should be run
- * for the given project kind.
- *
- * The error_resilience_prompt focuses on server-side and general application
- * failure modes (uncaught exceptions, unhandled rejections, silent failures).
- * It is not applicable to purely static or passive projects.
- *
- * @pure
- * @param {string} projectKind - Project kind identifier
- * @returns {boolean} True when error resilience analysis is appropriate
- */
-export function shouldRunErrorResiliencePrompt(projectKind) {
-  const excluded = new Set(['static_website', 'configuration_library']);
-  return !excluded.has(projectKind);
-}
-
-// ============================================================================
 // STEP 10 ANALYZER - Integration
 // ============================================================================
 
@@ -818,6 +562,91 @@ export class Step10CodeQualityAnalyzer {
     this.aiHelper = options.aiHelper || new AiHelper({ promptsDir: options.promptsDir || null });
     this.aiCache = options.aiCache || new AiCache();
     this.analysisCache = options.analysisCache || new AnalysisCache();
+  }
+
+  buildSkippedResult(language, sourceFileCount) {
+    return {
+      success: true,
+      language,
+      sourceFileCount,
+      skipped: true,
+      alternatives: [],
+      recommendedAlternative: null,
+      erFindings: '',
+    };
+  }
+
+  aggregateLanguageResults(perLanguageResults) {
+    return perLanguageResults.reduce(
+      (acc, result) => ({
+        totalIssues: acc.totalIssues + (result.linterResults?.totalIssues || 0),
+        errors: acc.errors + (result.linterResults?.errors || 0),
+        warnings: acc.warnings + (result.linterResults?.warnings || 0),
+        infos: acc.infos + (result.linterResults?.infos || 0),
+        fileCount: acc.fileCount + result.sourceFileCount,
+      }),
+      { totalIssues: 0, errors: 0, warnings: 0, infos: 0, fileCount: 0 }
+    );
+  }
+
+  createAiReviewService() {
+    return new Step10AiReviewService({
+      fileOps: this.fileOps,
+      aiHelper: this.aiHelper,
+      aiCache: this.aiCache,
+      backlog: this.backlog,
+    });
+  }
+
+  async analyzeConfiguredLanguages(projectRoot, linterCommandMap) {
+    const perLanguageResults = [];
+    const allSourceFiles = [];
+
+    for (const [language, linterCommand] of Object.entries(linterCommandMap)) {
+      const sourceFiles = await this.countSourceFiles(projectRoot, language);
+      const sourceFileCount = sourceFiles.length;
+
+      if (sourceFileCount === 0) {
+        logger.info(`${language}: no source files found, skipping linter`);
+        continue;
+      }
+
+      allSourceFiles.push(...sourceFiles);
+      logger.info(`${language}: ${sourceFileCount} source file(s), linter: ${linterCommand}`);
+
+      const linterCacheInputs = { projectRoot, language, command: linterCommand };
+      let linterResults = this.analysisCache.get('linter', linterCacheInputs);
+      if (linterResults) {
+        logger.info(`[AnalysisCache] ${language} linter results loaded from cache`);
+      } else {
+        linterResults =
+          language === 'json'
+            ? this._lintJsonNative(projectRoot, sourceFiles)
+            : await this.runLinter(projectRoot, linterCommand, language);
+        this.analysisCache.set('linter', linterCacheInputs, linterResults);
+      }
+
+      if (linterResults.totalIssues > 0) {
+        logger.warn(`${language}: ${linterResults.totalIssues} issue(s)`);
+      } else {
+        logger.success(`${language}: no issues`);
+      }
+
+      const issueRate = calculateIssueRate(linterResults.totalIssues, sourceFileCount);
+      const qualityRating = determineQualityRating(issueRate);
+
+      perLanguageResults.push({
+        language,
+        sourceFileCount,
+        linterCommand,
+        linterResults,
+        issueRate,
+        qualityRating,
+        skipped: false,
+      });
+    }
+
+    return { perLanguageResults, allSourceFiles };
   }
 
   /**
@@ -857,64 +686,14 @@ export class Step10CodeQualityAnalyzer {
           skipped: true,
         });
         await this.backlog.saveStepSummary(10, 'Code Quality', report);
-
-        return {
-          success: true,
-          language: primaryLanguage,
-          sourceFileCount,
-          skipped: true,
-          alternatives: [],
-          recommendedAlternative: null,
-        };
+        return this.buildSkippedResult(primaryLanguage, sourceFileCount);
       }
 
       // Phase 4: Run each linter and collect per-language results
-      const perLanguageResults = [];
-      const allSourceFiles = [];
-      for (const [language, linterCommand] of Object.entries(linterCommandMap)) {
-        const sourceFiles = await this.countSourceFiles(projectRoot, language);
-        const sourceFileCount = sourceFiles.length;
-
-        if (sourceFileCount === 0) {
-          logger.info(`${language}: no source files found, skipping linter`);
-          continue;
-        }
-
-        allSourceFiles.push(...sourceFiles);
-        logger.info(`${language}: ${sourceFileCount} source file(s), linter: ${linterCommand}`);
-
-        const linterCacheInputs = { projectRoot, language, command: linterCommand };
-        let linterResults = this.analysisCache.get('linter', linterCacheInputs);
-        if (linterResults) {
-          logger.info(`[AnalysisCache] ${language} linter results loaded from cache`);
-        } else {
-          if (language === 'json') {
-            linterResults = this._lintJsonNative(projectRoot, sourceFiles);
-          } else {
-            linterResults = await this.runLinter(projectRoot, linterCommand, language);
-          }
-          this.analysisCache.set('linter', linterCacheInputs, linterResults);
-        }
-
-        if (linterResults.totalIssues > 0) {
-          logger.warn(`${language}: ${linterResults.totalIssues} issue(s)`);
-        } else {
-          logger.success(`${language}: no issues`);
-        }
-
-        const issueRate = calculateIssueRate(linterResults.totalIssues, sourceFileCount);
-        const qualityRating = determineQualityRating(issueRate);
-
-        perLanguageResults.push({
-          language,
-          sourceFileCount,
-          linterCommand,
-          linterResults,
-          issueRate,
-          qualityRating,
-          skipped: false,
-        });
-      }
+      const { perLanguageResults, allSourceFiles } = await this.analyzeConfiguredLanguages(
+        projectRoot,
+        linterCommandMap
+      );
 
       // Phase 5: Handle case where all languages had 0 source files
       if (perLanguageResults.length === 0) {
@@ -927,27 +706,11 @@ export class Step10CodeQualityAnalyzer {
           skipped: true,
         });
         await this.backlog.saveStepSummary(10, 'Code Quality', report);
-        return {
-          success: true,
-          language: primaryLanguage,
-          sourceFileCount: 0,
-          skipped: true,
-          alternatives: [],
-          recommendedAlternative: null,
-        };
+        return this.buildSkippedResult(primaryLanguage, 0);
       }
 
       // Phase 6: Compute aggregate totals
-      const aggregateTotals = perLanguageResults.reduce(
-        (acc, r) => ({
-          totalIssues: acc.totalIssues + (r.linterResults?.totalIssues || 0),
-          errors: acc.errors + (r.linterResults?.errors || 0),
-          warnings: acc.warnings + (r.linterResults?.warnings || 0),
-          infos: acc.infos + (r.linterResults?.infos || 0),
-          fileCount: acc.fileCount + r.sourceFileCount,
-        }),
-        { totalIssues: 0, errors: 0, warnings: 0, infos: 0, fileCount: 0 }
-      );
+      const aggregateTotals = this.aggregateLanguageResults(perLanguageResults);
 
       logger.info(
         `Total: ${aggregateTotals.totalIssues} issue(s) across ${perLanguageResults.length} language(s)`
@@ -960,299 +723,24 @@ export class Step10CodeQualityAnalyzer {
       // Phase 8: AI-powered code quality review (partition + rotate strategy)
       const primaryLanguage =
         techStackResult.primaryLanguage || detectedLanguages[0] || 'javascript';
-      let stepAlternatives = { alternatives: [], recommended: null };
+      let alternatives = [];
+      let recommendedAlternative = null;
       let erContent = '';
       try {
-        const aiAvailable = await this.aiHelper.initialize();
-        if (aiAvailable) {
-          await this.aiCache.init();
-
-          // Deduplicate. venv, coverage and similar dirs can inflate allSourceFiles.
-          const uniqueSourceFiles = [...new Set(allSourceFiles)];
-          const reviewableSourceFiles = prioritizeSourceFiles(
-            uniqueSourceFiles.filter((filePath) => isStep10CodeReviewableFile(filePath))
-          );
-
-          if (reviewableSourceFiles.length === 0) {
-            logger.warn(
-              '[step_10] AI code quality review skipped: no reviewable source-like files remained after filtering metadata and generated artifacts'
-            );
-          } else {
-            // Select the partition to review this run and rotate for the next run.
-            // Uses quality-aware ordering: recently modified first, exempt high-quality
-            // files excluded until they are modified again.
-            const partitionCache = new Step10PartitionCache({
-              cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
-            });
-            const activeCandidates = await partitionCache.getActiveCandidates(
-              reviewableSourceFiles,
-              options.modifiedFiles ?? []
-            );
-            const candidateFiles =
-              activeCandidates.length > 0 ? activeCandidates : reviewableSourceFiles;
-            if (activeCandidates.length === 0) {
-              logger.warn(
-                '[step_10] All reviewable source-like files were quality-exempt; falling back to a regular partition review within reviewable files'
-              );
-            }
-            const partition = await partitionCache.getCurrentPartition(candidateFiles);
-
-            logger.info(
-              `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
-            );
-
-            // Read file contents so the AI receives real code, not just file names.
-            const fileContents = {};
-            await Promise.all(
-              partition.files.map(async (relPath) => {
-                try {
-                  const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
-                  fileContents[relPath] = await this.fileOps.readFile(abs);
-                } catch {
-                  // File unreadable — the prompt will still list it by name.
-                }
-              })
-            );
-
-            // Read YAML config once, outside the per-slice work, so all parallel requests share it.
-            let sharedParsedYaml = null;
-            let sharedRoleOverride = '';
-            try {
-              sharedParsedYaml = await loadResolvedAiHelpers(this.fileOps);
-              try {
-                const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
-                const parsedPk = yaml.load(pkYaml);
-                const pk = buildProjectKindPrompt(
-                  parsedPk,
-                  options?.projectKind ?? 'default',
-                  'code_quality_auditor'
-                );
-                if (pk?.role) sharedRoleOverride = pk.role;
-              } catch {
-                /* optional */
-              }
-            } catch {
-              /* fallback to hardcoded builder below */
-            }
-
-            const promptSlices = buildCodePromptSlices(fileContents, {
-              maxCharsPerEntry: AI_MAX_CHARS_PER_PROMPT_ENTRY,
-              maxPromptChars: AI_MAX_PROMPT_SLICE_CHARS,
-              maxEntriesPerSlice: AI_MAX_PROMPT_ENTRIES_PER_SLICE,
-            });
-            if (promptSlices.length === 0) {
-              logger.warn(
-                '[step_10] AI code quality review skipped: no readable source content was available for the selected partition'
-              );
-            }
-
-            // Run all slices in parallel — each slice is independent (different content set, unique cache key).
-            const aiSectionResults = await Promise.all(
-              promptSlices.map(async (promptSlice, si) => {
-                const sliceContents = Object.fromEntries(
-                  promptSlice.scopePaths
-                    .filter((f) => Object.prototype.hasOwnProperty.call(fileContents, f))
-                    .map((f) => [f, fileContents[f]])
-                );
-
-                // Try YAML-based prompt; fall back to hardcoded builder
-                let prompt;
-                try {
-                  if (sharedParsedYaml) {
-                    const fileContentMap = formatPromptFileEntries(promptSlice.entries);
-                    const sampleCode = '';
-                    const largeFList =
-                      promptSlice.oversizedPaths.length > 0
-                        ? promptSlice.oversizedPaths.join(', ')
-                        : '(none)';
-                    const projectName = basename(projectRoot);
-                    const projectDescription = options?.projectDescription ?? '';
-                    const changeScope = options?.changeScope ?? 'full';
-                    const modifiedFiles = options?.modifiedFiles ?? [];
-                    const modifiedCount = modifiedFiles.length;
-                    const totalFiles = aggregateTotals.fileCount ?? reviewableSourceFiles.length;
-                    const languageBreakdown =
-                      detectedLanguages.map((l) => `${l}`).join(', ') || primaryLanguage;
-                    prompt = buildYamlStepPrompt(sharedParsedYaml, 'step10_code_quality_prompt', {
-                      partition_header:
-                        promptSlices.length > 1
-                          ? `[Slice ${si + 1} of ${promptSlices.length} within partition ${partition.index + 1}/${partition.total} — analyse ONLY the files or file-parts listed below for this request]`
-                          : `[Partition ${partition.index + 1}/${partition.total} — analyse ONLY the files listed below for this request]`,
-                      partition_scope_note:
-                        promptSlices.length > 1
-                          ? `This request covers ${promptSlice.scopePaths.length} source files from the current partition. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
-                          : `This request covers ${promptSlice.scopePaths.length} source files from the current partition.`,
-                      project_name: projectName,
-                      project_description: projectDescription,
-                      primary_language: primaryLanguage,
-                      project_kind: options?.projectKind ?? '',
-                      tech_stack_summary: detectedLanguages.join(', '),
-                      change_scope: changeScope,
-                      files_in_scope: promptSlice.scopePaths.length,
-                      modified_count: modifiedCount,
-                      total_files: totalFiles,
-                      language_breakdown: languageBreakdown,
-                      quality_summary: `${aggregateTotals.totalIssues} issue(s)`,
-                      quality_report_content: report.slice(0, 3000),
-                      large_files_list: largeFList,
-                      sample_code: sampleCode,
-                      file_content_map: fileContentMap,
-                    });
-                    if (prompt && sharedRoleOverride) {
-                      prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
-                    }
-                    // Supplementary: issue extraction — only append when actual log content is available
-                    const logFile = options?.sessionLogFile ?? '';
-                    const logContent = options?.sessionLogContent ?? '';
-                    if (logFile && logContent) {
-                      const issuePrompt = buildYamlStepPrompt(
-                        sharedParsedYaml,
-                        'issue_extraction_prompt',
-                        {
-                          project_name: projectName,
-                          primary_language: primaryLanguage,
-                          log_file: logFile,
-                          log_content: logContent,
-                        }
-                      );
-                      if (issuePrompt && prompt) {
-                        prompt = `${prompt}\n\n---\n\n${issuePrompt}`;
-                      }
-                    }
-                    // Front-end projects: add front_end_developer perspective
-                    const fePks = ['react_spa', 'client_spa', 'static_website'];
-                    if (fePks.includes(options?.projectType ?? options?.projectKind ?? '')) {
-                      const fePrompt = buildYamlStepPrompt(
-                        sharedParsedYaml,
-                        'front_end_developer_prompt',
-                        {
-                          project_name: basename(projectRoot),
-                        }
-                      );
-                      if (fePrompt && prompt) {
-                        prompt = `${prompt}\n\n---\n\n${fePrompt}`;
-                      }
-                    }
-                  }
-                } catch {
-                  /* fallback */
-                }
-
-                if (!prompt) {
-                  prompt = buildCodeQualityPrompt({
-                    codeFiles: promptSlice.scopePaths,
-                    language: primaryLanguage,
-                    projectInfo: {
-                      projectRoot,
-                      language: primaryLanguage,
-                      languages: detectedLanguages,
-                    },
-                    fileContents: sliceContents,
-                  });
-                }
-
-                if (options.alternatives) {
-                  const n = options.alternatives === true ? 2 : options.alternatives;
-                  prompt += buildAlternativesDirective(n);
-                }
-
-                const fileHashEntries = promptSlice.entries.map(
-                  (entry) => `${entry.displayPath}:${entry.excerpt}`
-                );
-                // Use 'code_quality_analyst' persona: Step 10 performs code quality review
-                // (maintainability, anti-patterns, technical debt) using the step10_code_quality_prompt
-                // YAML template, which defines a "comprehensive software quality engineer" role.
-                // 'architecture_reviewer' is too narrow (architecture/scalability only) and creates
-                // a misleading mismatch between the logged persona and the actual prompt content.
-                const aiResult = await this.aiCache.withFileChangeGuard(
-                  `step_10_p${partition.index}_s${si}`,
-                  fileHashEntries,
-                  () =>
-                    this.aiHelper.executeRequest(prompt, {
-                      persona: 'code_quality_analyst',
-                      timeout: 240000,
-                    })
-                );
-                const aiContent = aiResult?.content ?? '';
-                if (!aiContent) return '';
-                return promptSlices.length > 1
-                  ? `### Slice ${si + 1} of ${promptSlices.length}\n\n${aiContent}`
-                  : aiContent;
-              })
-            );
-
-            const aiSections = aiSectionResults.filter((c) => c);
-
-            const aiContent = aiSections.join('\n\n---\n\n');
-            const errorResilienceFileContents = Object.fromEntries(
-              Object.entries(fileContents).filter(([path]) =>
-                isErrorResilienceReviewableFile(path)
-              )
-            );
-
-            // Error Resilience: separate AI pass at the partition level (not per-slice).
-            // One focused call reviews all partition files for production failure modes:
-            // empty catches, missing await, unhandled rejections, error masking, etc.
-            // Runs independently so it has its own cache key and never inflates the
-            // main code quality prompt.
-            const currentKind = options?.projectType ?? options?.projectKind ?? '';
-            if (
-              sharedParsedYaml &&
-              shouldRunErrorResiliencePrompt(currentKind) &&
-              Object.keys(errorResilienceFileContents).length > 0
-            ) {
-              try {
-                const erFileMap = formatFileContentMap(
-                  buildFileContentMap(errorResilienceFileContents, {
-                    maxFiles: partition.files.length,
-                    maxCharsPerFile: 2000,
-                  })
-                );
-                const erPrompt = buildYamlStepPrompt(sharedParsedYaml, 'error_resilience_prompt', {
-                  project_name: basename(projectRoot),
-                  primary_language: primaryLanguage,
-                  file_content_map: erFileMap,
-                });
-                if (erPrompt) {
-                  const erHashEntries = Object.entries(errorResilienceFileContents).map(
-                    ([k, v]) => `${k}:${v}`
-                  );
-                  const erResult = await this.aiCache.withFileChangeGuard(
-                    `step_10_er_p${partition.index}`,
-                    erHashEntries,
-                    () =>
-                      this.aiHelper.executeRequest(erPrompt, {
-                        persona: 'code_quality_analyst',
-                        timeout: 180000,
-                      })
-                  );
-                  erContent = erResult?.content ?? '';
-                }
-              } catch (erError) {
-                logger.warn(`Error resilience analysis skipped: ${erError.message}`);
-              }
-            }
-
-            const parsedAlternatives = options.alternatives
-              ? parseAlternatives(aiContent)
-              : { alternatives: [], recommended: null };
-            stepAlternatives = parsedAlternatives;
-            if (aiContent || erContent) {
-              const partitionHeader = `## AI Code Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
-              let enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
-              if (erContent) {
-                enrichedReport += `\n\n---\n\n## Error Resilience Analysis\n\n${erContent}`;
-              }
-              await this.backlog.saveStepSummary(10, 'Code Quality', enrichedReport);
-              // Update per-file quality scores and advance partition for the next run.
-              const perFileIssues = collectPerFileIssues(perLanguageResults, projectRoot);
-              await partitionCache.updateQualityScores(perFileIssues, partition.files);
-              await partitionCache.advance(activeCandidates);
-            }
-          }
-        } else {
-          logger.warn('AI helper not available - skipping AI code quality review');
-        }
+        const aiReviewResult = await this.createAiReviewService().review({
+          projectRoot,
+          options,
+          detectedLanguages,
+          primaryLanguage,
+          aggregateTotals,
+          allSourceFiles,
+          perLanguageResults,
+          perFileIssues: collectPerFileIssues(perLanguageResults, projectRoot),
+          report,
+        });
+        alternatives = aiReviewResult.alternatives;
+        recommendedAlternative = aiReviewResult.recommendedAlternative;
+        erContent = aiReviewResult.erFindings;
       } catch (aiError) {
         logger.warn(`AI code quality review skipped: ${aiError.message}`);
       }
@@ -1272,8 +760,8 @@ export class Step10CodeQualityAnalyzer {
         // backward-compat aliases for single-language consumers
         language: primaryLanguage,
         sourceFileCount: aggregateTotals.fileCount,
-        alternatives: stepAlternatives.alternatives,
-        recommendedAlternative: stepAlternatives.recommended,
+        alternatives,
+        recommendedAlternative,
         erFindings: erContent,
       };
     } catch (error) {
@@ -1379,7 +867,7 @@ export class Step10CodeQualityAnalyzer {
       }
 
       // Remove duplicates
-      return [...new Set(allFiles)];
+      return [...new Set(allFiles)].filter((file) => isStep10CodeReviewableFile(file));
     } catch {
       return [];
     }

@@ -204,6 +204,28 @@ export function inferCommitType(categories) {
 }
 
 /**
+ * Build a concise heuristic commit description from categorized project files.
+ *
+ * @pure
+ * @param {Object} categories - Categorized file counts
+ * @returns {string} Human-readable description
+ */
+export function summarizeCommitDescription(categories = {}) {
+  const parts = [];
+
+  if ((categories.code || 0) > 0) parts.push('implementation');
+  if ((categories.tests || 0) > 0) parts.push('tests');
+  if ((categories.documentation || 0) > 0) parts.push('documentation');
+  if ((categories.scripts || 0) > 0) parts.push('automation');
+  if ((categories.config || 0) > 0) parts.push('configuration');
+
+  if (parts.length === 0) return 'update project files';
+  if (parts.length === 1) return `update ${parts[0]}`;
+  if (parts.length === 2) return `update ${parts[0]} and ${parts[1]}`;
+  return `update ${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}`;
+}
+
+/**
  * Calculate total weighted impact score
  * @pure
  * @param {Object} categories - Categorized file counts
@@ -575,9 +597,8 @@ export class Step12GitFinalization {
     const statusOutput = await this._executeGit(GIT_OPERATIONS.status);
     const status = parseGitStatus(statusOutput);
 
-    // Categorize files
-    const allFiles = [...status.modified, ...status.untracked, ...status.deleted];
-    const categories = categorizeFiles(allFiles);
+    const { allFiles, relevantFiles } = collectPromptScopedFiles(status);
+    const categories = categorizeFiles(relevantFiles);
 
     // Infer commit type
     const { type, scope } = inferCommitType(categories);
@@ -606,6 +627,7 @@ export class Step12GitFinalization {
       commitType: type,
       commitScope: scope,
       totalChanges,
+      projectChangeCount: relevantFiles.length,
       modifiedCount: status.modified.length,
       hasSubmodules: hasSubmodulesFlag,
     };
@@ -866,14 +888,15 @@ export class Step12GitFinalization {
       description: projectDescription,
     } = projectMeta;
     const { allFiles, relevantFiles, changedFiles } = collectPromptScopedFiles(gitState.status);
-    const projectFileCount = relevantFiles.length || gitState.totalChanges;
+    const projectFileCount = relevantFiles.length || gitState.projectChangeCount || 0;
     const stagedFileCount = allFiles.length || projectFileCount;
+    const commitDescription = summarizeCommitDescription(gitState.categories);
 
     // Heuristic conventional commit message as base
     const baseMessage = generateCommitMessage({
       type: gitState.commitType,
       scope: gitState.commitScope,
-      description: 'update tests and documentation',
+      description: commitDescription,
       modifiedCount: gitState.modifiedCount,
       projectFileCount,
       stagedFileCount,

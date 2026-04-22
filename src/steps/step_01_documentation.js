@@ -21,7 +21,11 @@ import {
 import yaml from 'js-yaml';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
-import { Step1IncrementalProcessor } from '../lib/step1_incremental.js';
+import {
+  DOC_CATEGORIES,
+  categorizeDocFile,
+  Step1IncrementalProcessor,
+} from '../lib/step1_incremental.js';
 import { Step1ParallelProcessor } from '../lib/step1_parallel.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { loadReadableReviewFiles } from '../lib/review_prompt_scope.js';
@@ -190,6 +194,198 @@ export function shouldRunAiAnalysis(classification, options = {}) {
   }
 
   return true;
+}
+
+export const STEP1_MAX_SUPPORTING_EVIDENCE_FILES = 12;
+
+function normalizeStep1EvidencePath(filePath) {
+  return String(filePath ?? '').replace(/\\/g, '/');
+}
+
+function isMarkdownDoc(filePath) {
+  return /\.md$/i.test(filePath);
+}
+
+function isSourceEvidenceFile(filePath) {
+  return /\.[cm]?[jt]sx?$/i.test(filePath) && !/\.d\.ts$/i.test(filePath);
+}
+
+function isStaticEvidenceFile(filePath) {
+  return /\.(html|css)$/i.test(filePath);
+}
+
+function isKeyConfigEvidenceFile(filePath) {
+  const normalized = normalizeStep1EvidencePath(filePath);
+  const basename = normalized.split('/').pop() ?? '';
+
+  return (
+    normalized === 'package.json' ||
+    normalized === 'tsconfig.json' ||
+    normalized === '.workflow-config.yaml' ||
+    normalized.startsWith('.github/workflows/') ||
+    basename === 'Dockerfile' ||
+    /^docker-compose(\.[^.]+)?\.ya?ml$/i.test(basename) ||
+    /(^|\/)(vite|webpack|rollup|esbuild|jest|babel|eslint|prettier|typedoc|turbo|next|nuxt|astro|svelte|playwright|vitest)\.config\.[^/]+$/i.test(
+      normalized
+    )
+  );
+}
+
+export function isLowSignalStep1Evidence(filePath) {
+  const normalized = normalizeStep1EvidencePath(filePath);
+
+  return (
+    normalized.length === 0 ||
+    normalized.startsWith('.ai_workflow/') ||
+    normalized.startsWith('.workflow_core/') ||
+    normalized.startsWith('.workflow_fspec/') ||
+    normalized.startsWith('.playwright-mcp/') ||
+    normalized.startsWith('node_modules/') ||
+    normalized.startsWith('coverage/') ||
+    normalized.startsWith('.test-cache/') ||
+    normalized === '.mcp.json' ||
+    normalized === 'package-lock.json' ||
+    /(^|\/)(dist|build|out|public\/build|\.next|\.nuxt|\.svelte-kit)(\/|$)/i.test(normalized) ||
+    /(^|\/)assets\/js\//i.test(normalized)
+  );
+}
+
+export function rankStep1EvidenceFile(filePath, category, docFileSet = new Set()) {
+  const normalized = normalizeStep1EvidencePath(filePath);
+
+  if (!normalized || isLowSignalStep1Evidence(normalized)) {
+    return -1;
+  }
+
+  if (docFileSet.has(normalized)) {
+    return 1000;
+  }
+
+  if (isMarkdownDoc(normalized)) {
+    return 900;
+  }
+
+  switch (category) {
+    case DOC_CATEGORIES.API:
+      if (isSourceEvidenceFile(normalized)) return 850;
+      if (isKeyConfigEvidenceFile(normalized)) return 500;
+      if (isStaticEvidenceFile(normalized)) return 250;
+      return 0;
+    case DOC_CATEGORIES.README:
+      if (isKeyConfigEvidenceFile(normalized)) return 820;
+      if (isStaticEvidenceFile(normalized)) return 760;
+      if (isSourceEvidenceFile(normalized)) return 420;
+      return 0;
+    case DOC_CATEGORIES.CONTRIBUTING:
+      if (isKeyConfigEvidenceFile(normalized)) return 780;
+      if (isSourceEvidenceFile(normalized)) return 260;
+      return 0;
+    case DOC_CATEGORIES.CHANGELOG:
+      if (normalized === 'package.json') return 780;
+      if (isKeyConfigEvidenceFile(normalized)) return 480;
+      return 0;
+    case DOC_CATEGORIES.GUIDE:
+    case DOC_CATEGORIES.REFERENCE:
+    case DOC_CATEGORIES.OTHER:
+      if (isSourceEvidenceFile(normalized)) return 760;
+      if (isStaticEvidenceFile(normalized)) return 700;
+      if (isKeyConfigEvidenceFile(normalized)) return 540;
+      return 0;
+    case DOC_CATEGORIES.LICENSE:
+    default:
+      if (isKeyConfigEvidenceFile(normalized)) return 320;
+      return 0;
+  }
+}
+
+export function selectStep1EvidenceFiles(docFiles, classification, options = {}) {
+  const normalizedDocFiles = [
+    ...new Set(
+      (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
+    ),
+  ];
+  const docFileSet = new Set(normalizedDocFiles);
+  const primaryCategory = categorizeDocFile(normalizedDocFiles[0] ?? '');
+  const maxSupportingFiles = options.maxSupportingFiles ?? STEP1_MAX_SUPPORTING_EVIDENCE_FILES;
+  const candidates = [
+    ...normalizedDocFiles,
+    ...(classification?.documentation ?? []).map(normalizeStep1EvidencePath),
+    ...(classification?.source ?? []).map(normalizeStep1EvidencePath),
+    ...(classification?.config ?? []).map(normalizeStep1EvidencePath),
+  ];
+  const seen = new Set();
+  const rankedCandidates = [];
+
+  for (const filePath of candidates) {
+    const normalized = normalizeStep1EvidencePath(filePath);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+
+    const score = rankStep1EvidenceFile(normalized, primaryCategory, docFileSet);
+    if (score > 0) {
+      rankedCandidates.push({ filePath: normalized, score });
+    }
+  }
+
+  rankedCandidates.sort(
+    (left, right) => right.score - left.score || left.filePath.localeCompare(right.filePath)
+  );
+
+  const selectedDocs = rankedCandidates
+    .filter(({ filePath }) => isMarkdownDoc(filePath))
+    .map(({ filePath }) => filePath);
+  const selectedSupport = rankedCandidates
+    .filter(({ filePath }) => !isMarkdownDoc(filePath))
+    .slice(0, maxSupportingFiles)
+    .map(({ filePath }) => filePath);
+
+  return [...new Set([...selectedDocs, ...selectedSupport])];
+}
+
+function splitPartitionedDocAnalysisSections(content) {
+  const normalized = String(content ?? '').trim();
+  if (!normalized) {
+    return [];
+  }
+
+  if (!/^#### Partition \d+ of \d+/m.test(normalized)) {
+    return [normalized];
+  }
+
+  return normalized
+    .split(/^#### Partition \d+ of \d+\n\n/m)
+    .map((section) => section.trim())
+    .filter(Boolean);
+}
+
+function isNoUpdateDocAnalysisSection(section) {
+  return /\bNo updates (?:required|needed)\b/i.test(section);
+}
+
+function isInconclusiveDocAnalysisSection(section) {
+  return /\b(?:Unavailable|Inconclusive|Not applicable)\b/i.test(section);
+}
+
+export function consolidateStep1DocAnalysis(content, docFiles = []) {
+  const sections = splitPartitionedDocAnalysisSections(content);
+  if (sections.length <= 1) {
+    return String(content ?? '').trim();
+  }
+
+  const docLabel =
+    (Array.isArray(docFiles) ? docFiles : []).join(', ') || 'the scoped documentation files';
+
+  if (sections.every(isNoUpdateDocAnalysisSection)) {
+    return `No updates required — consolidated across ${sections.length} prompt partition(s) for ${docLabel}. The visible evidence did not identify documentation-impacting changes for the scoped documentation files.`;
+  }
+
+  if (sections.every(isInconclusiveDocAnalysisSection)) {
+    return `Inconclusive — consolidated across ${sections.length} prompt partition(s) for ${docLabel}. The visible evidence was incomplete, tangential, or out of scope for a confident documentation verdict.`;
+  }
+
+  return String(content ?? '').trim();
 }
 
 export const STEP1_DOCUMENTATION_PREFERRED_MODELS = [
@@ -462,20 +658,11 @@ export class Step1DocumentationAnalyzer {
               language: this.configManager?.config?.tech_stack?.primary_language,
               projectKind: this.configManager?.config?.project?.kind,
             };
-            // Build the relevant changed-files list from classified categories only.
-            // Using the raw changedFiles array would include unclassified/binary files
-            // (e.g. .jest-cache/*, node_modules/**) that waste tokens and add noise.
-            const relevantChangedFiles = [
-              ...classification.documentation,
-              ...classification.source,
-              ...classification.tests,
-              ...classification.config,
-            ];
-            const allFiles = [...new Set([...files, ...relevantChangedFiles])];
+            const evidenceFiles = selectStep1EvidenceFiles(files, classification);
             const { fileEntries } = await loadReadableReviewFiles(
               this.fileOps,
               projectRoot,
-              allFiles
+              evidenceFiles
             );
             const fileHashEntries = fileEntries.map(
               ({ relativePath, content }) => `${relativePath}:${content}`
@@ -536,11 +723,11 @@ export class Step1DocumentationAnalyzer {
                         : '',
                     partition_scope_note:
                       total > 1
-                        ? `This request covers ${partition.scopePaths.length} of ${allFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
+                        ? `This request covers ${partition.scopePaths.length} of ${evidenceFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
                         : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
                     project_name: projectInfo.projectKind ?? projectRoot,
                     primary_language: projectInfo.language ?? 'unknown',
-                    changed_files: relevantChangedFiles.join(', '),
+                    changed_files: evidenceFiles.join(', '),
                     doc_files: files.join(', '),
                     file_paths_in_request:
                       filePathsContext ||
@@ -554,7 +741,7 @@ export class Step1DocumentationAnalyzer {
 
                 if (!prompt) {
                   prompt = buildDocAnalysisPrompt({
-                    changedFiles: relevantChangedFiles,
+                    changedFiles: evidenceFiles,
                     docFiles: files,
                     projectInfo,
                   });
@@ -564,7 +751,7 @@ export class Step1DocumentationAnalyzer {
                       ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
                       : '',
                     total > 1
-                      ? `This request covers ${partition.scopePaths.length} of ${allFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
+                      ? `This request covers ${partition.scopePaths.length} of ${evidenceFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
                       : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
                   ]
                     .filter(Boolean)
@@ -607,8 +794,8 @@ export class Step1DocumentationAnalyzer {
               success,
               response: {
                 success,
-                content: combinedContent,
-                text: combinedContent,
+                content: consolidateStep1DocAnalysis(combinedContent, files),
+                text: consolidateStep1DocAnalysis(combinedContent, files),
               },
             };
           },

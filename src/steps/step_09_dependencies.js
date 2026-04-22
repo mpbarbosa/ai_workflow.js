@@ -256,7 +256,7 @@ export function buildDependencyPromptEvidence({
   runtimeEvidenceParts.push(
     runtimePinFiles.length > 0
       ? `runtime pin files: ${runtimePinFiles.join(', ')}`
-      : 'runtime pin files: none found'
+      : 'runtime pin files: none found in the supplied file scan'
   );
 
   const lockfileEvidence = hasLockfile
@@ -268,7 +268,7 @@ export function buildDependencyPromptEvidence({
     : 'No lockfile was supplied to support transitive dependency or resolution analysis.';
 
   const dependencyTreeEvidence =
-    'Only the supplied manifest excerpt, top-level dependency names, audit results, and outdated-package output may support conclusions here. Unused dependencies, duplicate packages, peer-resolution issues, transitive conflicts, and bundle-size claims stay unavailable unless a tree or usage scan is explicitly provided.';
+    'Only the supplied manifest excerpt, top-level dependency names, audit results, and outdated-package output may support conclusions here. A detected lockfile without its full dependency tree does not prove the resolved transitive graph. Unused dependencies, duplicate packages, peer-resolution issues, transitive presence or conflicts, and bundle-size claims stay unavailable unless a tree or usage scan is explicitly provided.';
 
   return {
     manifestEvidenceLevel,

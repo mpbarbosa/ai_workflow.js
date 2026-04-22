@@ -63,6 +63,17 @@ export const CONFIG_PATTERNS = {
 };
 
 /**
+ * Generated configuration artifacts that should be validated and reported
+ * through their authoritative workflow config sources instead of directly.
+ */
+export const GENERATED_CONFIG_REPLACEMENTS = {
+  '.workflow_core/config/ai_helpers.yaml': [
+    '.workflow_core/.workflow-config.yaml',
+    '.workflow-config.yaml',
+  ],
+};
+
+/**
  * Secret patterns to detect
  */
 export const SECRET_PATTERNS = [
@@ -165,6 +176,14 @@ export function getConfigType(filePath) {
   }
 
   return 'unknown';
+}
+
+function normalizeConfigPath(filePath) {
+  return String(filePath ?? '').replace(/\\/g, '/');
+}
+
+function getGeneratedConfigReplacementPaths(filePath) {
+  return GENERATED_CONFIG_REPLACEMENTS[normalizeConfigPath(filePath)] ?? [];
 }
 
 // ============================================================================
@@ -869,7 +888,8 @@ export class Step4ConfigAnalyzer {
       logger.step('Step 4: Configuration Validation');
 
       // Phase 1: Discover configuration files
-      const configFiles = await this.discoverConfigFiles(projectRoot);
+      let configFiles = await this.discoverConfigFiles(projectRoot);
+      configFiles = await this.resolveConfigFilesForValidation(projectRoot, configFiles);
       if (configFiles.length === 0) {
         logger.info('No configuration files found - skipping validation');
         return {
@@ -1171,6 +1191,56 @@ ${filesContentBlock}`;
     }
 
     return [...new Set(files)];
+  }
+
+  async resolveConfigFilesForValidation(projectRoot, configFiles) {
+    const resolvedFiles = [];
+    const seen = new Set();
+
+    const addResolvedFile = (filePath) => {
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(projectRoot, filePath);
+      if (seen.has(absolutePath)) return;
+      seen.add(absolutePath);
+      resolvedFiles.push(absolutePath);
+    };
+
+    for (const filePath of configFiles) {
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(projectRoot, filePath);
+      const relativePath = normalizeConfigPath(path.relative(projectRoot, absolutePath));
+      const replacementPaths = getGeneratedConfigReplacementPaths(relativePath);
+
+      if (replacementPaths.length === 0) {
+        addResolvedFile(absolutePath);
+        continue;
+      }
+
+      const readableReplacements = [];
+      for (const replacementPath of replacementPaths) {
+        const replacementAbsolutePath = path.resolve(projectRoot, replacementPath);
+        try {
+          await this.fileOps.readFile(replacementAbsolutePath);
+          readableReplacements.push(replacementAbsolutePath);
+        } catch {
+          /* keep checking the remaining replacements */
+        }
+      }
+
+      if (readableReplacements.length > 0) {
+        logger.info(
+          `[step_04] Treating ${relativePath} as generated; using ${replacementPaths.join(', ')} for validation/reporting`
+        );
+        readableReplacements.forEach(addResolvedFile);
+        continue;
+      }
+
+      addResolvedFile(absolutePath);
+    }
+
+    return resolvedFiles;
   }
 
   /**

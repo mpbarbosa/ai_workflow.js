@@ -211,6 +211,128 @@ export async function detectTestTypes(projectRoot) {
   return types.length > 0 ? types.join(', ') : 'unit';
 }
 
+const KNOWN_TEST_FRAMEWORKS = new Set([
+  'jest',
+  'vitest',
+  'mocha',
+  'ava',
+  'tap',
+  'jasmine',
+  'karma',
+  'playwright',
+  'cypress',
+  'wdio',
+  'pytest',
+  'rspec',
+]);
+
+/**
+ * Decide whether the invoked command is acting as a repository validation
+ * script rather than as a conventional test runner.
+ *
+ * @pure
+ * @param {Object} params
+ * @param {string} [params.testCommand]
+ * @param {string} [params.testFramework]
+ * @param {string} [params.testConfigPaths]
+ * @param {string} [params.testTypes]
+ * @returns {boolean}
+ */
+export function isValidationScriptExecution({
+  testCommand = '',
+  testFramework = '',
+  testConfigPaths = 'none found',
+  testTypes = '',
+} = {}) {
+  const normalizedCommand = String(testCommand).trim().toLowerCase();
+  const normalizedFramework = String(testFramework).trim().toLowerCase();
+  const normalizedConfigPaths = String(testConfigPaths).trim().toLowerCase();
+  const normalizedTypes = String(testTypes).trim().toLowerCase();
+
+  if (normalizedTypes === 'validation-script') {
+    return true;
+  }
+
+  if (normalizedConfigPaths !== 'none found' && normalizedConfigPaths !== '') {
+    return false;
+  }
+
+  const commandLooksLikeTestRunner =
+    /\b(jest|vitest|mocha|ava|tap|jasmine|karma|playwright|cypress|wdio|pytest|rspec)\b/.test(
+      normalizedCommand
+    ) || /\b(go test|mvn test|cargo test)\b/.test(normalizedCommand);
+
+  if (commandLooksLikeTestRunner || KNOWN_TEST_FRAMEWORKS.has(normalizedFramework)) {
+    return false;
+  }
+
+  if (normalizedFramework === 'custom') {
+    return true;
+  }
+
+  return /\b(typecheck|tsc|lint|validate|check)\b/.test(normalizedCommand);
+}
+
+/**
+ * Decide whether the available evidence explicitly indicates E2E coverage.
+ *
+ * @pure
+ * @param {Object} params
+ * @param {string} [params.testCommand]
+ * @param {string} [params.testFramework]
+ * @param {string} [params.testConfigPaths]
+ * @param {string} [params.testTypes]
+ * @returns {boolean}
+ */
+export function hasExplicitE2eEvidence({
+  testCommand = '',
+  testFramework = '',
+  testConfigPaths = 'none found',
+  testTypes = '',
+} = {}) {
+  const normalizedCommand = String(testCommand).trim().toLowerCase();
+  const normalizedFramework = String(testFramework).trim().toLowerCase();
+  const normalizedConfigPaths = String(testConfigPaths).trim().toLowerCase();
+  const normalizedTypes = String(testTypes).trim().toLowerCase();
+
+  return (
+    /\be2e\b/.test(normalizedTypes) ||
+    /\b(playwright|cypress|wdio)\b/.test(normalizedFramework) ||
+    /\b(playwright|cypress|wdio)\b/.test(normalizedCommand) ||
+    /\b(playwright|cypress|wdio)\b/.test(normalizedConfigPaths)
+  );
+}
+
+/**
+ * Format a prompt-friendly test result summary.
+ *
+ * @pure
+ * @param {Object} params
+ * @param {boolean} [params.isValidationScript=false]
+ * @param {Object} [params.testResults={}]
+ * @returns {string}
+ */
+export function formatPromptResultsSummary({ isValidationScript = false, testResults = {} } = {}) {
+  if (isValidationScript && (testResults.total ?? 0) === 0) {
+    return 'unavailable — validation-script run did not report test-case counts';
+  }
+
+  return `${testResults.passed ?? 0}/${testResults.total ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped`;
+}
+
+/**
+ * Format a prompt-friendly coverage threshold string.
+ *
+ * @pure
+ * @param {number|null} configuredCoverageThreshold
+ * @returns {string}
+ */
+export function formatPromptCoverageThreshold(configuredCoverageThreshold) {
+  return configuredCoverageThreshold === null
+    ? 'unavailable — no explicit project threshold configured'
+    : `${configuredCoverageThreshold}%`;
+}
+
 /**
  * Detect CI/CD workflow config file paths under .github/workflows/.
  * @param {string} projectRoot - Project root directory
@@ -910,6 +1032,7 @@ export class Step8TestExecutor {
 
       // Phase 4b: Identify per-file coverage gaps
       const coverageThreshold = await this.readCoverageThreshold(projectRoot);
+      const configuredCoverageThreshold = await this.readConfiguredCoverageThreshold(projectRoot);
       const coverageGaps = parseCoverageGaps(coverageJson, coverageThreshold);
       if (coverageGaps.length > 0) {
         logger.warn(`Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`);
@@ -967,11 +1090,61 @@ export class Step8TestExecutor {
           coverageGaps,
           coverageThreshold,
         });
-        const [testConfigPaths, testTypes, ciConfigPaths] = await Promise.all([
+        const configuredTestFramework =
+          this.configManager?.getConfig?.()?.tech_stack?.test_framework ||
+          (await this._readTestFrameworkFromConfig(projectRoot)) ||
+          language;
+        const [testConfigPaths, detectedTestTypes, ciConfigPaths] = await Promise.all([
           detectTestConfigPaths(projectRoot),
           detectTestTypes(projectRoot),
           detectCiConfigPaths(projectRoot),
         ]);
+        const validationScriptExecution = isValidationScriptExecution({
+          testCommand,
+          testFramework: configuredTestFramework,
+          testConfigPaths,
+          testTypes: detectedTestTypes,
+        });
+        const explicitE2eEvidence = hasExplicitE2eEvidence({
+          testCommand,
+          testFramework: configuredTestFramework,
+          testConfigPaths,
+          testTypes: detectedTestTypes,
+        });
+        const promptTestTypes = validationScriptExecution ? 'validation-script' : detectedTestTypes;
+        const promptResultsSummary = formatPromptResultsSummary({
+          isValidationScript: validationScriptExecution,
+          testResults,
+        });
+        const promptCoverageThreshold = formatPromptCoverageThreshold(configuredCoverageThreshold);
+        const promptScope = validationScriptExecution
+          ? 'validation script only'
+          : 'automated test suite only';
+        const promptExecutionSummary = noTestsFound
+          ? silentRunnerExit
+            ? validationScriptExecution
+              ? `The validation command exited without output in ${duration}ms; no validation, typecheck, or test diagnostics could be confirmed from captured evidence`
+              : `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence`
+            : validationScriptExecution
+              ? `The validation command completed without reporting test-case counts in ${duration}ms`
+              : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
+          : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`;
+        const promptOutput = noTestsFound
+          ? silentRunnerExit
+            ? validationScriptExecution
+              ? `none — validation command produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
+              : `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
+            : (testResult.output ?? '').slice(0, 2000) ||
+              (validationScriptExecution
+                ? `validation command completed without reporting test cases (exit code ${testResult.exitCode})`
+                : `runner reported no test files (exit code ${testResult.exitCode})`)
+          : (testResult.output ?? '').slice(0, 2000) || 'none';
+        const failedTestList =
+          validationScriptExecution && !anyFailure
+            ? 'none — validation-script run did not report named test cases'
+            : anyFailure
+              ? (testResult.output ?? '').slice(0, 1000)
+              : 'none';
 
         let prompt;
         try {
@@ -981,38 +1154,24 @@ export class Step8TestExecutor {
             project_name: path.basename(projectRoot),
             project_description: options?.projectDescription ?? 'N/A',
             primary_language: language,
-            test_framework:
-              this.configManager?.getConfig?.()?.tech_stack?.test_framework ||
-              (await this._readTestFrameworkFromConfig(projectRoot)) ||
-              language,
+            test_framework: configuredTestFramework,
             test_command: testCommand,
             test_config_paths: testConfigPaths,
-            test_types: testTypes,
+            test_types: promptTestTypes,
             test_exit_code: noTestsFound
               ? silentRunnerExit
                 ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as non-blocking rather than as a confirmed test failure)`
                 : `${testResult.exitCode} (no tests found message detected in runner output; treated as no-tests-found, not a test failure)`
               : String(testResult.exitCode),
-            tests_total: String(testResults.total ?? 0),
-            tests_passed: String(testResults.passed ?? 0),
-            tests_failed: String(testResults.failed ?? 0),
-            tests_skipped: String(testResults.skipped ?? 0),
+            results_summary: promptResultsSummary,
             project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
             ci_config_paths: ciConfigPaths,
-            execution_summary: noTestsFound
-              ? silentRunnerExit
-                ? `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence`
-                : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
-              : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`,
-            test_output: noTestsFound
-              ? silentRunnerExit
-                ? `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
-                : (testResult.output ?? '').slice(0, 2000) ||
-                  `runner reported no test files (exit code ${testResult.exitCode})`
-              : (testResult.output ?? '').slice(0, 2000) || 'none',
-            failed_test_list: anyFailure ? (testResult.output ?? '').slice(0, 1000) : 'none',
-            coverage_threshold: String(coverageThreshold),
+            execution_summary: promptExecutionSummary,
+            test_output: promptOutput,
+            failed_test_list: failedTestList,
+            coverage_threshold: promptCoverageThreshold,
             coverage_gaps: coverageGapsText,
+            scope_label: promptScope,
           });
         } catch {
           /* fallback to generic prompt */
@@ -1024,7 +1183,7 @@ export class Step8TestExecutor {
 - Tests passed: ${testResults.passed ?? 0}
 - Tests failed: ${testResults.failed ?? 0}
 - Overall coverage: ${coverage.statements ?? 'N/A'}% statements
-- Coverage threshold: ${coverageThreshold}%
+- Coverage threshold: ${promptCoverageThreshold}
 - Modules below threshold:\n${coverageGapsText}
 - Duration: ${duration}ms
 - Exit code: ${testResult.exitCode}`;
@@ -1042,7 +1201,7 @@ export class Step8TestExecutor {
         const fePks = ['react_spa', 'client_spa', 'static_website'];
         const resolvedKind = options?.projectType ?? options?.projectKind ?? '';
         let e2eContent = '';
-        if (fePks.includes(resolvedKind)) {
+        if (fePks.includes(resolvedKind) && !validationScriptExecution && explicitE2eEvidence) {
           try {
             const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
             const parsedYaml2 = yaml.load(yamlContent2);
@@ -1050,14 +1209,14 @@ export class Step8TestExecutor {
               project_name: path.basename(projectRoot),
               project_description: options?.projectDescription ?? 'N/A',
               project_type: resolvedKind,
-              e2e_framework: language,
+              e2e_framework: configuredTestFramework,
               test_command: testCommand,
               browser_targets: '',
               modified_count: String((options?.modifiedFiles ?? []).length),
             });
             if (e2ePrompt) {
               const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
-              const e2eResult = await this.aiCache.withCache(e2eKey, e2eKey, () =>
+              const e2eResult = await this.aiCache.withCache(e2ePrompt, e2eKey, () =>
                 this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
               );
               e2eContent = e2eResult?.content ?? '';
@@ -1311,6 +1470,28 @@ export class Step8TestExecutor {
       // Config missing or unreadable — use default
     }
     return 80;
+  }
+
+  /**
+   * Read the explicitly configured minimum coverage threshold from
+   * `.workflow-config.yaml`.
+   *
+   * @param {string} projectRoot - Project root directory
+   * @returns {Promise<number|null>} Threshold percentage or null when unset
+   */
+  async readConfiguredCoverageThreshold(projectRoot) {
+    try {
+      const configPath = `${projectRoot}/.workflow-config.yaml`;
+      const content = await this.fileOps.readFile(configPath);
+      const config = yaml.load(content);
+      const threshold = config?.validation?.testing?.min_coverage;
+      if (typeof threshold === 'number' && threshold > 0 && threshold <= 100) {
+        return threshold;
+      }
+    } catch {
+      // Config missing or unreadable — no explicit threshold configured
+    }
+    return null;
   }
   /**
    * Read the test framework name from `.workflow-config.yaml`.

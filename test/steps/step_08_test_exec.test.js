@@ -14,10 +14,13 @@ import {
   detectCiConfigPaths,
   detectTestConfigPaths,
   detectTestTypes,
+  formatPromptCoverageThreshold,
+  formatPromptResultsSummary,
   getTestCommand,
   getCoverageFiles,
   hasTestScript,
   extractTestCommand,
+  isValidationScriptExecution,
   parseJestOutput,
   parsePytestOutput,
   parseTestOutput,
@@ -131,6 +134,45 @@ describe('Step 8: Test Execution', () => {
       } finally {
         rmSync(projectRoot, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('validation-script prompt helpers', () => {
+    test('classifies custom npm validation commands without test configs as validation scripts', () => {
+      expect(
+        isValidationScriptExecution({
+          testCommand: 'npm test',
+          testFramework: 'custom',
+          testConfigPaths: 'none found',
+          testTypes: 'unit',
+        })
+      ).toBe(true);
+    });
+
+    test('does not classify real Jest runs as validation scripts', () => {
+      expect(
+        isValidationScriptExecution({
+          testCommand: 'npm test',
+          testFramework: 'jest',
+          testConfigPaths: 'jest.config.js',
+          testTypes: 'unit',
+        })
+      ).toBe(false);
+    });
+
+    test('formats validation-script result summaries as unavailable when no test counts exist', () => {
+      expect(
+        formatPromptResultsSummary({
+          isValidationScript: true,
+          testResults: { total: 0, passed: 0, failed: 0, skipped: 0 },
+        })
+      ).toBe('unavailable — validation-script run did not report test-case counts');
+    });
+
+    test('formats missing project coverage thresholds as unavailable', () => {
+      expect(formatPromptCoverageThreshold(null)).toBe(
+        'unavailable — no explicit project threshold configured'
+      );
     });
   });
 
@@ -944,6 +986,75 @@ describe('Step 8: Test Execution', () => {
       expect(capturedPrompt).not.toContain(
         'No tests were discovered or executed (runner produced no output'
       );
+    });
+
+    test('AI prompt treats silent custom npm validation commands as validation-script analysis', async () => {
+      let capturedPrompt = '';
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 1,
+          stdout: '',
+          stderr: '',
+        };
+      };
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/package.json') {
+          return JSON.stringify({ scripts: { test: 'npm run typecheck' } });
+        }
+        if (targetPath === '/project/.workflow-config.yaml') {
+          return [
+            'project:',
+            '  kind: static_website',
+            'tech_stack:',
+            '  primary_language: typescript',
+            '  test_framework: custom',
+            '  test_command: npm test',
+          ].join('\n');
+        }
+        if (targetPath === AI_HELPERS_PATH) {
+          return readFileSync(AI_HELPERS_PATH, 'utf8');
+        }
+        throw new Error(`Unexpected readFile path: ${targetPath}`);
+      };
+
+      executor = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: {
+          detectTechStack: async () => ({
+            primaryLanguage: 'typescript',
+            languages: ['typescript'],
+          }),
+        },
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: () => Promise.resolve({ content: 'ok' }),
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withCache: async (prompt) => {
+            capturedPrompt = prompt;
+            return { content: 'ok' };
+          },
+        },
+      });
+
+      await executor.execute('/project', { projectKind: 'nodejs_automation' });
+
+      expect(capturedPrompt).toContain('Test Types: validation-script');
+      expect(capturedPrompt).toContain('Scope: validation script only');
+      expect(capturedPrompt).toContain(
+        'Results: unavailable — validation-script run did not report test-case counts'
+      );
+      expect(capturedPrompt).toContain(
+        'Coverage Threshold: unavailable — no explicit project threshold configured'
+      );
+      expect(capturedPrompt).toContain('The validation command exited without output');
+      expect(capturedPrompt).toContain(
+        'For silent `validation-script` runs, do not recommend listing discovered tests, renaming test entry points, or addressing missing tests'
+      );
+      expect(capturedPrompt).not.toContain('Scope: automated test suite only');
     });
   });
 

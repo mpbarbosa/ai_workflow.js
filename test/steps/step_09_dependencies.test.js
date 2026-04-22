@@ -212,6 +212,23 @@ describe('Step 9: Dependency Validation', () => {
       expect(result.dependencyTreeEvidence).toContain('Unused dependencies');
       expect(result.manifestSnippet).toBe('Not available');
     });
+
+    test('marks absent runtime pin files as confirmed scan results, not missing evidence', () => {
+      const result = buildDependencyPromptEvidence({
+        language: 'typescript',
+        dependencyFiles: ['package.json', 'package-lock.json'],
+        packageJson: {
+          devDependencies: { typescript: '^6.0.3' },
+        },
+      });
+
+      expect(result.runtimeVersionEvidence).toContain(
+        'runtime pin files: none found in the supplied file scan'
+      );
+      expect(result.dependencyTreeEvidence).toContain(
+        'does not prove the resolved transitive graph'
+      );
+    });
   });
 
   describe('parseNpmAudit', () => {
@@ -984,6 +1001,13 @@ describe('Step 9: Dependency Validation', () => {
       expect(dependencyPrompt).toContain('Manifest Detail Level: Manifest excerpt available');
       expect(dependencyPrompt).toContain('Dependency Tree / Usage Evidence:');
       expect(dependencyPrompt).toContain('"engines": {');
+      expect(dependencyPrompt).toContain('runtime pin files: .nvmrc');
+      expect(dependencyPrompt).toContain(
+        'treat that as confirmed absence from the supplied scan, not as an unresolved gap'
+      );
+      expect(dependencyPrompt).toContain(
+        'A detected lockfile without a visible dependency tree is not enough to claim'
+      );
     });
   });
 

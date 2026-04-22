@@ -26,12 +26,26 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('compact summary of a generated');
     expect(template).toContain('lockfile or other oversized');
+    expect(template).toContain('Keep praise evidence-bound.');
+  });
+
+  test('approach constrains praise and freshness claims to visible evidence', () => {
+    const approach = aiHelpers.configuration_specialist_prompt.approach;
+
+    expect(approach).toContain('Highlight only best practices that are directly visible');
+    expect(approach).toContain(
+      'Do not use freshness or safety adjectives such as "safe", "latest", or'
+    );
+    expect(approach).toContain(
+      'Keep any positive observations narrowly scoped to what is explicitly visible'
+    );
   });
 
   test('rendered prompt preserves partition guidance alongside split file labels', () => {
     const prompt = buildYamlStepPrompt(aiHelpers, 'configuration_specialist_prompt', {
       project_name: 'gitx',
-      partition_header: '[Partition 1 of 2 — analyze ONLY the files/slices listed below for this request]',
+      partition_header:
+        '[Partition 1 of 2 — analyze ONLY the files/slices listed below for this request]',
       partition_scope_note:
         'This partition covers 1 of 2 configuration files in the current run. Entries labeled "(part X/Y)" are deliberate sequential slices created to avoid prompt truncation; analyze only the visible slice(s) in this request.',
       partition_config_count: '1',
