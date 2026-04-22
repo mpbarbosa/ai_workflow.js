@@ -6,7 +6,7 @@
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.2.12
+**Version:** 2.2.13
 **Date:** 2026-04-09
 **Status:** Active
 
@@ -55,6 +55,9 @@ This document defines the functional requirements for the foundational layers of
 | RI-021 | step_01_5   | Require explicit repo-fact support before classifying a finding as `supported guidance`.             | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
 | RI-022 | step_01_5   | Forbid invented repo-fact headings or labels in Step 1.5 finding evidence.                           | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
 | RI-023 | step_01_5   | Require Step 1.5 findings to map to visible current-file sections or explicitly requested omissions. | .workflow_core/config/ai_helpers/workflow_steps.yaml | Medium   | done   |
+| RI-024 | step_08     | Treat custom silent verification commands as `validation-script` analysis instead of unit-test runs. | src/steps/step_08_test_exec.js                       | Medium   | done   |
+| RI-025 | step_08     | Only surface a coverage threshold in step_08 prompts when the target repo explicitly configures one. | src/steps/step_08_test_exec.js                       | Low      | done   |
+| RI-026 | step_08     | Forbid silent validation-script prompts from recommending speculative test-discovery fixes.          | .workflow_core/config/ai_helpers.yaml                | Medium   | done   |
 
 ### 1.2 Scope
 
@@ -93,7 +96,7 @@ Detailed specifications for each module are provided in the sections below.
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.2.12
+**Version:** 2.2.13
 **Date:** 2026-04-09
 **Status:** Active
 
