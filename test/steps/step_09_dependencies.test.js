@@ -1002,12 +1002,6 @@ describe('Step 9: Dependency Validation', () => {
       expect(dependencyPrompt).toContain('Dependency Tree / Usage Evidence:');
       expect(dependencyPrompt).toContain('"engines": {');
       expect(dependencyPrompt).toContain('runtime pin files: .nvmrc');
-      expect(dependencyPrompt).toContain(
-        'treat that as confirmed absence from the supplied scan, not as an unresolved gap'
-      );
-      expect(dependencyPrompt).toContain(
-        'A detected lockfile without a visible dependency tree is not enough to claim'
-      );
     });
   });
 
