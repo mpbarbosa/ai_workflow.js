@@ -1,0 +1,290 @@
+# update-olinda-copilot-sdk.yml
+# Checks for a new olinda_copilot_sdk.ts release on GitHub and updates the
+# tarball CDN URL in package.json, installs dependencies, lints, runs tests,
+# adjusts related code/docs/tests, and opens a pull request.
+#
+# olinda_copilot_sdk.ts is consumed via its GitHub tarball CDN — the same
+# pattern used for other GitHub-hosted dependencies in this project.
+#
+# Triggers:
+#   - Weekly schedule (Wednesday 09:00 UTC)
+#   - workflow_dispatch — pin to a specific version or force a refresh
+
+name: Update olinda_copilot_sdk.ts
+
+on:
+  schedule:
+    - cron: '0 9 * * 3' # every Wednesday at 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: |
+          olinda_copilot_sdk.ts tag to update to (e.g. v0.5.1).
+          Leave blank to use the latest published release.
+        required: false
+        default: ''
+
+permissions:
+  contents: write # push update branch
+  pull-requests: write # open / update PR
+
+# Prevent concurrent runs from racing on the same PR branch.
+# cancel-in-progress: false queues the second run rather than dropping it,
+# ensuring every scheduled or manual trigger is eventually processed.
+concurrency:
+  group: update-olinda-copilot-sdk-ts
+  cancel-in-progress: false
+
+jobs:
+  update-olinda-copilot-sdk:
+    name: Check & Update olinda_copilot_sdk.ts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          cache: npm
+
+      - name: Resolve target olinda_copilot_sdk.ts version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          if [[ -n "${INPUT_VERSION}" ]]; then
+            VERSION="${INPUT_VERSION#v}"
+            TAG="v${VERSION}"
+            echo "Source: workflow_dispatch input"
+          else
+            TAG="$(gh api repos/mpbarbosa/olinda_copilot_sdk.ts/releases/latest --jq '.tag_name // empty' 2>/dev/null || true)"
+            [[ "${TAG}" =~ ^v[0-9] ]] || TAG=""
+            if [[ -n "${TAG}" ]]; then
+              echo "Source: GitHub latest release"
+            else
+              TAG="$(gh api repos/mpbarbosa/olinda_copilot_sdk.ts/tags --jq '.[0].name' 2>/dev/null || true)"
+              [[ -n "${TAG}" ]] || { echo "❌  Could not determine latest olinda_copilot_sdk.ts tag." >&2; exit 1; }
+              echo "Source: GitHub latest tag (no published release)"
+            fi
+            VERSION="${TAG#v}"
+          fi
+
+          TARBALL_URL="https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/${TAG}.tar.gz"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "tarball_url=${TARBALL_URL}" >> "$GITHUB_OUTPUT"
+          echo "ℹ️  Target: olinda_copilot_sdk.ts ${TAG}"
+          echo "ℹ️  Tarball: ${TARBALL_URL}"
+
+      - name: Check current olinda_copilot_sdk.ts version in package.json
+        id: current
+        run: |
+          CURRENT_URL="$(node -e "
+          const pkg = require('./package.json');
+          process.stdout.write(pkg.dependencies?.['olinda_copilot_sdk.ts'] ?? '');
+          ")"
+          echo "current_url=${CURRENT_URL}" >> "$GITHUB_OUTPUT"
+
+          TARGET_URL="${{ steps.resolve.outputs.tarball_url }}"
+
+          if [[ "${CURRENT_URL}" == "${TARGET_URL}" ]]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "✅  olinda_copilot_sdk.ts is already at ${{ steps.resolve.outputs.tag }} — nothing to do."
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            if [[ -z "${CURRENT_URL}" ]]; then
+              echo "ℹ️  olinda_copilot_sdk.ts is not yet a dependency — will add it."
+            else
+              echo "ℹ️  Updating olinda_copilot_sdk.ts:  ${CURRENT_URL}  →  ${TARGET_URL}"
+            fi
+          fi
+
+      - name: Update olinda_copilot_sdk.ts in package.json
+        if: steps.current.outputs.up_to_date != 'true'
+        env:
+          TARGET_URL: ${{ steps.resolve.outputs.tarball_url }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.dependencies = pkg.dependencies || {};
+          pkg.dependencies['olinda_copilot_sdk.ts'] = process.env.TARGET_URL;
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          console.log('✅  package.json updated.');
+          "
+
+      - name: Install dependencies (targeted update)
+        if: steps.current.outputs.up_to_date != 'true'
+        run: |
+          node -e "
+          const fs = require('fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          let cleared = 0;
+          for (const [, pkg] of Object.entries(lock.packages || {})) {
+            if (pkg.resolved && pkg.resolved.includes('github.com') && pkg.resolved.includes('.tar.gz') && pkg.integrity) {
+              delete pkg.integrity;
+              cleared++;
+            }
+          }
+          fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
+          console.log('Cleared stale integrity for ' + cleared + ' GitHub tarball package(s).');
+          "
+          npm install "olinda_copilot_sdk.ts@${{ steps.resolve.outputs.tarball_url }}"
+
+      - name: Lint (ESLint)
+        if: steps.current.outputs.up_to_date != 'true'
+        run: npm run lint
+
+      - name: Run unit & integration tests
+        if: steps.current.outputs.up_to_date != 'true'
+        run: npm test
+
+      - name: Adjust olinda_copilot_sdk.ts related code
+        if: steps.current.outputs.up_to_date != 'true'
+        run: |
+          NEW_VERSION="${{ steps.resolve.outputs.version }}"
+          OLD_URL="${{ steps.current.outputs.current_url }}"
+
+          OLD_VERSION=""
+          if [[ -n "${OLD_URL}" ]]; then
+            OLD_VERSION="$(echo "${OLD_URL}" | sed 's|.*/tags/v||; s|\.tar\.gz||')"
+          fi
+
+          echo "ℹ️  Scanning src/ for olinda_copilot_sdk.ts imports and version strings…"
+
+          mapfile -t CODE_FILES < <(grep -rl \
+            "olinda_copilot_sdk\.ts\|olinda-copilot-sdk" \
+            src/ 2>/dev/null || true)
+
+          if [[ ${#CODE_FILES[@]} -eq 0 ]]; then
+            echo "ℹ️  No olinda_copilot_sdk.ts references found in src/ — nothing to adjust."
+          else
+            echo "📄  Files with olinda_copilot_sdk.ts references: ${CODE_FILES[*]}"
+
+            if [[ -n "${OLD_VERSION}" && "${OLD_VERSION}" != "${NEW_VERSION}" ]]; then
+              for f in "${CODE_FILES[@]}"; do
+                sed -i "s|${OLD_VERSION}|${NEW_VERSION}|g" "${f}"
+                echo "   ✏️  Updated version string in ${f}"
+              done
+            fi
+          fi
+
+          echo "🔍  Re-running lint…"
+          npm run lint
+          echo "✅  Lint passed after code adjustment."
+
+      - name: Update olinda_copilot_sdk.ts related documentation
+        if: steps.current.outputs.up_to_date != 'true'
+        run: |
+          NEW_VERSION="${{ steps.resolve.outputs.version }}"
+          NEW_URL="${{ steps.resolve.outputs.tarball_url }}"
+          OLD_URL="${{ steps.current.outputs.current_url }}"
+
+          OLD_VERSION=""
+          if [[ -n "${OLD_URL}" ]]; then
+            OLD_VERSION="$(echo "${OLD_URL}" | sed 's|.*/tags/v||; s|\.tar\.gz||')"
+          fi
+
+          echo "ℹ️  Scanning docs/ and root Markdown files for olinda_copilot_sdk.ts references…"
+
+          mapfile -t DOC_FILES < <(find . -name '*.md' \
+            ! -path './node_modules/*' \
+            ! -path './.ai_workflow/*' \
+            -print 2>/dev/null || true)
+
+          UPDATED=0
+          for f in "${DOC_FILES[@]}"; do
+            if grep -q "olinda_copilot_sdk\.ts\|olinda-copilot-sdk" "${f}" 2>/dev/null; then
+              if [[ -n "${OLD_URL}" ]]; then
+                sed -i "s|${OLD_URL}|${NEW_URL}|g" "${f}"
+              fi
+              if [[ -n "${OLD_VERSION}" && "${OLD_VERSION}" != "${NEW_VERSION}" ]]; then
+                grep -n "olinda" "${f}" | grep -q "${OLD_VERSION}" && \
+                  sed -i "/olinda/s|${OLD_VERSION}|${NEW_VERSION}|g" "${f}" || true
+              fi
+              echo "   ✏️  Updated: ${f}"
+              UPDATED=$((UPDATED + 1))
+            fi
+          done
+
+          if [[ ${UPDATED} -eq 0 ]]; then
+            echo "ℹ️  No olinda_copilot_sdk.ts references found in documentation — nothing to update."
+          else
+            echo "✅  Updated ${UPDATED} documentation file(s)."
+          fi
+
+      - name: Adjust olinda_copilot_sdk.ts related tests
+        if: steps.current.outputs.up_to_date != 'true'
+        run: |
+          NEW_VERSION="${{ steps.resolve.outputs.version }}"
+          OLD_URL="${{ steps.current.outputs.current_url }}"
+
+          OLD_VERSION=""
+          if [[ -n "${OLD_URL}" ]]; then
+            OLD_VERSION="$(echo "${OLD_URL}" | sed 's|.*/tags/v||; s|\.tar\.gz||')"
+          fi
+
+          echo "ℹ️  Scanning test/ and __tests__/ for olinda_copilot_sdk.ts references…"
+
+          mapfile -t TEST_FILES < <(grep -rl \
+            "olinda_copilot_sdk\.ts\|olinda-copilot-sdk" \
+            test/ __tests__/ 2>/dev/null || true)
+
+          if [[ ${#TEST_FILES[@]} -eq 0 ]]; then
+            echo "ℹ️  No olinda_copilot_sdk.ts references found in test files — nothing to adjust."
+          else
+            echo "📄  Test files with olinda_copilot_sdk.ts references: ${TEST_FILES[*]}"
+
+            if [[ -n "${OLD_VERSION}" && "${OLD_VERSION}" != "${NEW_VERSION}" ]]; then
+              for f in "${TEST_FILES[@]}"; do
+                sed -i "s|${OLD_VERSION}|${NEW_VERSION}|g" "${f}"
+                echo "   ✏️  Updated version string in ${f}"
+              done
+            fi
+
+            echo "🧪  Re-running affected test files…"
+            node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests "${TEST_FILES[@]}"
+            echo "✅  Affected tests passed after adjustment."
+          fi
+
+      - name: Create pull request
+        if: steps.current.outputs.up_to_date != 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/update-olinda-copilot-sdk-ts-${{ steps.resolve.outputs.version }}
+          delete-branch: true
+          commit-message: |
+            chore(deps): update olinda_copilot_sdk.ts to ${{ steps.resolve.outputs.tag }}
+
+            Update olinda_copilot_sdk.ts tarball CDN URL to ${{ steps.resolve.outputs.tag }}.
+            URL: ${{ steps.resolve.outputs.tarball_url }}
+          title: 'chore(deps): update olinda_copilot_sdk.ts to ${{ steps.resolve.outputs.tag }}'
+          body: |
+            ## olinda_copilot_sdk.ts → ${{ steps.resolve.outputs.tag }}
+
+            Updates the `olinda_copilot_sdk.ts` dependency tarball CDN URL to the latest release.
+
+            | | |
+            |---|---|
+            | **Previous** | `${{ steps.current.outputs.current_url }}` |
+            | **New** | `${{ steps.resolve.outputs.tarball_url }}` |
+
+            ### Checks
+            - [x] ESLint (`npm run lint`)
+            - [x] Unit & integration tests
+            - [x] olinda_copilot_sdk.ts related code adjusted (version strings in `src/` updated, lint re-run)
+            - [x] olinda_copilot_sdk.ts related documentation updated (CDN URLs and version tags in `docs/` and root Markdown files)
+            - [x] olinda_copilot_sdk.ts related tests adjusted (version strings in `test/` updated, affected tests re-run)
+
+            > Triggered by: `${{ github.event_name }}`
+          labels: dependencies

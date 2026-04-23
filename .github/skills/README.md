@@ -7,11 +7,12 @@ invoked by name during a chat session.
 
 ## Available skills
 
-| Skill                  | Directory               | Purpose                                                                         |
-| ---------------------- | ----------------------- | ------------------------------------------------------------------------------- |
-| `update-pajussara`     | `update-pajussara/`     | Bump the `pajussara_tui_comp` dependency to the latest (or a specified) release |
-| `update-submodules`    | `update-submodules/`    | Pull latest changes for all git submodules and sync them with the project       |
-| `sync-workflow-config` | `sync-workflow-config/` | Audit and sync `.workflow-config.yaml` against the codebase and template        |
+| Skill                       | Directory                    | Purpose                                                                            |
+| --------------------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| `update-pajussara`          | `update-pajussara/`          | Bump the `pajussara_tui_comp` dependency to the latest (or a specified) release    |
+| `update-olinda-copilot-sdk` | `update-olinda-copilot-sdk/` | Bump the `olinda_copilot_sdk.ts` dependency to the latest (or a specified) release |
+| `update-submodules`         | `update-submodules/`         | Pull latest changes for all git submodules and sync them with the project          |
+| `sync-workflow-config`      | `sync-workflow-config/`      | Audit and sync `.workflow-config.yaml` against the codebase and template           |
 
 ## How skills work
 
@@ -29,7 +30,7 @@ when the skill is invoked.
 In a Copilot CLI session, run:
 
 ```
-Run the update-pajussara skill
+Run the update-olinda-copilot-sdk skill
 ```
 
 Copilot will load the matching `SKILL.md` and execute the defined workflow.
