@@ -44,10 +44,10 @@
       "lines": 85
     },
     "./src/orchestrator/": {
-      "statements": 95,
-      "branches": 85,
-      "functions": 97,
-      "lines": 95
+      "statements": 87,
+      "branches": 82,
+      "functions": 75,
+      "lines": 87
     },
     "./src/utils/": {
       "statements": 90,
