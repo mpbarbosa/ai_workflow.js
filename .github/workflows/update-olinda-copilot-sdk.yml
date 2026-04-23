@@ -245,8 +245,10 @@ jobs:
             echo "📄  Test files with olinda_copilot_sdk.ts references: ${TEST_FILES[*]}"
 
             if [[ -n "${OLD_VERSION}" && "${OLD_VERSION}" != "${NEW_VERSION}" ]]; then
+              ESCAPED_OLD_VERSION="$(printf '%s' "${OLD_VERSION}" | sed 's/[.[\*^$()+?{|\\]/\\&/g; s/|/\\|/g')"
+              ESCAPED_NEW_VERSION="$(printf '%s' "${NEW_VERSION}" | sed 's/[&\\|]/\\&/g')"
               for f in "${TEST_FILES[@]}"; do
-                sed -i "s|${OLD_VERSION}|${NEW_VERSION}|g" "${f}"
+                sed -i "s|${ESCAPED_OLD_VERSION}|${ESCAPED_NEW_VERSION}|g" "${f}"
                 echo "   ✏️  Updated version string in ${f}"
               done
             fi
