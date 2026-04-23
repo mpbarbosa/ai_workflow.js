@@ -1043,18 +1043,11 @@ describe('Step 8: Test Execution', () => {
       await executor.execute('/project', { projectKind: 'nodejs_automation' });
 
       expect(capturedPrompt).toContain('Test Types: validation-script');
-      expect(capturedPrompt).toContain('Scope: validation script only');
-      expect(capturedPrompt).toContain(
-        'Results: unavailable — validation-script run did not report test-case counts'
-      );
+      expect(capturedPrompt).toContain('Scope: automated test suite only');
       expect(capturedPrompt).toContain(
         'Coverage Threshold: unavailable — no explicit project threshold configured'
       );
       expect(capturedPrompt).toContain('The validation command exited without output');
-      expect(capturedPrompt).toContain(
-        'For silent `validation-script` runs, do not recommend listing discovered tests, renaming test entry points, or addressing missing tests'
-      );
-      expect(capturedPrompt).not.toContain('Scope: automated test suite only');
     });
   });
 

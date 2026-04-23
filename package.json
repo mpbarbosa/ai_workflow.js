@@ -39,7 +39,7 @@
     "test:unit": "npm test -- --testPathIgnorePatterns=/orchestrator/",
     "test:integration": "npm test -- --testMatch='**/orchestrator/**/*.test.js'",
     "test:fast": "npm run test:unit",
-    "test:slow": "npm run test:integration -- --coverage",
+    "test:slow": "npm run test:integration",
     "test:ci": "npm run test:fast && npm run test:slow",
     "test:docker": "bash scripts/run-tests-docker.sh",
     "test:docker:coverage": "bash scripts/run-tests-docker.sh -- --coverage",

@@ -70,6 +70,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -146,7 +148,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
-      - name: Run slow tests (integration + coverage)
+      - name: Run slow tests (integration)
         run: npm run test:slow -- --maxWorkers=2
         timeout-minutes: 30
 
@@ -167,6 +169,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
@@ -333,6 +337,12 @@ jobs:
             INTEGRATION_RESULT="success"
           fi
 
+          # Coverage depends on test; treat skipped as success (e.g. docs-only changes)
+          COVERAGE_RESULT="${{ needs.coverage.result }}"
+          if [[ "$COVERAGE_RESULT" == "skipped" ]]; then
+            COVERAGE_RESULT="success"
+          fi
+
           # Change analysis is required
           ANALYSIS_RESULT="${{ needs.analyze-changes.result }}"
 
@@ -349,7 +359,7 @@ jobs:
           if [[ "$ANALYSIS_RESULT" == "success" && \
                 "$TEST_RESULT" == "success" && \
                 "$INTEGRATION_RESULT" == "success" && \
-                "${{ needs.coverage.result }}" == "success" && \
+                "$COVERAGE_RESULT" == "success" && \
                 "${{ needs.build-check.result }}" == "success" ]]; then
             echo "✅ All checks passed!"
             echo "Strategy: ${{ needs.analyze-changes.outputs.strategy }}"
@@ -359,7 +369,7 @@ jobs:
             echo "Change Analysis: $ANALYSIS_RESULT"
             echo "Fast Tests: $TEST_RESULT"
             echo "Integration Tests: $INTEGRATION_RESULT"
-            echo "Coverage: ${{ needs.coverage.result }}"
+            echo "Coverage: $COVERAGE_RESULT"
             echo "Build: ${{ needs.build-check.result }}"
             exit 1
           fi
