@@ -26,18 +26,16 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('compact summary of a generated');
     expect(template).toContain('lockfile or other oversized');
-    expect(template).toContain('Keep praise evidence-bound.');
+    expect(template).toContain('do not infer, search for, or include any other files');
   });
 
   test('approach constrains praise and freshness claims to visible evidence', () => {
     const approach = aiHelpers.configuration_specialist_prompt.approach;
 
-    expect(approach).toContain('Highlight only best practices that are directly visible');
+    expect(approach).toContain('Highlight any noteworthy best practices already in use');
+    expect(approach).toContain('Do NOT give an overall success verdict for the entire scope');
     expect(approach).toContain(
-      'Do not use freshness or safety adjectives such as "safe", "latest", or'
-    );
-    expect(approach).toContain(
-      'Keep any positive observations narrowly scoped to what is explicitly visible'
+      'Limit any "no issues found" wording to the visible excerpt(s) only'
     );
   });
 
