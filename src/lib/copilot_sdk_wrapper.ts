@@ -2,7 +2,7 @@
  * Copilot SDK Wrapper
  *
  * Re-exports {@link CopilotSdkWrapper} and its companion types from
- * `olinda_copilot_sdk.ts` v0.5.1.  All SDK lifecycle concerns (client
+ * `olinda_copilot_sdk.ts` v0.9.1.  All SDK lifecycle concerns (client
  * start/stop, session creation/destruction, serialised request dispatch,
  * forceStop fallback, etc.) are implemented there and documented at:
  * https://github.com/mpbarbosa/olinda_copilot_sdk.ts
@@ -23,6 +23,6 @@ export type {
   CopilotSdkWrapperOptions,
   InitializeResult,
   SendResult,
-  // v0.5.1+ — session resume config (used with resumeSession())
+  // v0.9.1+ — session resume config (used with resumeSession())
   ResumeSessionConfig,
 } from 'olinda_copilot_sdk.ts';

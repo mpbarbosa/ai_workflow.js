@@ -209,6 +209,7 @@ export function useOrchestrator(orchestrator) {
     };
 
     const interval = setInterval(checkDone, 500);
+    interval.unref?.();
     return () => {
       cancelled = true;
       clearInterval(interval);

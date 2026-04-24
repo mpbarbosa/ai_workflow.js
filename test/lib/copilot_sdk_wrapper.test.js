@@ -4,7 +4,7 @@
  * Source: src/lib/copilot_sdk_wrapper.ts (TypeScript)
  * Compiled: src/lib/copilot_sdk_wrapper.js (runtime import target)
  *
- * The wrapper re-exports CopilotSdkWrapper from olinda_copilot_sdk.ts v0.5.1.
+ * The wrapper re-exports CopilotSdkWrapper from olinda_copilot_sdk.ts v0.9.1.
  * That package's implementation uses @github/copilot-sdk internally, so we
  * mock @github/copilot-sdk to control the underlying SDK behaviour in tests.
  * SystemError is also imported from olinda_copilot_sdk.ts because that is

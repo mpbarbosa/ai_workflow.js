@@ -1370,7 +1370,6 @@ describe('AiHelper class - additional method coverage', () => {
   });
 
   test('executeRequest invokes fallback model when all retries time out', async () => {
-    // Use baseDelay: 0 to avoid waiting between retries in the test.
     const helper = new AiHelper({
       model: 'gpt-4.1',
       fallbackModel: 'claude-haiku-4.5',
@@ -1384,19 +1383,37 @@ describe('AiHelper class - additional method coverage', () => {
       .mockRejectedValue(new Error('Timeout after 60000ms waiting for session.idle'));
     const recreateSession = jest.fn().mockResolvedValue(undefined);
     helper._wrapper = { send: primarySend, recreateSession };
+    const fallbackInitialize = jest.fn().mockResolvedValue({
+      authenticated: true,
+      availableModels: [{ id: 'claude-haiku-4.5' }],
+    });
+    const fallbackSend = jest.fn().mockResolvedValue({ content: 'Fallback response', success: true });
+    const fallbackCleanup = jest.fn().mockResolvedValue(undefined);
+    const fallbackWrapper = {
+      initialize: fallbackInitialize,
+      send: fallbackSend,
+      cleanup: fallbackCleanup,
+    };
+    const createFallbackWrapper = jest
+      .spyOn(helper, '_createProviderWrapper')
+      .mockReturnValue(fallbackWrapper);
 
-    // The fallback creates a real CopilotSdkWrapper; in test env it may succeed or fail.
-    // Either way, after exhausting the primary retries the function must NOT throw the
-    // original error directly — it must first attempt the fallback path.
-    // We verify by confirming the primary mock was called and recreateSession was invoked.
-    try {
-      await helper.executeRequest('test prompt');
-    } catch {
-      // Fallback may also fail in some environments — that is expected.
-    }
+    const result = await helper.executeRequest('test prompt');
+
+    expect(result.content).toBe('Fallback response');
     expect(primarySend).toHaveBeenCalled();
     expect(recreateSession).toHaveBeenCalled();
-  }, 15000);
+    expect(createFallbackWrapper).toHaveBeenCalledWith({
+      model: 'claude-haiku-4.5',
+      timeout: 120000,
+      workingDirectory: null,
+      streaming: false,
+      tools: helper._tools,
+    });
+    expect(fallbackInitialize).toHaveBeenCalled();
+    expect(fallbackSend).toHaveBeenCalledWith('test prompt', 120000);
+    expect(fallbackCleanup).toHaveBeenCalled();
+  });
 
   test('executeRequest skips fallback when fallbackModel is null', async () => {
     const helper = new AiHelper({ model: 'gpt-4.1', fallbackModel: null, baseDelay: 0 });

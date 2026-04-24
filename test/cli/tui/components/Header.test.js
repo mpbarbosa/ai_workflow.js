@@ -4,8 +4,12 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 import { Header } from '../../../../src/cli/tui/components/Header.js';
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('Header Component', () => {
   it('renders project name, version, stage, and step counter (happy path)', () => {

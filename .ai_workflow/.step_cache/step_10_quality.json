@@ -24,12 +24,12 @@
     "src/lib/ai_helpers.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-05T23:09:03.829Z"
+      "lastAnalyzed": "2026-04-24T19:50:57.643Z"
     },
     "src/lib/copilot_sdk_wrapper.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-05T23:09:03.829Z"
+      "lastAnalyzed": "2026-04-24T19:50:57.643Z"
     },
     "src/lib/ai_cache.js": {
       "score": 100,
@@ -284,7 +284,7 @@
     "src/lib/copilot_sdk_wrapper.d.ts": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-22T23:32:48.173Z"
+      "lastAnalyzed": "2026-04-24T19:50:57.643Z"
     },
     "src/lib/copilot_sdk_wrapper.ts": {
       "score": 100,
@@ -694,7 +694,12 @@
     "src/lib/claude_sdk_wrapper.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
+      "lastAnalyzed": "2026-04-24T19:50:57.643Z"
+    },
+    "src/lib/claude_sdk_wrapper.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T19:50:57.643Z"
     }
   }
 }

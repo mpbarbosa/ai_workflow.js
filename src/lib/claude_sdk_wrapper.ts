@@ -139,12 +139,10 @@ export class ClaudeProviderWrapper {
    * No-op — the Claude Code subprocess lifecycle is self-contained per call;
    * there is no persistent session to recreate.
    */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async recreateSession(): Promise<void> {}
 
   /**
    * No-op — no persistent process to shut down.
    */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async cleanup(): Promise<void> {}
 }

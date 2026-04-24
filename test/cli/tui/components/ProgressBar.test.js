@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 const mockFormatProgressLine = jest.fn((pct, elapsedMs, barWidth) => {
   const filled = Math.round((pct / 100) * barWidth);
@@ -22,6 +22,10 @@ jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
 let ProgressBar;
 beforeAll(async () => {
   ({ ProgressBar } = await import('../../../../src/cli/tui/components/ProgressBar.js'));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe('ProgressBar Component', () => {

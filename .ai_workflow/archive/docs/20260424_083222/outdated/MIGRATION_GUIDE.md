@@ -1059,4 +1059,4 @@ The JavaScript rewrite was built in 13 phases, all now complete. Phase test coun
 
 ---
 
-_Last Updated: 2026-04-23 · `ai_workflow.js` v2.2.16 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
+_Last Updated: 2026-04-23 · `ai_workflow.js` v2.2.14 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_

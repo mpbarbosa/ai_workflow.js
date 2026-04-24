@@ -22,12 +22,17 @@ const TIMEOUT_MS = 30_000;
 const PROMPT = 'Reply with exactly: OK';
 
 export function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms)
-    ),
-  ]);
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms);
+    timeoutId.unref?.();
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
 }
 
 export async function runSmokeTest() {
@@ -104,6 +109,7 @@ export async function runSmokeTest() {
 
     const done = new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Response timed out')), TIMEOUT_MS);
+      timer.unref?.();
 
       session.on('assistant.message', (event) => {
         responseContent += event?.data?.content ?? '';

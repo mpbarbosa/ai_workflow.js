@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 const mockFormatStepDetail = jest.fn((step) => ({
   lines: step
@@ -25,6 +25,10 @@ jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
   formatStepDetail: mockFormatStepDetail,
   statusColor: mockStatusColor,
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 let StepDetailOverlay;
 beforeAll(async () => {

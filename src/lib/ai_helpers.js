@@ -793,7 +793,7 @@ export class AiHelper {
     // Store resolved tools so they can be reused by a fallback wrapper without
     // re-evaluating the workingDirectory default a second time.
     this._tools = config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd());
-    this._wrapper = createProviderWrapper(this.config.provider, {
+    this._wrapper = this._createProviderWrapper({
       model: this.config.model,
       timeout: this.config.timeout,
       workingDirectory: this.config.workingDirectory,
@@ -805,6 +805,20 @@ export class AiHelper {
     this.authenticated = false;
     this.availableModels = [];
     this._promptCounter = 0;
+  }
+
+  /**
+   * Creates a provider wrapper for the configured provider.
+   *
+   * Kept as an instance method so tests can stub fallback wrapper creation
+   * without booting a real SDK session.
+   *
+   * @param {Object} options - Provider wrapper options
+   * @returns {Object} Provider wrapper instance
+   * @private
+   */
+  _createProviderWrapper(options) {
+    return createProviderWrapper(this.config.provider, options);
   }
 
   /**
@@ -1140,7 +1154,7 @@ export class AiHelper {
       logger.warn(
         `[AI] Primary model "${primaryModel}" timed out after ${attempt} attempt(s) — trying fallback: ${fallbackModel}`
       );
-      const fallbackWrapper = createProviderWrapper(this.config.provider, {
+      const fallbackWrapper = this._createProviderWrapper({
         model: fallbackModel,
         timeout: DEFAULT_REQUEST.TIMEOUT_MS,
         workingDirectory: this.config.workingDirectory,
@@ -1173,6 +1187,16 @@ export class AiHelper {
         logger.warn(
           `[AI] Fallback model "${fallbackModel}" also failed: ${parseErrorResponse(fallbackError).message}`
         );
+      } finally {
+        if (typeof fallbackWrapper.cleanup === 'function') {
+          try {
+            await fallbackWrapper.cleanup();
+          } catch (cleanupError) {
+            logger.warn(
+              `[AI] Fallback model "${fallbackModel}" cleanup failed: ${parseErrorResponse(cleanupError).message}`
+            );
+          }
+        }
       }
     }
 

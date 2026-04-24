@@ -64,12 +64,12 @@ Use narrower scripts from `package.json` only for intentionally scoped tasks.
 
 Consult these documents for details:
 
-- [README.md](../README.md) – Project overview, installation, usage
-- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) – Repository layout and architecture
-- [docs/CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md) – CLI command and option reference
-- [docs/guides/MIGRATION_GUIDE.md](../docs/guides/MIGRATION_GUIDE.md) – Migration context
+- [README.md](../README.md)
+- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)
+- [docs/CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md)
+- [docs/guides/MIGRATION_GUIDE.md](../docs/guides/MIGRATION_GUIDE.md)
 - `CHANGELOG.md`, `CONTRIBUTING.md`, `ROADMAP.md`
-- `package.json` – Package metadata, scripts, exports, and entry points
+- `package.json`
 
 ---
 

@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 const mockBuildHelpLines = jest.fn(() => [
   'q / Q          Quit TUI',
@@ -21,6 +21,10 @@ jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
 let HelpOverlay;
 beforeAll(async () => {
   ({ HelpOverlay } = await import('../../../../src/cli/tui/components/HelpOverlay.js'));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe('HelpOverlay Component', () => {

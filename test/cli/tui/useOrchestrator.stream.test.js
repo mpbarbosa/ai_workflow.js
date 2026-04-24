@@ -6,7 +6,7 @@
  * WorkflowEngine events on a fake EventEmitter, and inspect rendered output.
  */
 
-import { jest } from '@jest/globals';
+import { jest, afterEach } from '@jest/globals';
 import React from 'react';
 import { EventEmitter } from 'events';
 import { render } from 'ink-testing-library';
@@ -21,6 +21,14 @@ jest.unstable_mockModule('../../../src/cli/tui/helpers.js', () => ({
 let useOrchestrator;
 beforeAll(async () => {
   ({ useOrchestrator } = await import('../../../src/cli/tui/hooks/useOrchestrator.js'));
+});
+
+const mountedRenders = [];
+
+afterEach(() => {
+  while (mountedRenders.length > 0) {
+    mountedRenders.pop()?.unmount();
+  }
 });
 
 // ── Build a fake orchestrator with a real EventEmitter as workflowEngine ────
@@ -53,13 +61,19 @@ function StreamTestHarness({ orchestrator }) {
   );
 }
 
+function renderHarness(orchestrator) {
+  const rendered = render(React.createElement(StreamTestHarness, { orchestrator }));
+  mountedRenders.push(rendered);
+  return rendered;
+}
+
 // ── Helper: wait for Ink re-render ─────────────────────────────────────────
 const tick = () => new Promise((r) => setTimeout(r, 20));
 
 describe('useOrchestrator — ai:stream:chunk events', () => {
   it('starts with empty liveText', async () => {
     const orch = makeFakeOrchestrator();
-    const { lastFrame } = render(React.createElement(StreamTestHarness, { orchestrator: orch }));
+    const { lastFrame } = renderHarness(orch);
     await tick();
     expect(lastFrame()).toContain('live:');
     expect(lastFrame()).toContain('tokenCount:0');
@@ -67,7 +81,7 @@ describe('useOrchestrator — ai:stream:chunk events', () => {
 
   it('appends delta to liveText on each chunk event', async () => {
     const orch = makeFakeOrchestrator();
-    const { lastFrame } = render(React.createElement(StreamTestHarness, { orchestrator: orch }));
+    const { lastFrame } = renderHarness(orch);
     await tick();
 
     // Emit two chunks, one per tick (mirrors how the accumulate test works reliably)
@@ -94,7 +108,7 @@ describe('useOrchestrator — ai:stream:chunk events', () => {
 
   it('accumulates multiple chunk deltas', async () => {
     const orch = makeFakeOrchestrator();
-    const { lastFrame } = render(React.createElement(StreamTestHarness, { orchestrator: orch }));
+    const { lastFrame } = renderHarness(orch);
     await tick();
 
     const chunks = ['Hello ', 'world', '!'];
@@ -116,7 +130,7 @@ describe('useOrchestrator — ai:stream:chunk events', () => {
 describe('useOrchestrator — ai:stream:end events', () => {
   it('pushes live text to history and resets liveText on end', async () => {
     const orch = makeFakeOrchestrator();
-    const { lastFrame } = render(React.createElement(StreamTestHarness, { orchestrator: orch }));
+    const { lastFrame } = renderHarness(orch);
     await tick();
 
     // Emit a chunk then end it
@@ -145,7 +159,7 @@ describe('useOrchestrator — ai:stream:end events', () => {
 
   it('caps history ring at MAX_STREAM_HISTORY (5)', async () => {
     const orch = makeFakeOrchestrator();
-    const { lastFrame } = render(React.createElement(StreamTestHarness, { orchestrator: orch }));
+    const { lastFrame } = renderHarness(orch);
     await tick();
 
     // Emit 7 complete stream cycles

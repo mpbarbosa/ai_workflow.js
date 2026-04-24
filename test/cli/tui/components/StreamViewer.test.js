@@ -4,12 +4,16 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 let StreamViewer;
 
 beforeAll(async () => {
   ({ StreamViewer } = await import('../../../../src/cli/tui/components/StreamViewer.js'));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 /** Build a minimal StreamState object for tests. */

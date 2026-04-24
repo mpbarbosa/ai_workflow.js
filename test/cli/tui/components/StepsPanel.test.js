@@ -10,11 +10,15 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 let StepsPanel;
 beforeAll(async () => {
   ({ StepsPanel } = await import('../../../../src/cli/tui/components/StepsPanel.js'));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe('StepsPanel Component', () => {

@@ -24,7 +24,6 @@
   },
   "transform": {},
   "maxWorkers": "50%",
-  "forceExit": true,
   "coverageThreshold": {
     "global": {
       "statements": 83,

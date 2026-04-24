@@ -11,7 +11,7 @@ import { act } from 'react';
 
 // React 18 requires this global to enable act() in non-browser (Node) environments.
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 import { useOrchestrator } from '../../../../src/cli/tui/hooks/useOrchestrator.js';
 
 jest.useFakeTimers();
@@ -65,6 +65,7 @@ const setup = (mockStatus = { status: 'running', progress: 0 }) => {
 
 describe('useOrchestrator', () => {
   afterEach(() => {
+    cleanup();
     jest.clearAllTimers();
     jest.clearAllMocks();
     state.current = null;

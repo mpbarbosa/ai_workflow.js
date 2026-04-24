@@ -4,8 +4,12 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 import { LogSearchBar } from '../../../../src/cli/tui/components/LogSearchBar.js';
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('LogSearchBar Component', () => {
   it('renders nothing when isActive is false', () => {

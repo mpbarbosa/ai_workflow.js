@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 const mockTruncateStackTrace = jest.fn((stack, maxLines) => {
   if (!stack) return [];
@@ -19,6 +19,10 @@ jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
 let ErrorDetailPanel;
 beforeAll(async () => {
   ({ ErrorDetailPanel } = await import('../../../../src/cli/tui/components/ErrorDetailPanel.js'));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe('ErrorDetailPanel Component', () => {

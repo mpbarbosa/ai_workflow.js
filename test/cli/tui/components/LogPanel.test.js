@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render, cleanup } from 'ink-testing-library';
 
 const mockFormatTimestamp = jest.fn((time) => `[${time}]`);
 const mockTruncateLogLine = jest.fn((msg, width) =>
@@ -22,6 +22,10 @@ jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
   filterLogLines: mockFilterLogLines,
   highlightSearchMatch: mockHighlightSearchMatch,
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 jest.unstable_mockModule('../../../../src/cli/tui/components/LogSearchBar.js', () => ({
   LogSearchBar: () => null,
