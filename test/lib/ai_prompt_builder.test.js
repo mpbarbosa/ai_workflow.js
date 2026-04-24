@@ -720,6 +720,18 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('JavaScript');
     });
 
+    test('keeps documentation targets scoped to listed doc files', () => {
+      const result = buildDocAnalysisPrompt({
+        changedFiles: ['src/app.js', 'CHANGELOG.md'],
+        docFiles: ['docs/ARCHITECTURE.md'],
+      });
+
+      expect(result).toContain('Treat the listed documentation files as the only edit targets');
+      expect(result).toContain('Use non-documentation changed files only as evidence');
+      expect(result).toContain('Do not propose edits to READMEs, changelogs, API docs');
+      expect(result).not.toContain('Start with critical documentation (README, API docs)');
+    });
+
     test('handles empty file lists', () => {
       const options = { changedFiles: [], docFiles: [] };
       const result = buildDocAnalysisPrompt(options);

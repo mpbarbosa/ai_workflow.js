@@ -132,6 +132,7 @@ export const DIRECTORY_VALIDATION_DOC_FILES = [
   'docs/ARCHITECTURE.md',
   'CONTRIBUTING.md',
   '.github/copilot-instructions.md',
+  '.github/SKILLS.md',
 ];
 
 /**
@@ -539,6 +540,7 @@ export class Step5DirectoryAnalyzer {
     const candidatePaths = [
       ...DIRECTORY_VALIDATION_DOC_FILES,
       ...existingDirs.map((dir) => path.posix.join(String(dir).replace(/\\/g, '/'), 'README.md')),
+      ...existingDirs.map((dir) => path.posix.join(String(dir).replace(/\\/g, '/'), 'INDEX.md')),
     ];
     const seen = new Set();
     const documentationFiles = [];

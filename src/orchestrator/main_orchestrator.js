@@ -63,6 +63,17 @@ export const HEALTH_CHECK_CATEGORIES = Object.freeze({
 const PRE_FLIGHT_QUALITY_SCRIPT_ORDER = Object.freeze(['lint', 'test', 'build']);
 const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
+const AUTHORITY_DOC_REQUIRED_STEPS = Object.freeze({
+  '.github/copilot-instructions.md': ['step_01', 'step_01_5'],
+  'CLAUDE.md': ['step_01'],
+});
+
+function normalizeChangedFilePath(filePath) {
+  return String(filePath || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .trim();
+}
 
 function buildPackageScriptCommand(packageManager, scriptName) {
   switch (packageManager) {
@@ -431,6 +442,55 @@ export function getConfiguredStepsForStage(stage, workflowConfig) {
   );
 
   return defaultStageSteps.length > 0 ? defaultStageSteps : enabledConfiguredStepIds;
+}
+
+export function getAuthorityDocRequiredStepIds(
+  changedFiles = [],
+  stage = WORKFLOW_STAGES.FULL,
+  availableStepIds = []
+) {
+  const defaultStageSteps = new Set(getStepsForStage(stage));
+  const availableSet =
+    Array.isArray(availableStepIds) && availableStepIds.length > 0
+      ? new Set(availableStepIds)
+      : null;
+  const changedSet = new Set(
+    (Array.isArray(changedFiles) ? changedFiles : []).map(normalizeChangedFilePath).filter(Boolean)
+  );
+  const requiredStepIds = new Set();
+
+  for (const [relativePath, stepIds] of Object.entries(AUTHORITY_DOC_REQUIRED_STEPS)) {
+    if (!changedSet.has(relativePath)) {
+      continue;
+    }
+
+    for (const stepId of stepIds) {
+      if (!defaultStageSteps.has(stepId)) {
+        continue;
+      }
+      if (availableSet && !availableSet.has(stepId)) {
+        continue;
+      }
+      requiredStepIds.add(stepId);
+    }
+  }
+
+  return getStepsForStage(stage).filter((stepId) => requiredStepIds.has(stepId));
+}
+
+export function injectAuthorityDocStepsForChangedFiles(
+  stage,
+  configuredStepIds = [],
+  changedFiles = []
+) {
+  const orderedStageSteps = getStepsForStage(stage);
+  const mergedStepIds = new Set(Array.isArray(configuredStepIds) ? configuredStepIds : []);
+
+  for (const stepId of getAuthorityDocRequiredStepIds(changedFiles, stage)) {
+    mergedStepIds.add(stepId);
+  }
+
+  return orderedStageSteps.filter((stepId) => mergedStepIds.has(stepId));
 }
 
 function normalizeProfileSkipStepId(stepNumber) {
@@ -1507,9 +1567,10 @@ export class MainOrchestrator {
 
       // Determine steps to execute after profile reconciliation so the final plan
       // uses the same merged change set as the optimizer and step context.
-      const configuredStepsForStage = getConfiguredStepsForStage(
+      const configuredStepsForStage = injectAuthorityDocStepsForChangedFiles(
         this.stage,
-        this.projectWorkflowConfig
+        getConfiguredStepsForStage(this.stage, this.projectWorkflowConfig),
+        allChangedFiles
       );
       const dependencyIndex = Object.fromEntries(
         this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
@@ -1524,7 +1585,12 @@ export class MainOrchestrator {
         normalizedFocusStepIds,
         this.projectWorkflowConfig
       );
-      const mandatoryStepIds = getMandatoryStepIdsForStage(this.stage, configuredStepsForStage);
+      const mandatoryStepIds = [
+        ...new Set([
+          ...getMandatoryStepIdsForStage(this.stage, configuredStepsForStage),
+          ...getAuthorityDocRequiredStepIds(allChangedFiles, this.stage, configuredStepsForStage),
+        ]),
+      ];
       let stepsToExecute;
       if (normalizedFocusStepIds.length > 0 && eligibleFocusStepIds.length === 0) {
         logger.warn(

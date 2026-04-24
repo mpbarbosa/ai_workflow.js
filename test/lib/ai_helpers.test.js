@@ -502,6 +502,20 @@ describe('AI Helpers Module - Pure Functions', () => {
         )
       ).toEqual([]);
     });
+
+    test('filters praise-only best-practice bullets from the issue snapshot', () => {
+      const response = [
+        '### Findings',
+        '',
+        '- **Best Practice:** Standard package.json structure. No security or naming issues.',
+        '- Good use of caching and explicit error handling.',
+        '- **Consistency:** `package.json` is unavailable in this prompt slice; full validation is inconclusive.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([
+        '- **Consistency:** `package.json` is unavailable in this prompt slice; full validation is inconclusive.',
+      ]);
+    });
   });
 });
 
@@ -1709,6 +1723,25 @@ describe('AiHelper._logPrompt - Project Version header', () => {
       content.indexOf('## Prompt')
     );
     expect(content.indexOf('## Prompt')).toBeLessThan(content.indexOf('## Response'));
+  });
+
+  test('records the prompt template key when request metadata provides one', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      'test prompt',
+      {
+        persona: 'code_quality_analyst',
+        model: 'gpt-4.1',
+        promptTemplate: 'error_resilience_prompt',
+      },
+      { content: '0 findings (Critical: 0, High: 0, Medium: 0).' }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('**Prompt Template:** error_resilience_prompt');
+    expect(content.indexOf('**Persona:**')).toBeLessThan(content.indexOf('**Prompt Template:**'));
   });
 
   test('records an explicit zero-signal snapshot when no actionable issue cues are detected', async () => {

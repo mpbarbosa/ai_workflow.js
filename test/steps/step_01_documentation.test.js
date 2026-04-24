@@ -193,6 +193,18 @@ describe('Step 1: Documentation Validation', () => {
       expect(result.config).toEqual(['package.json']);
       expect(result.counts.total).toBe(2);
     });
+
+    test('excludes generated TypeDoc markdown from documentation ownership', () => {
+      const result = classifyChangedFiles([
+        'docs/api/html/media/SETUP.md',
+        'docs/README.md',
+        'src/index.js',
+      ]);
+
+      expect(result.documentation).toEqual(['docs/README.md']);
+      expect(result.source).toEqual(['src/index.js']);
+      expect(result.counts.total).toBe(2);
+    });
   });
 
   // ========================================================================
@@ -268,6 +280,7 @@ describe('Step 1: Documentation Validation', () => {
       expect(isLowSignalStep1Evidence('assets/js/index.js')).toBe(true);
       expect(isLowSignalStep1Evidence('.playwright-mcp/page.yml')).toBe(true);
       expect(isLowSignalStep1Evidence('.mcp.json')).toBe(true);
+      expect(isLowSignalStep1Evidence('docs/api/html/media/SETUP.md')).toBe(true);
       expect(isLowSignalStep1Evidence('src/index.ts')).toBe(false);
       expect(isLowSignalStep1Evidence('package.json')).toBe(false);
     });
@@ -732,6 +745,74 @@ doc_analysis_prompt:
         expect(
           capturedPrompts.some((prompt) => prompt.includes('...(truncated — remainder omitted)'))
         ).toBe(false);
+      });
+
+      test('runs whole-scope synthesis after multi-partition documentation review', async () => {
+        const longReadme = Array.from({ length: 1800 }, (_, index) => `README line ${index}`).join(
+          '\n'
+        );
+        let categoryResult = null;
+        mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md', 'package.json']);
+        mockIncrementalProcessor.detectChangedDocs = (_files) => Promise.resolve(['README.md']);
+        mockAiHelper.executeRequest = (prompt, options) => {
+          capturedPrompts.push(prompt);
+          capturedPrompt = prompt;
+          capturedOptions = options;
+          const isSynthesis = prompt.includes(
+            'whole-scope synthesis of partitioned documentation review results'
+          );
+          return Promise.resolve({
+            success: true,
+            content: isSynthesis
+              ? 'Consolidated finding: README version guidance remains aligned across the visible partitions.'
+              : 'Not applicable — this partition only contains a partial README excerpt.',
+            text: isSynthesis
+              ? 'Consolidated finding: README version guidance remains aligned across the visible partitions.'
+              : 'Not applicable — this partition only contains a partial README excerpt.',
+          });
+        };
+        mockFileOps.readFile = (filePath) => {
+          if (filePath.includes('ai_helpers')) {
+            return Promise.resolve(`
+doc_analysis_prompt:
+  role_prefix: "You are a documentation specialist."
+  task_template: |
+    {partition_header}
+    {partition_scope_note}
+    **Changed files**: {changed_files}
+    **Documentation to review**: {doc_files}
+    **File Paths**:
+    {file_paths_in_request}
+    **File Contents**:
+    {file_contents}
+  approach: "Analyze ONLY the documentation files listed. Read the file contents provided above."
+`);
+          }
+          if (filePath.includes('README.md')) return Promise.resolve(longReadme);
+          if (filePath.includes('package.json'))
+            return Promise.resolve(JSON.stringify({ name: 'demo', version: '0.4.8' }));
+          return Promise.resolve('');
+        };
+        mockParallelProcessor.validate = async (_files, categoryFn) => {
+          categoryResult = await categoryFn('readme', ['README.md']);
+          return {
+            validatedFiles: 1,
+            totalFiles: 1,
+            categories: { readme: categoryResult },
+            errors: [],
+            success: true,
+          };
+        };
+
+        await analyzer.execute('/project', { enableParallel: true });
+
+        expect(
+          capturedPrompts.some((prompt) =>
+            prompt.includes('whole-scope synthesis of partitioned documentation review results')
+          )
+        ).toBe(true);
+        expect(categoryResult.response.content).toContain('Consolidated finding');
+        expect(categoryResult.response.content).not.toContain('Not applicable');
       });
 
       test('gracefully continues when a file cannot be read', async () => {

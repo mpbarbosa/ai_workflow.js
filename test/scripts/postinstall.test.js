@@ -6,7 +6,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
+import * as childProcess from 'child_process';
 import { fileURLToPath } from 'url';
 import { jest } from '@jest/globals';
 import { patchAll } from '../../scripts/postinstall.js';
@@ -29,6 +29,8 @@ function resetPkg(pkgPath, content) {
 function pkgPaths(nodeModules) {
   return {
     olinda: path.join(nodeModules, 'olinda_shell_interface.js', 'package.json'),
+    olindaUtils: path.join(nodeModules, 'olinda_utils.js', 'package.json'),
+    typescriptBin: path.join(nodeModules, 'typescript', 'bin', 'tsc'),
     vscode: path.join(nodeModules, 'vscode-jsonrpc', 'package.json'),
   };
 }
@@ -184,6 +186,59 @@ describe('postinstall.js', () => {
     }
   });
 
+  it('builds source-only olinda_utils.js packages with the root TypeScript compiler', () => {
+    const { olindaUtils, typescriptBin } = pkgPaths(tmpDir);
+    fs.mkdirSync(path.dirname(olindaUtils), { recursive: true });
+    resetPkg(olindaUtils, {
+      name: 'olinda_utils.js',
+      version: '0.3.9',
+      exports: {
+        '.': {
+          import: './dist/esm/index.js',
+          require: './dist/src/index.js',
+        },
+      },
+    });
+    fs.writeFileSync(path.join(path.dirname(olindaUtils), 'tsconfig.json'), '{}\n', 'utf8');
+    fs.writeFileSync(path.join(path.dirname(olindaUtils), 'tsconfig.esm.json'), '{}\n', 'utf8');
+    fs.mkdirSync(path.dirname(typescriptBin), { recursive: true });
+    fs.writeFileSync(
+      typescriptBin,
+      [
+        "const fs = require('fs');",
+        "const path = require('path');",
+        "const projectIndex = process.argv.indexOf('--project');",
+        'const projectPath = process.argv[projectIndex + 1];',
+        "const isEsm = projectPath.endsWith('tsconfig.esm.json');",
+        "const outDir = path.join(path.dirname(projectPath), 'dist', isEsm ? 'esm' : 'src');",
+        'fs.mkdirSync(outDir, { recursive: true });',
+        "fs.writeFileSync(path.join(outDir, 'index.js'), '// built by fake tsc\\n', 'utf8');",
+      ].join('\n'),
+      'utf8'
+    );
+
+    try {
+      patchAll(tmpDir);
+      expect(fs.existsSync(path.join(path.dirname(olindaUtils), 'dist', 'src', 'index.js'))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(path.dirname(olindaUtils), 'dist', 'esm', 'index.js'))).toBe(
+        true
+      );
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(path.dirname(olindaUtils), 'dist', 'esm', 'package.json'),
+            'utf8'
+          )
+        )
+      ).toEqual({ type: 'module' });
+    } finally {
+      fs.rmSync(path.dirname(olindaUtils), { recursive: true, force: true });
+      fs.rmSync(path.join(tmpDir, 'typescript'), { recursive: true, force: true });
+    }
+  });
+
   it('is idempotent — calling patchAll() twice produces the same result without extra log lines', () => {
     const { olinda, vscode } = pkgPaths(tmpDir);
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -265,7 +320,7 @@ describe('postinstall.js – integration (child process)', () => {
   });
 
   it('exits 0 and patches both package.json files when run as a child process', () => {
-    const result = spawnSync(
+    const result = childProcess.spawnSync(
       process.execPath,
       [
         '--input-type=module',

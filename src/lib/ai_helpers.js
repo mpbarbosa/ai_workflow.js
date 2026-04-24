@@ -60,11 +60,25 @@ const ISSUE_METADATA_RE =
 const ISSUE_PERFORMANCE_RE =
   /\b(performance|startup|bundle|eager|lazy-?load|re-?export|memory|latency|throughput|sync(?:hronous)? i\/o)\b/i;
 const FILE_REFERENCE_RE = /\b[\w./-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx|md|json|ya?ml)\b/;
+const ISSUE_CONTEXT_RE =
+  /\b(unavailable|inconclusive|truncated|partial|visible excerpt|visible excerpts|content unavailable|not validated|not visible|omitted)\b/i;
+const POSITIVE_SIGNAL_RE =
+  /\b(best practice|best practices observed|good use|well-structured|well structured|well-documented|well documented|robust|standard (?:node\.js|package\.json|prettier|typescript|json schema|config|manifest)|follows standard conventions|no anti-patterns|no security|no maintainability|no naming|good security hygiene|validated successfully)\b/i;
+const ACTIONABLE_NEGATIVE_SIGNAL_RE =
+  /\b(issue|bug|fail(?:ure|ing)?|broken|missing|incorrect|wrong|mismatch|outdated|stale|invalid|inconsistent|incomplete|unsupported|warning|risk|secret|credential|exposed|vulnerab|inconclusive|unavailable|truncated|partial)\b/i;
 const NO_ISSUES_RE = /\b(no (actionable )?(issues|findings)|nothing to fix|no changes needed)\b/i;
 const SUMMARY_TABLE_HEADER_RE =
   /^\|\s*file\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
 const SUMMARY_TABLE_ROW_RE = /^\|.+\|.+\|.+\|.+\|?$/;
 const SUMMARY_TABLE_SEPARATOR_RE = /^\|\s*[-:| ]+\|$/;
+
+function isPositiveOnlyIssueSignal(line) {
+  return (
+    POSITIVE_SIGNAL_RE.test(line) &&
+    !ACTIONABLE_NEGATIVE_SIGNAL_RE.test(line) &&
+    !ISSUE_CONTEXT_RE.test(line)
+  );
+}
 
 // Default AI request parameters
 const DEFAULT_REQUEST = {
@@ -174,7 +188,7 @@ export function extractActionableIssueSignals(responseContent) {
   const candidates = [];
   const seen = new Set();
   const addCandidate = (line) => {
-    if (!seen.has(line)) {
+    if (!seen.has(line) && !isPositiveOnlyIssueSignal(line)) {
       seen.add(line);
       candidates.push(line);
     }
@@ -197,6 +211,14 @@ export function extractActionableIssueSignals(responseContent) {
     const mentionsMetadata = ISSUE_METADATA_RE.test(line);
     const mentionsPerformance = ISSUE_PERFORMANCE_RE.test(line);
     const mentionsFile = FILE_REFERENCE_RE.test(line);
+    const mentionsIssueContext = ISSUE_CONTEXT_RE.test(line);
+    const hasIssueSignal =
+      mentionsIssue ||
+      mentionsAction ||
+      mentionsMetadata ||
+      mentionsPerformance ||
+      mentionsFile ||
+      mentionsIssueContext;
 
     if (isIssueSectionHeading) {
       inIssueSection = true;
@@ -222,11 +244,7 @@ export function extractActionableIssueSignals(responseContent) {
       inSummaryTable = false;
     }
 
-    if (
-      isFindingHeading &&
-      inIssueSection &&
-      (mentionsIssue || mentionsAction || mentionsPerformance || mentionsFile)
-    ) {
+    if (isFindingHeading && inIssueSection && hasIssueSignal) {
       addCandidate(line);
       continue;
     }
@@ -239,18 +257,8 @@ export function extractActionableIssueSignals(responseContent) {
 
     if (
       (isBullet &&
-        (inIssueSection ||
-          mentionsIssue ||
-          mentionsAction ||
-          mentionsMetadata ||
-          mentionsPerformance ||
-          mentionsFile)) ||
-      (inIssueSection &&
-        (mentionsIssue ||
-          mentionsAction ||
-          mentionsMetadata ||
-          mentionsPerformance ||
-          mentionsFile))
+        (hasIssueSignal || (inIssueSection && (mentionsMetadata || mentionsIssueContext)))) ||
+      (inIssueSection && hasIssueSignal)
     ) {
       addCandidate(line);
     }
@@ -1191,6 +1199,8 @@ export class AiHelper {
       this._promptCounter += 1;
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       const persona = options.persona || 'default';
+      const promptTemplate =
+        typeof options.promptTemplate === 'string' ? options.promptTemplate.trim() : '';
       const filename = `${ts}_${String(this._promptCounter).padStart(4, '0')}_${persona}.md`;
       const filePath = path.join(this.config.promptsDir, filename);
       const responseContent = response.content || JSON.stringify(response);
@@ -1202,6 +1212,7 @@ export class AiHelper {
         ``,
         `**Timestamp:** ${new Date().toISOString()}`,
         `**Persona:** ${persona}`,
+        ...(promptTemplate ? [`**Prompt Template:** ${promptTemplate}`] : []),
         `**Model:** ${options.model || this.config.model}`,
         ...(this.config.projectVersion
           ? [`**Project Version:** ${this.config.projectVersion}`]

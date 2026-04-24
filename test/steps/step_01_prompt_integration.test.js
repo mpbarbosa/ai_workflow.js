@@ -75,6 +75,15 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
       'Analyze ONLY the documentation files explicitly listed above plus any additional documentation files that already appear in the provided changed-file list.'
     );
     expect(prompt).toContain(
+      'Treat the files in `Documentation to review` as the only documentation targets for edits'
+    );
+    expect(prompt).toContain(
+      'Use the changed files only as evidence for whether those scoped documentation targets need updates'
+    );
+    expect(prompt).toContain(
+      'Do not propose edits to `README.md`, `CHANGELOG.md`, module READMEs, source-file JSDoc, or inline code comments unless those files are explicitly included'
+    );
+    expect(prompt).toContain(
       'Entries labeled "(part X/Y)" are sequential chunks of oversized files; treat unseen parts or omitted files as unavailable'
     );
     expect(prompt).toContain('**Provided file contents and excerpts**:');
@@ -84,6 +93,9 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     );
     expect(prompt).toContain(
       'Avoid verbosity, creative expansion, and speculative rewrites beyond the visible change set'
+    );
+    expect(prompt).toContain(
+      'Do not review source-file JSDoc, inline code comments, or non-documentation files as standalone deliverables unless those files are themselves in the scoped documentation set'
     );
     expect(prompt).toContain('Unavailable" or "Inconclusive"');
     expect(prompt).toContain('"Not applicable"');
@@ -104,6 +116,10 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('Unavailable" or "Inconclusive"');
     expect(prompt).toContain('"Not applicable"');
     expect(prompt).toContain('visible file contents support that conclusion');
+    expect(prompt).toContain('Treat the listed documentation files as the only edit targets');
+    expect(prompt).toContain(
+      'Do not propose edits to READMEs, changelogs, API docs, module READMEs, source-file JSDoc, or inline code comments unless those files are explicitly included in the documentation scope'
+    );
     expect(prompt).not.toContain('Default to "no changes"');
   });
 });

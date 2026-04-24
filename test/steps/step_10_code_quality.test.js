@@ -1037,7 +1037,8 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         languages: [],
         primary_language: 'javascript',
       });
-      mockFileOps.glob = async (pattern) => (pattern.endsWith('.json') ? ['package-lock.json'] : []);
+      mockFileOps.glob = async (pattern) =>
+        pattern.endsWith('.json') ? ['package-lock.json'] : [];
       mockFileOps.readFile = async (filePath) => {
         if (filePath.endsWith('package-lock.json')) {
           return '{"name":"demo","lockfileVersion":3,"packages":{}}';
@@ -1086,8 +1087,10 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
       };
       mockFileOps.readFile = async (filePath) => {
         if (filePath.includes('ai_helpers')) return minimalErYaml;
-        if (filePath.endsWith('scripts/sync-pajussara-cdn.mjs')) return 'await fetch("https://example.test");';
-        if (filePath.endsWith('package.json')) return '{"name":"demo","scripts":{"lint":"eslint ."}}';
+        if (filePath.endsWith('scripts/sync-pajussara-cdn.mjs'))
+          return 'await fetch("https://example.test");';
+        if (filePath.endsWith('package.json'))
+          return '{"name":"demo","scripts":{"lint":"eslint ."}}';
         if (filePath.endsWith('package-lock.json')) {
           return '{"name":"demo","lockfileVersion":3,"packages":{}}';
         }
@@ -1172,6 +1175,90 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         expect(prompts[0]).toContain('src/big.js (part 1/4)');
         expect(prompts[1]).toContain('src/big.js (part 4/4)');
         expect(prompts.join('\n')).not.toContain('[truncated]');
+      } finally {
+        await rm(testDir, { recursive: true, force: true });
+      }
+    });
+
+    test('AI quality prompt injects supplementary evidence and falls back to projectType', async () => {
+      mockTechStack.detectAll = async () => ({
+        languages: ['typescript'],
+        primary_language: 'typescript',
+      });
+      mockFileOps.glob = async () => [
+        'src/claude/types.ts',
+        'src/claude/errors.ts',
+        'src/claude/sdk_types.ts',
+        'src/claude/sdk_wrapper.ts',
+        'src/claude/completions_client.ts',
+        'test/claude/types.test.ts',
+      ];
+      const minimalYaml = [
+        'step10_code_quality_prompt:',
+        '  role_prefix: |',
+        '    You are a reviewer.',
+        '  task_template: |',
+        '    Project Kind: {project_kind}',
+        '    {supporting_quality_scope_note}',
+        '    {supporting_quality_context}',
+        '    {file_content_map}',
+        '  approach: |',
+        '    Review only shown files.',
+        'error_resilience_prompt:',
+        '  role_prefix: |',
+        '    You are a reliability engineer.',
+        '  task_template: |',
+        '    Review {project_name} files.',
+        '    {file_content_map}',
+        '  approach: |',
+        '    Check error handling.',
+      ].join('\n');
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('.yaml')) return minimalYaml;
+        if (filePath.endsWith('package.json')) {
+          return '{"scripts":{"lint":"eslint .","format":"prettier --check ."}}';
+        }
+        if (filePath.endsWith('eslint.config.js')) {
+          return 'module.exports = [{ rules: { semi: [2, "always"] } }];';
+        }
+        if (filePath.endsWith('CONTRIBUTING.md')) {
+          return '# Contributing\n\nRun npm test before opening a PR.';
+        }
+        if (filePath.endsWith('test/claude/types.test.ts')) {
+          return "describe('Claude types', () => { it('models stream events', () => {}); });";
+        }
+        if (filePath.endsWith('.ts')) return 'export const value = 1;';
+        throw new Error(`not found: ${filePath}`);
+      };
+      mockExecutor.execute = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+
+      const prompts = [];
+      analyzer.aiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockImplementation(async (prompt) => {
+          prompts.push(prompt);
+          return { content: 'ok' };
+        }),
+      };
+      analyzer.aiCache = {
+        init: jest.fn().mockResolvedValue(undefined),
+        withCache: jest.fn().mockImplementation((_prompt, _key, fn) => fn()),
+        withFileChangeGuard: jest.fn().mockImplementation((_stepId, _fileContents, fn) => fn()),
+      };
+
+      const testDir = await mkdtemp(join(tmpdir(), 'step10-supporting-context-'));
+      try {
+        const result = await analyzer.execute(testDir, {
+          projectType: 'nodejs_api',
+          modifiedFiles: [],
+        });
+        expect(result.success).toBe(true);
+        expect(prompts.length).toBeGreaterThan(0);
+        expect(prompts[0]).toContain('Project Kind: nodejs_api');
+        expect(prompts[0]).toContain('### package.json');
+        expect(prompts[0]).toContain('### eslint.config.js');
+        expect(prompts[0]).toContain('### CONTRIBUTING.md');
+        expect(prompts[0]).toMatch(/### test\/claude\/.+\.test\.ts/);
       } finally {
         await rm(testDir, { recursive: true, force: true });
       }

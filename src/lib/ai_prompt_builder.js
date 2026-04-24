@@ -708,7 +708,7 @@ export function buildDocAnalysisPrompt(options) {
   const changedList = buildFileListContext(changedFiles);
   const docList = buildFileListContext(docFiles);
 
-  const task = `Review the changed files below and make targeted edits to the listed documentation files. Focus on: API references, usage instructions, architecture descriptions, and version numbers directly affected by the changes.
+  const task = `Review the changed files below and make targeted edits to the listed documentation files. Focus on API references, usage instructions, architecture descriptions, and version numbers only when those topics appear in the scoped documentation targets.
 
 Changed files:
 ${changedList}
@@ -716,17 +716,19 @@ ${changedList}
 Documentation to review:
 ${docList}
 
+Treat the listed documentation files as the only edit targets. Use non-documentation changed files only as evidence for whether those scoped documentation files need updates. Do not propose edits to READMEs, changelogs, API docs, module READMEs, source-file JSDoc, or inline code comments unless those files are explicitly included in the documentation scope.
+
 A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".`;
 
   const approach = `**Methodology**:
 1. **Analyze Changes**: Examine what was modified in each changed file
-2. **Prioritize Updates**: Start with critical documentation (README, API docs)
+2. **Prioritize Updates**: Start with the highest-impact documentation already present in the scoped documentation list
 3. **Edit Surgically**: Provide EXACT text changes only where needed
 4. **Verify Consistency**: Maintain project standards
 
 **Output Format**: Use markdown blocks with file paths and before/after examples
 
-**Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes.`;
+**Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. Use non-documentation files strictly as supporting evidence, not as standalone review targets. Do not review source-file JSDoc or inline code comments unless those files are themselves in scope as documentation targets. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);

@@ -3,6 +3,8 @@
  * @group steps
  */
 
+import fs from 'fs/promises';
+import path from 'path';
 import {
   Step4ConfigAnalyzer,
   isConfigFile,
@@ -527,9 +529,9 @@ describe('Step 4: Configuration Validation', () => {
   });
 
   describe('checkConfigBestPractices', () => {
-    test('detects comments in JSON', () => {
+    test('detects comments in strict JSON files', () => {
       const content = '{\n  // Comment\n  "key": "value"\n}';
-      const issues = checkConfigBestPractices(content, 'json');
+      const issues = checkConfigBestPractices(content, 'json', 'package.json');
 
       expect(issues.length).toBeGreaterThan(0);
       expect(issues[0].message).toContain('comments');
@@ -553,9 +555,19 @@ describe('Step 4: Configuration Validation', () => {
 
     test('returns empty for valid config', () => {
       const content = '{"key": "value"}';
-      const issues = checkConfigBestPractices(content, 'json');
+      const issues = checkConfigBestPractices(content, 'json', 'package.json');
 
       expect(issues).toHaveLength(0);
+    });
+
+    test('allows JSONC comments in tsconfig-style files', () => {
+      const content = '{\n  // TypeScript accepts JSONC comments here\n  "compilerOptions": {}\n}';
+
+      expect(checkConfigBestPractices(content, 'json', 'tsconfig.json')).toHaveLength(0);
+      expect(checkConfigBestPractices(content, 'json', 'configs/tsconfig.esm.json')).toHaveLength(
+        0
+      );
+      expect(checkConfigBestPractices(content, 'json', '.vscode/settings.json')).toHaveLength(0);
     });
 
     test('does not false-positive on glob patterns containing /* */ sequences', () => {
@@ -564,14 +576,14 @@ describe('Step 4: Configuration Validation', () => {
         include: ['src/**/*', 'helpers/**/*'],
         exclude: ['node_modules', 'dist'],
       });
-      expect(checkConfigBestPractices(tsconfigLike, 'json')).toHaveLength(0);
+      expect(checkConfigBestPractices(tsconfigLike, 'json', 'tsconfig.json')).toHaveLength(0);
 
       // jest.config.json-style: glob testMatch patterns span across strings when joined
       const jestLike = JSON.stringify({
         testMatch: ['**/*.test.ts', '**/*.test.tsx'],
         collectCoverageFrom: ['src/**/*.{ts,tsx}', 'helpers/**/*.ts'],
       });
-      expect(checkConfigBestPractices(jestLike, 'json')).toHaveLength(0);
+      expect(checkConfigBestPractices(jestLike, 'json', 'package.json')).toHaveLength(0);
     });
   });
 
@@ -838,13 +850,91 @@ describe('Step 4: Configuration Validation', () => {
 
       await analyzer.execute('/project');
 
-      expect(seenPrompts).toHaveLength(2);
+      expect(seenPrompts).toHaveLength(3);
       expect(seenPrompts[0]).toContain('- Partition: 1/2');
       expect(seenPrompts[1]).toContain('.workflow-config.yaml (part 3/3)');
-      expect(seenPrompts.join('\n')).not.toContain('[truncated');
+      expect(seenPrompts[2]).toContain('whole-scope synthesis');
+      expect([seenPrompts[0], seenPrompts[1]].join('\n')).not.toContain('[truncated');
       expect(savedContent).toContain('### Partition 1 of 2');
       expect(savedContent).toContain('### Partition 2 of 2');
+      expect(savedContent).toContain('## Cross-Partition Synthesis');
       expect(savedContent).not.toContain('Validation note');
+    });
+
+    test('adds a whole-scope synthesis pass for cross-partition contradictions', async () => {
+      const prompts = [];
+      let savedContent = '';
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          prompts.push(prompt);
+          if (prompt.includes('whole-scope synthesis')) {
+            return Promise.resolve({
+              content:
+                '- **Confirmed issue:** `package.json` sets `private: true` while `.github/workflows/release.yml` still runs `npm publish --provenance --access public`.',
+            });
+          }
+
+          return Promise.resolve({
+            content: 'No issues found in the visible content of this partition.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve([
+          'package.json',
+          'tsconfig.json',
+          '.github/workflows/ci.yml',
+          '.workflow-config.yaml',
+          '.github/workflows/release.yml',
+        ]);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('package.json')) {
+          return Promise.resolve('{"name":"demo","private":true}');
+        }
+        if (filePath.endsWith('tsconfig.json')) {
+          return Promise.resolve('{"compilerOptions":{"strict":true}}');
+        }
+        if (filePath.endsWith('.github/workflows/ci.yml')) {
+          return Promise.resolve('name: CI\non: push');
+        }
+        if (filePath.endsWith('.workflow-config.yaml')) {
+          return Promise.resolve('project:\n  name: demo');
+        }
+        if (filePath.endsWith('.github/workflows/release.yml')) {
+          return Promise.resolve(
+            'name: Release\njobs:\n  release:\n    steps:\n      - run: npm publish --provenance --access public'
+          );
+        }
+        return Promise.reject(new Error('not found'));
+      };
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedContent = content;
+        return Promise.resolve();
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      const synthesisPrompt = prompts.find((prompt) => prompt.includes('whole-scope synthesis'));
+      expect(synthesisPrompt).toBeDefined();
+      expect(synthesisPrompt).toContain('package.json');
+      expect(synthesisPrompt).toContain('.github/workflows/release.yml');
+      expect(savedContent).toContain('## Cross-Partition Synthesis');
+      expect(savedContent).toContain('package.json');
+      expect(savedContent).toContain('.github/workflows/release.yml');
     });
 
     test('keeps generated package-lock content compact in AI prompt context', async () => {
@@ -1550,6 +1640,108 @@ describe('Step 4: Configuration Validation', () => {
       await analyzer.execute('/project');
 
       expect(aiCallCount).toBeGreaterThan(countAfterFirst);
+    });
+
+    test('supplementary quality prompt includes injected file contents and scope note', async () => {
+      const prompts = [];
+      const aiHelpersPath = path.join(process.cwd(), '.workflow_core', 'config', 'ai_helpers.yaml');
+      const promptRolesPath = path.join(
+        process.cwd(),
+        '.workflow_core',
+        'config',
+        'prompt_roles.yaml'
+      );
+
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath === aiHelpersPath || filePath === promptRolesPath) {
+          return fs.readFile(filePath, 'utf8');
+        }
+        if (filePath.endsWith('package.json')) {
+          return FILE_CONTENT;
+        }
+        throw new Error('not found');
+      };
+      mockAiHelper.executeRequest = (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve({ content: `AI response #${prompts.length}` });
+      };
+      mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: async (_stepId, _fileContents, fn) => fn(),
+      };
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      const qualityPrompt = prompts.find((prompt) =>
+        prompt.includes(
+          '**Provided file contents and excerpts (authoritative for content-level claims):**'
+        )
+      );
+      expect(qualityPrompt).toBeDefined();
+      expect(qualityPrompt).toContain('Review the following files for code quality: package.json');
+      expect(qualityPrompt).toContain('--- package.json ---');
+      expect(qualityPrompt).toContain(FILE_CONTENT);
+      expect(qualityPrompt).toContain(
+        'Every listed file below is visible in full in the provided file-contents block.'
+      );
+    });
+
+    test('supplementary quality prompt covers files beyond the first ten via partitions', async () => {
+      const prompts = [];
+      const aiHelpersPath = path.join(process.cwd(), '.workflow_core', 'config', 'ai_helpers.yaml');
+      const promptRolesPath = path.join(
+        process.cwd(),
+        '.workflow_core',
+        'config',
+        'prompt_roles.yaml'
+      );
+      const qualityFiles = Array.from({ length: 12 }, (_, index) => `config-${index}.json`);
+
+      mockGitOps.getModifiedFiles = () => Promise.resolve(qualityFiles);
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath === aiHelpersPath || filePath === promptRolesPath) {
+          return fs.readFile(filePath, 'utf8');
+        }
+
+        const matched = qualityFiles.find((name) => filePath.endsWith(name));
+        if (matched) {
+          return `{"name":"${matched}"}`;
+        }
+
+        throw new Error('not found');
+      };
+      mockAiHelper.executeRequest = (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve({ content: `AI response #${prompts.length}` });
+      };
+      mockAiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: async (_stepId, _fileContents, fn) => fn(),
+      };
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      const qualityPrompts = prompts.filter((prompt) =>
+        prompt.includes('Review the following files for code quality:')
+      );
+      expect(qualityPrompts.length).toBeGreaterThan(1);
+      expect(qualityPrompts.join('\n')).toContain('config-10.json');
+      expect(qualityPrompts.join('\n')).toContain('config-11.json');
+      expect(qualityPrompts[0]).toContain('partition 1 of');
     });
   });
 

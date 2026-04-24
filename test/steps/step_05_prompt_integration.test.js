@@ -22,6 +22,7 @@ describe('step5_directory_prompt — config correctness', () => {
   test('task_template requires partial-evidence handling for documentation claims', () => {
     const template = aiHelpers.step5_directory_prompt.task_template;
     expect(template).toContain('INDEX.md');
+    expect(template).toContain('.github/SKILLS.md');
     expect(template).toContain('Documentation Excerpts (partial');
     expect(template).toContain('Do not claim "No documentation found"');
     expect(template).toContain('unavailable or inconclusive');
@@ -62,6 +63,9 @@ describe('step5_directory_prompt — rendered prompt behavior', () => {
         '## Repository Layout',
         'ai_workflow_core/',
         '└── docs/',
+        '### .github/SKILLS.md',
+        '# Skills',
+        '- .github/skills/review.md',
         '### docs/ARCHITECTURE.md',
         '## Directory Structure',
         'ai_workflow_core/',
@@ -82,5 +86,6 @@ describe('step5_directory_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('visible file excerpt under that directory');
     expect(prompt).toContain('Do not report `docs/` as undocumented');
     expect(prompt).toContain('Do not make clean-pass claims');
+    expect(prompt).toContain('Do not recommend adding build artifacts such as `dist/`');
   });
 });

@@ -217,7 +217,8 @@ playwright-report/
 
 # Test artifact directories (auto-generated, safe to delete)
 .test-cache/
-.test-e2e/
+.test-e2e/*
+!.test-e2e/README.md
 .test-step-11-5/
 
 # Generated API docs

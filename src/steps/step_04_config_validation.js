@@ -102,6 +102,13 @@ export const CONFIG_ISSUE_TYPE = {
 export const MAX_FILE_CONTENT_CHARS = 2000;
 
 /**
+ * Compact per-file excerpt size for the whole-scope synthesis pass.
+ * This keeps the reconciliation prompt bounded while still surfacing
+ * the key config lines that can conflict across partitions.
+ */
+export const MAX_SYNTHESIS_FILE_CONTENT_CHARS = 800;
+
+/**
  * Minimum fraction of listed files the AI response must mention to be considered adequate.
  */
 export const MIN_FILE_MENTION_RATIO = 0.3;
@@ -394,9 +401,24 @@ export function scanForSecrets(content, filePath) {
  * @pure
  * @param {string} content - File content
  * @param {string} type - Config type
+ * @param {string} [filePath=''] - Relative config path
  * @returns {Object[]} Array of issues
  */
-export function checkConfigBestPractices(content, type) {
+function supportsJsonComments(filePath, type) {
+  const normalizedPath = normalizeConfigPath(filePath).toLowerCase();
+  if (type !== 'json') {
+    return false;
+  }
+
+  return (
+    normalizedPath.endsWith('.jsonc') ||
+    /(^|\/)tsconfig(?:\.[^/]+)?\.json$/i.test(normalizedPath) ||
+    /(^|\/)jsconfig(?:\.[^/]+)?\.json$/i.test(normalizedPath) ||
+    /(^|\/)\.vscode\/[^/]+\.json$/i.test(normalizedPath)
+  );
+}
+
+export function checkConfigBestPractices(content, type, filePath = '') {
   const issues = [];
 
   if (type === 'json') {
@@ -404,7 +426,7 @@ export function checkConfigBestPractices(content, type) {
     // uses a string-literal-aware state machine) avoids false positives from glob patterns such as
     // "src/**/*" or "**/*.test.ts" whose /* and */ sequences would fool a plain regex.
     const stripped = stripJsonComments(content);
-    if (stripped !== content) {
+    if (stripped !== content && !supportsJsonComments(filePath, type)) {
       issues.push({
         type: CONFIG_ISSUE_TYPE.SYNTAX_ERROR,
         message: 'JSON does not support comments',
@@ -861,6 +883,77 @@ export function validateAiResponseQuality(
   return { adequate: true, reason: 'sufficient file coverage', coverage };
 }
 
+function formatEvidenceScopeNote(relativeFilePaths, fileEntries, maxChars, successMessage) {
+  const evidence = assessPromptEvidence(relativeFilePaths, fileEntries, maxChars);
+  const note = evidence.hasPartialEvidence
+    ? [
+        evidence.unavailableFiles.length > 0
+          ? `Treat these listed files as unavailable: ${evidence.unavailableFiles.join(', ')}.`
+          : null,
+        evidence.truncatedFiles.length > 0
+          ? `Treat these listed files as excerpt-limited: ${evidence.truncatedFiles.join(', ')}.`
+          : null,
+        'Keep conclusions scoped to the visible content only.',
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : successMessage;
+
+  return { evidence, note };
+}
+
+function buildCrossPartitionSynthesisPrompt({
+  projectRoot,
+  projectKind,
+  techStackSummary,
+  totalFiles,
+  syntaxErrors,
+  securityFindings,
+  bestPracticeIssues,
+  scopeList,
+  fileContentsBlock,
+  partitionSummaries,
+  scopeNote,
+}) {
+  const role =
+    'You are a Senior DevOps Engineer performing a whole-scope synthesis of partitioned configuration reviews.';
+  const task = [
+    `Reconcile the partitioned configuration analyses for project "${path.basename(projectRoot)}".`,
+    '',
+    '### Full Configuration Scope',
+    scopeList,
+    '',
+    '### Scope Note',
+    scopeNote,
+    '',
+    '### Static Validation Summary',
+    `- Total configuration files in run: ${totalFiles}`,
+    `- Syntax errors: ${syntaxErrors}`,
+    `- Security findings: ${securityFindings}`,
+    `- Best-practice issues: ${bestPracticeIssues}`,
+    '',
+    '**Provided file contents and excerpts (authoritative for content-level claims):**',
+    fileContentsBlock ||
+      'No readable configuration file contents were available for whole-scope synthesis.',
+    '',
+    '### Partition Analyses',
+    partitionSummaries.join('\n\n'),
+  ].join('\n');
+  const approach = [
+    '- Focus on issues or contradictions that only become visible when considering multiple partitions together.',
+    '- Reconcile package manifests, lockfiles, workflow files, tsconfig files, and project workflow configs when they interact.',
+    '- Do not simply restate every partition summary; surface only new whole-scope findings, inconclusive observations, or confirm that no additional cross-partition issues were found.',
+    '- Cite the exact file paths involved in each confirmed whole-scope finding.',
+    '- Respect the provided scope note when any file content is excerpt-limited or unavailable.',
+  ].join('\n');
+
+  return injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
+    projectKind: projectKind || '',
+    projectRoot,
+    techStackSummary,
+  });
+}
+
 // ============================================================================
 // STEP 4 ANALYZER - Impure Wrapper
 // ============================================================================
@@ -980,6 +1073,7 @@ export class Step4ConfigAnalyzer {
         const promptPartitions = buildConfigPromptPartitions(fileEntries);
         const aiSections = [];
         const alternativeBodies = [];
+        const partitionSummaries = [];
 
         if (promptPartitions.length > 1) {
           logger.info(
@@ -1081,12 +1175,91 @@ ${filesContentBlock}`;
 
           const partitionBody = [aiValidationNote, aiContent].filter(Boolean).join('\n\n');
           if (partitionBody) {
+            partitionSummaries.push({
+              index: i,
+              scopePaths: partition.scopePaths,
+              displayPaths: partitionDisplayPaths,
+              body: partitionBody,
+            });
             aiSections.push(
               promptPartitions.length > 1
                 ? `### Partition ${i + 1} of ${promptPartitions.length}\n\n${partitionBody}`
                 : partitionBody
             );
             alternativeBodies.push(partitionBody);
+          }
+        }
+
+        if (promptPartitions.length > 1 && partitionSummaries.length > 0) {
+          try {
+            const synthesisEntries = relPaths
+              .filter((relativePath) =>
+                fileEntries.some((entry) => entry.relativePath === relativePath)
+              )
+              .map((relativePath) => ({
+                relativePath,
+                content: summarizeConfigContentForPrompt(
+                  relativePath,
+                  fileEntries.find((entry) => entry.relativePath === relativePath)?.content ?? ''
+                ),
+              }));
+            const synthesisEvidence = formatEvidenceScopeNote(
+              relPaths,
+              synthesisEntries,
+              MAX_SYNTHESIS_FILE_CONTENT_CHARS,
+              'Every listed file below is visible in full for whole-scope synthesis.'
+            );
+            const synthesisPrompt = buildCrossPartitionSynthesisPrompt({
+              projectRoot,
+              projectKind,
+              techStackSummary,
+              totalFiles: configFiles.length,
+              syntaxErrors: syntaxErrors.length,
+              securityFindings: securityFindings.length,
+              bestPracticeIssues: bestPracticeIssues.length,
+              scopeList: groupConfigFilesList(relPaths),
+              fileContentsBlock: buildFileContentsBlock(
+                synthesisEntries,
+                MAX_SYNTHESIS_FILE_CONTENT_CHARS
+              ),
+              partitionSummaries: partitionSummaries.map((summary) =>
+                [
+                  `#### Partition ${summary.index + 1} of ${promptPartitions.length}`,
+                  `- Files in partition scope: ${summary.scopePaths.join(', ') || 'none'}`,
+                  `- Prompt entries shown: ${summary.displayPaths.join(', ') || 'none'}`,
+                  '',
+                  summary.body,
+                ].join('\n')
+              ),
+              scopeNote: synthesisEvidence.note,
+            });
+            const synthesisHashEntries = [
+              ...relPaths.map((relativePath) => {
+                const matchingEntry = synthesisEntries.find(
+                  (entry) => entry.relativePath === relativePath
+                );
+                return `synthesis:${relativePath}:${matchingEntry?.content ?? '__UNAVAILABLE__'}`;
+              }),
+              ...partitionSummaries.map(
+                (summary) => `partition:${summary.index + 1}:${summary.body}`
+              ),
+            ];
+            const synthesisResult = await this.aiCache.withFileChangeGuard(
+              'step_04_synthesis',
+              synthesisHashEntries,
+              () =>
+                this.aiHelper.executeRequest(synthesisPrompt, {
+                  persona: 'devops_engineer',
+                  model: 'claude-haiku-4.5',
+                  timeout: 120000,
+                })
+            );
+            const synthesisContent = synthesisResult?.content ?? '';
+            if (synthesisContent) {
+              aiSections.push(`## Cross-Partition Synthesis\n\n${synthesisContent}`);
+            }
+          } catch {
+            /* optional */
           }
         }
 
@@ -1097,18 +1270,72 @@ ${filesContentBlock}`;
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
         try {
-          const qualityFileHashEntries = (configFiles ?? [])
-            .slice(0, 10)
-            .map((filePath) => `${path.relative(projectRoot, filePath)}:`);
-          const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
-            files_to_review: (configFiles ?? []).slice(0, 10).join(', '),
-            project_name: projectRoot,
-          });
-          if (qPrompt) {
+          const qualityScopePaths = (configFiles ?? []).map((filePath) =>
+            path.relative(projectRoot, filePath)
+          );
+          const qualityEntryMap = new Map(
+            fileEntries.map((entry) => [entry.relativePath, entry.content])
+          );
+          const qualitySourceEntries = qualityScopePaths
+            .filter((relativePath) => qualityEntryMap.has(relativePath))
+            .map((relativePath) => ({
+              relativePath,
+              content: summarizeConfigContentForPrompt(
+                relativePath,
+                qualityEntryMap.get(relativePath) ?? ''
+              ),
+            }));
+          const qualityUnavailablePaths = qualityScopePaths.filter(
+            (relativePath) => !qualityEntryMap.has(relativePath)
+          );
+          const qualityPromptPartitions = buildConfigPromptPartitions(qualitySourceEntries);
+          const qualitySections = [];
+
+          for (let i = 0; i < qualityPromptPartitions.length; i++) {
+            const partition = qualityPromptPartitions[i];
+            const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
+            const partitionFileEntries = partition.entries.map((entry) => ({
+              relativePath: entry.relativePath,
+              content: entry.content,
+            }));
+            const qualityScopeNoteParts = [
+              qualityPromptPartitions.length > 1
+                ? `This supplementary review covers partition ${i + 1} of ${qualityPromptPartitions.length}, with ${partition.entries.length} listed prompt entr${partition.entries.length === 1 ? 'y' : 'ies'} spanning ${partition.scopePaths.length} of ${qualityScopePaths.length} configuration file(s) in the current run. Entries labeled "(part X/Y)" are deliberate sequential slices created to avoid prompt truncation; analyze only the visible slice(s) in this request.`
+                : `This supplementary review covers ${partition.scopePaths.length} listed configuration file(s).`,
+            ];
+            if (qualityUnavailablePaths.length > 0) {
+              qualityScopeNoteParts.push(
+                `Additional configuration files were unavailable for supplementary review: ${qualityUnavailablePaths.join(', ')}.`
+              );
+            }
+            qualityScopeNoteParts.push(
+              'Every listed file below is visible in full in the provided file-contents block.'
+            );
+            const qualityFileHashEntries = [
+              ...qualityScopePaths.map((relativePath) => {
+                const matchingEntry = partitionFileEntries.find(
+                  (entry) => entry.relativePath === relativePath
+                );
+                return `quality:${relativePath}:${matchingEntry?.content ?? '__UNAVAILABLE__'}`;
+              }),
+              `quality-partition:${i + 1}/${qualityPromptPartitions.length}`,
+            ];
+            const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
+              files_to_review: partitionDisplayPaths.join(', '),
+              file_content_map:
+                buildFileContentsBlock(partitionFileEntries, Number.MAX_SAFE_INTEGER) ||
+                'No listed file contents were available for this supplementary review.',
+              quality_scope_note: qualityScopeNoteParts.join(' '),
+              project_name: projectRoot,
+            });
+            if (!qPrompt) {
+              continue;
+            }
+
             // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
             // specialist" role (anti-patterns, best practices, maintainability) — not security.
             const qResult = await this.aiCache.withFileChangeGuard(
-              'step_04_quality',
+              `step_04_quality_p${i}`,
               qualityFileHashEntries,
               () =>
                 this.aiHelper.executeRequest(qPrompt, {
@@ -1116,7 +1343,25 @@ ${filesContentBlock}`;
                   model: 'claude-haiku-4.5',
                 })
             );
-            qualityContent = qResult?.content ?? '';
+            const qBody = qResult?.content ?? '';
+            if (qBody) {
+              qualitySections.push(
+                qualityPromptPartitions.length > 1
+                  ? `### Partition ${i + 1} of ${qualityPromptPartitions.length}\n\n${qBody}`
+                  : qBody
+              );
+            }
+          }
+
+          if (qualitySections.length > 0) {
+            qualityContent = qualitySections.join('\n\n');
+            if (qualityUnavailablePaths.length > 0) {
+              qualityContent = [
+                `> **Supplementary review note:** The following configuration files were unreadable and could not be included in the quality review: ${qualityUnavailablePaths.join(', ')}`,
+                '',
+                qualityContent,
+              ].join('\n');
+            }
           }
         } catch {
           /* optional */
@@ -1293,7 +1538,7 @@ ${filesContentBlock}`;
     try {
       const content = await this.fileOps.readFile(filePath);
       const type = getConfigType(filePath);
-      return checkConfigBestPractices(content, type);
+      return checkConfigBestPractices(content, type, filePath);
     } catch {
       return [];
     }

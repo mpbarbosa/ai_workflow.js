@@ -70,6 +70,34 @@ describe('error_resilience_prompt — config correctness', () => {
   });
 });
 
+describe('cohesion_review_prompt — config correctness', () => {
+  let aiHelpers;
+
+  beforeAll(async () => {
+    const raw = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');
+    aiHelpers = yaml.load(raw);
+  });
+
+  test('cohesion_review_prompt key exists', () => {
+    expect(aiHelpers).toHaveProperty('cohesion_review_prompt');
+  });
+
+  test('cohesion_review_prompt has required top-level keys', () => {
+    const p = aiHelpers.cohesion_review_prompt;
+    expect(p).toHaveProperty('role_ref');
+    expect(p).toHaveProperty('task_template');
+    expect(p).toHaveProperty('output_format');
+  });
+
+  test('cohesion_review_prompt contains required template variables', () => {
+    const template = aiHelpers.cohesion_review_prompt.task_template;
+    expect(template).toContain('{project_name}');
+    expect(template).toContain('{primary_language}');
+    expect(template).toContain('{cohesion_guide_status}');
+    expect(template).toContain('{file_content_map}');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Layer 2 — Role resolution
 // ---------------------------------------------------------------------------

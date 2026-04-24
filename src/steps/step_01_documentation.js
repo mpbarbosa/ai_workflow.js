@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
@@ -123,35 +124,38 @@ export function classifyChangedFiles(changedFiles) {
   let totalConsidered = 0;
 
   for (const file of changedFiles) {
+    const normalizedFile = normalizeStep1EvidencePath(file);
+
     // Skip workflow artifact directories — they must never appear in prompts.
     if (
-      file.startsWith('.ai_workflow/') ||
-      file.startsWith('.workflow_core/') ||
-      excludedFiles.has(file)
+      normalizedFile.startsWith('.ai_workflow/') ||
+      normalizedFile.startsWith('.workflow_core/') ||
+      normalizedFile.startsWith('docs/api/html/') ||
+      excludedFiles.has(normalizedFile)
     ) {
       continue;
     }
 
     totalConsidered++;
 
-    if (file.endsWith('.md') || file.includes('docs/')) {
-      classification.documentation.push(file);
-    } else if (file.endsWith('.test.js') || file.includes('test/')) {
-      classification.tests.push(file);
+    if (normalizedFile.endsWith('.md') || normalizedFile.includes('docs/')) {
+      classification.documentation.push(normalizedFile);
+    } else if (normalizedFile.endsWith('.test.js') || normalizedFile.includes('test/')) {
+      classification.tests.push(normalizedFile);
     } else if (
-      file.endsWith('.json') ||
-      file.endsWith('.yaml') ||
-      file.endsWith('.yml') ||
-      file.includes('config')
+      normalizedFile.endsWith('.json') ||
+      normalizedFile.endsWith('.yaml') ||
+      normalizedFile.endsWith('.yml') ||
+      normalizedFile.includes('config')
     ) {
-      classification.config.push(file);
+      classification.config.push(normalizedFile);
     } else if (
-      file.endsWith('.js') ||
-      file.endsWith('.mjs') ||
-      file.endsWith('.ts') ||
-      file.endsWith('.tsx')
+      normalizedFile.endsWith('.js') ||
+      normalizedFile.endsWith('.mjs') ||
+      normalizedFile.endsWith('.ts') ||
+      normalizedFile.endsWith('.tsx')
     ) {
-      classification.source.push(file);
+      classification.source.push(normalizedFile);
     }
   }
 
@@ -241,6 +245,7 @@ export function isLowSignalStep1Evidence(filePath) {
     normalized.startsWith('.workflow_fspec/') ||
     normalized.startsWith('.playwright-mcp/') ||
     normalized.startsWith('node_modules/') ||
+    normalized.startsWith('docs/api/html/') ||
     normalized.startsWith('coverage/') ||
     normalized.startsWith('.test-cache/') ||
     normalized === '.mcp.json' ||
@@ -386,6 +391,103 @@ export function consolidateStep1DocAnalysis(content, docFiles = []) {
   }
 
   return String(content ?? '').trim();
+}
+
+function buildStep1SynthesisScopeNote(evidenceFiles, fileEntries, successMessage) {
+  const readablePaths = new Set(
+    (Array.isArray(fileEntries) ? fileEntries : []).map(({ relativePath }) =>
+      String(relativePath ?? '')
+    )
+  );
+  const unavailableFiles = (Array.isArray(evidenceFiles) ? evidenceFiles : []).filter(
+    (filePath) => !readablePaths.has(filePath)
+  );
+
+  if (unavailableFiles.length === 0) {
+    return successMessage;
+  }
+
+  return [
+    `Treat these scoped files as unavailable during whole-scope synthesis: ${unavailableFiles.join(', ')}.`,
+    'Keep conclusions limited to the visible evidence and mark missing coverage as inconclusive.',
+  ].join(' ');
+}
+
+function buildStep1SynthesisEvidenceBlock(fileEntries, maxChars = 6000) {
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  if (entries.length === 0) {
+    return '';
+  }
+
+  const fullBlock = buildReviewFileContentsBlock(entries);
+  if (fullBlock.length <= maxChars) {
+    return fullBlock;
+  }
+
+  const excerptEntries = [];
+  let usedChars = 0;
+
+  for (const { relativePath, content } of entries) {
+    const normalizedContent = String(content ?? '').trim();
+    const excerpt =
+      normalizedContent.length > 900
+        ? `${normalizedContent.slice(0, 900)}\n...(excerpt limited for synthesis)`
+        : normalizedContent;
+    const block = `### \`${relativePath}\`\n\`\`\`\n${excerpt}\n\`\`\``;
+    if (excerptEntries.length > 0 && usedChars + block.length > maxChars) {
+      break;
+    }
+    excerptEntries.push({ relativePath, content: excerpt });
+    usedChars += block.length;
+  }
+
+  return buildReviewFileContentsBlock(excerptEntries);
+}
+
+function buildStep1CrossPartitionSynthesisPrompt({
+  projectRoot,
+  projectInfo,
+  docFiles,
+  evidenceFiles,
+  fileEntries,
+  partitionSummaries,
+  scopeNote,
+}) {
+  const docScope = (Array.isArray(docFiles) ? docFiles : []).join(', ') || '(none)';
+  const evidenceScope = (Array.isArray(evidenceFiles) ? evidenceFiles : []).join(', ') || '(none)';
+  const evidenceBlock =
+    buildStep1SynthesisEvidenceBlock(fileEntries) ||
+    'No readable file contents were available for whole-scope synthesis.';
+
+  return [
+    'You are a Senior Documentation Engineer performing a whole-scope synthesis of partitioned documentation review results.',
+    '',
+    `Project: ${projectInfo?.projectKind ?? path.basename(projectRoot)}`,
+    `Primary language: ${projectInfo?.language ?? 'unknown'}`,
+    '',
+    '### Documentation Files Under Review',
+    docScope,
+    '',
+    '### Full Evidence Scope',
+    evidenceScope,
+    '',
+    '### Scope Note',
+    scopeNote,
+    '',
+    '**Provided file contents and excerpts (authoritative for content-level claims):**',
+    evidenceBlock,
+    '',
+    '### Partition Analyses',
+    partitionSummaries.join('\n\n'),
+    '',
+    '### Task',
+    '- Produce the final consolidated documentation verdict across the full scope.',
+    '- Merge duplicate findings from different partitions into one evidence-based result.',
+    '- Suppress partition-local "Not applicable" or other no-op outcomes when the whole-scope evidence resolves them.',
+    '- Report only confirmed documentation updates, confirmed no-update outcomes, or clearly marked inconclusive gaps.',
+    '- Cite the exact file paths involved in each confirmed finding.',
+    '- Respect the scope note and do not invent evidence for unreadable files.',
+  ].join('\n');
 }
 
 export const STEP1_DOCUMENTATION_PREFERRED_MODELS = [
@@ -701,6 +803,7 @@ export class Step1DocumentationAnalyzer {
               fileEntries.length > 0 ? buildReviewPromptPartitions(fileEntries) : [];
             const partitionsToAnalyze =
               promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
+            const partitionSummaries = [];
 
             if (partitionsToAnalyze.length > 1) {
               logger.info(
@@ -776,26 +879,80 @@ export class Step1DocumentationAnalyzer {
 
                 return prompt;
               },
-              executePartition: (_partition, { index: i, total }, prompt) =>
+              executePartition: (partition, { index: i, total }, prompt) =>
                 this.aiCache.withFileChangeGuard(
                   `step_01|${cacheCategory}|part:${i + 1}/${total}`,
                   fileHashEntries,
-                  () =>
-                    this.aiHelper.executeRequest(prompt, {
+                  async () => {
+                    const response = await this.aiHelper.executeRequest(prompt, {
                       persona: 'documentation_expert',
                       model: selectedModel,
-                    })
+                    });
+                    const responseBody = String(
+                      response?.content ?? response?.text ?? response?.message ?? ''
+                    ).trim();
+                    partitionSummaries.push(
+                      [
+                        `#### Partition ${i + 1} of ${total}`,
+                        `Files in this partition: ${partition.scopePaths.join(', ') || '(none)'}`,
+                        responseBody || 'No response content returned.',
+                      ].join('\n\n')
+                    );
+                    return response;
+                  }
                 ),
               trackSuccess: (response, currentSuccess) =>
                 currentSuccess && response?.success !== false,
             });
 
+            let finalContent = consolidateStep1DocAnalysis(combinedContent, files);
+
+            if (partitionsToAnalyze.length > 1 && partitionSummaries.length > 1) {
+              const synthesisScopeNote = buildStep1SynthesisScopeNote(
+                evidenceFiles,
+                fileEntries,
+                `All ${fileEntries.length} readable scoped file(s) are available for whole-scope synthesis.`
+              );
+              const synthesisPrompt = buildStep1CrossPartitionSynthesisPrompt({
+                projectRoot,
+                projectInfo,
+                docFiles: files,
+                evidenceFiles,
+                fileEntries,
+                partitionSummaries,
+                scopeNote: synthesisScopeNote,
+              });
+              const synthesisResponse = await this.aiCache.withFileChangeGuard(
+                `step_01_synthesis|${cacheCategory}|parts:${partitionsToAnalyze.length}`,
+                [
+                  ...fileHashEntries,
+                  ...partitionSummaries.map(
+                    (summary, index) => `partition:${index + 1}:${summary}`
+                  ),
+                ],
+                () =>
+                  this.aiHelper.executeRequest(synthesisPrompt, {
+                    persona: 'documentation_expert',
+                    model: selectedModel,
+                  })
+              );
+              const synthesizedContent = String(
+                synthesisResponse?.content ??
+                  synthesisResponse?.text ??
+                  synthesisResponse?.message ??
+                  ''
+              ).trim();
+              if (synthesizedContent) {
+                finalContent = synthesizedContent;
+              }
+            }
+
             return {
               success,
               response: {
                 success,
-                content: consolidateStep1DocAnalysis(combinedContent, files),
-                text: consolidateStep1DocAnalysis(combinedContent, files),
+                content: finalContent,
+                text: finalContent,
               },
             };
           },

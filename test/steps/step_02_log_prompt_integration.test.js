@@ -195,6 +195,13 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(template).not.toContain('docs/API.md');
     });
 
+    test('task_template keeps off-list references outside automatic partition scope', () => {
+      const template = parsed.step2_consistency_prompt.task_template;
+
+      expect(template).toContain('not automatically in scope');
+      expect(template).toContain('unverified from visible context');
+    });
+
     test('step2_consistency_prompt has approach field', () => {
       const section = parsed.step2_consistency_prompt;
       expect(section).toHaveProperty('approach');
@@ -211,6 +218,12 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(approach).toContain('unverified from visible context');
       expect(approach).toContain('broken-reference candidate');
       expect(approach).toContain('not present in the provided context');
+    });
+
+    test('approach forbids treating off-list references as fully in-scope documents', () => {
+      const approach = parsed.step2_consistency_prompt.approach;
+      expect(approach).toContain('candidate targets');
+      expect(approach).toContain('not additional in-scope');
     });
 
     describe('buildConsistencyPrompt() — inline prompt builder', () => {

@@ -9,6 +9,8 @@ import {
   normalizeWorkflowConfigStepId,
   buildWorkflowConfigStepIndex,
   getConfiguredStepsForStage,
+  getAuthorityDocRequiredStepIds,
+  injectAuthorityDocStepsForChangedFiles,
   filterStepIdsByProfile,
   detectWorkflowConfigStructure,
   buildGeneratedWorkflowConfig,
@@ -237,6 +239,26 @@ describe('Main Orchestrator - Pure Functions', () => {
         'step_05',
       ]);
     });
+
+    test('injects authority-doc validation steps that are missing from stale workflow configs', () => {
+      expect(
+        injectAuthorityDocStepsForChangedFiles(
+          WORKFLOW_STAGES.FULL,
+          ['step_00', 'step_04', 'step_05', 'step_06'],
+          ['.github/copilot-instructions.md', 'CLAUDE.md']
+        )
+      ).toEqual(['step_00', 'step_01', 'step_01_5', 'step_04', 'step_05', 'step_06']);
+    });
+
+    test('derives required preserved steps for authority docs in change sets', () => {
+      expect(
+        getAuthorityDocRequiredStepIds(
+          ['CLAUDE.md', '.github/copilot-instructions.md', 'package.json'],
+          WORKFLOW_STAGES.FULL,
+          ['step_00', 'step_01', 'step_01_5', 'step_04']
+        )
+      ).toEqual(['step_01', 'step_01_5']);
+    });
   });
 
   describe('filterStepIdsByProfile', () => {
@@ -354,6 +376,72 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(
         filterStepIdsByProfile(plannedSteps, [2, 4], dependencyIndex, ['step_08'], ['step_12'])
       ).toEqual(plannedSteps);
+    });
+
+    test('preserves authority-doc validation steps alongside focused infrastructure execution', () => {
+      const plannedSteps = [
+        'step_00',
+        'step_01',
+        'step_01_5',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_09',
+        'step_10',
+        'step_11',
+        'step_13',
+        'step_14',
+        'step_16',
+        'step_17',
+        'step_0f',
+        'step_12',
+      ];
+      const dependencyIndex = {
+        step_01: ['step_00'],
+        step_01_5: ['step_01'],
+        step_04: ['step_00'],
+        step_05: ['step_04'],
+        step_06: ['step_05'],
+        step_07: ['step_06'],
+        step_08: ['step_07'],
+        step_09: ['step_08'],
+        step_10: ['step_09'],
+        step_11: ['step_10'],
+        step_13: ['step_10'],
+        step_14: ['step_13'],
+        step_16: ['step_11'],
+        step_17: ['step_16'],
+        step_0f: ['step_17'],
+        step_12: ['step_0f'],
+      };
+
+      expect(
+        filterStepIdsByProfile(
+          plannedSteps,
+          [2, 4],
+          dependencyIndex,
+          ['step_08', 'step_09'],
+          ['step_01', 'step_01_5', 'step_12']
+        )
+      ).toEqual([
+        'step_00',
+        'step_01',
+        'step_01_5',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_09',
+        'step_10',
+        'step_11',
+        'step_16',
+        'step_17',
+        'step_0f',
+        'step_12',
+      ]);
     });
   });
 

@@ -44,7 +44,7 @@ Supporting workflow surfaces:
 - Sync user-facing CLI changes with `README.md` and CLI/reference docs.
 - Update `docs/ARCHITECTURE.md` for architecture or layout changes.
 - Align package exports and entry points with `package.json` and API docs.
-- For details, link to authoritative docs rather than duplicating content.
+- For details, refer to the authoritative docs listed below.
 
 ---
 

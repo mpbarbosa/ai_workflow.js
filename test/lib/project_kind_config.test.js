@@ -3,10 +3,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import {
+  MANDATORY_CODE_GUIDE_FILES,
   parseYaml,
   extractProjectKindConfig,
   mergeConfigurations,
   validateProjectStructure,
+  hasCodeFiles,
   extractConfigSection,
   ProjectKindConfigManager,
 } from '../../src/lib/project_kind_config.js';
@@ -164,7 +166,7 @@ describe('Project Kind Configuration - Pure Functions', () => {
 
   describe('validateProjectStructure', () => {
     it('should validate project with all required files', () => {
-      const files = ['package.json', 'README.md', 'index.js'];
+      const files = ['package.json', 'README.md', 'index.js', ...MANDATORY_CODE_GUIDE_FILES];
       const dirs = ['src', 'tests'];
       const rules = {
         required_files: ['package.json', 'README.md'],
@@ -189,7 +191,12 @@ describe('Project Kind Configuration - Pure Functions', () => {
       const result = validateProjectStructure(files, dirs, rules);
 
       expect(result.valid).toBe(false);
-      expect(result.missingFiles).toEqual(['package.json', 'README.md']);
+      expect(result.missingFiles).toEqual([
+        '.github/HIGH_COHESION_GUIDE.md',
+        '.github/LOW_COUPLING_GUIDE.md',
+        'package.json',
+        'README.md',
+      ]);
     });
 
     it('should detect missing required directories', () => {
@@ -207,7 +214,7 @@ describe('Project Kind Configuration - Pure Functions', () => {
     });
 
     it('should validate file patterns', () => {
-      const files = ['script1.sh', 'script2.sh', 'README.md'];
+      const files = ['script1.sh', 'script2.sh', 'README.md', ...MANDATORY_CODE_GUIDE_FILES];
       const dirs = ['src'];
       const rules = {
         required_files: ['*.sh'],
@@ -233,16 +240,35 @@ describe('Project Kind Configuration - Pure Functions', () => {
       expect(result.missingFiles).toEqual(['*.sh']);
     });
 
-    it('should return valid for null validation rules', () => {
+    it('should require cohesion guides even when validation rules are null', () => {
       const result = validateProjectStructure(['file.js'], ['src'], null);
 
-      expect(result.valid).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.missingFiles).toEqual(MANDATORY_CODE_GUIDE_FILES);
     });
 
-    it('should handle empty validation rules', () => {
+    it('should handle empty validation rules and still require mandatory guides for code', () => {
       const result = validateProjectStructure(['file.js'], ['src'], {});
 
+      expect(result.valid).toBe(false);
+      expect(result.missingFiles).toEqual(MANDATORY_CODE_GUIDE_FILES);
+    });
+
+    it('should not require cohesion guides for projects without code files', () => {
+      const result = validateProjectStructure(['README.md'], ['docs'], {});
+
       expect(result.valid).toBe(true);
+      expect(result.missingFiles).toEqual([]);
+    });
+  });
+
+  describe('hasCodeFiles', () => {
+    it('detects projects with code files', () => {
+      expect(hasCodeFiles(['README.md', 'src/index.js'])).toBe(true);
+    });
+
+    it('ignores projects without code files', () => {
+      expect(hasCodeFiles(['README.md', 'docs/ARCHITECTURE.md'])).toBe(false);
     });
   });
 
@@ -445,9 +471,12 @@ project_kinds:
     // Create required files
     await fs.writeFile(path.join(tempDir, 'package.json'), '{}');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, '.github'), { recursive: true });
 
     // Add a file to src so it's not empty
     await fs.writeFile(path.join(tempDir, 'src', 'index.js'), 'console.log("test");');
+    await fs.writeFile(path.join(tempDir, '.github', 'HIGH_COHESION_GUIDE.md'), '# guide');
+    await fs.writeFile(path.join(tempDir, '.github', 'LOW_COUPLING_GUIDE.md'), '# guide');
 
     // Get validation rules first to check what's expected
     const rules = await manager.getValidationRules('nodejs_api');

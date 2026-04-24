@@ -11,6 +11,18 @@ import yaml from 'js-yaml';
 import { FileOperations } from './file_operations.js';
 import { logger } from '../core/logger.js';
 
+export const MANDATORY_CODE_GUIDE_FILES = [
+  '.github/HIGH_COHESION_GUIDE.md',
+  '.github/LOW_COUPLING_GUIDE.md',
+];
+
+const CODE_FILE_PATTERN =
+  /\.(?:js|jsx|mjs|cjs|ts|tsx|py|go|java|rb|rs|php|cs|swift|kt|scala|sh|bash)$/i;
+
+export function hasCodeFiles(existingFiles = []) {
+  return (existingFiles || []).some((filePath) => CODE_FILE_PATTERN.test(String(filePath ?? '')));
+}
+
 // ============================================================================
 // PURE FUNCTIONS (No I/O, testable)
 // ============================================================================
@@ -112,15 +124,6 @@ export function mergeConfigurations(baseConfig, overrides) {
  * @pure
  */
 export function validateProjectStructure(existingFiles, existingDirs, validationRules) {
-  if (!validationRules || typeof validationRules !== 'object') {
-    return {
-      valid: true,
-      missingFiles: [],
-      missingDirs: [],
-      errors: [],
-    };
-  }
-
   const result = {
     valid: true,
     missingFiles: [],
@@ -129,8 +132,21 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
   };
 
   // Check required files
-  const requiredFiles = validationRules.required_files || [];
+  const requiredFiles =
+    validationRules && typeof validationRules === 'object'
+      ? validationRules.required_files || []
+      : [];
   const fileSet = new Set(existingFiles || []);
+  const missingRequiredFiles = new Set();
+
+  if (hasCodeFiles(existingFiles)) {
+    for (const requiredGuide of MANDATORY_CODE_GUIDE_FILES) {
+      if (!fileSet.has(requiredGuide)) {
+        missingRequiredFiles.add(requiredGuide);
+        result.valid = false;
+      }
+    }
+  }
 
   for (const requiredFile of requiredFiles) {
     // Handle patterns like "*.sh"
@@ -140,17 +156,22 @@ export function validateProjectStructure(existingFiles, existingDirs, validation
       const found = existingFiles.some((file) => regex.test(file));
 
       if (!found) {
-        result.missingFiles.push(requiredFile);
+        missingRequiredFiles.add(requiredFile);
         result.valid = false;
       }
     } else if (!fileSet.has(requiredFile)) {
-      result.missingFiles.push(requiredFile);
+      missingRequiredFiles.add(requiredFile);
       result.valid = false;
     }
   }
 
+  result.missingFiles = Array.from(missingRequiredFiles);
+
   // Check required directories
-  const requiredDirs = validationRules.required_directories || [];
+  const requiredDirs =
+    validationRules && typeof validationRules === 'object'
+      ? validationRules.required_directories || []
+      : [];
   const dirSet = new Set(existingDirs || []);
 
   for (const requiredDir of requiredDirs) {
@@ -394,6 +415,14 @@ export class ProjectKindConfigManager {
         } else if (stats.isDirectory) {
           // Get directory name for validation (just the basename)
           dirs.add(path.basename(relativePath));
+        }
+      }
+
+      for (const requiredGuide of MANDATORY_CODE_GUIDE_FILES) {
+        const absoluteGuidePath = path.join(this.projectRoot, requiredGuide);
+        const guideExists = await this.fileOps.exists(absoluteGuidePath);
+        if (guideExists && !files.includes(requiredGuide)) {
+          files.push(requiredGuide);
         }
       }
 

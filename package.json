@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.2.13",
+  "version": "2.2.14",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -100,7 +100,15 @@
   "private": true,
   "overrides": {
     "@jridgewell/trace-mapping": "0.3.31",
-    "esquery": "1.7.0"
+    "esquery": "1.7.0",
+    "glob": "13.0.6",
+    "test-exclude": "8.0.0",
+    "olinda_copilot_sdk.ts": {
+      "olinda_utils.js": "https://github.com/mpbarbosa/olinda_utils.js/archive/refs/tags/v0.3.15.tar.gz"
+    },
+    "olinda_shell_interface.js": {
+      "olinda_utils.js": "https://github.com/mpbarbosa/olinda_utils.js/archive/refs/tags/v0.3.16.tar.gz"
+    }
   },
   "dependencies": {
     "@github/copilot-sdk": "^0.1.32",
@@ -112,7 +120,7 @@
     "minimatch": "^10.2.4",
     "olinda_copilot_sdk.ts": "https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/v0.5.1.tar.gz",
     "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.10.tar.gz",
-    "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9",
+    "olinda_utils.js": "https://github.com/mpbarbosa/olinda_utils.js/archive/refs/tags/v0.3.9.tar.gz",
     "ora": "^9.3.0",
     "pajussara_tui_comp": "https://github.com/mpbarbosa/pajussara_tui_comp/archive/refs/tags/v1.2.0.tar.gz",
     "react": "^19.2.4"

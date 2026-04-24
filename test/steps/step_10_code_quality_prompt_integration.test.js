@@ -25,6 +25,11 @@ describe('step10_code_quality_prompt — config correctness', () => {
   test('step10_code_quality_prompt includes file-content injection placeholder', () => {
     const template = aiHelpers.step10_code_quality_prompt.task_template;
 
+    expect(template).toContain('**Supplementary Tooling, Convention, and Test Evidence:**');
+    expect(template).toContain('{supporting_quality_scope_note}');
+    expect(template).toContain('{supporting_quality_context}');
+    expect(template).toContain('**Mandatory Cohesion / Coupling Guide Status:**');
+    expect(template).toContain('{cohesion_guide_status}');
     expect(template).toContain('**File Contents for Review:**');
     expect(template).toContain('{file_content_map}');
   });
@@ -38,6 +43,8 @@ describe('step10_code_quality_prompt — config correctness', () => {
       'Do not collapse multi-language or multi-file automated lint summaries'
     );
     expect(template).toContain('treat exported environment variables');
+    expect(template).toContain('HIGH_COHESION_GUIDE.md');
+    expect(template).toContain('LOW_COUPLING_GUIDE.md');
     expect(template).toContain('{partition_header}');
     expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('Entries labeled `(part X/Y)`');
@@ -70,6 +77,18 @@ describe('step10_code_quality_prompt — config correctness', () => {
       quality_report_content: '# Code Quality Report',
       large_files_list: 'src/app.tsx',
       sample_code: '',
+      supporting_quality_scope_note:
+        'Use the supplementary evidence below only for formatter/tooling, project-convention, and test/TDD conclusions.',
+      supporting_quality_context: [
+        '### package.json',
+        '```',
+        '{"scripts":{"lint":"eslint .","format":"prettier --check ."}}',
+        '```',
+      ].join('\n'),
+      cohesion_guide_status: [
+        '- `.github/HIGH_COHESION_GUIDE.md`: present',
+        '- `.github/LOW_COUPLING_GUIDE.md`: present',
+      ].join('\n'),
       file_content_map: [
         '### src/app.tsx (part 1/2)',
         '```',
@@ -80,6 +99,10 @@ describe('step10_code_quality_prompt — config correctness', () => {
 
     expect(prompt).toContain('Slice 1 of 2 within partition 1/3');
     expect(prompt).toContain('Files in This Request: 2');
+    expect(prompt).toContain('Supplementary Tooling, Convention, and Test Evidence');
+    expect(prompt).toContain('Mandatory Cohesion / Coupling Guide Status');
+    expect(prompt).toContain('### package.json');
+    expect(prompt).toContain('.github/HIGH_COHESION_GUIDE.md');
     expect(prompt).toContain('src/app.tsx (part 1/2)');
     expect(prompt).toContain('sequential slices of an oversized source file');
   });

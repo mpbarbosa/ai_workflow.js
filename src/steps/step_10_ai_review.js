@@ -9,18 +9,20 @@
  */
 
 import { basename } from 'path';
-import yaml from 'js-yaml';
 import { logger } from '../core/logger.js';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
+import { MANDATORY_CODE_GUIDE_FILES } from '../lib/project_kind_config.js';
 import {
   buildCodeQualityPrompt,
-  loadResolvedAiHelpers,
-  AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
-  buildProjectKindPrompt,
   buildAlternativesDirective,
   parseAlternatives,
 } from '../lib/ai_prompt_builder.js';
+import { initializeAiServices } from './step_analysis_helpers.js';
+import {
+  loadProjectKindPromptContext,
+  prependProjectKindRole,
+} from './step_prompt_context_helpers.js';
 
 /**
  * Maximum characters from a single source file included in one AI prompt entry.
@@ -63,6 +65,24 @@ const STEP10_GENERATED_PATH_PATTERNS = [
 
 const FRONT_END_PROJECT_KINDS = new Set(['react_spa', 'client_spa', 'static_website']);
 const STEP10_AI_PERSONA = 'code_quality_analyst';
+const STEP10_SUPPORTING_QUALITY_CONTEXT_FILES = [
+  'package.json',
+  'eslint.config.js',
+  '.eslintrc.js',
+  '.eslintrc.cjs',
+  'prettier.config.js',
+  'prettier.config.cjs',
+  '.prettierrc',
+  '.prettierrc.json',
+  '.prettierrc.js',
+  'CONTRIBUTING.md',
+  '.github/copilot-instructions.md',
+  '.github/HIGH_COHESION_GUIDE.md',
+  '.github/LOW_COUPLING_GUIDE.md',
+  'CLAUDE.md',
+];
+const STEP10_SUPPORTING_QUALITY_MAX_FILES = 6;
+const STEP10_SUPPORTING_QUALITY_MAX_CHARS_PER_FILE = 1200;
 
 /**
  * Sort file paths so source files (src/) appear before test files (test/).
@@ -79,6 +99,50 @@ export function prioritizeSourceFiles(files) {
   const src = files.filter((f) => !isTestFile(f)).sort();
   const test = files.filter((f) => isTestFile(f)).sort();
   return [...src, ...test];
+}
+
+function isTestLikeFile(filePath) {
+  return /[\\/](test|tests|spec|__tests__)[\\/]|\.test\.|\.spec\./.test(filePath);
+}
+
+function getPathStem(filePath) {
+  return basename(String(filePath ?? ''))
+    .replace(/\.[^.]+$/u, '')
+    .replace(/\.(test|spec)$/u, '');
+}
+
+function findMatchingTestFiles(scopePaths, reviewableSourceFiles) {
+  const visibleSourceStems = new Set(
+    (scopePaths ?? []).filter((filePath) => !isTestLikeFile(filePath)).map(getPathStem)
+  );
+  if (visibleSourceStems.size === 0) return [];
+
+  return prioritizeSourceFiles(reviewableSourceFiles).filter(
+    (filePath) => isTestLikeFile(filePath) && visibleSourceStems.has(getPathStem(filePath))
+  );
+}
+
+function buildConventionalTestCandidates(scopePaths) {
+  return (scopePaths ?? [])
+    .filter((filePath) => !isTestLikeFile(filePath))
+    .flatMap((filePath) => {
+      const normalizedPath = String(filePath).replace(/\\/g, '/');
+      const extensionMatch = normalizedPath.match(/(\.[^.]+)$/u);
+      const extension = extensionMatch?.[1] ?? '';
+      const withoutExtension = extension
+        ? normalizedPath.slice(0, -extension.length)
+        : normalizedPath;
+      const mirroredPath = withoutExtension.startsWith('src/')
+        ? withoutExtension.slice(4)
+        : withoutExtension;
+
+      return [
+        `test/${mirroredPath}.test${extension}`,
+        `test/${mirroredPath}.spec${extension}`,
+        `tests/${mirroredPath}.test${extension}`,
+        `tests/${mirroredPath}.spec${extension}`,
+      ];
+    });
 }
 
 export function isStep10GeneratedArtifactPath(filePath) {
@@ -329,13 +393,11 @@ export class Step10AiReviewService {
   }
 
   async review(context) {
-    const aiAvailable = await this.aiHelper.initialize();
+    const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
     if (!aiAvailable) {
       logger.warn('AI helper not available - skipping AI code quality review');
       return createEmptyAiReviewResult();
     }
-
-    await this.aiCache.init();
 
     const reviewableSourceFiles = this.getReviewableSourceFiles(context.allSourceFiles);
     if (reviewableSourceFiles.length === 0) {
@@ -358,10 +420,7 @@ export class Step10AiReviewService {
     );
 
     const fileContents = await this.readPartitionFileContents(context.projectRoot, partition.files);
-    const sharedPromptContext = await this.loadSharedPromptContext(
-      context.projectRoot,
-      context.options
-    );
+    const sharedPromptContext = await this.loadSharedPromptContext(context.options);
 
     const promptSlices = buildCodePromptSlices(fileContents, {
       maxCharsPerEntry: AI_MAX_CHARS_PER_PROMPT_ENTRY,
@@ -468,28 +527,12 @@ export class Step10AiReviewService {
     return fileContents;
   }
 
-  async loadSharedPromptContext(projectRoot, options = {}) {
-    let sharedParsedYaml = null;
-    let sharedRoleOverride = '';
-
-    try {
-      sharedParsedYaml = await loadResolvedAiHelpers(this.fileOps);
-      try {
-        const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
-        const parsedPk = yaml.load(pkYaml);
-        const pk = buildProjectKindPrompt(
-          parsedPk,
-          options?.projectKind ?? 'default',
-          'code_quality_auditor'
-        );
-        if (pk?.role) sharedRoleOverride = pk.role;
-      } catch {
-        // optional
-      }
-    } catch {
-      // fallback to hardcoded builder below
-    }
-
+  async loadSharedPromptContext(options = {}) {
+    const { parsedYaml: sharedParsedYaml, roleOverride: sharedRoleOverride } =
+      await loadProjectKindPromptContext(this.fileOps, {
+        projectKind: options?.projectKind,
+        personaKey: 'code_quality_auditor',
+      });
     return { sharedParsedYaml, sharedRoleOverride };
   }
 
@@ -515,7 +558,7 @@ export class Step10AiReviewService {
         .map((filePath) => [filePath, context.fileContents[filePath]])
     );
 
-    let prompt = this.buildQualitySlicePrompt(context);
+    let prompt = await this.buildQualitySlicePrompt(context);
     if (!prompt) {
       prompt = buildCodeQualityPrompt({
         codeFiles: context.promptSlice.scopePaths,
@@ -543,6 +586,7 @@ export class Step10AiReviewService {
       () =>
         this.aiHelper.executeRequest(prompt, {
           persona: STEP10_AI_PERSONA,
+          promptTemplate: 'step10_code_quality_prompt',
           timeout: 240000,
         })
     );
@@ -553,11 +597,13 @@ export class Step10AiReviewService {
       : aiContent;
   }
 
-  buildQualitySlicePrompt(context) {
+  async buildQualitySlicePrompt(context) {
     try {
       if (!context.sharedParsedYaml) return '';
 
       const fileContentMap = formatPromptFileEntries(context.promptSlice.entries);
+      const supportingEvidence = await this.buildSupportingQualityEvidence(context);
+      const guideStatus = await this.buildCohesionGuideStatus(context);
       const projectName = basename(context.projectRoot);
       const modifiedFiles = context.options?.modifiedFiles ?? [];
       const prompt = buildYamlStepPrompt(context.sharedParsedYaml, 'step10_code_quality_prompt', {
@@ -572,7 +618,7 @@ export class Step10AiReviewService {
         project_name: projectName,
         project_description: context.options?.projectDescription ?? '',
         primary_language: context.primaryLanguage,
-        project_kind: context.options?.projectKind ?? '',
+        project_kind: context.options?.projectKind ?? context.options?.projectType ?? '',
         tech_stack_summary: context.detectedLanguages.join(', '),
         change_scope: context.options?.changeScope ?? 'full',
         files_in_scope: context.promptSlice.scopePaths.length,
@@ -588,14 +634,24 @@ export class Step10AiReviewService {
             ? context.promptSlice.oversizedPaths.join(', ')
             : '(none)',
         sample_code: '',
+        supporting_quality_scope_note: supportingEvidence.scopeNote,
+        supporting_quality_context: supportingEvidence.contextBlock,
+        cohesion_guide_status: guideStatus,
         file_content_map: fileContentMap,
       });
 
       if (!prompt) return '';
 
-      let resolvedPrompt = context.sharedRoleOverride
-        ? `[Project-Kind Role: ${context.sharedRoleOverride}]\n\n${prompt}`
-        : prompt;
+      let resolvedPrompt = prependProjectKindRole(prompt, context.sharedRoleOverride);
+
+      resolvedPrompt = this.appendCohesionReviewPrompt(
+        resolvedPrompt,
+        context.sharedParsedYaml,
+        projectName,
+        context.primaryLanguage,
+        guideStatus,
+        fileContentMap
+      );
 
       resolvedPrompt = this.appendIssueExtractionPrompt(
         resolvedPrompt,
@@ -611,6 +667,93 @@ export class Step10AiReviewService {
         context.projectRoot,
         context.options
       );
+    } catch {
+      return '';
+    }
+  }
+
+  async buildSupportingQualityEvidence(context) {
+    const matchingTestFiles = [
+      ...findMatchingTestFiles(context.promptSlice.scopePaths, context.reviewableSourceFiles),
+      ...buildConventionalTestCandidates(context.promptSlice.scopePaths),
+    ].filter(
+      (filePath, index, files) =>
+        !context.promptSlice.scopePaths.includes(filePath) && files.indexOf(filePath) === index
+    );
+    const candidatePaths = [...STEP10_SUPPORTING_QUALITY_CONTEXT_FILES, ...matchingTestFiles];
+    const entries = [];
+    const seen = new Set();
+
+    for (const relativePath of candidatePaths) {
+      if (entries.length >= STEP10_SUPPORTING_QUALITY_MAX_FILES) break;
+      if (seen.has(relativePath)) continue;
+      seen.add(relativePath);
+
+      const content = await this.readPromptSupportFile(context.projectRoot, relativePath);
+      if (typeof content !== 'string' || content.length === 0) continue;
+
+      entries.push({
+        path: relativePath,
+        excerpt: content.slice(0, STEP10_SUPPORTING_QUALITY_MAX_CHARS_PER_FILE),
+        truncated: content.length > STEP10_SUPPORTING_QUALITY_MAX_CHARS_PER_FILE,
+      });
+    }
+
+    const noteParts = [
+      'Use the supplementary evidence below only for formatter/tooling, project-convention, and test/TDD conclusions.',
+    ];
+
+    if (entries.length === 0) {
+      noteParts.push(
+        'No supplementary tooling, convention, or test evidence was available for this slice, so keep those checks inconclusive.'
+      );
+      return {
+        scopeNote: noteParts.join(' '),
+        contextBlock: '(no supplementary tooling, convention, or test evidence available)',
+      };
+    }
+
+    const truncatedPaths = entries.filter((entry) => entry.truncated).map((entry) => entry.path);
+    if (truncatedPaths.length > 0) {
+      noteParts.push(`Some supplementary files are excerpt-limited: ${truncatedPaths.join(', ')}.`);
+    } else {
+      noteParts.push('Each listed supplementary file below is visible in full.');
+    }
+
+    if (matchingTestFiles.length === 0) {
+      noteParts.push('No matching test files were found for the visible source slice.');
+    }
+
+    return {
+      scopeNote: noteParts.join(' '),
+      contextBlock: formatFileContentMap(entries),
+    };
+  }
+
+  async buildCohesionGuideStatus(context) {
+    const fileExists =
+      typeof this.fileOps?.exists === 'function'
+        ? async (relativePath) => this.fileOps.exists(`${context.projectRoot}/${relativePath}`)
+        : async () => false;
+    const statuses = await Promise.all(
+      MANDATORY_CODE_GUIDE_FILES.map(async (relativePath) => ({
+        path: relativePath,
+        exists: await fileExists(relativePath).catch(() => false),
+      }))
+    );
+    const lines = statuses.map(
+      ({ path, exists }) =>
+        `- \`${path}\`: ${exists ? 'present' : 'MISSING (mandatory for projects with code files)'}`
+    );
+    return lines.join('\n');
+  }
+
+  async readPromptSupportFile(projectRoot, relativePath) {
+    try {
+      const absolutePath = relativePath.startsWith('/')
+        ? relativePath
+        : `${projectRoot}/${relativePath}`;
+      return await this.fileOps.readFile(absolutePath);
     } catch {
       return '';
     }
@@ -646,6 +789,23 @@ export class Step10AiReviewService {
     return frontEndPrompt ? `${prompt}\n\n---\n\n${frontEndPrompt}` : prompt;
   }
 
+  appendCohesionReviewPrompt(
+    prompt,
+    sharedParsedYaml,
+    projectName,
+    primaryLanguage,
+    guideStatus,
+    fileContentMap
+  ) {
+    const cohesionPrompt = buildYamlStepPrompt(sharedParsedYaml, 'cohesion_review_prompt', {
+      project_name: projectName,
+      primary_language: primaryLanguage,
+      cohesion_guide_status: guideStatus,
+      file_content_map: fileContentMap,
+    });
+    return cohesionPrompt ? `${prompt}\n\n---\n\n${cohesionPrompt}` : prompt;
+  }
+
   async runErrorResilienceReview(context) {
     const erFileMap = formatFileContentMap(
       buildFileContentMap(context.errorResilienceFileContents, {
@@ -669,6 +829,7 @@ export class Step10AiReviewService {
       () =>
         this.aiHelper.executeRequest(erPrompt, {
           persona: STEP10_AI_PERSONA,
+          promptTemplate: 'error_resilience_prompt',
           timeout: 180000,
         })
     );

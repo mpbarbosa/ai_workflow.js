@@ -842,7 +842,13 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
     // --- Config-driven validation: validateProjectStructure for real aws_lbs layout ---
 
     test('validateProjectStructure passes for complete aws_lbs file set', () => {
-      const files = ['setup-aws-lbs.sh', 'src/aws-config.json', 'README.md'];
+      const files = [
+        'setup-aws-lbs.sh',
+        'src/aws-config.json',
+        'README.md',
+        '.github/HIGH_COHESION_GUIDE.md',
+        '.github/LOW_COUPLING_GUIDE.md',
+      ];
       const dirs = ['src/lambda', 'src/scripts'];
       const rules = {
         required_files: ['*.sh', 'src/aws-config.json'],
@@ -868,6 +874,8 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
 
       expect(result.valid).toBe(false);
       expect(result.missingFiles).toContain('src/aws-config.json');
+      expect(result.missingFiles).toContain('.github/HIGH_COHESION_GUIDE.md');
+      expect(result.missingFiles).toContain('.github/LOW_COUPLING_GUIDE.md');
     });
 
     test('validateProjectStructure fails when no *.sh file is present', () => {
@@ -885,7 +893,12 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
     });
 
     test('validateProjectStructure fails when src/lambda directory is absent', () => {
-      const files = ['setup-aws-lbs.sh', 'src/aws-config.json'];
+      const files = [
+        'setup-aws-lbs.sh',
+        'src/aws-config.json',
+        '.github/HIGH_COHESION_GUIDE.md',
+        '.github/LOW_COUPLING_GUIDE.md',
+      ];
       const dirs = ['src/scripts']; // missing src/lambda
       const rules = {
         required_files: ['*.sh', 'src/aws-config.json'],
@@ -899,7 +912,12 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
     });
 
     test('validateProjectStructure fails when src/scripts directory is absent', () => {
-      const files = ['setup-aws-lbs.sh', 'src/aws-config.json'];
+      const files = [
+        'setup-aws-lbs.sh',
+        'src/aws-config.json',
+        '.github/HIGH_COHESION_GUIDE.md',
+        '.github/LOW_COUPLING_GUIDE.md',
+      ];
       const dirs = ['src/lambda']; // missing src/scripts
       const rules = {
         required_files: ['*.sh', 'src/aws-config.json'],

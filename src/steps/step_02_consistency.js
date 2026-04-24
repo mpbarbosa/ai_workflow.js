@@ -13,10 +13,7 @@ import yaml from 'js-yaml';
 import {
   buildConsistencyPrompt,
   buildFileContentBlock,
-  loadResolvedAiHelpers,
-  AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
-  buildProjectKindPrompt,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
 import { getPrimaryLanguage } from '../lib/tech_stack.js';
@@ -25,6 +22,10 @@ import {
   initializeAiServices,
   appendAiRecommendations,
 } from './step_analysis_helpers.js';
+import {
+  loadProjectKindPromptContext,
+  prependProjectKindRole,
+} from './step_prompt_context_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -843,25 +844,10 @@ export class Step2ConsistencyAnalyzer {
         const language = options.language || (await this.detectLanguage(projectRoot));
 
         // Load YAML prompt config and optional project-kind role overlay once
-        let parsedYaml = null;
-        let roleOverride = '';
-        try {
-          parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-        } catch {
-          /* YAML unavailable, will use fallback builder */
-        }
-        try {
-          const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
-          const parsedPk = yaml.load(pkYaml);
-          const pk = buildProjectKindPrompt(
-            parsedPk,
-            options?.projectKind ?? 'default',
-            'documentation_specialist'
-          );
-          if (pk?.role) roleOverride = pk.role;
-        } catch {
-          /* optional */
-        }
+        const { parsedYaml, roleOverride } = await loadProjectKindPromptContext(this.fileOps, {
+          projectKind: options?.projectKind,
+          personaKey: 'documentation_specialist',
+        });
 
         // Partition documentation files to keep each prompt under MAX_PROMPT_CHARS
         const relDocFiles = docFiles.map((f) => path.relative(projectRoot, f));
@@ -912,9 +898,7 @@ export class Step2ConsistencyAnalyzer {
                   fileContentsSection || '(no readable markdown file contents were available)',
                 directory_tree: directoryTree,
               });
-              if (prompt && roleOverride) {
-                prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
-              }
+              prompt = prependProjectKindRole(prompt, roleOverride);
               if (prompt && header) {
                 prompt = `${header}\n\n${prompt}`;
               }

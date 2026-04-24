@@ -582,6 +582,32 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(result.documentationFiles).toEqual([expect.objectContaining({ path: 'INDEX.md' })]);
     });
 
+    test('collectDocumentationFiles includes directory-local INDEX files and .github/SKILLS.md', async () => {
+      analyzer._listDirsRecursive = () =>
+        Promise.resolve(['/project/.github', '/project/docs/guides']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath === '/project/.github/SKILLS.md') {
+          return Promise.resolve('# Skills\n\n- .github/skills/review.md');
+        }
+        if (filePath === '/project/docs/guides/INDEX.md') {
+          return Promise.resolve('# Guides Index\n\n- onboarding');
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      const documentationFiles = await analyzer.collectDocumentationFiles('/project', [
+        '.github',
+        'docs/guides',
+      ]);
+
+      expect(documentationFiles).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: '.github/SKILLS.md' }),
+          expect.objectContaining({ path: 'docs/guides/INDEX.md' }),
+        ])
+      );
+    });
+
     test('saves report to backlog', async () => {
       let savedTitle = '';
       mockBacklog.saveStepSummary = (step, title) => {
