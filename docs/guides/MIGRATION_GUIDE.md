@@ -1022,4 +1022,41 @@ issue and include:
 
 ---
 
-_Last Updated: 2026-03-11 · `ai_workflow.js` v1.6.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
+## Implementation History
+
+The JavaScript rewrite was built in 13 phases, all now complete. Phase test counts below reflect the state at phase completion; overall totals have grown since.
+
+| Phase    | Status | Description                                                                                       |
+| -------- | ------ | ------------------------------------------------------------------------------------------------- |
+| Phase 1  | ✅     | Core Foundation (colors, logger, system, version, executor, errors)                               |
+| Phase 2  | ✅     | Configuration & State (config, backlog, session, metrics)                                         |
+| Phase 3  | ✅     | File Operations (file ops, edit ops, utils, arg parser, cleanup)                                  |
+| Phase 4  | ✅     | Project Detection (kind detection, config, tech stack, exclusions)                                |
+| Phase 5  | ✅     | Git Integration (automation, cache, auto-commit, change detection)                                |
+| Phase 6  | ✅     | AI Integration (jq, personas, validation, cache, prompts, helpers)                                |
+| Phase 7  | ✅     | Workflow Orchestration (engine, registry, resolver, executor, conditional, checkpoint)             |
+| Phase 8  | ✅     | Performance Optimization (parallel validation, ML optimization, incremental analysis)             |
+| Phase 9  | ✅     | Workflow Steps (32 steps: step_00–step_23 plus step_01_5, step_0b/0d/0f, step_11_5/11_6)         |
+| Phase 10 | ✅     | Main Orchestrator Integration                                                                     |
+| Phase 11 | ✅     | CLI & User Interface (7 commands: run, resume, init, status, config, clean, deploy)               |
+| Phase 12 | ✅     | Testing & Security (automation scripts, security audit)                                           |
+| Phase 13 | ✅     | Packaging & Release (npm package, CI/CD, documentation)                                           |
+
+### Features Added vs the Original Shell Version
+
+| Feature                                        | bash v3.0.0 | ai_workflow.js |
+| ---------------------------------------------- | ----------- | -------------- |
+| Cross-platform (Linux, macOS, Windows)         | Linux/macOS | ✅             |
+| Comprehensive unit and integration test suite  | —           | ✅             |
+| Modern async/await patterns                    | —           | ✅             |
+| Structured error handling and recovery         | —           | ✅             |
+| Modular, extensible architecture               | —           | ✅             |
+| Plugin system for custom step updaters         | —           | ✅             |
+| Rich CLI with progress indicators and colours  | —           | ✅             |
+| JSDoc type documentation                       | —           | ✅             |
+| npm package distribution                       | —           | ✅             |
+| GitHub Copilot SDK integration                 | —           | ✅             |
+
+---
+
+_Last Updated: 2026-04-23 · `ai_workflow.js` v2.2.14 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
