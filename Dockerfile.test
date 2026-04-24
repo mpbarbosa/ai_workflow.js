@@ -23,7 +23,7 @@ FROM node:20-alpine
 # git is required because one dependency uses the github: protocol:
 #   "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9"
 # npm resolves github: references by cloning via git.
-RUN apk add --no-cache git bash
+RUN apk add --no-cache git bash python3
 
 WORKDIR /app
 

@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.2.15",
+  "version": "2.2.16",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
