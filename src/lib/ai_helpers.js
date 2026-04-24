@@ -18,7 +18,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { defineTool } from '@github/copilot-sdk';
 export { defineTool };
-import { CopilotSdkWrapper } from './copilot_sdk_wrapper.js';
+import { createProviderWrapper, isProviderAvailable } from './ai_provider.js';
 import { logger } from '../core/logger.js';
 import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
@@ -69,6 +69,7 @@ const SUMMARY_TABLE_SEPARATOR_RE = /^\|\s*[-:| ]+\|$/;
 // Default AI request parameters
 const DEFAULT_REQUEST = {
   MODEL: 'gpt-4.1',
+  CLAUDE_MODEL: 'claude-sonnet-4-6',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 4000,
   TIMEOUT_MS: 120000, // 120 seconds initial timeout, doubled on each timeout retry
@@ -763,8 +764,12 @@ export class AiHelper {
    * @param {string|null} [config.workflowCoreVersion=null] - Version of the .workflow_core submodule
    */
   constructor(config = {}) {
+    const provider = config.provider || 'copilot';
+    const defaultModel =
+      provider === 'claude' ? DEFAULT_REQUEST.CLAUDE_MODEL : DEFAULT_REQUEST.MODEL;
     this.config = {
-      model: config.model || DEFAULT_REQUEST.MODEL,
+      provider,
+      model: config.model || defaultModel,
       maxRetries: config.maxRetries || DEFAULT_REQUEST.MAX_RETRIES,
       cache: config.cache !== undefined ? config.cache : true,
       timeout: config.timeout || DEFAULT_REQUEST.TIMEOUT_MS,
@@ -788,7 +793,7 @@ export class AiHelper {
     // Store resolved tools so they can be reused by a fallback wrapper without
     // re-evaluating the workingDirectory default a second time.
     this._tools = config.tools ?? buildWorkflowTools(this.config.workingDirectory ?? process.cwd());
-    this._wrapper = new CopilotSdkWrapper({
+    this._wrapper = createProviderWrapper(this.config.provider, {
       model: this.config.model,
       timeout: this.config.timeout,
       workingDirectory: this.config.workingDirectory,
@@ -809,7 +814,7 @@ export class AiHelper {
    * @returns {boolean} True if SDK is available
    */
   isSdkAvailable() {
-    return CopilotSdkWrapper.isAvailable();
+    return isProviderAvailable(this.config.provider);
   }
 
   /**
@@ -825,8 +830,9 @@ export class AiHelper {
 
     try {
       // Check SDK availability
+      const providerLabel = this.config.provider === 'claude' ? 'Claude' : 'GitHub Copilot';
       if (!this.isSdkAvailable()) {
-        logger.warn('GitHub Copilot SDK not available');
+        logger.warn(`${providerLabel} SDK not available`);
         this.available = false;
         this.initialized = true;
         return false;
@@ -837,19 +843,21 @@ export class AiHelper {
       this.availableModels = availableModels;
 
       if (!this.authenticated) {
-        logger.warn('GitHub Copilot not authenticated');
+        logger.warn(`${providerLabel} not authenticated`);
         this.available = false;
       } else {
-        logger.success('GitHub Copilot SDK initialized successfully');
+        logger.success(`${providerLabel} SDK initialized successfully`);
         this.available = true;
 
         // Log available models and warn if configured model is missing
         const modelIds = availableModels.map((m) => m.id);
-        logger.info(`Available Copilot models (${modelIds.length}): ${modelIds.join(', ')}`);
-        if (modelIds.length > 0 && !modelIds.includes(this.config.model)) {
-          logger.warn(
-            `Configured model "${this.config.model}" not in available models — using it anyway`
-          );
+        if (modelIds.length > 0) {
+          logger.info(`Available ${providerLabel} models (${modelIds.length}): ${modelIds.join(', ')}`);
+          if (!modelIds.includes(this.config.model)) {
+            logger.warn(
+              `Configured model "${this.config.model}" not in available models — using it anyway`
+            );
+          }
         }
       }
 
@@ -1132,7 +1140,7 @@ export class AiHelper {
       logger.warn(
         `[AI] Primary model "${primaryModel}" timed out after ${attempt} attempt(s) — trying fallback: ${fallbackModel}`
       );
-      const fallbackWrapper = new CopilotSdkWrapper({
+      const fallbackWrapper = createProviderWrapper(this.config.provider, {
         model: fallbackModel,
         timeout: DEFAULT_REQUEST.TIMEOUT_MS,
         workingDirectory: this.config.workingDirectory,

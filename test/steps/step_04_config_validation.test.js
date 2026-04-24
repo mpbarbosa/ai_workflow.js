@@ -1596,6 +1596,7 @@ describe('Step 4: Configuration Validation', () => {
         },
         backlog: { saveStepSummary: () => Promise.resolve() },
         techStack: { detectTechStack: () => Promise.resolve({ primaryLanguage: 'javascript' }) },
+        gitOps: { getModifiedFiles: () => Promise.resolve([]) },
         aiHelper: mockAiHelper,
         aiCache: mockAiCache,
       });

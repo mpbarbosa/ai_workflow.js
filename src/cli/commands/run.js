@@ -51,6 +51,12 @@ export function validateRunOptions(options) {
     }
   }
 
+  // Validate provider
+  const validProviders = ['copilot', 'claude'];
+  if (options.provider && !validProviders.includes(options.provider)) {
+    errors.push(`Invalid provider: ${options.provider}. Must be one of: ${validProviders.join(', ')}`);
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -79,6 +85,7 @@ export function createOrchestratorOptions(cliOptions) {
     alternatives,
     verbose,
     streamingEnabled: verbose || !!cliOptions.tui,
+    provider: cliOptions.provider || 'copilot',
   };
 }
 

@@ -787,6 +787,8 @@ export class MainOrchestrator {
     // When true, each step receives a streaming AiHelper whose token deltas are
     // forwarded to workflowEngine as 'ai:stream:chunk' events for TUI display.
     this.streamingEnabled = !!(options.verbose || options.streamingEnabled);
+    // AI provider to use for all steps: 'copilot' (default) or 'claude'.
+    this.aiProvider = options.provider || 'copilot';
 
     // Validate config
     const validation = validateOrchestratorConfig(options);
@@ -1864,6 +1866,7 @@ export class MainOrchestrator {
             projectVersion,
             workflowVersion,
             workflowCoreVersion,
+            provider: this.aiProvider,
             streamingCallback: (delta, meta = {}) => {
               engine.emit('ai:stream:chunk', {
                 stepId,
@@ -1899,6 +1902,7 @@ export class MainOrchestrator {
             projectVersion,
             workflowVersion,
             workflowCoreVersion,
+            provider: this.aiProvider,
           });
         }
 

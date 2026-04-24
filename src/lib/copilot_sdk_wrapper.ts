@@ -11,7 +11,7 @@
  * the import path stays stable even if the underlying package changes again.
  *
  * @module lib/copilot_sdk_wrapper
- * @version 2.4.0
+ * @version 2.5.0
  */
 
 export {
@@ -23,6 +23,6 @@ export type {
   CopilotSdkWrapperOptions,
   InitializeResult,
   SendResult,
-  // v0.5.1 — session resume config (used with resumeSession())
+  // v0.5.1+ — session resume config (used with resumeSession())
   ResumeSessionConfig,
 } from 'olinda_copilot_sdk.ts';

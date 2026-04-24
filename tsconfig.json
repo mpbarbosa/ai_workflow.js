@@ -16,6 +16,8 @@
   },
   "include": [
     "src/lib/copilot_sdk_wrapper.ts",
+    "src/lib/claude_sdk_wrapper.ts",
+    "src/lib/ai_provider.ts",
     "src/lib/ai_cache.ts",
     "src/lib/ai_personas.ts",
     "src/cli/tui/components/ErrorDetailPanel.ts",

@@ -716,7 +716,9 @@ ${changedList}
 Documentation to review:
 ${docList}
 
-A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".`;
+Treat the files in "Documentation to review" as the only documentation edit targets. Use changed files strictly as supporting evidence for whether those scoped documentation targets need updates.
+
+A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".`;
 
   const approach = `**Methodology**:
 1. **Analyze Changes**: Examine what was modified in each changed file
@@ -726,7 +728,7 @@ A "specific edit" means a concrete before/after text change tied to a file path 
 
 **Output Format**: Use markdown blocks with file paths and before/after examples
 
-**Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes.`;
+    **Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. Choose exactly one verdict per scoped documentation file or clearly labeled file section, and never combine "Not applicable" with "No updates required" for the same file. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);

@@ -12,7 +12,9 @@ import { GitAutomation } from '../lib/git_automation.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
   PromptBuilder,
+  buildStructuredPrompt,
   buildDocAnalysisPrompt,
+  injectProjectContext,
   loadResolvedAiHelpers,
   AI_PROJECT_KINDS_PATH,
   buildYamlStepPrompt,
@@ -197,6 +199,8 @@ export function shouldRunAiAnalysis(classification, options = {}) {
 }
 
 export const STEP1_MAX_SUPPORTING_EVIDENCE_FILES = 12;
+export const STEP1_SCOPED_DOC_CONTEXT_MAX_CHARS = 2500;
+export const STEP1_PROJECT_CONVENTION_MAX_CHARS = 2000;
 
 function normalizeStep1EvidencePath(filePath) {
   return String(filePath ?? '').replace(/\\/g, '/');
@@ -344,6 +348,122 @@ export function selectStep1EvidenceFiles(docFiles, classification, options = {})
   return [...new Set([...selectedDocs, ...selectedSupport])];
 }
 
+function dedupeRepeatedConventionContent(content) {
+  const normalized = String(content ?? '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const repeatedSections = normalized
+    .split(/\n{2,}---\n{2,}/u)
+    .map((section) => section.trim())
+    .filter(Boolean);
+
+  if (
+    repeatedSections.length > 1 &&
+    repeatedSections.every((section) => section === repeatedSections[0])
+  ) {
+    return repeatedSections[0];
+  }
+
+  return normalized;
+}
+
+function trimPromptContextContent(content, maxChars) {
+  const normalized = String(content ?? '').trim();
+  if (!normalized || normalized.length <= maxChars) {
+    return normalized;
+  }
+
+  const omission = `\n... [middle omitted — ${normalized.length - maxChars} more chars]\n`;
+  const remainingBudget = Math.max(maxChars - omission.length, 0);
+  const headChars = Math.ceil(remainingBudget / 2);
+  const tailChars = Math.max(remainingBudget - headChars, 0);
+
+  return `${normalized.slice(0, headChars)}${omission}${tailChars > 0 ? normalized.slice(-tailChars) : ''}`;
+}
+
+function getStep1ScopedDocEntries(fileEntries, docFiles = []) {
+  const docFileSet = new Set(
+    (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
+  );
+
+  return (Array.isArray(fileEntries) ? fileEntries : []).filter((entry) =>
+    docFileSet.has(normalizeStep1EvidencePath(entry?.relativePath))
+  );
+}
+
+function buildStep1ScopedDocPathsContext(docFiles = []) {
+  const docEntries = (Array.isArray(docFiles) ? docFiles : [])
+    .map((filePath) => ({ relativePath: normalizeStep1EvidencePath(filePath) }))
+    .filter((entry) => entry.relativePath.length > 0);
+
+  return (
+    buildPartitionFilePathsContext(docEntries) ||
+    '      - (no scoped documentation targets were available in the current context)'
+  );
+}
+
+export function buildStep1ScopedDocContextBlock(
+  fileEntries,
+  maxChars = STEP1_SCOPED_DOC_CONTEXT_MAX_CHARS
+) {
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  if (entries.length === 0) {
+    return '(no readable scoped documentation excerpts were available in the current context)';
+  }
+
+  return entries
+    .map(({ relativePath, content }) => {
+      const trimmedContent = trimPromptContextContent(content, maxChars);
+      return `### \`${relativePath}\`\n\`\`\`md\n${trimmedContent}\n\`\`\``;
+    })
+    .join('\n\n');
+}
+
+function appendPromptSectionIfMissing(prompt, heading, content) {
+  const normalizedPrompt = String(prompt ?? '');
+  const normalizedContent = String(content ?? '').trim();
+  if (!normalizedContent || normalizedPrompt.includes(heading)) {
+    return normalizedPrompt;
+  }
+
+  return `${normalizedPrompt}\n\n${heading}\n\n${normalizedContent}`;
+}
+
+export function buildStep1SynthesisPrompt({
+  changedFiles = [],
+  docFiles = [],
+  projectInfo = {},
+  scopedDocEntries = [],
+  partitionFindings = '',
+  totalPartitions = 0,
+}) {
+  const docTargetsContext = buildStep1ScopedDocPathsContext(docFiles);
+  const docContentsContext = buildStep1ScopedDocContextBlock(scopedDocEntries);
+  const findingsContext =
+    String(partitionFindings ?? '').trim() || '(no partition findings were available)';
+
+  const role = `You are a senior technical documentation specialist conducting a whole-scope synthesis review after a partitioned primary analysis.`;
+  const task = `Perform a whole-scope synthesis review for the partitioned Step 1 documentation analysis.
+
+**Changed files**: ${changedFiles.join(', ') || '(none)'}
+**Documentation to review**: ${docFiles.join(', ') || '(none)'}
+**Whole-scope note**: Primary evidence was split across ${totalPartitions} partition(s) for size. Partition for size, synthesize for whole-scope reasoning, and never drop overflow files from secondary reviews.
+
+**Scoped documentation targets**:
+${docTargetsContext}
+
+**Direct documentation target excerpts**:
+${docContentsContext}
+
+**Primary partition findings**:
+${findingsContext}`;
+  const approach = `Use the partition findings to reconcile cross-partition contradictions, but ground every final conclusion in the visible documentation excerpts above. Provide one final whole-scope answer only. Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If the partition findings conflict or the visible documentation evidence is incomplete, mark the affected file Inconclusive instead of guessing.`;
+
+  return injectProjectContext(buildStructuredPrompt({ role, task, approach }), projectInfo);
+}
+
 function splitPartitionedDocAnalysisSections(content) {
   const normalized = String(content ?? '').trim();
   if (!normalized) {
@@ -361,7 +481,10 @@ function splitPartitionedDocAnalysisSections(content) {
 }
 
 function isNoUpdateDocAnalysisSection(section) {
-  return /\bNo updates (?:required|needed)\b/i.test(section);
+  return (
+    /\bNo updates (?:required|needed)\b/i.test(section) &&
+    !/\b(?:Unavailable|Inconclusive|Not applicable)\b/i.test(section)
+  );
 }
 
 function isInconclusiveDocAnalysisSection(section) {
@@ -521,12 +644,18 @@ export const STEP1_PROJECT_CONVENTION_PATHS = [
  */
 export async function readProjectConventions(fileOps, projectRoot) {
   const sections = [];
+  const seenBodies = new Set();
 
   for (const relativePath of STEP1_PROJECT_CONVENTION_PATHS) {
     try {
       const content = await fileOps.readFile(`${projectRoot}/${relativePath}`);
-      if (typeof content === 'string' && content.trim().length > 0) {
-        sections.push(`### ${relativePath}\n${content.trim()}`);
+      const normalizedContent = trimPromptContextContent(
+        dedupeRepeatedConventionContent(content),
+        STEP1_PROJECT_CONVENTION_MAX_CHARS
+      );
+      if (normalizedContent.length > 0 && !seenBodies.has(normalizedContent)) {
+        seenBodies.add(normalizedContent);
+        sections.push(`### ${relativePath}\n${normalizedContent}`);
       }
     } catch {
       // Convention files are optional; skip unreadable paths gracefully.
@@ -664,6 +793,9 @@ export class Step1DocumentationAnalyzer {
               projectRoot,
               evidenceFiles
             );
+            const scopedDocEntries = getStep1ScopedDocEntries(fileEntries, files);
+            const scopedDocPathsContext = buildStep1ScopedDocPathsContext(files);
+            const scopedDocContents = buildStep1ScopedDocContextBlock(scopedDocEntries);
             const fileHashEntries = fileEntries.map(
               ({ relativePath, content }) => `${relativePath}:${content}`
             );
@@ -729,6 +861,8 @@ export class Step1DocumentationAnalyzer {
                     primary_language: projectInfo.language ?? 'unknown',
                     changed_files: evidenceFiles.join(', '),
                     doc_files: files.join(', '),
+                    scoped_doc_paths: scopedDocPathsContext,
+                    scoped_doc_contents: scopedDocContents,
                     file_paths_in_request:
                       filePathsContext ||
                       '      - (no readable file paths were available in the current context)',
@@ -774,6 +908,17 @@ export class Step1DocumentationAnalyzer {
                   prompt = `[Project-Kind Role: ${projectKindRole}]\n\n${prompt}`;
                 }
 
+                prompt = appendPromptSectionIfMissing(
+                  prompt,
+                  '## Scoped Documentation Targets',
+                  scopedDocPathsContext
+                );
+                prompt = appendPromptSectionIfMissing(
+                  prompt,
+                  '## Direct Documentation Target Excerpts',
+                  scopedDocContents
+                );
+
                 return prompt;
               },
               executePartition: (_partition, { index: i, total }, prompt) =>
@@ -789,13 +934,45 @@ export class Step1DocumentationAnalyzer {
               trackSuccess: (response, currentSuccess) =>
                 currentSuccess && response?.success !== false,
             });
+            let finalContent = combinedContent;
+            let finalSuccess = success;
+
+            if (partitionsToAnalyze.length > 1) {
+              let synthesisPrompt = buildStep1SynthesisPrompt({
+                changedFiles: evidenceFiles,
+                docFiles: files,
+                projectInfo,
+                scopedDocEntries,
+                partitionFindings: combinedContent,
+                totalPartitions: partitionsToAnalyze.length,
+              });
+
+              if (projectKindRole) {
+                synthesisPrompt = `[Project-Kind Role: ${projectKindRole}]\n\n${synthesisPrompt}`;
+              }
+
+              const synthesisResult = await this.aiCache.withFileChangeGuard(
+                `step_01|${cacheCategory}|synthesis`,
+                [...fileHashEntries, `partition-findings:${combinedContent}`],
+                () =>
+                  this.aiHelper.executeRequest(synthesisPrompt, {
+                    persona: 'documentation_expert',
+                    model: selectedModel,
+                  })
+              );
+
+              finalSuccess = finalSuccess && synthesisResult?.success !== false;
+              if (typeof synthesisResult?.content === 'string' && synthesisResult.content.trim()) {
+                finalContent = synthesisResult.content.trim();
+              }
+            }
 
             return {
-              success,
+              success: finalSuccess,
               response: {
-                success,
-                content: consolidateStep1DocAnalysis(combinedContent, files),
-                text: consolidateStep1DocAnalysis(combinedContent, files),
+                success: finalSuccess,
+                content: consolidateStep1DocAnalysis(finalContent, files),
+                text: consolidateStep1DocAnalysis(finalContent, files),
               },
             };
           },

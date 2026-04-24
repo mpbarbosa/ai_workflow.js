@@ -18,6 +18,7 @@
     "^react$": "<rootDir>/node_modules/react/index.js",
     "^react/(.*)$": "<rootDir>/node_modules/react/$1",
     "^ink$": "<rootDir>/node_modules/ink/build/index.js",
+    "^@github/copilot-sdk$": "<rootDir>/node_modules/@github/copilot-sdk/dist/index.js",
     "^olinda_shell_interface\\.js/(.+)$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/$1.js",
     "^olinda_shell_interface\\.js$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/index.js"
   },

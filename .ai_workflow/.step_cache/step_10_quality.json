@@ -670,6 +670,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-22T03:20:10.439Z"
+    },
+    "src/lib/ai_provider.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
+    },
+    "src/lib/ai_provider.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
+    },
+    "src/lib/ai_provider.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
+    },
+    "src/lib/claude_sdk_wrapper.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
+    },
+    "src/lib/claude_sdk_wrapper.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T11:40:07.696Z"
     }
   }
 }

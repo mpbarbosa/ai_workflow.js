@@ -7,6 +7,7 @@ import {
   Step1DocumentationAnalyzer,
   buildStep1PromptPartitions,
   buildStep1FileContentsBlock,
+  buildStep1ScopedDocContextBlock,
   validateDocumentationCounts,
   checkVersionReferences,
   classifyChangedFiles,
@@ -327,6 +328,24 @@ describe('Step 1: Documentation Validation', () => {
         '#### Partition 1 of 2',
         '',
         'Inconclusive — missing direct file content.',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'Not applicable — visible files are unrelated to README.md.',
+      ].join('\n');
+
+      expect(consolidateStep1DocAnalysis(content, ['README.md'])).toBe(
+        'Inconclusive — consolidated across 2 prompt partition(s) for README.md. The visible evidence was incomplete, tangential, or out of scope for a confident documentation verdict.'
+      );
+    });
+
+    test('treats mixed "not applicable" and "no updates required" sections as inconclusive', () => {
+      const content = [
+        '#### Partition 1 of 2',
+        '',
+        'Not applicable',
+        '',
+        'Visible evidence is tangential. No updates required for README.md.',
         '',
         '#### Partition 2 of 2',
         '',
@@ -732,6 +751,16 @@ doc_analysis_prompt:
         expect(
           capturedPrompts.some((prompt) => prompt.includes('...(truncated — remainder omitted)'))
         ).toBe(false);
+        expect(
+          capturedPrompts.some(
+            (prompt) =>
+              prompt.includes('## Scoped Documentation Targets') &&
+              prompt.includes('## Direct Documentation Target Excerpts')
+          )
+        ).toBe(true);
+        expect(capturedPrompts.some((prompt) => prompt.includes('whole-scope synthesis review'))).toBe(
+          true
+        );
       });
 
       test('gracefully continues when a file cannot be read', async () => {
@@ -772,6 +801,18 @@ doc_analysis_prompt:
         '### `README.md (part 1/11)`'
       );
     });
+
+    test('buildStep1ScopedDocContextBlock preserves both head and tail context for oversized docs', () => {
+      const content = ['# Title', 'intro', ...Array.from({ length: 600 }, (_, i) => `line ${i}`), 'footer']
+        .join('\n');
+
+      const block = buildStep1ScopedDocContextBlock([{ relativePath: 'README.md', content }], 120);
+
+      expect(block).toContain('### `README.md`');
+      expect(block).toContain('# Title');
+      expect(block).toContain('footer');
+      expect(block).toContain('[middle omitted');
+    });
   });
 
   describe('readProjectConventions', () => {
@@ -799,6 +840,27 @@ doc_analysis_prompt:
       expect(result.indexOf('.github/copilot-instructions.md')).toBeLessThan(
         result.indexOf('.github/CONTRIBUTING.md')
       );
+    });
+
+    test('deduplicates repeated convention content before injecting it into prompts', async () => {
+      const repeated = ['## CONTRIBUTING', '', '- Run `npm test`'].join('\n');
+      const mockFileOps = {
+        readFile: (path) => {
+          if (path.endsWith('/.github/copilot-instructions.md')) {
+            return Promise.resolve('# Copilot Instructions\n- Keep docs aligned.');
+          }
+          if (path.endsWith('/CONTRIBUTING.md')) {
+            return Promise.resolve(`${repeated}\n\n---\n\n${repeated}`);
+          }
+          return Promise.reject(new Error('ENOENT'));
+        },
+      };
+
+      const result = await readProjectConventions(mockFileOps, '/project');
+
+      expect(result).toContain('### .github/copilot-instructions.md');
+      expect(result).toContain('### .github/CONTRIBUTING.md');
+      expect(result.match(/Run `npm test`/g)).toHaveLength(1);
     });
 
     test('returns empty string when no authority docs are present', async () => {

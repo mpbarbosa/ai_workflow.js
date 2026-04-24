@@ -133,6 +133,7 @@ export function createProgram() {
       'Request N alternative approaches from AI steps (default: 2)',
       false
     )
+    .option('--provider <provider>', 'AI provider to use: copilot (default) or claude', 'copilot')
     .action((options) => {
       const globalOpts = program.opts();
       runCommand({ ...options, ...globalOpts });
