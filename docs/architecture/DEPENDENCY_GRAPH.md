@@ -596,7 +596,7 @@ What does it depend on?
 ## Additional Resources
 
 - **[Design Principles](./DESIGN_PRINCIPLES.md)** - Architectural patterns
-- **[Module Structure](./MODULE_STRUCTURE.md)** - Module organization
+- **[Architecture Summary](../ARCHITECTURE.md)** - Stable module organization and repository layout
 - **[Developer Guide](../guides/DEVELOPER_GUIDE.md)** - Development workflow
 
 ---

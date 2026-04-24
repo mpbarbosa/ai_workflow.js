@@ -6,7 +6,7 @@
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.2.13
+**Version:** 2.2.14
 **Date:** 2026-04-09
 **Status:** Active
 
@@ -43,7 +43,7 @@
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are complete but documented separately in the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are covered by the current project docs, especially the [Architecture Summary](./ARCHITECTURE.md), [CLI Usage Guide](./CLI_USAGE_GUIDE.md), and [README](../README.md).
 
 ## Roadmap — Minor Issues
 
@@ -96,7 +96,7 @@ Detailed specifications for each module are provided in the sections below.
 
 **Project:** ai_workflow.js
 **Phases:** 1, 2, 3, 4, 5 - Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration
-**Version:** 2.2.13
+**Version:** 2.2.14
 **Date:** 2026-04-09
 **Status:** Active
 
@@ -133,7 +133,7 @@ Detailed specifications for each module are provided in the sections below.
 
 ### 1.1 Purpose
 
-This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are complete but documented separately in the [MIGRATION_PLAN.md](reports/implementation/MIGRATION_PLAN.md).
+This document defines the functional requirements for the foundational layers of ai_workflow.js: core foundation (Phase 1), configuration/state management (Phase 2), file operations (Phase 3), project detection & analysis (Phase 4), and git integration (Phase 5). Phases 6–11 (AI Integration, Workflow Orchestration, Performance, Steps, CLI) are covered by the current project docs, especially the [Architecture Summary](./ARCHITECTURE.md), [CLI Usage Guide](./CLI_USAGE_GUIDE.md), and [README](../README.md).
 
 ### 1.2 Scope
 

@@ -401,7 +401,7 @@ git submodule update --init --recursive
 
 - **[Full API Documentation](../api/README.md)**
 - **[Architecture Guide](../architecture/OVERVIEW.md)**
-- **[Migration Plan](../reports/implementation/MIGRATION_PLAN.md)**
+- **[Migration Guide](../guides/MIGRATION_GUIDE.md)**
 - **[Changelog](../../CHANGELOG.md)**
 
 ---

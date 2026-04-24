@@ -24,7 +24,7 @@
     "src/lib/ai_helpers.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-05T23:09:03.829Z"
+      "lastAnalyzed": "2026-04-24T00:31:26.059Z"
     },
     "src/lib/copilot_sdk_wrapper.js": {
       "score": 100,
@@ -44,7 +44,7 @@
     "src/lib/ai_prompt_builder.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-20T23:22:11.024Z"
+      "lastAnalyzed": "2026-04-24T00:31:26.059Z"
     },
     "src/lib/ai_validation.js": {
       "score": 100,
@@ -670,6 +670,21 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-22T03:20:10.439Z"
+    },
+    "src/lib/project_kind_config.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T00:31:26.059Z"
+    },
+    "src/lib/code_changes_optimization.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T00:31:26.059Z"
+    },
+    "src/lib/commit_history.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-24T00:31:26.059Z"
     }
   }
 }

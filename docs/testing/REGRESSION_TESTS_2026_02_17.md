@@ -245,8 +245,8 @@ The regression tests cover:
 - `test/orchestrator/checkpoint_manager.test.js` - Checkpoint manager tests
 
 **Documentation:**
-- `docs/architecture/MODULE_STRUCTURE.md` - Module organization
-- `docs/api/orchestrator/main_orchestrator.md` - MainOrchestrator API
+- `docs/ARCHITECTURE.md` - Stable architecture overview and repository layout
+- `docs/api/orchestrator/workflow_engine.md` - WorkflowEngine API
 - `docs/api/orchestrator/checkpoint_manager.md` - CheckpointManager API
 
 ---

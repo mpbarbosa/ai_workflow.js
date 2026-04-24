@@ -25,6 +25,7 @@ workflow artifacts kept alongside the source.
 | `scripts/` | Developer automation scripts for setup, validation, testing, release preparation, and maintenance. |
 | `test/` | Unit, integration, fixture, and step-level coverage that mirrors the source layout. |
 | `docs/architecture/` | Detailed architecture references, including design principles and dependency graphs. |
+| `docs/misc/` | Overflow area for supporting reference material that does not yet belong to a stable docs category. |
 | `.workflow_core/` | Shared workflow templates and helper configuration maintained as a submodule. |
 | `.workflow_fspec/` | Functional specification submodule. |
 | `.ai_workflow/` | Runtime artifacts such as logs, checkpoints, metrics, cache, and summaries. |
@@ -36,7 +37,7 @@ development and test runs:
 
 - `.ai_workflow/` - workflow outputs, logs, summaries, metrics, and cache
 - `.test-cache/` - Jest transform and module cache
-- `.test-e2e/` - temporary end-to-end test work directories
+- `.test-e2e/` - temporary end-to-end test work directories with timestamped per-run folders; see `.test-e2e/README.md` for naming and lifecycle details
 - `.test-step-11-5/` - isolated fixtures for step 11.5 tests
 - `coverage/` - generated Jest coverage output
 
@@ -45,4 +46,5 @@ development and test runs:
 - [Architecture Overview](./architecture/OVERVIEW.md)
 - [Design Principles](./architecture/DESIGN_PRINCIPLES.md)
 - [Dependency Graph](./architecture/DEPENDENCY_GRAPH.md)
+- [Partition + Synthesis Guide](./guides/PARTITION_SYNTHESIS_GUIDE.md)
 - [Workflow Engine Requirements](./WORKFLOW_ENGINE_REQUIREMENTS.md)

@@ -1002,7 +1002,7 @@ registry.register(6, MyStep6, { sequential: true, dependsOn: [5] });
 | --------------------------- | ------------------------------------------------------------------ |
 | User Guide                  | [`docs/guides/USER_GUIDE.md`](USER_GUIDE.md)                       |
 | Configuration Reference     | [`docs/guides/CONFIGURATION_GUIDE.md`](CONFIGURATION_GUIDE.md)     |
-| CLI Reference               | [`docs/reference/CLI_REFERENCE.md`](../reference/CLI_REFERENCE.md) |
+| CLI Usage Guide             | [`docs/CLI_USAGE_GUIDE.md`](../CLI_USAGE_GUIDE.md)                 |
 | Architecture Overview       | [`docs/architecture/OVERVIEW.md`](../architecture/OVERVIEW.md)     |
 | Troubleshooting Guide       | [`docs/guides/TROUBLESHOOTING.md`](TROUBLESHOOTING.md)             |
 | Developer Guide             | [`docs/guides/DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)             |

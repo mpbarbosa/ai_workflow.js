@@ -112,7 +112,7 @@ The ai_workflow.js project demonstrates exceptional script documentation quality
 ```
 
 **Status:** ✅ **OK** - `src/cli/index.js` exists (Phase 11 complete)
-**Documentation:** CLI commands are documented in `docs/reference/CLI_REFERENCE.md`
+**Documentation:** CLI commands are documented in `docs/CLI_USAGE_GUIDE.md`
 
 #### Command-Line Arguments Accuracy
 

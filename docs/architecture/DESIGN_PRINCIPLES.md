@@ -754,7 +754,7 @@ await fs.mkdir(dir);
 
 ## Additional Resources
 
-- **[Module Structure](./MODULE_STRUCTURE.md)** - Detailed module organization
+- **[Architecture Summary](../ARCHITECTURE.md)** - Stable module organization and repository layout
 - **[Dependency Graph](./DEPENDENCY_GRAPH.md)** - Module dependencies
 - **[Developer Guide](../guides/DEVELOPER_GUIDE.md)** - Development workflow
 

@@ -58,7 +58,7 @@ checks for a specific version.
 ## Usage
 
 ```bash
-bash scripts/prepare-release.sh 2.2.13
+bash scripts/prepare-release.sh 2.2.14
 ```
 
 ## Notes
