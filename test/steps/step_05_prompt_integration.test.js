@@ -29,7 +29,7 @@ describe('step5_directory_prompt — config correctness', () => {
     expect(template).toContain('heuristics from the scanned documentation set');
     expect(template).toContain('repository-layout inventory entry');
     expect(template).toContain(
-      'Treat visible directory trees, folder inventories, and README files inside a directory'
+      'Treat visible directory trees, folder inventories, README files inside a directory'
     );
     expect(template).toContain('flagged for clarification, not treated as hard errors');
     expect(template).toContain('clean pass or a confirmed documentation defect');
