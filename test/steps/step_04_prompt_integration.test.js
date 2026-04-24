@@ -32,7 +32,9 @@ describe('configuration_specialist_prompt — partition handling', () => {
   test('approach constrains praise and freshness claims to visible evidence', () => {
     const approach = aiHelpers.configuration_specialist_prompt.approach;
 
-    expect(approach).toContain('Highlight any noteworthy best practices already in use');
+    expect(approach).toContain(
+      'Highlight only best practices that are directly visible in the shown content'
+    );
     expect(approach).toContain('Do NOT give an overall success verdict for the entire scope');
     expect(approach).toContain(
       'Limit any "no issues found" wording to the visible excerpt(s) only'

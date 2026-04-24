@@ -1043,7 +1043,7 @@ describe('Step 8: Test Execution', () => {
       await executor.execute('/project', { projectKind: 'nodejs_automation' });
 
       expect(capturedPrompt).toContain('Test Types: validation-script');
-      expect(capturedPrompt).toContain('Scope: automated test suite only');
+      expect(capturedPrompt).toContain('Scope: validation script only');
       expect(capturedPrompt).toContain(
         'Coverage Threshold: unavailable — no explicit project threshold configured'
       );
