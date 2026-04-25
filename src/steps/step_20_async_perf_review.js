@@ -16,6 +16,7 @@
  */
 
 import path from 'path';
+import yaml from 'js-yaml';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
@@ -23,15 +24,16 @@ import { Backlog } from '../lib/backlog.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
-import {
-  loadResolvedAiHelpers,
-  buildYamlStepPrompt,
-} from '../lib/ai_prompt_builder.js';
+import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
 
 const MAX_FILE_PATHS_IN_CONTEXT = 20;
 export const MAX_PROMPT_ENTRY_CHARS = 4_000;
 export const MAX_PROMPT_PARTITION_CHARS = 9_000;
 export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
+export const MAX_PARTITIONS_PER_RUN = 15;
+
+/** Relative path (inside .ai_workflow/cache/) for the async-pattern history file. */
+export const ASYNC_HISTORY_CACHE_PATH = '.ai_workflow/cache/step_20_async_history.json';
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -69,7 +71,11 @@ export function isAsyncRuntimeTarget(filePath) {
   if (
     normalized.startsWith('.workflow_core/') ||
     normalized.startsWith('.workflow_fspec/') ||
-    /(^|\/)(__tests__|test|tests)\//.test(normalized) ||
+    normalized.startsWith('.github/') ||
+    normalized.startsWith('docs/api-generated/') ||
+    /(^|\/)(__tests__|__mocks__|test|tests|venv|vendor|third_party|site-packages)\//.test(
+      normalized
+    ) ||
     /\.(test|spec)\.[cm]?[jt]sx?$/i.test(normalized)
   ) {
     return false;
@@ -132,6 +138,101 @@ export function scoreAsyncIssues(fileContents) {
   };
 }
 
+export function scoreAsyncRuntimeEntry(entry) {
+  const content = entry?.content ?? '';
+  const relativePath = entry?.relativePath ?? '';
+  const keywordScore = (
+    content.match(
+      /\b(await|async|Promise|setTimeout|setInterval|fetch|axios|addEventListener)\b/g
+    ) || []
+  ).length;
+  const issueScore = scoreAsyncIssues([content]).totalIssues * 10;
+  const hotPathScore = /(src|lib|server|api|routes|controllers|services|hooks|middleware)\//i.test(
+    relativePath
+  )
+    ? 5
+    : 0;
+
+  return issueScore + keywordScore + hotPathScore;
+}
+
+export function selectAsyncReviewEntries(
+  fileEntries,
+  maxPartitionsPerRun = MAX_PARTITIONS_PER_RUN,
+  maxEntriesPerPartition = MAX_PROMPT_ENTRIES_PER_PARTITION
+) {
+  if (!Array.isArray(fileEntries) || fileEntries.length === 0) {
+    return [];
+  }
+
+  const maxEntries = Math.max(1, maxPartitionsPerRun * maxEntriesPerPartition);
+  return [...fileEntries]
+    .map((entry, index) => ({ entry, index, score: scoreAsyncRuntimeEntry(entry) }))
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      if ((right.entry.content?.length ?? 0) !== (left.entry.content?.length ?? 0)) {
+        return (right.entry.content?.length ?? 0) - (left.entry.content?.length ?? 0);
+      }
+      return left.index - right.index;
+    })
+    .slice(0, maxEntries)
+    .map(({ entry }) => entry);
+}
+
+export function inferAsyncProjectKind(techStackResult = {}) {
+  const frameworks = Array.isArray(techStackResult.frameworks) ? techStackResult.frameworks : [];
+  const packages = new Set(frameworks.map((framework) => framework?.package).filter(Boolean));
+
+  if (
+    packages.has('vue') ||
+    packages.has('react') ||
+    packages.has('svelte') ||
+    packages.has('@angular/core') ||
+    packages.has('next') ||
+    packages.has('nuxt')
+  ) {
+    return 'frontend_spa';
+  }
+
+  if (
+    techStackResult.build_system &&
+    ['npm', 'pnpm', 'yarn'].includes(techStackResult.build_system)
+  ) {
+    return 'javascript_project';
+  }
+
+  return 'source_code_project';
+}
+
+export async function resolveAsyncProjectKind(
+  projectKind,
+  projectRoot,
+  fileOps,
+  techStackResult = {}
+) {
+  if (projectKind) {
+    return projectKind;
+  }
+
+  try {
+    const configPath = path.join(projectRoot, '.workflow-config.yaml');
+    if (await fileOps.exists(configPath)) {
+      const configContent = await fileOps.readFile(configPath);
+      const parsed = yaml.load(configContent);
+      const configuredKind = parsed?.project?.kind;
+      if (typeof configuredKind === 'string' && configuredKind.trim()) {
+        return configuredKind.trim();
+      }
+    }
+  } catch {
+    // Fall back to inferred kind below when workflow config is unavailable.
+  }
+
+  return inferAsyncProjectKind(techStackResult);
+}
+
 /**
  * Split a single source file into prompt-safe entries without dropping content.
  *
@@ -191,9 +292,7 @@ export function buildAsyncPromptPartitions(
 ) {
   if (!Array.isArray(fileEntries) || fileEntries.length === 0) return [];
 
-  const promptEntries = fileEntries.flatMap((entry) =>
-    splitAsyncPromptEntry(entry, maxEntryChars)
-  );
+  const promptEntries = fileEntries.flatMap((entry) => splitAsyncPromptEntry(entry, maxEntryChars));
   const partitions = [];
   let currentEntries = [];
   let currentChars = 0;
@@ -275,6 +374,105 @@ export function formatAsyncPerfReport(aiContent, scores) {
 }
 
 // ============================================================================
+// PURE FUNCTIONS — Async Pattern History
+// ============================================================================
+
+/**
+ * Detect whether source content contains async-relevant patterns.
+ *
+ * Covers all patterns that step 20 heuristics and scoring use:
+ * `async`, `await`, `Promise`, `.then(`, `new Promise`, `fetch`, `axios`,
+ * `setTimeout`, `setInterval`, `addEventListener`, `removeEventListener`.
+ *
+ * @param {string} content - Source file content
+ * @returns {boolean}
+ */
+export function hasAsyncPatterns(content) {
+  return /\b(async|await|Promise|fetch|axios|setTimeout|setInterval|addEventListener|removeEventListener)\b|\.then\s*\(|\.catch\s*\(/i.test(
+    String(content ?? '')
+  );
+}
+
+/**
+ * Load and validate a persisted async-pattern history object from raw JSON.
+ *
+ * Returns an empty history when the input is null, unparseable, has an
+ * unexpected version, or contains a structurally invalid `entries` object.
+ * Individual entries that fail shape validation are silently dropped.
+ *
+ * @param {string|null} raw - Raw JSON string (or null if the file was absent)
+ * @returns {{ version: 1, entries: Record<string, { mtimeMs: number, hasAsyncPatterns: boolean }> }}
+ */
+export function loadAsyncHistory(raw) {
+  const empty = { version: 1, entries: {} };
+  if (!raw) return empty;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return empty;
+  }
+
+  if (!parsed || typeof parsed !== 'object' || parsed.version !== 1) return empty;
+  if (!parsed.entries || typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)) {
+    return empty;
+  }
+
+  const validEntries = {};
+  for (const [key, entry] of Object.entries(parsed.entries)) {
+    if (
+      entry &&
+      typeof entry === 'object' &&
+      typeof entry.mtimeMs === 'number' &&
+      isFinite(entry.mtimeMs) &&
+      typeof entry.hasAsyncPatterns === 'boolean'
+    ) {
+      validEntries[key] = { mtimeMs: entry.mtimeMs, hasAsyncPatterns: entry.hasAsyncPatterns };
+    }
+  }
+
+  return { version: 1, entries: validEntries };
+}
+
+/**
+ * Build a single async-pattern history entry.
+ *
+ * @param {number} mtimeMs - Last-modified timestamp in milliseconds
+ * @param {boolean} hasAsync - Whether the file contains async patterns
+ * @returns {{ mtimeMs: number, hasAsyncPatterns: boolean }}
+ */
+export function buildAsyncHistoryEntry(mtimeMs, hasAsync) {
+  return { mtimeMs, hasAsyncPatterns: hasAsync };
+}
+
+/**
+ * Merge new/updated file entries into an existing history, pruning stale paths.
+ *
+ * Only paths present in `currentPaths` are kept in the output, preventing
+ * unbounded growth from deleted files.
+ *
+ * @param {{ version: 1, entries: Record<string, { mtimeMs: number, hasAsyncPatterns: boolean }> }} existingHistory
+ * @param {Map<string, { mtimeMs: number, hasAsyncPatterns: boolean }>} updates - New or updated entries
+ * @param {string[]} currentPaths - The full set of runtime paths seen this run
+ * @returns {{ version: 1, entries: Record<string, { mtimeMs: number, hasAsyncPatterns: boolean }> }}
+ */
+export function mergeAsyncHistory(existingHistory, updates, currentPaths) {
+  const pathSet = new Set(currentPaths);
+  const merged = {};
+
+  for (const p of pathSet) {
+    if (updates.has(p)) {
+      merged[p] = updates.get(p);
+    } else if (existingHistory.entries[p]) {
+      merged[p] = existingHistory.entries[p];
+    }
+  }
+
+  return { version: 1, entries: merged };
+}
+
+// ============================================================================
 // STEP CONTRACT
 // ============================================================================
 
@@ -349,18 +547,75 @@ export class Step20AsyncPerfReview {
 
       logger.info(`Step 20: Analyzing ${runtimeFiles.length} runtime JS/TS files`);
 
+      // Load async-pattern history to skip unchanged files that have no async patterns
+      const historyPath = path.join(projectRoot, ASYNC_HISTORY_CACHE_PATH);
+      let history = loadAsyncHistory(null);
+      try {
+        const raw = await this.fileOps.readFile(historyPath);
+        history = loadAsyncHistory(raw);
+      } catch {
+        // History absent or unreadable — start fresh
+      }
+
+      const historyUpdates = new Map();
       const fileContents = [];
       const fileEntries = [];
 
       for (const relFile of runtimeFiles) {
+        const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
+
+        // Attempt cheap stat to check against history
+        let mtimeMs = null;
         try {
-          const absPath = path.isAbsolute(relFile) ? relFile : path.join(projectRoot, relFile);
+          const stat = await this.fileOps.stat(absPath);
+          mtimeMs = stat?.modified instanceof Date ? stat.modified.getTime() : null;
+        } catch {
+          // Stat failed — force a read below; do not persist to history
+        }
+
+        const cached = history.entries[relFile];
+        const cacheHit = mtimeMs !== null && cached && cached.mtimeMs === mtimeMs;
+
+        if (cacheHit && !cached.hasAsyncPatterns) {
+          // File unchanged and has no async patterns — skip read entirely
+          continue;
+        }
+
+        // Read the file (new, modified, no cache hit, or cached as having patterns)
+        try {
           const content = await this.fileOps.readFile(absPath);
+
+          // Update history only when we have a reliable mtime
+          if (mtimeMs !== null) {
+            historyUpdates.set(relFile, buildAsyncHistoryEntry(mtimeMs, hasAsyncPatterns(content)));
+          }
+
+          if (!hasAsyncPatterns(content)) {
+            // File was read but has no async patterns — exclude from analysis
+            continue;
+          }
+
           fileContents.push(content);
           fileEntries.push({ relativePath: relFile, content });
         } catch {
           // Skip unreadable files silently
         }
+      }
+
+      // Persist updated history
+      const updatedHistory = mergeAsyncHistory(history, historyUpdates, runtimeFiles);
+      try {
+        await this.fileOps.writeFile(historyPath, JSON.stringify(updatedHistory, null, 2));
+      } catch {
+        // Non-fatal — history will be rebuilt next run
+      }
+
+      const readableRuntimeCount = fileEntries.length;
+      const skippedCount = runtimeFiles.length - readableRuntimeCount;
+      if (skippedCount > 0) {
+        logger.info(
+          `[step_20] Skipped ${skippedCount} file(s) with no async patterns (history cache)`
+        );
       }
 
       // Heuristic pre-scan
@@ -374,6 +629,8 @@ export class Step20AsyncPerfReview {
 
       // Build AI prompt
       let aiContent = '';
+      let degraded = false;
+      const warnings = [];
       const aiAvailable = await this.aiHelper.initialize();
 
       if (aiAvailable) {
@@ -382,19 +639,43 @@ export class Step20AsyncPerfReview {
           // Detect tech stack for richer prompt context
           let buildSystem = 'npm';
           let testFramework = 'jest';
+          let techStackResult = {};
           try {
-            const techStackResult = await this.techStack.detectAll(projectRoot);
+            techStackResult = await this.techStack.detectAll(projectRoot);
             buildSystem = techStackResult.build_system || 'npm';
             testFramework = techStackResult.test_framework || 'jest';
           } catch {
             // Non-fatal: fall back to defaults
           }
+          const resolvedProjectKind = await resolveAsyncProjectKind(
+            options.projectKind,
+            projectRoot,
+            this.fileOps,
+            techStackResult
+          );
 
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+          const selectedEntries = selectAsyncReviewEntries(fileEntries);
+          if (selectedEntries.length < fileEntries.length) {
+            warnings.push(
+              `Scoped async review to ${selectedEntries.length} high-signal runtime file(s) out of ${fileEntries.length}`
+            );
+            logger.info(
+              `[step_20] Scoped async review to ${selectedEntries.length}/${fileEntries.length} high-signal runtime files`
+            );
+          }
+
           const promptPartitions =
-            fileEntries.length > 0 ? buildAsyncPromptPartitions(fileEntries) : [];
-          const partitionsToAnalyze =
-            promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
+            selectedEntries.length > 0 ? buildAsyncPromptPartitions(selectedEntries) : [];
+          if (promptPartitions.length > MAX_PARTITIONS_PER_RUN) {
+            warnings.push(
+              `Limited async AI review to ${MAX_PARTITIONS_PER_RUN} partitions out of ${promptPartitions.length}`
+            );
+            logger.warn(
+              `[step_20] Limiting AI analysis to ${MAX_PARTITIONS_PER_RUN}/${promptPartitions.length} partitions`
+            );
+          }
+          const partitionsToAnalyze = promptPartitions.slice(0, MAX_PARTITIONS_PER_RUN);
 
           if (partitionsToAnalyze.length > 1) {
             logger.info(
@@ -422,42 +703,36 @@ export class Step20AsyncPerfReview {
                   : '',
               partition_scope_note:
                 partitionsToAnalyze.length > 1
-                  ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current async-performance review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
-                  : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
+                  ? `This request covers ${partition.scopePaths.length} of ${readableRuntimeCount} readable runtime JavaScript/TypeScript files in the current async-performance review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                  : `This request contains the full readable runtime JavaScript/TypeScript scope for this run (${readableRuntimeCount} file(s)).`,
               project_name: options.projectName ?? path.basename(projectRoot),
               project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
-              project_kind: options.projectKind ?? 'nodejs_api',
+              project_kind: resolvedProjectKind,
               primary_language: 'JavaScript/TypeScript',
               build_system: buildSystem,
               test_framework: testFramework,
               source_file_count:
                 partitionsToAnalyze.length > 1
-                  ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
-                  : String(relativeFiles.length),
-              modified_count: String(relativeFiles.length),
+                  ? `${readableRuntimeCount} total (${partition.scopePaths.length} covered in this request)`
+                  : String(readableRuntimeCount),
+              modified_count: String(readableRuntimeCount),
               file_paths:
-                filePathsContext || '      - (no readable JavaScript/TypeScript files were available)',
+                filePathsContext ||
+                '      - (no readable JavaScript/TypeScript files were available)',
               file_content_block:
-                fileContentBlock || '_No readable file excerpts were available in the current context window._',
+                fileContentBlock ||
+                '_No readable file excerpts were available in the current context window._',
             });
 
             if (!prompt) continue;
 
-            const cacheKey = `step_20:${projectRoot}:part:${i + 1}/${partitionsToAnalyze.length}:signals:${scores.totalIssues}`;
-            const cached = await this.aiCache.get(cacheKey);
-            const response = cached
-              ? cached
-              : (
-                  await this.aiHelper.executeRequest(prompt, {
-                    persona: 'async_performance_engineer',
-                  })
-                )?.content ?? '';
-
-            if (cached) {
-              logger.info(`Step 20: Using cached AI response for partition ${i + 1}`);
-            } else if (response) {
-              await this.aiCache.set(cacheKey, response);
-            }
+            const cacheContext = `step_20|project:${projectRoot}|partition:${i + 1}/${partitionsToAnalyze.length}|signals:${scores.totalIssues}`;
+            const aiResult = await this.aiCache.withCache(prompt, cacheContext, () =>
+              this.aiHelper.executeRequest(prompt, {
+                persona: 'async_performance_engineer',
+              })
+            );
+            const response = typeof aiResult === 'string' ? aiResult : (aiResult?.content ?? '');
 
             if (response) {
               aiSections.push(
@@ -470,9 +745,13 @@ export class Step20AsyncPerfReview {
 
           aiContent = aiSections.join('\n\n');
         } catch (promptError) {
+          degraded = true;
+          warnings.push(`AI analysis skipped: ${promptError.message}`);
           logger.warn(`Step 20: AI analysis skipped — ${promptError.message}`);
         }
       } else {
+        degraded = true;
+        warnings.push('AI helper not available');
         logger.warn('Step 20: AI analysis skipped — AI helper not available');
       }
 
@@ -484,10 +763,13 @@ export class Step20AsyncPerfReview {
 
       return {
         success: true,
+        degraded,
         skipped: false,
-        fileCount: relativeFiles.length,
+        fileCount: readableRuntimeCount,
+        skippedCount,
         scores,
         report,
+        warnings,
       };
     } catch (error) {
       logger.error(`Step 20 failed: ${error.message}`);

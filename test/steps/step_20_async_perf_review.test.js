@@ -9,13 +9,22 @@ import {
   isAsyncRuntimeTarget,
   filterAsyncRuntimeTargets,
   scoreAsyncIssues,
+  scoreAsyncRuntimeEntry,
+  selectAsyncReviewEntries,
+  inferAsyncProjectKind,
   splitAsyncPromptEntry,
   buildAsyncPromptPartitions,
   buildAsyncFileContentsBlock,
   formatAsyncPerfReport,
+  hasAsyncPatterns,
+  loadAsyncHistory,
+  buildAsyncHistoryEntry,
+  mergeAsyncHistory,
   STEP_DEFINITION,
   Step20AsyncPerfReview,
+  MAX_PARTITIONS_PER_RUN,
   MAX_PROMPT_ENTRY_CHARS,
+  ASYNC_HISTORY_CACHE_PATH,
 } from '../../src/steps/step_20_async_perf_review.js';
 import { STEP_KIND } from '../../src/steps/step_contract.js';
 
@@ -76,6 +85,17 @@ describe('step_20_async_perf_review - Pure Functions', () => {
       expect(isAsyncRuntimeTarget('jest.config.ts')).toBe(false);
       expect(isAsyncRuntimeTarget('vitest.config.mts')).toBe(false);
     });
+
+    test('excludes mocks, vendored assets, generated docs, and workflow tooling', () => {
+      expect(isAsyncRuntimeTarget('__mocks__/fileMock.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('.github/scripts/jsdoc-audit.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('docs/api-generated/scripts/linenumber.js')).toBe(false);
+      expect(
+        isAsyncRuntimeTarget(
+          'venv/lib/python3.13/site-packages/urllib3/contrib/emscripten/emscripten_fetch_worker.js'
+        )
+      ).toBe(false);
+    });
   });
 
   describe('filterAsyncRuntimeTargets', () => {
@@ -86,6 +106,8 @@ describe('step_20_async_perf_review - Pure Functions', () => {
           'test/index.test.ts',
           '.workflow_core/config/ai_helpers/index.js',
           'vitest.config.ts',
+          '__mocks__/fileMock.js',
+          'docs/api-generated/scripts/linenumber.js',
           'scripts/validate.js',
         ])
       ).toEqual(['src/index.ts', 'scripts/validate.js']);
@@ -179,6 +201,49 @@ el.addEventListener('click', fn);
     });
   });
 
+  describe('scoreAsyncRuntimeEntry', () => {
+    test('prioritizes files with stronger async signals', () => {
+      const hotEntry = {
+        relativePath: 'src/services/fetcher.ts',
+        content: "new Promise((resolve) => resolve()); fetch('/api').then((r) => r.json());",
+      };
+      const coldEntry = {
+        relativePath: 'src/constants.ts',
+        content: 'export const version = "1.0.0";',
+      };
+
+      expect(scoreAsyncRuntimeEntry(hotEntry)).toBeGreaterThan(scoreAsyncRuntimeEntry(coldEntry));
+    });
+  });
+
+  describe('selectAsyncReviewEntries', () => {
+    test('keeps only the highest-signal files within the per-run entry budget', () => {
+      const totalEntries = MAX_PARTITIONS_PER_RUN * 4 + 10;
+      const entries = Array.from({ length: totalEntries }, (_, index) => ({
+        relativePath: `src/file-${index}.ts`,
+        content:
+          index === totalEntries - 1
+            ? 'export const noop = true;'
+            : "fetch('/api').then((r) => r.json()); new Promise((resolve) => resolve());",
+      }));
+      const selected = selectAsyncReviewEntries(entries);
+
+      expect(selected.length).toBe(MAX_PARTITIONS_PER_RUN * 4);
+      expect(selected.some((entry) => entry.relativePath === 'src/file-0.ts')).toBe(true);
+    });
+  });
+
+  describe('inferAsyncProjectKind', () => {
+    test('returns frontend_spa for frontend framework stacks', () => {
+      expect(
+        inferAsyncProjectKind({
+          build_system: 'npm',
+          frameworks: [{ package: 'vue', name: 'Vue.js' }],
+        })
+      ).toBe('frontend_spa');
+    });
+  });
+
   // -------------------------------------------------------------------------
   // Prompt partition helpers
   // -------------------------------------------------------------------------
@@ -233,6 +298,17 @@ el.addEventListener('click', fn);
         'src/file3.ts',
       ]);
       expect(partitions[1].scopePaths).toEqual(['src/file4.ts']);
+    });
+
+    test('caps AI review partitions at the configured max per run', () => {
+      const fileEntries = Array.from({ length: MAX_PARTITIONS_PER_RUN + 5 }, (_, index) => ({
+        relativePath: `src/file-${index}.ts`,
+        content: `export const value${index} = ${index};\n`,
+      }));
+      const selected = selectAsyncReviewEntries(fileEntries, MAX_PARTITIONS_PER_RUN, 1);
+      const partitions = buildAsyncPromptPartitions(selected, 80, 80);
+
+      expect(partitions.length).toBeLessThanOrEqual(MAX_PARTITIONS_PER_RUN);
     });
   });
 
@@ -322,12 +398,188 @@ el.addEventListener('click', fn);
 });
 
 // =============================================================================
+// ASYNC PATTERN HISTORY — Pure Functions
+// =============================================================================
+
+describe('hasAsyncPatterns', () => {
+  test.each([
+    ['async function', 'async function fetch() {}'],
+    ['await expression', 'const x = await getUser();'],
+    ['Promise constructor', 'return new Promise((resolve) => resolve());'],
+    ['.then()', 'getData().then((d) => d);'],
+    ['.catch()', 'p.catch((e) => console.error(e));'],
+    ['fetch', 'const res = await fetch("/api");'],
+    ['axios', 'axios.get("/api")'],
+    ['setTimeout', 'setTimeout(() => {}, 100)'],
+    ['setInterval', 'setInterval(tick, 1000)'],
+    ['addEventListener', 'el.addEventListener("click", handler)'],
+    ['removeEventListener', 'el.removeEventListener("click", handler)'],
+  ])('returns true for %s', (_label, content) => {
+    expect(hasAsyncPatterns(content)).toBe(true);
+  });
+
+  test.each([
+    ['plain assignment', 'const x = 1;'],
+    ['sync function', 'function add(a, b) { return a + b; }'],
+    ['class with sync methods', 'class Foo { bar() { return 42; } }'],
+    ['empty string', ''],
+  ])('returns false for %s', (_label, content) => {
+    expect(hasAsyncPatterns(content)).toBe(false);
+  });
+
+  test('returns false for null/undefined', () => {
+    expect(hasAsyncPatterns(null)).toBe(false);
+    expect(hasAsyncPatterns(undefined)).toBe(false);
+  });
+});
+
+describe('loadAsyncHistory', () => {
+  test('returns empty history for null', () => {
+    const h = loadAsyncHistory(null);
+    expect(h).toEqual({ version: 1, entries: {} });
+  });
+
+  test('returns empty history for undefined', () => {
+    expect(loadAsyncHistory(undefined)).toEqual({ version: 1, entries: {} });
+  });
+
+  test('returns empty history for invalid JSON', () => {
+    expect(loadAsyncHistory('not json')).toEqual({ version: 1, entries: {} });
+  });
+
+  test('returns empty history when version mismatches', () => {
+    expect(loadAsyncHistory(JSON.stringify({ version: 2, entries: {} }))).toEqual({
+      version: 1,
+      entries: {},
+    });
+  });
+
+  test('returns empty history when entries is missing', () => {
+    expect(loadAsyncHistory(JSON.stringify({ version: 1 }))).toEqual({ version: 1, entries: {} });
+  });
+
+  test('returns empty history when entries is an array', () => {
+    expect(loadAsyncHistory(JSON.stringify({ version: 1, entries: [] }))).toEqual({
+      version: 1,
+      entries: {},
+    });
+  });
+
+  test('parses valid history correctly', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      entries: {
+        'src/foo.js': { mtimeMs: 1000, hasAsyncPatterns: true },
+        'src/bar.ts': { mtimeMs: 2000, hasAsyncPatterns: false },
+      },
+    });
+    const h = loadAsyncHistory(raw);
+    expect(h.version).toBe(1);
+    expect(h.entries['src/foo.js']).toEqual({ mtimeMs: 1000, hasAsyncPatterns: true });
+    expect(h.entries['src/bar.ts']).toEqual({ mtimeMs: 2000, hasAsyncPatterns: false });
+  });
+
+  test('drops individual entries with invalid shape', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      entries: {
+        'src/good.js': { mtimeMs: 1000, hasAsyncPatterns: true },
+        'src/bad-mtime.js': { mtimeMs: 'not-a-number', hasAsyncPatterns: true },
+        'src/bad-bool.js': { mtimeMs: 1000, hasAsyncPatterns: 'yes' },
+        'src/missing.js': null,
+      },
+    });
+    const h = loadAsyncHistory(raw);
+    expect(Object.keys(h.entries)).toEqual(['src/good.js']);
+  });
+
+  test('drops entries with non-finite mtimeMs', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      entries: {
+        'src/inf.js': { mtimeMs: Infinity, hasAsyncPatterns: false },
+        'src/nan.js': { mtimeMs: NaN, hasAsyncPatterns: false },
+      },
+    });
+    expect(loadAsyncHistory(raw).entries).toEqual({});
+  });
+});
+
+describe('buildAsyncHistoryEntry', () => {
+  test('returns correct shape with hasAsyncPatterns: true', () => {
+    expect(buildAsyncHistoryEntry(12345, true)).toEqual({ mtimeMs: 12345, hasAsyncPatterns: true });
+  });
+
+  test('returns correct shape with hasAsyncPatterns: false', () => {
+    expect(buildAsyncHistoryEntry(99, false)).toEqual({ mtimeMs: 99, hasAsyncPatterns: false });
+  });
+});
+
+describe('mergeAsyncHistory', () => {
+  const emptyHistory = { version: 1, entries: {} };
+
+  test('adds new entries from updates', () => {
+    const updates = new Map([['src/new.js', { mtimeMs: 500, hasAsyncPatterns: true }]]);
+    const result = mergeAsyncHistory(emptyHistory, updates, ['src/new.js']);
+    expect(result.entries['src/new.js']).toEqual({ mtimeMs: 500, hasAsyncPatterns: true });
+  });
+
+  test('overrides existing entry with updated one', () => {
+    const existing = {
+      version: 1,
+      entries: { 'src/foo.js': { mtimeMs: 100, hasAsyncPatterns: false } },
+    };
+    const updates = new Map([['src/foo.js', { mtimeMs: 200, hasAsyncPatterns: true }]]);
+    const result = mergeAsyncHistory(existing, updates, ['src/foo.js']);
+    expect(result.entries['src/foo.js']).toEqual({ mtimeMs: 200, hasAsyncPatterns: true });
+  });
+
+  test('preserves existing entries not in updates', () => {
+    const existing = {
+      version: 1,
+      entries: { 'src/unchanged.js': { mtimeMs: 100, hasAsyncPatterns: false } },
+    };
+    const result = mergeAsyncHistory(existing, new Map(), ['src/unchanged.js']);
+    expect(result.entries['src/unchanged.js']).toEqual({ mtimeMs: 100, hasAsyncPatterns: false });
+  });
+
+  test('prunes entries for paths not in currentPaths', () => {
+    const existing = {
+      version: 1,
+      entries: {
+        'src/deleted.js': { mtimeMs: 1, hasAsyncPatterns: true },
+        'src/kept.js': { mtimeMs: 2, hasAsyncPatterns: false },
+      },
+    };
+    const result = mergeAsyncHistory(existing, new Map(), ['src/kept.js']);
+    expect(result.entries['src/deleted.js']).toBeUndefined();
+    expect(result.entries['src/kept.js']).toBeDefined();
+  });
+
+  test('returns version 1 history', () => {
+    const result = mergeAsyncHistory(emptyHistory, new Map(), []);
+    expect(result.version).toBe(1);
+  });
+});
+
+// =============================================================================
 // IMPURE WRAPPER TESTS (mocked dependencies)
 // =============================================================================
 
 describe('Step20AsyncPerfReview - Wrapper', () => {
-  const makeFileOps = (files = ['src/index.js', 'src/utils.ts'], content = 'const x = 1;') => ({
+  const makeFileOps = (
+    files = ['src/index.js', 'src/utils.ts'],
+    content = 'async function foo() { await bar(); }',
+    options = {}
+  ) => ({
     listDirectoryRecursive: jest.fn().mockResolvedValue(files),
+    exists: jest
+      .fn()
+      .mockImplementation((p) =>
+        Promise.resolve(Boolean(options.workflowConfig) && p.endsWith('.workflow-config.yaml'))
+      ),
+    stat: jest.fn().mockResolvedValue({ modified: new Date(1_000_000) }),
+    writeFile: jest.fn().mockResolvedValue(undefined),
     readFile: jest.fn().mockImplementation((p) => {
       if (p.endsWith('ai_helpers.yaml') || p.includes('ai_helpers')) {
         return Promise.resolve(
@@ -342,13 +594,16 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
             '    Build: {build_system}\n' +
             '    Test: {test_framework}\n' +
             '    Files: {source_file_count}\n' +
-            '    Modified: {modified_count}\n' +
+            '    Review Scope Files: {modified_count}\n' +
             '    Paths: {file_paths}\n' +
             '    Scope: {partition_scope_note}\n' +
             '    **File Contents (source excerpts for this request):**\n' +
             '    {file_content_block}\n' +
             '  approach: "approach"'
         );
+      }
+      if (options.workflowConfig && p.endsWith('.workflow-config.yaml')) {
+        return Promise.resolve(options.workflowConfig);
       }
       if (p.endsWith('prompt_roles.yaml') || p.includes('prompt_roles')) {
         return Promise.resolve('roles: {}');
@@ -377,8 +632,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
 
   const makeAiCache = () => ({
     init: jest.fn().mockResolvedValue(undefined),
-    get: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue(undefined),
+    withCache: jest.fn().mockImplementation(async (_prompt, _context, aiFunction) => aiFunction()),
   });
 
   test('skips gracefully when no JS/TS files found', async () => {
@@ -479,8 +733,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     const aiHelper = makeAiHelper();
     const aiCache = {
       init: jest.fn().mockResolvedValue(undefined),
-      get: jest.fn().mockResolvedValue('cached AI content'),
-      set: jest.fn().mockResolvedValue(undefined),
+      withCache: jest.fn().mockResolvedValue({ content: 'cached AI content' }),
     };
     const step = new Step20AsyncPerfReview({
       fileOps: makeFileOps(),
@@ -496,7 +749,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     expect(result.success).toBe(true);
   });
 
-  test('handles AI errors gracefully (does not throw)', async () => {
+  test('marks result as degraded when AI analysis fails', async () => {
     const aiHelper = {
       initialize: jest.fn().mockResolvedValue(true),
       executeRequest: jest.fn().mockRejectedValue(new Error('AI timeout')),
@@ -511,6 +764,10 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
 
     const result = await step.execute('/project');
     expect(result.success).toBe(true);
+    expect(result.degraded).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('AI timeout')])
+    );
   });
 
   test('accepts sourceFiles override via options', async () => {
@@ -552,6 +809,29 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     expect(promptArg).toContain('yarn');
     expect(promptArg).toContain('vitest');
     expect(promptArg).toContain('src/index.js');
+    expect(promptArg).toContain('Review Scope Files: 3');
+  });
+
+  test('resolves project kind from workflow config when option is omitted', async () => {
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step20AsyncPerfReview({
+      fileOps: makeFileOps(['src/index.js'], 'async function init() { await fetch("/api"); }', {
+        workflowConfig: 'project:\n  kind: location_based_service\n',
+      }),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack({ frameworks: [{ package: 'vue', name: 'Vue.js' }] }),
+    });
+
+    await step.execute('/project', {
+      projectName: 'my-app',
+      projectDescription: 'A sample SPA',
+    });
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(promptArg).toContain('location_based_service');
+    expect(promptArg).not.toContain('nodejs_api');
   });
 
   test('prompt includes partition-scoped file paths plus total source count context', async () => {
@@ -605,7 +885,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
         .mockResolvedValueOnce({ content: 'partition two findings' }),
     };
     const step = new Step20AsyncPerfReview({
-      fileOps: makeFileOps(files, 'export const value = 1;\n'),
+      fileOps: makeFileOps(files, 'async function a() { await Promise.resolve(1); }\n'),
       backlog: makeBacklog(),
       aiHelper,
       aiCache: makeAiCache(),
@@ -626,7 +906,7 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
   });
 
   test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {
-    const largeContent = `${'const line = 1;\n'.repeat(350)}const end = true;\n`;
+    const largeContent = `${'async function line() { await fetch("/api"); }\n'.repeat(100)}const end = true;\n`;
     const aiHelper = makeAiHelper('large file findings');
     const step = new Step20AsyncPerfReview({
       fileOps: makeFileOps(['src/large.ts'], largeContent),
@@ -662,5 +942,168 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
     expect(promptArg).toContain('npm');
     expect(promptArg).toContain('jest');
+  });
+
+  // ===========================================================================
+  // History cache behavior
+  // ===========================================================================
+
+  describe('async-pattern history cache', () => {
+    const MTIME = new Date(1_000_000);
+
+    test('skips file read when history shows no async patterns and mtime is unchanged', async () => {
+      const cachedHistory = JSON.stringify({
+        version: 1,
+        entries: {
+          'src/index.js': { mtimeMs: MTIME.getTime(), hasAsyncPatterns: false },
+          'src/utils.ts': { mtimeMs: MTIME.getTime(), hasAsyncPatterns: false },
+        },
+      });
+
+      const fileOps = {
+        listDirectoryRecursive: jest.fn().mockResolvedValue(['src/index.js', 'src/utils.ts']),
+        exists: jest.fn().mockResolvedValue(false),
+        stat: jest.fn().mockResolvedValue({ modified: MTIME }),
+        writeFile: jest.fn().mockResolvedValue(undefined),
+        readFile: jest.fn().mockImplementation((p) => {
+          if (p.includes(ASYNC_HISTORY_CACHE_PATH)) return Promise.resolve(cachedHistory);
+          if (p.includes('ai_helpers')) {
+            return Promise.resolve(
+              'async_perf_engineer_prompt:\n  role_ref: r\n  task_template: "{file_content_block}"\n  approach: a'
+            );
+          }
+          if (p.includes('prompt_roles')) return Promise.resolve('roles: {}');
+          // Should NOT be called for cached no-async files
+          return Promise.reject(new Error('unexpected readFile call'));
+        }),
+      };
+
+      const aiHelper = makeAiHelper();
+      const step = new Step20AsyncPerfReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper,
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+      });
+
+      const result = await step.execute('/project');
+      expect(result.success).toBe(true);
+      // No runtime files with async patterns — AI should not have been called
+      expect(aiHelper.executeRequest).not.toHaveBeenCalled();
+      expect(result.skippedCount).toBe(2);
+    });
+
+    test('re-reads file and updates history when mtime has changed', async () => {
+      const OLD_MTIME = new Date(999_000);
+      const NEW_MTIME = new Date(1_001_000);
+
+      const cachedHistory = JSON.stringify({
+        version: 1,
+        entries: {
+          'src/index.js': { mtimeMs: OLD_MTIME.getTime(), hasAsyncPatterns: false },
+        },
+      });
+
+      const fileOps = {
+        listDirectoryRecursive: jest.fn().mockResolvedValue(['src/index.js']),
+        exists: jest.fn().mockResolvedValue(false),
+        stat: jest.fn().mockResolvedValue({ modified: NEW_MTIME }),
+        writeFile: jest.fn().mockResolvedValue(undefined),
+        readFile: jest.fn().mockImplementation((p) => {
+          if (p.includes(ASYNC_HISTORY_CACHE_PATH)) return Promise.resolve(cachedHistory);
+          if (p.includes('ai_helpers')) {
+            return Promise.resolve(
+              'async_perf_engineer_prompt:\n  role_ref: r\n  task_template: "{file_content_block}"\n  approach: a'
+            );
+          }
+          if (p.includes('prompt_roles')) return Promise.resolve('roles: {}');
+          // File now has async patterns after modification
+          return Promise.resolve('async function updated() { await fetch("/new"); }');
+        }),
+      };
+
+      const aiHelper = makeAiHelper('analysis result');
+      const step = new Step20AsyncPerfReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper,
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+      });
+
+      const result = await step.execute('/project');
+      expect(result.success).toBe(true);
+      // Re-read file has async patterns — AI should have been called
+      expect(aiHelper.executeRequest).toHaveBeenCalled();
+
+      // Updated history should be written with new mtime
+      const writtenHistoryCall = fileOps.writeFile.mock.calls.find(([p]) =>
+        p.includes(ASYNC_HISTORY_CACHE_PATH)
+      );
+      expect(writtenHistoryCall).toBeDefined();
+      const writtenHistory = JSON.parse(writtenHistoryCall[1]);
+      expect(writtenHistory.entries['src/index.js'].mtimeMs).toBe(NEW_MTIME.getTime());
+      expect(writtenHistory.entries['src/index.js'].hasAsyncPatterns).toBe(true);
+    });
+
+    test('excludes files without async patterns from AI analysis', async () => {
+      const fileOps = {
+        listDirectoryRecursive: jest.fn().mockResolvedValue(['src/worker.js', 'src/plain.js']),
+        exists: jest.fn().mockResolvedValue(false),
+        stat: jest.fn().mockResolvedValue({ modified: new Date(0) }),
+        writeFile: jest.fn().mockResolvedValue(undefined),
+        readFile: jest.fn().mockImplementation((p) => {
+          if (p.includes(ASYNC_HISTORY_CACHE_PATH)) return Promise.reject(new Error('no history'));
+          if (p.includes('ai_helpers')) {
+            return Promise.resolve(
+              'async_perf_engineer_prompt:\n  role_ref: r\n  task_template: "{file_content_block}"\n  approach: a'
+            );
+          }
+          if (p.includes('prompt_roles')) return Promise.resolve('roles: {}');
+          if (p.includes('worker.js')) return Promise.resolve('async function a() { await b(); }');
+          return Promise.resolve('const x = 1; // plain sync file');
+        }),
+      };
+
+      const aiHelper = makeAiHelper('findings');
+      const step = new Step20AsyncPerfReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper,
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+      });
+
+      await step.execute('/project');
+
+      expect(aiHelper.executeRequest).toHaveBeenCalled();
+      const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+      // worker.js should be in prompt
+      expect(promptArg).toContain('worker.js');
+      // plain.js should NOT be in prompt
+      expect(promptArg).not.toContain('plain.js');
+    });
+
+    test('persists history after each run with pruned entries', async () => {
+      const fileOps = makeFileOps(['src/index.js']);
+      const step = new Step20AsyncPerfReview({
+        fileOps,
+        backlog: makeBacklog(),
+        aiHelper: makeAiHelper(),
+        aiCache: makeAiCache(),
+        techStack: makeTechStack(),
+      });
+
+      await step.execute('/project');
+
+      const writtenCall = fileOps.writeFile.mock.calls.find(([p]) =>
+        p.includes(ASYNC_HISTORY_CACHE_PATH)
+      );
+      expect(writtenCall).toBeDefined();
+      const saved = JSON.parse(writtenCall[1]);
+      expect(saved.version).toBe(1);
+      expect(typeof saved.entries).toBe('object');
+    });
   });
 });
