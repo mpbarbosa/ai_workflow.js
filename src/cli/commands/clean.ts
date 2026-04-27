@@ -13,9 +13,40 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import { logger } from '../../core/logger.js';
 import { CleanupManager } from '../../lib/cleanup_handlers.js';
+
+export interface CleanCommandOptions {
+  all?: boolean;
+  artifacts?: boolean;
+  cache?: boolean;
+  checkpoints?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+  workflowDir?: string;
+  olderThanDays?: number;
+  keepLast?: number;
+}
+
+export interface CleanValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface CleanupTargets {
+  artifacts: boolean;
+  cache: boolean;
+  checkpoints: boolean;
+  sessions: boolean;
+  metrics: boolean;
+  all?: boolean;
+}
+
+export interface CleanupResult {
+  filesDeleted?: number;
+  bytesFreed?: number;
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Command Logic
@@ -24,11 +55,9 @@ import { CleanupManager } from '../../lib/cleanup_handlers.js';
 /**
  * Validate clean command options
  * @pure
- * @param {Object} options - Command options
- * @returns {Object} Validation result
  */
-export function validateCleanOptions(options) {
-  const errors = [];
+export function validateCleanOptions(options: CleanCommandOptions): CleanValidationResult {
+  const errors: string[] = [];
 
   // If --all is specified, individual flags should not be set
   if (options.all && (options.artifacts || options.cache || options.checkpoints)) {
@@ -51,10 +80,8 @@ export function validateCleanOptions(options) {
 /**
  * Determine what to clean based on options
  * @pure
- * @param {Object} options - Command options
- * @returns {Object} Cleanup targets
  */
-export function determineCleanupTargets(options) {
+export function determineCleanupTargets(options: CleanCommandOptions): CleanupTargets {
   if (options.all) {
     return {
       artifacts: true,
@@ -77,22 +104,22 @@ export function determineCleanupTargets(options) {
 /**
  * Format cleanup result for display
  * @pure
- * @param {Object} result - Cleanup result
- * @returns {string} Formatted message
  */
-export function formatCleanupResult(result) {
+export function formatCleanupResult(result: CleanupResult | null | undefined): string {
   if (!result) {
     return 'No cleanup result';
   }
 
-  const lines = [];
+  const filesDeleted = result.filesDeleted ?? 0;
+  const bytesFreed = result.bytesFreed ?? 0;
+  const lines: string[] = [];
 
-  if (result.filesDeleted > 0) {
-    lines.push(`Deleted ${result.filesDeleted} file(s)`);
+  if (filesDeleted > 0) {
+    lines.push(`Deleted ${filesDeleted} file(s)`);
   }
 
-  if (result.bytesFreed > 0) {
-    const mb = (result.bytesFreed / (1024 * 1024)).toFixed(2);
+  if (bytesFreed > 0) {
+    const mb = (bytesFreed / (1024 * 1024)).toFixed(2);
     lines.push(`Freed ${mb} MB`);
   }
 
@@ -109,11 +136,9 @@ export function formatCleanupResult(result) {
 
 /**
  * Execute the clean command
- * @param {Object} options - Command options
- * @returns {Promise<void>}
  */
-export async function cleanCommand(options) {
-  let spinner = null;
+export async function cleanCommand(options: CleanCommandOptions): Promise<void> {
+  let spinner: Ora | null = null;
 
   try {
     // Validate options
@@ -226,12 +251,20 @@ export async function cleanCommand(options) {
       spinner.fail('Cleanup failed');
     }
 
-    logger.error(chalk.red(`Error: ${error.message}`));
-    if (options.verbose && error.stack) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(chalk.red(`Error: ${errorMessage}`));
+    if (options.verbose && error instanceof Error && error.stack) {
       logger.error(chalk.gray(error.stack));
     }
     process.exit(1);
   }
 }
 
-export default { cleanCommand, validateCleanOptions, determineCleanupTargets, formatCleanupResult };
+const cleanCommandExports = {
+  cleanCommand,
+  validateCleanOptions,
+  determineCleanupTargets,
+  formatCleanupResult,
+};
+
+export default cleanCommandExports;

@@ -299,12 +299,14 @@ export class Step10PartitionCache {
    * @param {number} [options.maxPartitionSize] - Max files per partition
    * @param {string} [options.cacheFilename] - Override the partition state filename
    * @param {string} [options.qualityStateFilename] - Override the quality state filename
+   * @param {string} [options.label] - Tag used in debug log messages (defaults to 'Step10Partition')
    */
   constructor(options = {}) {
     this.cacheDir = options.cacheDir || DEFAULT_CACHE_DIR;
     this.maxPartitionSize = options.maxPartitionSize || MAX_PARTITION_SIZE;
     this._cacheFile = path.join(this.cacheDir, options.cacheFilename || CACHE_FILENAME);
     this._qualityStateFile = path.join(this.cacheDir, options.qualityStateFilename || QUALITY_STATE_FILENAME);
+    this._label = options.label || 'Step10Partition';
     this._entry = null;
   }
 
@@ -357,13 +359,13 @@ export class Step10PartitionCache {
     if (isCacheValid(this._entry, filesHash)) {
       const idx = this._entry.partitionIndex;
       logger.debug(
-        `[Step10Partition] Using cached index ${idx}/${this._entry.totalPartitions - 1}`
+        `[${this._label}] Using cached index ${idx}/${this._entry.totalPartitions - 1}`
       );
       return selectPartition(partitions, idx);
     }
 
     // File set changed or no cache — reset to 0 and rebuild
-    logger.debug('[Step10Partition] File set changed or no cache — resetting partition index to 0');
+    logger.debug(`[${this._label}] File set changed or no cache — resetting partition index to 0`);
     const entry = createCacheEntry(0, partitions, filesHash, Date.now());
     await this.save(entry);
     return selectPartition(partitions, 0);
@@ -387,7 +389,7 @@ export class Step10PartitionCache {
     const entry = createCacheEntry(newIdx, partitions, filesHash, Date.now());
     await this.save(entry);
     logger.debug(
-      `[Step10Partition] Advanced index ${currentIdx} → ${newIdx}/${partitions.length - 1}`
+      `[${this._label}] Advanced index ${currentIdx} → ${newIdx}/${partitions.length - 1}`
     );
     return newIdx;
   }
@@ -442,7 +444,7 @@ export class Step10PartitionCache {
     const exemptCount = allFiles.length - candidates.length;
     if (exemptCount > 0) {
       logger.debug(
-        `[Step10Partition] ${exemptCount} file(s) exempt (score > ${QUALITY_EXEMPT_THRESHOLD})`
+        `[${this._label}] ${exemptCount} file(s) exempt (score > ${QUALITY_EXEMPT_THRESHOLD})`
       );
     }
     return candidates;
@@ -461,7 +463,7 @@ export class Step10PartitionCache {
     const updated = mergeFileScores(current, perFileIssues, reviewedFiles, Date.now());
     await this.saveQualityState(createQualityState(updated));
     logger.debug(
-      `[Step10Partition] Quality scores updated for ${reviewedFiles.length} file(s)`
+      `[${this._label}] Quality scores updated for ${reviewedFiles.length} file(s)`
     );
   }
 }

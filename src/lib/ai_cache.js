@@ -497,6 +497,18 @@ export class AiCache {
         await this._saveHashStore(hashStore);
         return response;
     }
+    async invalidateFileChangeGuard(stepId) {
+        if (!this.enabled) {
+            return false;
+        }
+        const hashStore = await this._loadHashStore();
+        if (!hashStore[stepId]) {
+            return false;
+        }
+        delete hashStore[stepId];
+        await this._saveHashStore(hashStore);
+        return true;
+    }
     /**
      * Load the step hash store from disk.
      * @private

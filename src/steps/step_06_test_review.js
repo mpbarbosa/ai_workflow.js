@@ -10,10 +10,15 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import path from 'path';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import {
+  detectAndLogPrimaryLanguage,
+  detectPrimaryLanguage,
+  initializeStepAiContext,
+} from './step_execution_helpers.js';
 import {
   buildTestReviewPrompt,
   AI_HELPERS_PATH,
@@ -377,8 +382,7 @@ export class Step6TestReviewer {
       logger.step('Step 6: Test Review');
 
       // Phase 1: Detect primary language (still needed for coverage-path lookup)
-      const language = await this.detectLanguage(projectRoot);
-      logger.info(`Detected language: ${language}`);
+      const language = await detectAndLogPrimaryLanguage(this.techStack, projectRoot);
 
       // Phase 2: Resolve test file list.
       // Always run a full filesystem scan so that unmodified test files are
@@ -450,15 +454,17 @@ export class Step6TestReviewer {
 
       const report = formatTestReport(results);
       await this.backlog.saveStepSummary(6, 'Test Review', report);
+      let reviewCoverage = null;
 
       // Phase 7: AI-powered test quality review (partition + rotate strategy)
       // Mirrors step 10: reviews one partition of test files per run, rotates
       // to the next partition on success, keeping prompts within model limits.
       try {
-        const aiAvailable = await this.aiHelper.initialize();
+        const aiAvailable = await initializeStepAiContext({
+          aiHelper: this.aiHelper,
+          aiCache: this.aiCache,
+        });
         if (aiAvailable) {
-          await this.aiCache.init();
-
           const uniqueTestFiles = [
             ...new Set(
               testFiles.map((f) => (path.isAbsolute(f) ? path.relative(projectRoot, f) : f))
@@ -471,6 +477,7 @@ export class Step6TestReviewer {
             cacheDir: `${projectRoot}/.ai_workflow/.step_cache`,
             cacheFilename: 'step_06_partition.json',
             qualityStateFilename: 'step_06_quality.json',
+            label: 'Step06Partition',
           });
 
           const activeCandidates = await partitionCache.getActiveCandidates(
@@ -478,6 +485,10 @@ export class Step6TestReviewer {
             options.modifiedFiles ?? []
           );
           const partition = await partitionCache.getCurrentPartition(activeCandidates);
+          reviewCoverage =
+            partition.total > 1
+              ? `AI review covered partition ${partition.index + 1}/${partition.total} (${partition.files.length} files)`
+              : `AI review covered ${partition.files.length} file(s) in the only partition`;
 
           logger.info(
             `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
@@ -621,7 +632,8 @@ export class Step6TestReviewer {
           const aiContent = aiSections.join('\n\n---\n\n');
           if (aiContent) {
             const partitionHeader = `## AI Test Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
-            const enrichedReport = `${report}\n\n---\n\n${partitionHeader}\n${aiContent}`;
+            const coverageNote = reviewCoverage ? `> AI coverage: ${reviewCoverage}.\n\n` : '';
+            const enrichedReport = `${report}\n\n---\n\n${coverageNote}${partitionHeader}\n${aiContent}`;
             await this.backlog.saveStepSummary(6, 'Test Review', enrichedReport);
             await partitionCache.advance(activeCandidates);
           }
@@ -633,14 +645,23 @@ export class Step6TestReviewer {
       }
 
       if (issues.length === 0) {
-        logger.success('Step 6 completed - test suite looks good');
+        logger.success(
+          reviewCoverage
+            ? `Step 6 completed - deterministic checks passed; ${reviewCoverage}`
+            : 'Step 6 completed - test suite looks good'
+        );
       } else {
-        logger.warn(`Step 6 completed - ${issues.length} issue(s) identified`);
+        logger.warn(
+          reviewCoverage
+            ? `Step 6 completed - ${issues.length} issue(s) identified; ${reviewCoverage}`
+            : `Step 6 completed - ${issues.length} issue(s) identified`
+        );
       }
 
       return {
         success: true,
         ...results,
+        reviewCoverage,
       };
     } catch (error) {
       logger.error(`Step 6 failed: ${error.message}`);
@@ -654,7 +675,7 @@ export class Step6TestReviewer {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    return getPrimaryLanguage(this.techStack, projectRoot);
+    return detectPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

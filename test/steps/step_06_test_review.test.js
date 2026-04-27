@@ -148,7 +148,7 @@ describe('Step 6: Test Review', () => {
   describe('countDedicatedTestDirectoryFiles', () => {
     test('counts root and nested dedicated test directories', () => {
       const files = [
-        'test/cli/commands/clean.test.js',
+        'test/cli/commands/clean.test.ts',
         'src/__tests__/helpers.test.js',
         'src/lib/utils.test.js',
       ];
@@ -490,7 +490,7 @@ describe('Step 6: Test Review', () => {
       const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-review-'));
       mockFileOps.glob = () =>
         Promise.resolve([
-          'test/cli/commands/clean.test.js',
+          'test/cli/commands/clean.test.ts',
           'src/__tests__/helpers.test.js',
           'src/lib/utils.test.js',
         ]);

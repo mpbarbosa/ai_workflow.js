@@ -10,42 +10,60 @@ import {
   formatCheckpoint,
   formatCheckpointList,
 } from '../../../src/cli/commands/resume.js';
+import type {
+  ResumeCommandOptions,
+  ResumeCheckpoint,
+} from '../../../src/cli/commands/resume.js';
 import { logger } from '../../../src/core/logger.js';
+
+type ProcessExitSpy = jest.SpiedFunction<typeof process.exit>;
+
+const mockProcessExit = (): never => {
+  throw new Error('process.exit');
+};
+
+const noop = (): void => {};
 
 describe('Resume Command - Pure Functions', () => {
   describe('validateResumeOptions', () => {
     test('should be valid with checkpoint ID', () => {
-      const result = validateResumeOptions({}, 'checkpoint-123');
+      const options: ResumeCommandOptions = {};
+      const result = validateResumeOptions(options, 'checkpoint-123');
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     test('should be valid with --latest flag', () => {
-      const result = validateResumeOptions({ latest: true }, null);
+      const options: ResumeCommandOptions = { latest: true };
+      const result = validateResumeOptions(options, null);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     test('should be valid with --list flag', () => {
-      const result = validateResumeOptions({ list: true }, null);
+      const options: ResumeCommandOptions = { list: true };
+      const result = validateResumeOptions(options, null);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     test('should be invalid without checkpoint ID or flags', () => {
-      const result = validateResumeOptions({}, null);
+      const options: ResumeCommandOptions = {};
+      const result = validateResumeOptions(options, null);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Must specify checkpoint ID, use --latest, or use --list');
     });
 
     test('should be invalid with both --list and --latest', () => {
-      const result = validateResumeOptions({ list: true, latest: true }, null);
+      const options: ResumeCommandOptions = { list: true, latest: true };
+      const result = validateResumeOptions(options, null);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Cannot use both --list and --latest');
     });
 
     test('should be invalid with checkpoint ID and --list', () => {
-      const result = validateResumeOptions({ list: true }, 'checkpoint-123');
+      const options: ResumeCommandOptions = { list: true };
+      const result = validateResumeOptions(options, 'checkpoint-123');
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Cannot specify checkpoint ID with --list or --latest');
     });
@@ -53,7 +71,7 @@ describe('Resume Command - Pure Functions', () => {
 
   describe('formatCheckpoint', () => {
     test('should format valid checkpoint', () => {
-      const checkpoint = {
+      const checkpoint: ResumeCheckpoint = {
         workflowId: 'wf-123',
         timestamp: new Date('2026-01-15T10:00:00Z').getTime(),
         state: { completedSteps: ['step1', 'step2'] },
@@ -67,7 +85,7 @@ describe('Resume Command - Pure Functions', () => {
     });
 
     test('should handle checkpoint without metadata', () => {
-      const checkpoint = {
+      const checkpoint: ResumeCheckpoint = {
         workflowId: 'wf-456',
         timestamp: Date.now(),
         state: { completedSteps: [] },
@@ -86,7 +104,7 @@ describe('Resume Command - Pure Functions', () => {
 
   describe('formatCheckpointList', () => {
     test('should format checkpoint list', () => {
-      const checkpoints = [
+      const checkpoints: ResumeCheckpoint[] = [
         {
           workflowId: 'wf-1',
           timestamp: Date.now(),
@@ -120,14 +138,12 @@ describe('Resume Command - Pure Functions', () => {
 });
 
 describe('resumeCommand (impure wrapper)', () => {
-  let exitSpy;
+  let exitSpy: ProcessExitSpy;
 
   beforeEach(() => {
-    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit');
-    });
-    jest.spyOn(logger, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(mockProcessExit);
+    jest.spyOn(logger, 'error').mockImplementation(noop);
+    jest.spyOn(console, 'log').mockImplementation(noop);
   });
 
   afterEach(() => {
@@ -135,17 +151,19 @@ describe('resumeCommand (impure wrapper)', () => {
   });
 
   test('exits with code 1 when no checkpointId and no flags provided', async () => {
-    await expect(resumeCommand(null, {})).rejects.toThrow();
+    await expect(resumeCommand(null, {})).rejects.toThrow('process.exit');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   test('exits with code 1 when both --list and --latest are set', async () => {
-    await expect(resumeCommand(null, { list: true, latest: true })).rejects.toThrow();
+    await expect(resumeCommand(null, { list: true, latest: true })).rejects.toThrow(
+      'process.exit'
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   test('exits with code 1 when checkpointId is provided with --list', async () => {
-    await expect(resumeCommand('cp-123', { list: true })).rejects.toThrow();
+    await expect(resumeCommand('cp-123', { list: true })).rejects.toThrow('process.exit');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

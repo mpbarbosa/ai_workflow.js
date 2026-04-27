@@ -96,7 +96,7 @@ describe('CLI Help - Pure Functions', () => {
   });
 
   describe('formatExample', () => {
-    test('should format example', () => {
+    test('should include description and command in formatted example', () => {
       const example = {
         description: 'Run full workflow',
         command: 'ai-workflow run',

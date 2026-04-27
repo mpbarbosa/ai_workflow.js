@@ -362,12 +362,14 @@ export class Step11ContextAnalyzer {
       const report = formatContextReport(contextData);
       await this.backlog.saveStepSummary(11, 'Context Analysis', report);
 
-      const success = issues.critical === 0;
+      // step_11 is a reporting/context step — it never blocks subsequent execution.
+      // Critical issue counts are surfaced in contextData and the backlog summary.
+      const success = true;
 
-      if (success) {
+      if (issues.critical === 0) {
         logger.success('Step 11 completed - workflow context analyzed!');
       } else {
-        logger.warn('Step 11 completed with critical issues');
+        logger.warn(`Step 11 completed with ${issues.critical} critical issue(s) from prior steps`);
       }
 
       return {

@@ -420,6 +420,21 @@ describe('Step 1 Parallel Processing', () => {
         expect(results.errors.length).toBeGreaterThan(0);
       });
 
+      test('treats validator success=false as a failed task', async () => {
+        const files = ['README.md'];
+
+        const validator = async () => ({ success: false, error: 'AI analysis incomplete' });
+
+        const results = await processor.validate(files, validator);
+
+        expect(results.success).toBe(false);
+        expect(results.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ error: 'AI analysis incomplete', category: DOC_CATEGORIES.README }),
+          ])
+        );
+      });
+
       test('respects custom priority function', async () => {
         const files = ['README.md', 'LICENSE'];
 
@@ -450,8 +465,12 @@ describe('Step 1 Parallel Processing', () => {
 
       test('handles timeout', async () => {
         const files = ['README.md'];
+        let aborted = false;
 
-        const validator = async () => {
+        const validator = async (_category, _categoryFiles, { signal }) => {
+          signal.addEventListener('abort', () => {
+            aborted = true;
+          });
           await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms
           return {};
         };
@@ -463,6 +482,7 @@ describe('Step 1 Parallel Processing', () => {
         expect(results.success).toBe(false);
         const timeoutTask = shortTimeout.tasks.find((t) => t.status === TASK_STATUS.TIMEOUT);
         expect(timeoutTask).toBeDefined();
+        expect(aborted).toBe(true);
       }, 10000); // 10s test timeout
 
       test('returns empty results for no files', async () => {

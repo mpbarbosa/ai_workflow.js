@@ -12,12 +12,109 @@
  * @since 2026-02-10
  */
 
-import path from 'path';
+import * as path from 'node:path';
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import { logger } from '../../core/logger.js';
+// @ts-expect-error - legacy JS orchestrator module is untyped in the current TypeScript setup.
 import { MainOrchestrator } from '../../orchestrator/main_orchestrator.js';
+// @ts-expect-error - legacy JS checkpoint manager module is untyped in the current TypeScript setup.
 import { CheckpointManager } from '../../orchestrator/checkpoint_manager.js';
+
+export interface ResumeCommandOptions {
+  latest?: boolean;
+  list?: boolean;
+  projectRoot?: string;
+  stage?: string;
+  tui?: boolean;
+  verbose?: boolean;
+  workflowDir?: string;
+}
+
+export interface ResumeValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface ResumeCheckpointState {
+  completedSteps?: string[] | number;
+}
+
+export interface ResumeCheckpointMetadata {
+  progress?: number;
+  totalSteps?: number;
+}
+
+export interface ResumeCheckpoint {
+  id?: string;
+  workflowId: string;
+  timestamp: number | string | Date;
+  state: ResumeCheckpointState;
+  metadata?: ResumeCheckpointMetadata;
+}
+
+export interface ResumeCommandResult {
+  aborted?: boolean;
+  duration?: number;
+  error?: string;
+  success: boolean;
+}
+
+export interface TuiResumeResult extends ResumeCommandResult {
+  aborted: boolean;
+}
+
+interface CheckpointManagerLike {
+  list(): Promise<ResumeCheckpoint[]>;
+}
+
+interface ResumeOrchestratorLike {
+  abort(): void;
+  resume(checkpointId: string): Promise<ResumeCommandResult>;
+}
+
+interface StartTuiOptions {
+  stage: string;
+  version: string;
+  verbose: boolean;
+}
+
+interface StartTuiModule {
+  startTui: (
+    orchestrator: ResumeOrchestratorLike,
+    options: StartTuiOptions
+  ) => Promise<TuiResumeResult>;
+}
+
+function createCheckpointManager(workflowDir: string): CheckpointManagerLike {
+  return new CheckpointManager({
+    checkpointDir: path.join(workflowDir, 'checkpoints'),
+  }) as unknown as CheckpointManagerLike;
+}
+
+function createResumeOrchestrator(
+  workflowDir: string,
+  projectRoot: string,
+  checkpointId: string
+): ResumeOrchestratorLike {
+  return new MainOrchestrator({
+    workflowDir,
+    projectRoot,
+    resumeFromCheckpoint: checkpointId,
+  }) as unknown as ResumeOrchestratorLike;
+}
+
+function getCompletedStepsCount(completedSteps: ResumeCheckpointState['completedSteps']): number {
+  if (typeof completedSteps === 'number') {
+    return completedSteps;
+  }
+
+  return completedSteps?.length ?? 0;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Command Logic
@@ -26,12 +123,12 @@ import { CheckpointManager } from '../../orchestrator/checkpoint_manager.js';
 /**
  * Validate resume command options
  * @pure
- * @param {Object} options - Command options
- * @param {string|null} checkpointId - Checkpoint ID to resume from
- * @returns {Object} Validation result
  */
-export function validateResumeOptions(options, checkpointId) {
-  const errors = [];
+export function validateResumeOptions(
+  options: ResumeCommandOptions = {},
+  checkpointId: string | null | undefined
+): ResumeValidationResult {
+  const errors: string[] = [];
 
   // If not listing and not using latest, need checkpoint ID
   if (!options.list && !options.latest && !checkpointId) {
@@ -57,19 +154,17 @@ export function validateResumeOptions(options, checkpointId) {
 /**
  * Format checkpoint for display
  * @pure
- * @param {Object} checkpoint - Checkpoint data
- * @returns {string} Formatted checkpoint info
  */
-export function formatCheckpoint(checkpoint) {
+export function formatCheckpoint(checkpoint: ResumeCheckpoint | null | undefined): string {
   if (!checkpoint) {
     return 'Invalid checkpoint';
   }
 
   const { workflowId, timestamp, state } = checkpoint;
   const date = new Date(timestamp);
-  const completed = state.completedSteps?.length || 0;
-  const total = checkpoint.metadata?.totalSteps || 0;
-  const progress = checkpoint.metadata?.progress || 0;
+  const completed = getCompletedStepsCount(state.completedSteps);
+  const total = checkpoint.metadata?.totalSteps ?? 0;
+  const progress = checkpoint.metadata?.progress ?? 0;
 
   return `${workflowId} - ${date.toLocaleString()} (${completed}/${total} steps, ${progress}% complete)`;
 }
@@ -77,17 +172,17 @@ export function formatCheckpoint(checkpoint) {
 /**
  * Format checkpoint list for display
  * @pure
- * @param {Array<Object>} checkpoints - Array of checkpoints
- * @returns {string} Formatted list
  */
-export function formatCheckpointList(checkpoints) {
+export function formatCheckpointList(
+  checkpoints: ResumeCheckpoint[] | null | undefined
+): string {
   if (!checkpoints || checkpoints.length === 0) {
     return 'No checkpoints found';
   }
 
   const lines = ['Available checkpoints:', ''];
-  checkpoints.forEach((cp, index) => {
-    lines.push(`${index + 1}. ${formatCheckpoint(cp)}`);
+  checkpoints.forEach((checkpoint, index) => {
+    lines.push(`${index + 1}. ${formatCheckpoint(checkpoint)}`);
   });
 
   return lines.join('\n');
@@ -99,13 +194,9 @@ export function formatCheckpointList(checkpoints) {
 
 /**
  * List available checkpoints
- * @param {string} workflowDir - Workflow directory
- * @returns {Promise<void>}
  */
-async function listCheckpoints(workflowDir) {
-  const checkpointManager = new CheckpointManager({
-    checkpointDir: path.join(workflowDir, 'checkpoints'),
-  });
+async function listCheckpoints(workflowDir: string): Promise<void> {
+  const checkpointManager = createCheckpointManager(workflowDir);
 
   try {
     const checkpoints = await checkpointManager.list();
@@ -126,20 +217,16 @@ async function listCheckpoints(workflowDir) {
 
     console.log();
   } catch (error) {
-    logger.error(chalk.red(`Failed to list checkpoints: ${error.message}`));
+    logger.error(chalk.red(`Failed to list checkpoints: ${getErrorMessage(error)}`));
     process.exit(1);
   }
 }
 
 /**
  * Get latest checkpoint ID
- * @param {string} workflowDir - Workflow directory
- * @returns {Promise<string|null>} Latest checkpoint ID
  */
-async function getLatestCheckpointId(workflowDir) {
-  const checkpointManager = new CheckpointManager({
-    checkpointDir: path.join(workflowDir, 'checkpoints'),
-  });
+async function getLatestCheckpointId(workflowDir: string): Promise<string | null> {
+  const checkpointManager = createCheckpointManager(workflowDir);
 
   try {
     const checkpoints = await checkpointManager.list();
@@ -149,31 +236,33 @@ async function getLatestCheckpointId(workflowDir) {
     }
 
     // Sort by timestamp descending
-    checkpoints.sort((a, b) => b.timestamp - a.timestamp);
+    checkpoints.sort(
+      (left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime()
+    );
 
-    return checkpoints[0].id;
+    return checkpoints[0]?.id ?? null;
   } catch (error) {
-    logger.error(chalk.red(`Failed to get latest checkpoint: ${error.message}`));
+    logger.error(chalk.red(`Failed to get latest checkpoint: ${getErrorMessage(error)}`));
     return null;
   }
 }
 
 /**
  * Execute the resume command
- * @param {string|null} checkpointId - Checkpoint ID to resume from
- * @param {Object} options - Command options
- * @returns {Promise<void>}
  */
-export async function resumeCommand(checkpointId, options) {
-  let spinner = null;
-  let onSigint = null;
+export async function resumeCommand(
+  checkpointId: string | null | undefined,
+  options: ResumeCommandOptions = {}
+): Promise<void> {
+  let spinner: Ora | null = null;
+  let onSigint: (() => void) | null = null;
 
   try {
     // Validate options
     const validation = validateResumeOptions(options, checkpointId);
     if (!validation.isValid) {
       logger.error(chalk.red('Invalid options:'));
-      validation.errors.forEach((err) => logger.error(chalk.red(`  - ${err}`)));
+      validation.errors.forEach((error) => logger.error(chalk.red(`  - ${error}`)));
       process.exit(1);
     }
 
@@ -195,6 +284,11 @@ export async function resumeCommand(checkpointId, options) {
       console.log(chalk.cyan(`Resuming from latest checkpoint: ${checkpointId}`));
     }
 
+    if (!checkpointId) {
+      logger.error(chalk.red('No checkpoint ID provided'));
+      process.exit(1);
+    }
+
     // Display banner
     console.log();
     console.log(chalk.blue('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
@@ -205,29 +299,31 @@ export async function resumeCommand(checkpointId, options) {
     console.log();
 
     // Create orchestrator
-    const orchestrator = new MainOrchestrator({
+    const orchestrator = createResumeOrchestrator(
       workflowDir,
-      projectRoot: options.projectRoot || process.cwd(),
-      resumeFromCheckpoint: checkpointId,
-    });
+      options.projectRoot || process.cwd(),
+      checkpointId
+    );
 
     // ── TUI mode ────────────────────────────────────────────────────────────
     if (options.tui) {
-      const { startTui } = await import('../tui/index.js');
+      // @ts-expect-error - legacy JS TUI module is untyped in the current TypeScript setup.
+      const { startTui } = (await import('../tui/index.js')) as StartTuiModule;
       const result = await startTui(orchestrator, {
         stage: options.stage || 'full',
         version: '1.6.3',
-        verbose: !!options.verbose,
+        verbose: Boolean(options.verbose),
       });
       process.exit(result.aborted ? 130 : result.success ? 0 : 1);
-      return;
     }
     // ── Standard (spinner) mode ─────────────────────────────────────────────
 
     // Handle Ctrl+C: abort gracefully after the current step finishes
     onSigint = () => {
       console.log(chalk.yellow('\n\n⚠ Interrupt received — stopping after current step...'));
-      if (spinner) spinner.warn('Stopping...');
+      if (spinner) {
+        spinner.warn('Stopping...');
+      }
       orchestrator.abort();
     };
     process.once('SIGINT', onSigint);
@@ -241,7 +337,9 @@ export async function resumeCommand(checkpointId, options) {
     const result = await orchestrator.resume(checkpointId);
 
     // Remove SIGINT listener — workflow has finished
-    process.removeListener('SIGINT', onSigint);
+    if (onSigint) {
+      process.removeListener('SIGINT', onSigint);
+    }
 
     // Stop spinner
     if (spinner) {
@@ -259,13 +357,13 @@ export async function resumeCommand(checkpointId, options) {
     if (result.aborted) {
       console.log(chalk.yellow('⚠ Workflow stopped by user (Ctrl+C)'));
     } else if (result.success) {
-      console.log(chalk.green(`✓ Workflow completed successfully`));
+      console.log(chalk.green('✓ Workflow completed successfully'));
       if (result.duration) {
         const durationSec = Math.round(result.duration / 1000);
         console.log(chalk.gray(`  Duration: ${durationSec}s`));
       }
     } else {
-      console.log(chalk.red(`✗ Workflow failed`));
+      console.log(chalk.red('✗ Workflow failed'));
       if (result.error) {
         console.log(chalk.red(`  Error: ${result.error}`));
       }
@@ -276,19 +374,29 @@ export async function resumeCommand(checkpointId, options) {
     process.exit(result.aborted ? 130 : result.success ? 0 : 1);
   } catch (error) {
     // Remove SIGINT listener on error path
-    process.removeListener('SIGINT', onSigint);
+    if (onSigint) {
+      process.removeListener('SIGINT', onSigint);
+    }
 
     // Stop spinner on error
     if (spinner) {
       spinner.fail('Resume failed');
     }
 
-    logger.error(chalk.red(`Error: ${error.message}`));
-    if (options.verbose && error.stack) {
+    const errorMessage = getErrorMessage(error);
+    logger.error(chalk.red(`Error: ${errorMessage}`));
+    if (options.verbose && error instanceof Error && error.stack) {
       logger.error(chalk.gray(error.stack));
     }
     process.exit(1);
   }
 }
 
-export default { resumeCommand, validateResumeOptions, formatCheckpoint, formatCheckpointList };
+const resumeCommandExports = {
+  resumeCommand,
+  validateResumeOptions,
+  formatCheckpoint,
+  formatCheckpointList,
+};
+
+export default resumeCommandExports;

@@ -8,12 +8,18 @@
  * @since 2026-03-07
  */
 
-import React from 'react';
+import React, { type ReactElement } from 'react';
 import { Box, Text } from 'ink';
 
-/**
- * @param {{ stage: string, completed: number, total: number, version?: string, projectRoot?: string, projectVersion?: string | null }} props
- */
+export interface HeaderProps {
+  stage: string;
+  completed: number;
+  total: number;
+  version?: string;
+  projectRoot?: string;
+  projectVersion?: string | null;
+}
+
 export function Header({
   stage,
   completed,
@@ -21,7 +27,7 @@ export function Header({
   version = '1.6.3',
   projectRoot = '',
   projectVersion = null,
-}) {
+}: HeaderProps): ReactElement {
   const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
 
   return React.createElement(

@@ -11,6 +11,7 @@ import {
   validateDocumentationCounts,
   checkVersionReferences,
   classifyChangedFiles,
+  buildStep1SynthesisPrompt,
   consolidateStep1DocAnalysis,
   isLowSignalStep1Evidence,
   rankStep1EvidenceFile,
@@ -356,6 +357,50 @@ describe('Step 1: Documentation Validation', () => {
         'Inconclusive — consolidated across 2 prompt partition(s) for README.md. The visible evidence was incomplete, tangential, or out of scope for a confident documentation verdict.'
       );
     });
+
+    test('buildStep1SynthesisPrompt includes guardrails for planned items and guessed metadata', () => {
+      const prompt = buildStep1SynthesisPrompt({
+        changedFiles: ['ROADMAP.md', 'package.json'],
+        docFiles: ['README.md'],
+        scopedDocEntries: [
+          {
+            relativePath: 'README.md',
+            content: '## Current Implementation Status\n- Steps: step_00 through step_23',
+          },
+        ],
+        partitionFindings: 'README.md: Specific edit required',
+        totalPartitions: 2,
+      });
+
+      expect(prompt).toContain(
+        'Do not promote roadmap-only or planned items into released/current-state docs'
+      );
+      expect(prompt).toContain(
+        'When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines)'
+      );
+      expect(prompt).toContain('Never invent or infer release dates or "Last updated" dates');
+    });
+
+    test('buildStep1SynthesisPrompt omits empty project context sections', () => {
+      const prompt = buildStep1SynthesisPrompt({
+        changedFiles: ['ROADMAP.md'],
+        docFiles: ['README.md'],
+        projectInfo: {
+          language: undefined,
+          projectKind: undefined,
+        },
+        scopedDocEntries: [
+          {
+            relativePath: 'README.md',
+            content: '# README',
+          },
+        ],
+        partitionFindings: 'README.md: No updates required',
+        totalPartitions: 2,
+      });
+
+      expect(prompt).not.toContain('**Project Context**');
+    });
   });
 
   // ========================================================================
@@ -516,6 +561,21 @@ describe('Step 1: Documentation Validation', () => {
       expect(result.success).toBe(true);
       expect(result.analysis).toBeDefined();
       expect(result.analysis.stats.processed).toBe(2);
+    });
+
+    test('fails when parallel processing returns incomplete analysis', async () => {
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['docs/a.md']);
+      mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+      mockParallelProcessor.validate = () =>
+        Promise.resolve({
+          validatedFiles: 0,
+          totalFiles: 1,
+          categories: {},
+          errors: [{ category: 'readme', error: 'Timeout' }],
+          success: false,
+        });
+
+      await expect(analyzer.execute('/project', { enableParallel: true })).rejects.toThrow('Timeout');
     });
 
     test('handles errors gracefully', async () => {

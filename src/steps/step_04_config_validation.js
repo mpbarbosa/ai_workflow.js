@@ -16,13 +16,12 @@ import {
   appendAiRecommendations,
 } from './step_analysis_helpers.js';
 import {
-  buildStructuredPrompt,
-  injectProjectContext,
   buildYamlStepPrompt,
   buildAlternativesDirective,
   parseAlternatives,
   loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
+import { buildStepPromptWithFallback } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -118,6 +117,7 @@ export const MAX_PROMPT_ENTRY_CHARS = 4000;
  * Maximum aggregate prompt-entry payload per AI request.
  */
 export const MAX_PROMPT_PARTITION_CHARS = 9000;
+export const MAX_AI_CONFIG_PARTITIONS = 6;
 
 /**
  * Maximum number of prompt entries per partition.
@@ -559,6 +559,63 @@ export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_
 }
 
 /**
+ * Build prompt context for Step 4's supplementary file-level quality review.
+ *
+ * The supplementary `quality_prompt` expects both an authoritative file-content
+ * block and a scope note. Supplying those values keeps the prompt evidence-based
+ * and prevents the model from inventing file-specific observations.
+ *
+ * @pure
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - File data
+ * @param {Object} [options={}] - Context options
+ * @param {number} [options.maxFiles=10] - Max files to include in the prompt
+ * @param {number} [options.maxChars=MAX_FILE_CONTENT_CHARS] - Per-file character limit
+ * @returns {{
+ *   promptFileEntries: Array<{relativePath: string, content: string}>,
+ *   filesToReview: string,
+ *   fileContentMap: string,
+ *   qualityScopeNote: string
+ * }} Prompt context fields
+ */
+export function buildStep4QualityPromptContext(fileEntries, options = {}) {
+  const { maxFiles = 10, maxChars = MAX_FILE_CONTENT_CHARS } = options;
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  const promptFileEntries = entries.slice(0, maxFiles).map((entry) => ({
+    relativePath: entry.relativePath,
+    content: summarizeConfigContentForPrompt(entry.relativePath, entry.content),
+  }));
+  const omittedFileCount = Math.max(0, entries.length - promptFileEntries.length);
+  const truncatedFileCount = promptFileEntries.filter(
+    (entry) => typeof entry.content === 'string' && entry.content.length > maxChars
+  ).length;
+
+  const scopeParts = [];
+  if (promptFileEntries.length === 0) {
+    scopeParts.push(
+      'No configuration file contents were available for this supplementary quality review.'
+    );
+  } else {
+    scopeParts.push(
+      omittedFileCount > 0
+        ? `Supplementary file-level quality review scoped to the first ${promptFileEntries.length} of ${entries.length} configuration file(s) in this run.`
+        : `Supplementary file-level quality review scoped to ${promptFileEntries.length} configuration file(s) in this run.`
+    );
+    if (truncatedFileCount > 0) {
+      scopeParts.push(
+        'Some injected file contents are truncated excerpts; keep any file-wide conclusion limited to the visible text.'
+      );
+    }
+  }
+
+  return {
+    promptFileEntries,
+    filesToReview: promptFileEntries.map((entry) => entry.relativePath).join(', '),
+    fileContentMap: buildFileContentsBlock(promptFileEntries, maxChars),
+    qualityScopeNote: scopeParts.join(' '),
+  };
+}
+
+/**
  * Build a compact prompt-safe summary for npm lockfiles so the AI can reason
  * about consistency without receiving hundreds of kilobytes of generated data.
  *
@@ -580,12 +637,16 @@ export function buildPackageLockPromptSummary(content) {
         ? parsed.dependencies
         : {};
 
-    const collectResolvedVersions = (deps) => {
+    const collectDependencySummary = (deps) => {
       const names = Object.keys(deps ?? {}).sort();
       return Object.fromEntries(
         names.map((name) => [
           name,
-          packages[`node_modules/${name}`]?.version ?? legacyDependencies[name]?.version ?? null,
+          {
+            declaredSpec: deps?.[name] ?? null,
+            resolvedVersion:
+              packages[`node_modules/${name}`]?.version ?? legacyDependencies[name]?.version ?? null,
+          },
         ])
       );
     };
@@ -593,14 +654,15 @@ export function buildPackageLockPromptSummary(content) {
     return [
       '[generated npm lockfile summary]',
       'Raw lockfile content omitted to keep the prompt analyzable; use the summarized fields below for consistency checks against package.json and CI settings.',
+      'For dependency comparisons, treat `declaredSpec` as the package.json-aligned source of truth and `resolvedVersion` as the installed lockfile result.',
       JSON.stringify(
         {
           lockfileVersion: parsed.lockfileVersion ?? null,
           packageName: parsed.name ?? rootPackage.name ?? null,
           packageVersion: parsed.version ?? rootPackage.version ?? null,
           packageCount: Object.keys(packages).length,
-          rootDependencies: collectResolvedVersions(rootPackage.dependencies),
-          rootDevDependencies: collectResolvedVersions(rootPackage.devDependencies),
+          rootDependencies: collectDependencySummary(rootPackage.dependencies),
+          rootDevDependencies: collectDependencySummary(rootPackage.devDependencies),
         },
         null,
         2
@@ -703,6 +765,42 @@ export function buildConfigPromptPartitions(
 
   flush();
   return partitions;
+}
+
+export function selectConfigPromptPartitions(
+  fileEntries,
+  { modifiedFiles = [], totalIssues = 0, maxPartitions = MAX_AI_CONFIG_PARTITIONS } = {}
+) {
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  const normalizedModifiedFiles = new Set(
+    (Array.isArray(modifiedFiles) ? modifiedFiles : [])
+      .map((filePath) => String(filePath || '').replace(/\\/g, '/'))
+      .filter(Boolean)
+  );
+
+  let scopedEntries = entries;
+  let scopeNote = '';
+  if (totalIssues === 0 && normalizedModifiedFiles.size > 0) {
+    const modifiedEntries = entries.filter((entry) =>
+      normalizedModifiedFiles.has(String(entry.relativePath || '').replace(/\\/g, '/'))
+    );
+    if (modifiedEntries.length > 0 && modifiedEntries.length < entries.length) {
+      scopedEntries = modifiedEntries;
+      scopeNote = `AI review scoped to ${modifiedEntries.length} modified configuration file(s) because deterministic validation found no confirmed issues.`;
+    }
+  }
+
+  const promptPartitions = buildConfigPromptPartitions(scopedEntries);
+  if (promptPartitions.length <= maxPartitions) {
+    return { promptPartitions, scopeNote };
+  }
+
+  const cappedPartitions = promptPartitions.slice(0, maxPartitions);
+  const cappedNote = `AI review capped to ${maxPartitions} partition(s) out of ${promptPartitions.length} to avoid oversized prompt runs; deterministic validation still covered the full configuration set.`;
+  return {
+    promptPartitions: cappedPartitions,
+    scopeNote: [scopeNote, cappedNote].filter(Boolean).join(' '),
+  };
 }
 
 /**
@@ -977,10 +1075,19 @@ export class Step4ConfigAnalyzer {
           }
         }
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
-        const promptPartitions = buildConfigPromptPartitions(fileEntries);
+        const { promptPartitions, scopeNote: promptScopeNote } = selectConfigPromptPartitions(
+          fileEntries,
+          {
+            modifiedFiles: options.modifiedFiles ?? [],
+            totalIssues,
+          }
+        );
         const aiSections = [];
         const alternativeBodies = [];
 
+        if (promptScopeNote) {
+          logger.info(`[step_04] ${promptScopeNote}`);
+        }
         if (promptPartitions.length > 1) {
           logger.info(
             `[step_04] Running AI analysis in ${promptPartitions.length} partition(s) to avoid prompt truncation`
@@ -1007,26 +1114,25 @@ export class Step4ConfigAnalyzer {
             promptPartitions.length > 1
               ? `This partition covers ${partition.scopePaths.length} of ${configFiles.length} configuration files in the current run. Entries labeled "(part X/Y)" are deliberate sequential slices created to avoid prompt truncation; analyze only the visible slice(s) in this request.`
               : 'This request contains the full configuration-file scope for this run.';
+          const fullPartitionScopeNote = [partitionScopeNote, promptScopeNote].filter(Boolean).join(
+            ' '
+          );
 
-          let prompt;
-          try {
-            prompt = buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
-              project_name: path.basename(projectRoot),
-              partition_header: partitionHeader,
-              partition_scope_note: partitionScopeNote,
-              partition_config_count: String(partition.scopePaths.length),
-              config_files_list: groupConfigFilesList(partitionDisplayPaths),
-              config_files_content: filesContentBlock,
-              config_count: String(configFiles.length),
-              project_kind: projectKind,
-              tech_stack: techStackSummary,
-            });
-          } catch {
-            /* fallback to generic prompt */
-          }
-          if (!prompt) {
-            const role = `You are a configuration validation specialist and security expert.`;
-            const task = `Analyze these configuration files for project at "${projectRoot}":
+          let prompt = await buildStepPromptWithFallback({
+            buildPrompt: async () =>
+              buildYamlStepPrompt(parsedYaml, 'configuration_specialist_prompt', {
+                project_name: path.basename(projectRoot),
+                partition_header: partitionHeader,
+                partition_scope_note: fullPartitionScopeNote,
+                partition_config_count: String(partition.scopePaths.length),
+                config_files_list: groupConfigFilesList(partitionDisplayPaths),
+                config_files_content: filesContentBlock,
+                config_count: String(configFiles.length),
+                project_kind: projectKind,
+                tech_stack: techStackSummary,
+              }),
+            fallbackRole: `You are a configuration validation specialist and security expert.`,
+            fallbackTask: `Analyze these configuration files for project at "${projectRoot}":
 - Partition: ${i + 1}/${promptPartitions.length}
 - Files in this request: ${partitionDisplayPaths.join(', ')}
 - Total config files in run: ${configFiles.length}
@@ -1035,12 +1141,12 @@ export class Step4ConfigAnalyzer {
 - Best practice issues: ${bestPracticeIssues.length}
 - Total issues: ${totalIssues}
 
-${partitionScopeNote}
+${fullPartitionScopeNote}
 
-${filesContentBlock}`;
-            const approach = `Provide concise, actionable remediation steps for the most critical issues found.`;
-            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-          }
+${filesContentBlock}`,
+            fallbackApproach: `Provide concise, actionable remediation steps for the most critical issues found.`,
+            fallbackProjectContext: {},
+          });
           if (options.alternatives) {
             const n = options.alternatives === true ? 2 : options.alternatives;
             prompt += buildAlternativesDirective(n);
@@ -1097,14 +1203,20 @@ ${filesContentBlock}`;
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
         try {
-          const qualityFileHashEntries = (configFiles ?? [])
-            .slice(0, 10)
-            .map((filePath) => `${path.relative(projectRoot, filePath)}:`);
-          const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
-            files_to_review: (configFiles ?? []).slice(0, 10).join(', '),
-            project_name: projectRoot,
-          });
-          if (qPrompt) {
+          const qualityPromptContext = buildStep4QualityPromptContext(fileEntries);
+          const qualityFileHashEntries = qualityPromptContext.promptFileEntries.map(
+            (entry) => `${entry.relativePath}:${entry.content}`
+          );
+          const qPrompt =
+            qualityPromptContext.promptFileEntries.length > 0
+              ? buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
+                  files_to_review: qualityPromptContext.filesToReview,
+                  project_name: projectRoot,
+                  file_content_map: qualityPromptContext.fileContentMap,
+                  quality_scope_note: qualityPromptContext.qualityScopeNote,
+                })
+              : '';
+          if (qPrompt && qualityFileHashEntries.length > 0) {
             // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
             // specialist" role (anti-patterns, best practices, maintainability) — not security.
             const qResult = await this.aiCache.withFileChangeGuard(
@@ -1117,6 +1229,17 @@ ${filesContentBlock}`;
                 })
             );
             qualityContent = qResult?.content ?? '';
+            const qualityEvidence = validateAiResponseEvidenceHandling(
+              qualityContent,
+              qualityPromptContext.promptFileEntries.map((entry) => entry.relativePath),
+              qualityPromptContext.promptFileEntries
+            );
+            if (!qualityEvidence.adequate) {
+              logger.warn(
+                `Step 4 supplementary quality review evidence handling low: ${qualityEvidence.reason}`
+              );
+              qualityContent = normalizeAiResponseForPartialEvidence(qualityContent, qualityEvidence);
+            }
           }
         } catch {
           /* optional */
@@ -1124,7 +1247,10 @@ ${filesContentBlock}`;
 
         if (aiSections.length > 0 || qualityContent) {
           const aiSection = aiSections.join('\n\n');
-          const sections = aiSection ? [appendAiRecommendations(report, aiSection)] : [report];
+          const scopedReport = promptScopeNote
+            ? `${report}\n\n> AI scope note: ${promptScopeNote}`
+            : report;
+          const sections = aiSection ? [appendAiRecommendations(scopedReport, aiSection)] : [scopedReport];
           if (qualityContent) sections.push(`\n\n## Quality Review\n\n${qualityContent}`);
           await this.backlog.saveStepSummary(4, 'Configuration Validation', sections.join(''));
         }

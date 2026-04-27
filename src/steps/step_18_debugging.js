@@ -32,6 +32,7 @@ import {
   buildReviewPromptPartitions,
   runPartitionedAiResponses,
 } from '../lib/review_step_helpers.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -197,10 +198,12 @@ export class Step18Debugging {
       logger.info(`Selected debugger persona: ${personaKey}`);
 
       let aiContent = '';
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
 
       if (aiAvailable) {
-        await this.aiCache.init();
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           // Apply project-kind debugging_specialist overlay if available

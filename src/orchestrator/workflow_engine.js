@@ -100,7 +100,7 @@ export function buildExecutionPlan(steps) {
   }
 
   // Create a copy to avoid mutation
-  const stepsCopy = steps.map((s) => ({ ...s }));
+  const stepsCopy = steps.map((s, index) => ({ ...s, __originalOrder: index }));
 
   // Build dependency map
   const stepMap = new Map();
@@ -110,6 +110,8 @@ export function buildExecutionPlan(steps) {
       dependencies: step.dependencies || [],
     });
   });
+  const { dependencyMap } = buildDependencyMaps(stepsCopy);
+  const orderMap = new Map(stepsCopy.map((step) => [step.id, step.__originalOrder]));
 
   // Topological sort (Kahn's algorithm)
   const result = [];
@@ -135,11 +137,14 @@ export function buildExecutionPlan(steps) {
       queue.push(step);
     }
   });
+  sortReadyQueue(queue, dependencyMap, orderMap);
 
   // Process queue
   while (queue.length > 0) {
     const current = queue.shift();
-    result.push(current);
+    const cleanStep = { ...current };
+    delete cleanStep.__originalOrder;
+    result.push(cleanStep);
 
     // Find steps that depend on current
     stepsCopy.forEach((step) => {
@@ -149,6 +154,7 @@ export function buildExecutionPlan(steps) {
 
         if (newDegree === 0) {
           queue.push(step);
+          sortReadyQueue(queue, dependencyMap, orderMap);
         }
       }
     });
@@ -229,6 +235,102 @@ function evalCondition(condition, context) {
   }
 
   return Boolean(context[condition]);
+}
+
+function formatExecutionStepName(step = {}) {
+  const canonicalName = step.canonicalName || step.name || step.id;
+  const aliasName = step.aliasName || (step.name && step.name !== canonicalName ? step.name : null);
+  return aliasName ? `${aliasName} [canonical: ${canonicalName}]` : canonicalName;
+}
+
+export function formatExecutionPlanLines(steps = []) {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return [];
+  }
+
+  return steps.map((step, index) => {
+    const dependencySuffix =
+      Array.isArray(step?.dependencies) && step.dependencies.length > 0
+        ? ` | deps: ${step.dependencies.join(', ')}`
+        : '';
+    return `  ${index + 1}. ${formatExecutionStepName(step)} (${step.id})${dependencySuffix}`;
+  });
+}
+
+function buildDependencyMaps(steps = []) {
+  const dependencyMap = new Map();
+  const reverseDependencyMap = new Map();
+
+  for (const step of steps) {
+    dependencyMap.set(step.id, []);
+    reverseDependencyMap.set(step.id, []);
+  }
+
+  for (const step of steps) {
+    for (const dependencyId of step.dependencies || []) {
+      if (!dependencyMap.has(dependencyId)) {
+        continue;
+      }
+      dependencyMap.get(dependencyId).push(step);
+      reverseDependencyMap.get(step.id).push(dependencyId);
+    }
+  }
+
+  return { dependencyMap, reverseDependencyMap };
+}
+
+function getStepPriority(step, dependencyMap = new Map(), memo = new Map()) {
+  if (!step?.id) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (memo.has(step.id)) {
+    return memo.get(step.id);
+  }
+
+  const downstream = dependencyMap.get(step.id) || [];
+  const explicitPriority =
+    typeof step.priority === 'number'
+      ? step.priority
+      : typeof step.metadata?.priority === 'number'
+        ? step.metadata.priority
+        : 0;
+  const downstreamWeight = downstream.reduce(
+    (sum, dependentStep) => sum + getStepPriority(dependentStep, dependencyMap, memo),
+    0
+  );
+  const priority =
+    explicitPriority + (step.critical !== false ? 10_000 : 0) + downstream.length * 100 + downstreamWeight;
+
+  memo.set(step.id, priority);
+  return priority;
+}
+
+function sortReadyQueue(queue, dependencyMap, orderMap) {
+  const memo = new Map();
+  queue.sort((left, right) => {
+    const priorityDelta =
+      getStepPriority(right, dependencyMap, memo) - getStepPriority(left, dependencyMap, memo);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return (orderMap.get(left.id) ?? 0) - (orderMap.get(right.id) ?? 0);
+  });
+}
+
+function collectDependentCone(stepId, dependencyMap = new Map()) {
+  const blocked = new Set();
+  const queue = [...(dependencyMap.get(stepId) || [])];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current?.id || blocked.has(current.id)) {
+      continue;
+    }
+    blocked.add(current.id);
+    queue.push(...(dependencyMap.get(current.id) || []));
+  }
+
+  return blocked;
 }
 
 /**
@@ -549,6 +651,10 @@ export class WorkflowEngine extends EventEmitter {
 
     logger.success(`Workflow loaded: ${workflow.name} v${workflow.version}`);
     logger.info(`Execution plan: ${this.executionPlan.length} steps`);
+    if (this.executionPlan.length > 0) {
+      logger.info('Resolved execution queue:');
+      formatExecutionPlanLines(this.executionPlan).forEach((line) => logger.info(line));
+    }
 
     this.emit('workflow:loaded', { workflow, executionPlan: this.executionPlan });
 
@@ -624,6 +730,8 @@ export class WorkflowEngine extends EventEmitter {
     this.emit('workflow:start', { workflow: this.workflow, context: this.context });
 
     const startTime = Date.now();
+    const { dependencyMap, reverseDependencyMap } = buildDependencyMaps(this.executionPlan);
+    const blockedSteps = new Map();
 
     try {
       // Execute steps in order
@@ -631,6 +739,42 @@ export class WorkflowEngine extends EventEmitter {
         // Check if we should start from a specific step
         if (options.startFromStep && !this._isAfterOrEqual(step.id, options.startFromStep)) {
           logger.debug(`Skipping step ${step.id} (before start point)`);
+          continue;
+        }
+
+        const blockedBy = blockedSteps.get(step.id);
+        if (blockedBy) {
+          const result = {
+            stepId: step.id,
+            stepName: step.name,
+            success: true,
+            skipped: true,
+            reason: `Blocked by failed critical dependency: ${blockedBy}`,
+            blockedBy,
+            duration: 0,
+          };
+          this.results.push(result);
+          this.context.results.push(result);
+          this.emit('step:skipped', { step, result });
+          continue;
+        }
+
+        const failedDependency = (reverseDependencyMap.get(step.id) || []).find((dependencyId) =>
+          this.results.some((result) => result.stepId === dependencyId && result.success === false)
+        );
+        if (failedDependency) {
+          const result = {
+            stepId: step.id,
+            stepName: step.name,
+            success: true,
+            skipped: true,
+            reason: `Blocked by failed dependency: ${failedDependency}`,
+            blockedBy: failedDependency,
+            duration: 0,
+          };
+          this.results.push(result);
+          this.context.results.push(result);
+          this.emit('step:skipped', { step, result });
           continue;
         }
 
@@ -660,8 +804,21 @@ export class WorkflowEngine extends EventEmitter {
 
         // Stop on critical failure if configured
         if (!result.success && step.critical !== false) {
-          logger.error(`Critical step ${step.id} failed. Stopping workflow.`);
-          break;
+          const dependencyCone = collectDependentCone(step.id, dependencyMap);
+          dependencyCone.forEach((dependentStepId) => {
+            if (!blockedSteps.has(dependentStepId)) {
+              blockedSteps.set(dependentStepId, step.id);
+            }
+          });
+
+          if (dependencyCone.size === 0) {
+            logger.error(`Critical step ${step.id} failed. Stopping workflow.`);
+            break;
+          }
+
+          logger.error(
+            `Critical step ${step.id} failed. Blocking dependent steps: ${[...dependencyCone].join(', ')}.`
+          );
         }
       }
 
@@ -681,7 +838,11 @@ export class WorkflowEngine extends EventEmitter {
         };
       }
 
-      logger.success(`Workflow completed in ${duration}ms`);
+      if (summary.failed === 0) {
+        logger.success(`Workflow completed successfully in ${duration}ms`);
+      } else {
+        logger.warn(`Workflow finished with failures in ${duration}ms`);
+      }
       logger.info(`Results: ${summary.succeeded}/${summary.total} steps succeeded`);
 
       this.emit('workflow:complete', { results: this.results, summary, duration });
@@ -709,7 +870,7 @@ export class WorkflowEngine extends EventEmitter {
    * @returns {Promise<Object>} Step result
    */
   async executeStep(step, context) {
-    logger.info(`Executing step: ${step.name} (${step.id})`);
+    logger.info(`Executing step: ${formatExecutionStepName(step)} (${step.id})`);
 
     this.currentStep = step;
     const startTime = Date.now();
@@ -755,6 +916,12 @@ export class WorkflowEngine extends EventEmitter {
         const output = await step.handler(context);
 
         const duration = Date.now() - startTime;
+        const maxStepWallTimeSeconds =
+          typeof step.max_step_wall_time === 'number'
+            ? step.max_step_wall_time
+            : typeof step.metadata?.maxStepWallTime === 'number'
+              ? step.metadata.maxStepWallTime
+              : null;
         const result = {
           stepId: step.id,
           stepName: step.name,
@@ -763,10 +930,28 @@ export class WorkflowEngine extends EventEmitter {
           reason: output?.reason,
           output,
           duration,
+          degraded: output?.degraded === true,
+          warnings: Array.isArray(output?.warnings) ? output.warnings : undefined,
         };
+        if (maxStepWallTimeSeconds && duration > maxStepWallTimeSeconds * 1000) {
+          result.budgetExceeded = {
+            budgetMs: maxStepWallTimeSeconds * 1000,
+            durationMs: duration,
+          };
+          this.emit('step:budget_exceeded', {
+            step,
+            result,
+            budgetMs: maxStepWallTimeSeconds * 1000,
+            durationMs: duration,
+          });
+        }
 
         if (result.skipped) {
           logger.info(`Step ${step.id} skipped in ${duration}ms`);
+        } else if (!result.success) {
+          logger.error(`Step ${step.id} completed with failure in ${duration}ms`);
+        } else if (result.output?.degraded === true) {
+          logger.warn(`Step ${step.id} completed with degradation in ${duration}ms`);
         } else {
           logger.success(`Step ${step.id} completed in ${duration}ms`);
         }

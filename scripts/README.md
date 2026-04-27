@@ -1,18 +1,27 @@
-# Scripts
+# Scripts and Entry Points
 
-This directory contains automation scripts for development, testing, validation, and release workflows.
+This directory contains automation scripts for development, testing, validation, documentation generation, and release workflows. The published CLI command is exposed through [`../bin/ai-workflow.js`](../bin/ai-workflow.js).
+
+## Executable Entry Points
+
+| Path                 | Invocation                          | Purpose                                             | Related docs                                     |
+| -------------------- | ----------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `bin/ai-workflow.js` | `ai-workflow <command>`             | Package CLI entry point declared in `package.json`. | [CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md) |
+| `bin/ai-workflow.js` | `node bin/ai-workflow.js <command>` | Direct local invocation without a global install.   | [CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md) |
+
+The CLI entry point requires Node.js and the project dependencies to be installed. It delegates to `src/cli/index.js`, writes command output to stdout/stderr, and exits non-zero when startup or command execution fails.
 
 ## Shell Scripts
 
-| Script                 | Purpose                                                        | Guide                                                       |
-| ---------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
-| `setup.sh`             | Set up development environment (deps, submodules, directories) | [SETUP.md](../docs/guides/SETUP.md)                         |
-| `test-integration.sh`  | Run integration tests with optional coverage report            | [TEST_INTEGRATION.md](../docs/guides/TEST_INTEGRATION.md)   |
-| `validate.sh`          | Full validation pipeline (lint, format, tests, versions)       | [VALIDATE.md](../docs/guides/VALIDATE.md)                   |
-| `prepare-release.sh`   | Prepare a versioned release (tests, version bump, changelog)   | [PREPARE_RELEASE.md](../docs/guides/PREPARE_RELEASE.md)     |
-| `cleanup_artifacts.sh` | Clean up `.ai_workflow/` artifacts by age/type                 | [CLEANUP_ARTIFACTS.md](../docs/guides/CLEANUP_ARTIFACTS.md) |
-| `run-tests-docker.sh`  | Run the test suite inside a Docker container (requires Docker) | —                                                           |
-| `colors.sh`            | ANSI colour helpers sourced by other shell scripts             | —                                                           |
+| Script                         | Purpose                                                        | Guide                                                       |
+| ------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| `scripts/setup.sh`             | Set up development environment (deps, submodules, directories) | [SETUP.md](../docs/guides/SETUP.md)                         |
+| `scripts/test-integration.sh`  | Run integration tests with optional coverage report            | [TEST_INTEGRATION.md](../docs/guides/TEST_INTEGRATION.md)   |
+| `scripts/validate.sh`          | Full validation pipeline (lint, format, tests, versions)       | [VALIDATE.md](../docs/guides/VALIDATE.md)                   |
+| `scripts/prepare-release.sh`   | Prepare a versioned release (tests, version bump, changelog)   | [PREPARE_RELEASE.md](../docs/guides/PREPARE_RELEASE.md)     |
+| `scripts/cleanup_artifacts.sh` | Clean up `.ai_workflow/` artifacts by age/type                 | [CLEANUP_ARTIFACTS.md](../docs/guides/CLEANUP_ARTIFACTS.md) |
+| `scripts/run-tests-docker.sh`  | Run the test suite inside a Docker container (requires Docker) | —                                                           |
+| `scripts/colors.sh`            | ANSI colour helpers sourced by other shell scripts             | —                                                           |
 
 ## Node.js Scripts (via npm)
 
@@ -74,3 +83,11 @@ These scripts are invoked through `npm run <script>` as defined in `package.json
 | `prepublishOnly` | `npm publish` | Run validate + lint + full CI tests before publish               |
 | `prepack`        | `npm pack`    | Validate exports before packaging                                |
 | `postinstall`    | `npm install` | Run `scripts/postinstall.js` to verify environment after install |
+
+## Documentation Tooling
+
+| Path                                         | Invocation                                        | Purpose                                                                   | Prerequisites                                         | Outputs / side effects                                             |
+| -------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
+| `scripts/postprocess-typedoc-media-links.js` | `node scripts/postprocess-typedoc-media-links.js` | Rewrites broken relative links in generated TypeDoc media markdown files. | Generated TypeDoc output under `docs/api/html/media/` | Updates matching files in place and prints how many files changed. |
+
+This script is also part of `npm run docs:generate`, which runs `typedoc --options typedoc.json && node scripts/postprocess-typedoc-media-links.js`.

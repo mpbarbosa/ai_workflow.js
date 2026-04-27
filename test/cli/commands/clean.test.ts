@@ -10,24 +10,36 @@ import {
   determineCleanupTargets,
   formatCleanupResult,
 } from '../../../src/cli/commands/clean.js';
+import type { CleanCommandOptions, CleanupResult } from '../../../src/cli/commands/clean.js';
 import { logger } from '../../../src/core/logger.js';
+
+type ProcessExitSpy = jest.SpiedFunction<typeof process.exit>;
+
+const mockProcessExit = (): never => {
+  throw new Error('process.exit');
+};
+
+const noop = (): void => {};
 
 describe('Clean Command - Pure Functions', () => {
   describe('validateCleanOptions', () => {
     test('should be valid with --all', () => {
-      const result = validateCleanOptions({ all: true });
+      const options: CleanCommandOptions = { all: true };
+      const result = validateCleanOptions(options);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     test('should be valid with --artifacts', () => {
-      const result = validateCleanOptions({ artifacts: true });
+      const options: CleanCommandOptions = { artifacts: true };
+      const result = validateCleanOptions(options);
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     test('should be invalid with no options', () => {
-      const result = validateCleanOptions({});
+      const options: CleanCommandOptions = {};
+      const result = validateCleanOptions(options);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
         'Must specify at least one cleanup option (--all, --artifacts, --cache, --checkpoints)'
@@ -35,7 +47,8 @@ describe('Clean Command - Pure Functions', () => {
     });
 
     test('should be invalid with --all and other flags', () => {
-      const result = validateCleanOptions({ all: true, artifacts: true });
+      const options: CleanCommandOptions = { all: true, artifacts: true };
+      const result = validateCleanOptions(options);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('Cannot use --all with other flags');
     });
@@ -43,7 +56,8 @@ describe('Clean Command - Pure Functions', () => {
 
   describe('determineCleanupTargets', () => {
     test('should return all targets with --all', () => {
-      const targets = determineCleanupTargets({ all: true });
+      const options: CleanCommandOptions = { all: true };
+      const targets = determineCleanupTargets(options);
       expect(targets.artifacts).toBe(true);
       expect(targets.cache).toBe(true);
       expect(targets.checkpoints).toBe(true);
@@ -52,7 +66,8 @@ describe('Clean Command - Pure Functions', () => {
     });
 
     test('should return specific targets', () => {
-      const targets = determineCleanupTargets({ artifacts: true, cache: true });
+      const options: CleanCommandOptions = { artifacts: true, cache: true };
+      const targets = determineCleanupTargets(options);
       expect(targets.artifacts).toBe(true);
       expect(targets.cache).toBe(true);
       expect(targets.checkpoints).toBe(false);
@@ -61,7 +76,8 @@ describe('Clean Command - Pure Functions', () => {
     });
 
     test('should return false for unspecified targets', () => {
-      const targets = determineCleanupTargets({ artifacts: true });
+      const options: CleanCommandOptions = { artifacts: true };
+      const targets = determineCleanupTargets(options);
       expect(targets.artifacts).toBe(true);
       expect(targets.cache).toBe(false);
     });
@@ -69,7 +85,7 @@ describe('Clean Command - Pure Functions', () => {
 
   describe('formatCleanupResult', () => {
     test('should format result with files and bytes', () => {
-      const result = {
+      const result: CleanupResult = {
         filesDeleted: 5,
         bytesFreed: 1024 * 1024 * 10, // 10 MB
       };
@@ -80,7 +96,7 @@ describe('Clean Command - Pure Functions', () => {
     });
 
     test('should handle zero results', () => {
-      const result = {
+      const result: CleanupResult = {
         filesDeleted: 0,
         bytesFreed: 0,
       };
@@ -97,14 +113,12 @@ describe('Clean Command - Pure Functions', () => {
 });
 
 describe('cleanCommand (impure wrapper)', () => {
-  let exitSpy;
+  let exitSpy: ProcessExitSpy;
 
   beforeEach(() => {
-    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit');
-    });
-    jest.spyOn(logger, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(mockProcessExit);
+    jest.spyOn(logger, 'error').mockImplementation(noop);
+    jest.spyOn(console, 'log').mockImplementation(noop);
   });
 
   afterEach(() => {

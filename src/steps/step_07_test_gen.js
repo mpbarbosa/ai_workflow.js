@@ -10,9 +10,14 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
+import {
+  detectAndLogPrimaryLanguage,
+  detectPrimaryLanguage,
+  initializeStepAiContext,
+} from './step_execution_helpers.js';
 import {
   AI_HELPERS_PATH,
   AI_PROJECT_KINDS_PATH,
@@ -488,8 +493,7 @@ export class Step7TestGenerator {
       logger.step('Step 7: Test Generation');
 
       // Phase 1: Detect primary language
-      const language = await this.detectLanguage(projectRoot);
-      logger.info(`Detected language: ${language}`);
+      const language = await detectAndLogPrimaryLanguage(this.techStack, projectRoot);
 
       // Phase 2: Discover source and test files
       let sourceFiles = await this.discoverSourceFiles(projectRoot, language);
@@ -561,10 +565,11 @@ export class Step7TestGenerator {
       const generatedFiles = [];
       if (untestedFiles.length > 0) {
         try {
-          const aiAvailable = await this.aiHelper.initialize();
+          const aiAvailable = await initializeStepAiContext({
+            aiHelper: this.aiHelper,
+            aiCache: this.aiCache,
+          });
           if (aiAvailable) {
-            await this.aiCache.init();
-
             // Compute filesToGenerate here so the strategy prompt can report projected coverage,
             // avoiding a false "Critical" gap for files that are about to be generated in this run.
             const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
@@ -730,7 +735,7 @@ export class Step7TestGenerator {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    return getPrimaryLanguage(this.techStack, projectRoot);
+    return detectPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

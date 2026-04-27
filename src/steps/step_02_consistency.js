@@ -278,6 +278,52 @@ export function validateFileReferences(links, existingFiles, sourceFile) {
   return issues;
 }
 
+/**
+ * Check whether a broken link target also matches an existing repo-root-relative path.
+ * This helps the AI distinguish true missing files from likely relative-path mistakes.
+ *
+ * @pure
+ * @param {string} filePath - Raw link target from markdown
+ * @param {Set<string>} existingFiles - Set of absolute existing paths
+ * @param {string} projectRoot - Absolute project root
+ * @returns {string|null} Repo-relative path when a repo-root match exists, else null
+ */
+export function findRepoRootMatch(filePath, existingFiles, projectRoot) {
+  if (
+    !filePath ||
+    typeof filePath !== 'string' ||
+    !existingFiles ||
+    typeof existingFiles.has !== 'function' ||
+    !projectRoot
+  ) {
+    return null;
+  }
+
+  const withoutAnchor = filePath.split('#')[0];
+  if (!withoutAnchor) return null;
+
+  const candidate = path.resolve(projectRoot, withoutAnchor);
+  if (!existingFiles.has(candidate)) {
+    return null;
+  }
+
+  return path.relative(projectRoot, candidate).replaceAll(path.sep, '/');
+}
+
+/**
+ * Remove prompt-only hint suffixes from a broken-link reference so comparisons
+ * stay stable even when prompt context adds extra grounding details.
+ *
+ * @pure
+ * @param {string} reference - Broken-link reference text
+ * @returns {string} Normalized reference without prompt-only hints
+ */
+export function normalizeBrokenLinkReference(reference) {
+  return String(reference ?? '')
+    .trim()
+    .replace(/\s+\(existing repo path: [^)]+\)$/u, '');
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Reporting
 // ============================================================================
@@ -294,6 +340,7 @@ export function formatConsistencyReport(results) {
   const confirmedBrokenLinks = results.confirmedBrokenLinks ?? results.brokenLinks.length;
   const falsePositiveBrokenLinks = results.falsePositiveBrokenLinks ?? 0;
   const unverifiedBrokenLinks = results.unverifiedBrokenLinks ?? 0;
+  const degradedAiPartitions = results.degradedAiPartitions ?? 0;
 
   lines.push('## Step 2: Consistency Analysis\n');
 
@@ -305,11 +352,16 @@ export function formatConsistencyReport(results) {
   lines.push(`- **Confirmed broken links**: ${confirmedBrokenLinks}`);
   lines.push(`- **False positives**: ${falsePositiveBrokenLinks}`);
   lines.push(`- **Unverified broken-link candidates**: ${unverifiedBrokenLinks}`);
+  lines.push(`- **Degraded AI partitions**: ${degradedAiPartitions}`);
   lines.push(`- **Version issues**: ${results.versionIssues.length}\n`);
 
   // Status
-  if (results.totalIssues === 0 && brokenLinkCandidates === 0) {
+  if (results.totalIssues === 0 && brokenLinkCandidates === 0 && degradedAiPartitions === 0) {
     lines.push('✅ **Status**: All consistency checks passed\n');
+  } else if (results.totalIssues === 0 && degradedAiPartitions > 0) {
+    lines.push(
+      '⚠️ **Status**: Deterministic checks passed, but some AI-backed broken-link assessments were degraded and left unverified\n'
+    );
   } else if (results.totalIssues === 0) {
     lines.push('⚠️ **Status**: No confirmed issues, but scan candidates remain unverified\n');
   } else {
@@ -477,7 +529,7 @@ export function buildCompactDirectoryTree(fileSet, projectRoot) {
  * @param {number} totalParts - Total number of partitions
  * @param {number} [totalDocCount=0] - Total markdown files in the project (used for the
  *   completeness note shown to the AI; 0 suppresses the "X of Y" preamble)
- * @returns {{ docFilesList: string, brokenRefsList: string, header: string }}
+ * @returns {{ docFilesList: string, brokenRefsList: string, header: string, flaggedRefs: string[] }}
  */
 export function buildPartitionContext(
   partFiles,
@@ -502,25 +554,35 @@ export function buildPartitionContext(
     return partFiles.some((pf) => f.endsWith(pf) || pf.endsWith(f.replace(/^.*[/\\]/, '')));
   });
 
-  // Format as "source:line → target" so the AI knows WHAT is broken and WHERE,
-  // not which files happen to contain broken links (which all exist).
-  const formattedPairs = matchingBroken.map((l) => `${l.file}:${l.line} → ${l.link}`);
+  const pairRecords = [];
+  const seenPairs = new Set();
+  for (const issue of matchingBroken) {
+    const raw = `${issue.file}:${issue.line} → ${issue.link}`;
+    if (seenPairs.has(raw)) continue;
+    seenPairs.add(raw);
+
+    const prompt = issue.repoRootMatch
+      ? `${raw} (existing repo path: ${issue.repoRootMatch})`
+      : raw;
+    pairRecords.push({ raw, prompt });
+  }
 
   // Deduplicate and cap
-  const uniquePairs = [...new Set(formattedPairs)];
-  const cappedPairs = uniquePairs.slice(0, MAX_ISSUES_PER_PROMPT);
+  const cappedPairs = pairRecords.slice(0, MAX_ISSUES_PER_PROMPT);
   const suffix =
-    uniquePairs.length > MAX_ISSUES_PER_PROMPT
-      ? `, ... and ${uniquePairs.length - MAX_ISSUES_PER_PROMPT} more`
+    pairRecords.length > MAX_ISSUES_PER_PROMPT
+      ? `, ... and ${pairRecords.length - MAX_ISSUES_PER_PROMPT} more`
       : '';
-  const brokenRefsList = cappedPairs.length > 0 ? cappedPairs.join(', ') + suffix : 'none';
+  const flaggedRefs = cappedPairs.map((item) => item.raw);
+  const brokenRefsList =
+    cappedPairs.length > 0 ? cappedPairs.map((item) => item.prompt).join(', ') + suffix : 'none';
 
   const header =
     totalParts > 1
       ? `[Partition ${partIndex + 1} of ${totalParts} — analyse ONLY the files listed below]`
       : '';
 
-  return { docFilesList, brokenRefsList, header };
+  return { docFilesList, brokenRefsList, header, flaggedRefs };
 }
 
 // ============================================================================
@@ -633,7 +695,11 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
  */
 export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
   const normalizedFlaggedItems = [
-    ...new Set((Array.isArray(flaggedItems) ? flaggedItems : []).filter(Boolean)),
+    ...new Set(
+      (Array.isArray(flaggedItems) ? flaggedItems : [])
+        .filter(Boolean)
+        .map((item) => normalizeBrokenLinkReference(item))
+    ),
   ];
   const assessmentMap = new Map();
   const response = String(aiResponse ?? '');
@@ -642,7 +708,7 @@ export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
   let match;
 
   while ((match = referencePattern.exec(response)) !== null) {
-    const reference = match[1].trim();
+    const reference = normalizeBrokenLinkReference(match[1]);
     const statusText = match[2].trim();
     if (AI_REFERENCE_STATUS_PATTERNS.confirmed.test(statusText)) {
       assessmentMap.set(reference, 'confirmed');
@@ -832,6 +898,8 @@ export class Step2ConsistencyAnalyzer {
         falsePositiveBrokenLinks: brokenLinkAssessment.falsePositive,
         unverifiedBrokenLinks: brokenLinkAssessment.unverified,
         versionIssues,
+        degradedAiPartitions: 0,
+        warnings: [],
       };
 
       const report = formatConsistencyReport(results);
@@ -880,9 +948,10 @@ export class Step2ConsistencyAnalyzer {
           falsePositive: 0,
           unverified: 0,
         };
+        const degradedWarnings = [];
         for (let i = 0; i < totalParts; i++) {
           const partFiles = partitions[i];
-          const { docFilesList, brokenRefsList, header } = buildPartitionContext(
+          const { docFilesList, brokenRefsList, header, flaggedRefs } = buildPartitionContext(
             partFiles,
             brokenLinks,
             i,
@@ -958,22 +1027,34 @@ export class Step2ConsistencyAnalyzer {
           // analysis (cross-references, version sync, terminology), not code quality review.
           // The YAML prompt template (step2_consistency_prompt) also defines a documentation
           // specialist role — both layers must agree to avoid misleading prompt logs.
-          const aiResult = await this.aiCache.withFileChangeGuard(
-            `step_02_part${i}of${totalParts}`,
-            fileHashEntries,
-            () => this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
+          const cacheStepId = `step_02_part${i}of${totalParts}`;
+          let aiResult = await this.aiCache.withFileChangeGuard(cacheStepId, fileHashEntries, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
           );
-          const aiContent = aiResult?.content ?? '';
+          let aiContent = aiResult?.content ?? '';
 
           // Validate response quality; warn if the model gave a generic non-structured reply
-          const partitionBrokenRefs =
-            brokenRefsList !== 'none'
-              ? brokenRefsList.split(', ').filter((s) => s.includes(' → '))
-              : [];
-          const quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
+          const partitionBrokenRefs = flaggedRefs;
+          let quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
             requireGroundedNoIssueResponse: true,
           });
+          if (!quality.adequate && quality.coverage === 0) {
+            await this.aiCache.invalidateFileChangeGuard(cacheStepId);
+            logger.warn(
+              `[step_02] Partition ${i + 1}: invalidated cached AI response` +
+                ` (reason=${quality.reason}, coverage=0%). Re-running partition analysis.`
+            );
+            aiResult = await this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' });
+            aiContent = aiResult?.content ?? '';
+            quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
+              requireGroundedNoIssueResponse: true,
+            });
+          }
           if (!quality.adequate) {
+            results.degradedAiPartitions += 1;
+            degradedWarnings.push(
+              `Partition ${i + 1}/${totalParts} AI broken-link review was downgraded to unverified (${quality.reason}, coverage ${(quality.coverage * 100).toFixed(0)}%).`
+            );
             logger.warn(
               `[step_02] Partition ${i + 1}: AI response quality low` +
                 ` (reason=${quality.reason}, coverage=${(quality.coverage * 100).toFixed(0)}%).` +
@@ -987,7 +1068,14 @@ export class Step2ConsistencyAnalyzer {
             );
           }
 
-          const assessment = summarizeBrokenLinkAssessments(partitionBrokenRefs, aiContent);
+          const assessment = quality.adequate
+            ? summarizeBrokenLinkAssessments(partitionBrokenRefs, aiContent)
+            : {
+                totalCandidates: partitionBrokenRefs.length,
+                confirmed: 0,
+                falsePositive: 0,
+                unverified: partitionBrokenRefs.length,
+              };
           brokenLinkAssessment.totalCandidates += assessment.totalCandidates;
           brokenLinkAssessment.confirmed += assessment.confirmed;
           brokenLinkAssessment.falsePositive += assessment.falsePositive;
@@ -999,12 +1087,15 @@ export class Step2ConsistencyAnalyzer {
         results.confirmedBrokenLinks = brokenLinkAssessment.confirmed;
         results.falsePositiveBrokenLinks = brokenLinkAssessment.falsePositive;
         results.unverifiedBrokenLinks = brokenLinkAssessment.unverified;
+        results.warnings = degradedWarnings;
 
+        const updatedReport = formatConsistencyReport(results);
         if (aiParts.length > 0) {
-          const updatedReport = formatConsistencyReport(results);
           const merged = aiParts.join('\n\n---\n\n');
           const enrichedReport = appendAiRecommendations(updatedReport, merged);
           await this.backlog.saveStepSummary(2, 'Consistency Analysis', enrichedReport);
+        } else if (results.degradedAiPartitions > 0) {
+          await this.backlog.saveStepSummary(2, 'Consistency Analysis', updatedReport);
         }
       } else {
         logger.warn('AI helper not available - skipping AI consistency analysis');
@@ -1012,6 +1103,10 @@ export class Step2ConsistencyAnalyzer {
 
       if (results.totalIssues === 0 && results.brokenLinkCandidates === 0) {
         logger.success('Step 2 completed - no issues found');
+      } else if (results.degradedAiPartitions > 0 && results.totalIssues === 0) {
+        logger.warn(
+          `Step 2 completed with degraded AI evidence - ${results.unverifiedBrokenLinks} candidate(s) remain unverified across ${results.degradedAiPartitions} partition(s)`
+        );
       } else if (results.totalIssues === 0) {
         logger.warn(
           `Step 2 completed - 0 confirmed issue(s), ${results.unverifiedBrokenLinks} unverified candidate(s), ${results.falsePositiveBrokenLinks} false positive(s)`
@@ -1024,6 +1119,7 @@ export class Step2ConsistencyAnalyzer {
 
       return {
         success: true,
+        degraded: results.degradedAiPartitions > 0,
         ...results,
       };
     } catch (error) {
@@ -1256,14 +1352,17 @@ export class Step2ConsistencyAnalyzer {
    * @param {string} _projectRoot - Project root directory (reserved for future use)
    * @returns {Promise<Object[]>} Broken link issues
    */
-  async checkLinks(docFiles, existingFiles, _projectRoot) {
+  async checkLinks(docFiles, existingFiles, projectRoot) {
     const allIssues = [];
 
     for (const file of docFiles) {
       try {
         const content = await this.fileOps.readFile(file);
         const links = extractLinks(content);
-        const issues = validateFileReferences(links, existingFiles, file);
+        const issues = validateFileReferences(links, existingFiles, file).map((issue) => ({
+          ...issue,
+          repoRootMatch: findRepoRootMatch(issue.link, existingFiles, projectRoot),
+        }));
         allIssues.push(...issues);
       } catch {
         // File read error, skip

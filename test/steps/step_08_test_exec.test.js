@@ -725,20 +725,21 @@ describe('Step 8: Test Execution', () => {
       expect(result.testResults.failed).toBe(0);
     });
 
-    test('[BUG FIX] runner crash with no output and suitesFailed=undefined is treated as success=true', async () => {
+    test('[BUG FIX] runner crash with no output and suitesFailed=undefined is treated as a blocking failure', async () => {
       // Reproduces the exact scenario from workflow log:
       //   - exit code 1, 0 bytes output (runnerCrashed: true)
       //   - parseTestOutput returns suitesFailed: undefined (non-Jest parser)
-      // Before fix: suitesFailed === 0 evaluated false for undefined, making noTestsFound=false
-      // and anyFailure=true, incorrectly halting the workflow as a critical failure.
+      // This must not be collapsed into "no tests found", because the captured evidence
+      // is inconclusive rather than explicitly test-free.
       mockExecutor.execute = async () => {
         throw { exitCode: 1, stdout: '', stderr: '' };
       };
 
       const result = await executor.execute('/project');
 
-      expect(result.success).toBe(true);
-      expect(result.noTestsFound).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.noTestsFound).toBe(false);
+      expect(result.exitCode).toBe(1);
     });
 
     test('collects coverage metrics', async () => {
@@ -937,8 +938,7 @@ describe('Step 8: Test Execution', () => {
       );
     });
 
-    test('AI prompt treats silent runner exits as inconclusive instead of confirmed no-tests-found', async () => {
-      let capturedPrompt = '';
+    test('skips AI analysis when silent runner exits leave no runtime evidence', async () => {
       mockExecutor.execute = async () => {
         throw {
           exitCode: 137,
@@ -962,34 +962,79 @@ describe('Step 8: Test Execution', () => {
         backlog: mockBacklog,
         techStack: mockTechStack,
         aiHelper: {
-          initialize: () => Promise.resolve(true),
-          executeRequest: () => Promise.resolve({ content: 'ok' }),
+          initialize: jest.fn(() => Promise.resolve(true)),
+          executeRequest: jest.fn(() => Promise.resolve({ content: 'ok' })),
         },
         aiCache: {
-          init: () => Promise.resolve(),
-          withCache: async (prompt) => {
-            capturedPrompt = prompt;
-            return { content: 'ok' };
-          },
+          init: jest.fn(() => Promise.resolve()),
+          withCache: jest.fn(async () => ({ content: 'ok' })),
         },
       });
 
       await executor.execute('/project');
 
-      expect(capturedPrompt).toContain(
-        'runner exited without output; root cause unavailable from captured evidence'
-      );
-      expect(capturedPrompt).toContain('The test runner exited without output');
-      expect(capturedPrompt).toContain('root cause unavailable from captured evidence');
-      expect(capturedPrompt).not.toContain('possible crash or OOM kill');
-      expect(capturedPrompt).not.toContain('runner likely crashed before writing');
-      expect(capturedPrompt).not.toContain(
-        'No tests were discovered or executed (runner produced no output'
-      );
+      expect(executor.aiHelper.initialize).not.toHaveBeenCalled();
+      expect(executor.aiHelper.executeRequest).not.toHaveBeenCalled();
+      expect(executor.aiCache.init).not.toHaveBeenCalled();
+      expect(executor.aiCache.withCache).not.toHaveBeenCalled();
     });
 
-    test('AI prompt treats silent custom npm validation commands as validation-script analysis', async () => {
-      let capturedPrompt = '';
+    test('does not collect stale coverage when silent runner exits leave no runtime evidence', async () => {
+      mockExecutor.execute = async () => {
+        throw {
+          exitCode: 137,
+          stdout: '',
+          stderr: '',
+        };
+      };
+      const coverageSpy = jest.spyOn(executor, 'collectCoverage');
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(false);
+      expect(result.coverage).toEqual({});
+      expect(coverageSpy).not.toHaveBeenCalled();
+    });
+
+    test('persists enriched AI recommendations without changing the base step result', async () => {
+      const savedSummaries = [];
+      mockBacklog.saveStepSummary = jest.fn(async (_step, _title, summary) => {
+        savedSummaries.push(summary);
+      });
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/package.json') {
+          return JSON.stringify({ scripts: { test: 'jest' } });
+        }
+        if (targetPath === AI_HELPERS_PATH) {
+          return readFileSync(AI_HELPERS_PATH, 'utf8');
+        }
+        throw new Error(`Unexpected readFile path: ${targetPath}`);
+      };
+
+      executor = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize: jest.fn(() => Promise.resolve(true)),
+          executeRequest: jest.fn(() => Promise.resolve({ content: 'AI says hi' })),
+        },
+        aiCache: {
+          init: jest.fn(() => Promise.resolve()),
+          withCache: jest.fn(async (_prompt, _cacheKey, runner) => runner()),
+        },
+      });
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(savedSummaries).toHaveLength(2);
+      expect(savedSummaries.at(-1)).toContain('## AI Recommendations\n\nAI says hi');
+      expect(savedSummaries.at(-1)).not.toContain('## E2E Test Engineering Analysis');
+    });
+
+    test('skips AI analysis for silent custom npm validation commands with no runtime evidence', async () => {
       mockExecutor.execute = async () => {
         throw {
           exitCode: 1,
@@ -1028,26 +1073,21 @@ describe('Step 8: Test Execution', () => {
           }),
         },
         aiHelper: {
-          initialize: () => Promise.resolve(true),
-          executeRequest: () => Promise.resolve({ content: 'ok' }),
+          initialize: jest.fn(() => Promise.resolve(true)),
+          executeRequest: jest.fn(() => Promise.resolve({ content: 'ok' })),
         },
         aiCache: {
-          init: () => Promise.resolve(),
-          withCache: async (prompt) => {
-            capturedPrompt = prompt;
-            return { content: 'ok' };
-          },
+          init: jest.fn(() => Promise.resolve()),
+          withCache: jest.fn(async () => ({ content: 'ok' })),
         },
       });
 
       await executor.execute('/project', { projectKind: 'nodejs_automation' });
 
-      expect(capturedPrompt).toContain('Test Types: validation-script');
-      expect(capturedPrompt).toContain('Scope: validation script only');
-      expect(capturedPrompt).toContain(
-        'Coverage Threshold: unavailable — no explicit project threshold configured'
-      );
-      expect(capturedPrompt).toContain('The validation command exited without output');
+      expect(executor.aiHelper.initialize).not.toHaveBeenCalled();
+      expect(executor.aiHelper.executeRequest).not.toHaveBeenCalled();
+      expect(executor.aiCache.init).not.toHaveBeenCalled();
+      expect(executor.aiCache.withCache).not.toHaveBeenCalled();
     });
   });
 

@@ -25,6 +25,7 @@ import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 
 const MAX_FILE_PATHS_IN_CONTEXT = 20;
 export const MAX_PROMPT_ENTRY_CHARS = 4_000;
@@ -631,10 +632,12 @@ export class Step20AsyncPerfReview {
       let aiContent = '';
       let degraded = false;
       const warnings = [];
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
 
       if (aiAvailable) {
-        await this.aiCache.init();
         try {
           // Detect tech stack for richer prompt context
           let buildSystem = 'npm';

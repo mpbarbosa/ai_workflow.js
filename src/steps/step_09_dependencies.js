@@ -14,16 +14,18 @@ import { logger } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { DependencyCache, CACHE_TYPE, generateCacheKey } from '../lib/dependency_cache.js';
 import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  loadResolvedAiHelpers,
-} from '../lib/ai_prompt_builder.js';
+  buildStepPromptWithFallback,
+  detectAndLogPrimaryLanguage,
+  detectPrimaryLanguage,
+  enrichStepSummaryWithOptionalAiAnalysis,
+  logLanguageAwareSkippedStepOutcomeAndReturn,
+} from './step_execution_helpers.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 
 // ============================================================================
 // CONSTANTS
@@ -876,46 +878,44 @@ export class Step9DependencyValidator {
       logger.step('Step 9: Dependency Validation');
 
       // Phase 1: Detect language
-      const language = await this.detectLanguage(projectRoot);
-      logger.info(`Detected language: ${language}`);
+      const language = await detectAndLogPrimaryLanguage(this.techStack, projectRoot);
 
       // Check if dependency validation is supported
       if (!supportsDependencyValidation(language)) {
-        logger.info(`${language} projects do not require dependency validation`);
-
         const report = formatDependencyReport({
           language,
           skipped: true,
         });
 
-        await this.backlog.saveStepSummary(9, 'Dependency Validation', report);
-
-        return {
-          success: true,
+        return logLanguageAwareSkippedStepOutcomeAndReturn({
+          backlog: this.backlog,
+          stepId: 9,
+          stepName: 'Dependency Validation',
           language,
-          skipped: true,
-        };
+          logMessage: `${language} projects do not require dependency validation`,
+          summary: report,
+        });
       }
 
       // Phase 2: Check for dependency files
       const dependencyFiles = await this.findDependencyFiles(projectRoot, language);
 
       if (dependencyFiles.length === 0) {
-        logger.warn('No dependency files found');
-
         const report = formatDependencyReport({
           language,
           skipped: true,
         });
 
-        await this.backlog.saveStepSummary(9, 'Dependency Validation', report);
-
-        return {
-          success: true,
+        return logLanguageAwareSkippedStepOutcomeAndReturn({
+          backlog: this.backlog,
+          stepId: 9,
+          stepName: 'Dependency Validation',
           language,
-          skipped: true,
+          logMethod: 'warn',
+          logMessage: 'No dependency files found',
+          summary: report,
           message: 'No dependency files found',
-        };
+        });
       }
 
       logger.info(`Found dependency files: ${dependencyFiles.join(', ')}`);
@@ -1040,195 +1040,194 @@ export class Step9DependencyValidator {
 
       // Phase 7: AI-powered dependency analysis (optional enrichment)
       try {
-        const aiAvailable = await this.aiHelper.initialize();
-        if (aiAvailable) {
-          await this.aiCache.init();
-          const vuln = vulnerabilities.summary?.total ?? 0;
-          const outdated = outdatedPackages.length;
-          // Hash key: dependency identity (package names + counts) captures meaningful input changes.
-          const depHashEntries = [
-            `${language}:total:${dependencyCounts.total ?? 0}:vuln:${vuln}:outdated:${outdated}`,
-            ...Object.keys(dependencyCounts.dependencies ?? {})
-              .slice(0, 30)
-              .map((k) => `prod:${k}`),
-            ...Object.keys(dependencyCounts.devDependencies ?? {})
-              .slice(0, 30)
-              .map((k) => `dev:${k}`),
-            ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
-          ];
-          let prompt;
-          const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
-          try {
-            const pkgMgrMap = {
-              javascript: 'npm',
-              typescript: 'npm',
-              python: 'pip',
-              go: 'go',
-              java: 'maven',
-              ruby: 'bundler',
-              rust: 'cargo',
-            };
-            const pkgMgr = pkgMgrMap[language] ?? 'unknown';
-            const prodDepsObj = dependencyCounts.dependencies ?? {};
-            const devDepsObj = dependencyCounts.devDependencies ?? {};
-            const prodList = Object.keys(prodDepsObj).slice(0, 30).join(', ') || 'none';
-            const devList = Object.keys(devDepsObj).slice(0, 30).join(', ') || 'none';
-            const vulnSum = vulnerabilities.summary ?? {};
-            let promptPackageJson = null;
-            if (language === 'javascript' || language === 'typescript') {
-              try {
-                promptPackageJson = JSON.parse(
-                  await this.fileOps.readFile(`${projectRoot}/package.json`)
-                );
-              } catch {
-                promptPackageJson = null;
-              }
-            }
-            const runtimePinFiles = [];
-            for (const pinFile of ['.nvmrc', '.node-version']) {
-              if (await this.fileOps.exists(path.join(projectRoot, pinFile))) {
-                runtimePinFiles.push(pinFile);
-              }
-            }
-            const promptEvidence = buildDependencyPromptEvidence({
-              language,
-              dependencyFiles,
-              packageJson: promptPackageJson,
-              lockfileIssues,
-              runtimePinFiles,
-            });
-            const auditSummary = vulnSum.total
-              ? `${vulnSum.total} total (${vulnSum.critical ?? 0} critical, ${vulnSum.high ?? 0} high, ${vulnSum.moderate ?? 0} moderate, ${vulnSum.low ?? 0} low)`
-              : 'No vulnerabilities found';
-            const outdatedList = outdatedPackages.length
-              ? outdatedPackages
-                  .slice(0, 20)
-                  .map((p) => `${p.name}: ${p.current} → ${p.latest}`)
-                  .join(', ')
-              : 'none';
-            prompt = buildYamlStepPrompt(parsedYaml, 'step9_dependencies_prompt', {
-              project_name: path.basename(projectRoot),
-              project_description: options?.projectDescription ?? 'N/A',
-              project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
-              primary_language: language,
-              package_manager: pkgMgr,
-              package_manager_version: 'N/A',
-              change_scope: options?.changeScope ?? 'N/A',
-              modified_count: String(options?.modifiedCount ?? 'N/A'),
-              dep_count: String(dependencyCounts.production ?? 0),
-              dev_dep_count: String(dependencyCounts.development ?? 0),
-              total_deps: String(dependencyCounts.total ?? 0),
-              dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.development ?? 0} dev)`,
-              dependency_report_content: report.slice(0, 1500) || 'none',
-              prod_deps: prodList,
-              dev_deps: devList,
-              audit_summary: auditSummary,
-              outdated_list: outdatedList,
-              manifest_evidence_level: promptEvidence.manifestEvidenceLevel,
-              runtime_version_evidence: promptEvidence.runtimeVersionEvidence,
-              lockfile_evidence: promptEvidence.lockfileEvidence,
-              dependency_tree_evidence: promptEvidence.dependencyTreeEvidence,
-              manifest_snippet: promptEvidence.manifestSnippet,
-            });
-          } catch {
-            /* fallback to generic prompt */
-          }
-          if (!prompt) {
-            const role = `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`;
-            const task = `Analyze the dependency health report for a ${language} project:
+        await enrichStepSummaryWithOptionalAiAnalysis({
+          aiHelper: this.aiHelper,
+          aiCache: this.aiCache,
+          unavailableMessage: 'AI helper not available - skipping AI dependency analysis',
+          backlog: this.backlog,
+          stepId: 9,
+          stepName: 'Dependency Validation',
+          summary: report,
+          buildAnalysis: async () => {
+            const vuln = vulnerabilities.summary?.total ?? 0;
+            const outdated = outdatedPackages.length;
+            // Hash key: dependency identity (package names + counts) captures meaningful input changes.
+            const depHashEntries = [
+              `${language}:total:${dependencyCounts.total ?? 0}:vuln:${vuln}:outdated:${outdated}`,
+              ...Object.keys(dependencyCounts.dependencies ?? {})
+                .slice(0, 30)
+                .map((k) => `prod:${k}`),
+              ...Object.keys(dependencyCounts.devDependencies ?? {})
+                .slice(0, 30)
+                .map((k) => `dev:${k}`),
+              ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
+            ];
+            const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
+            const prompt = await buildStepPromptWithFallback({
+              buildPrompt: async () => {
+                const pkgMgrMap = {
+                  javascript: 'npm',
+                  typescript: 'npm',
+                  python: 'pip',
+                  go: 'go',
+                  java: 'maven',
+                  ruby: 'bundler',
+                  rust: 'cargo',
+                };
+                const pkgMgr = pkgMgrMap[language] ?? 'unknown';
+                const prodDepsObj = dependencyCounts.dependencies ?? {};
+                const devDepsObj = dependencyCounts.devDependencies ?? {};
+                const prodList = Object.keys(prodDepsObj).slice(0, 30).join(', ') || 'none';
+                const devList = Object.keys(devDepsObj).slice(0, 30).join(', ') || 'none';
+                const vulnSum = vulnerabilities.summary ?? {};
+                let promptPackageJson = null;
+                if (language === 'javascript' || language === 'typescript') {
+                  try {
+                    promptPackageJson = JSON.parse(
+                      await this.fileOps.readFile(`${projectRoot}/package.json`)
+                    );
+                  } catch {
+                    promptPackageJson = null;
+                  }
+                }
+                const runtimePinFiles = [];
+                for (const pinFile of ['.nvmrc', '.node-version']) {
+                  if (await this.fileOps.exists(path.join(projectRoot, pinFile))) {
+                    runtimePinFiles.push(pinFile);
+                  }
+                }
+                const promptEvidence = buildDependencyPromptEvidence({
+                  language,
+                  dependencyFiles,
+                  packageJson: promptPackageJson,
+                  lockfileIssues,
+                  runtimePinFiles,
+                });
+                const auditSummary = vulnSum.total
+                  ? `${vulnSum.total} total (${vulnSum.critical ?? 0} critical, ${vulnSum.high ?? 0} high, ${vulnSum.moderate ?? 0} moderate, ${vulnSum.low ?? 0} low)`
+                  : 'No vulnerabilities found';
+                const outdatedList = outdatedPackages.length
+                  ? outdatedPackages
+                      .slice(0, 20)
+                      .map((p) => `${p.name}: ${p.current} → ${p.latest}`)
+                      .join(', ')
+                  : 'none';
+                return buildYamlStepPrompt(parsedYaml, 'step9_dependencies_prompt', {
+                  project_name: path.basename(projectRoot),
+                  project_description: options?.projectDescription ?? 'N/A',
+                  project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
+                  primary_language: language,
+                  package_manager: pkgMgr,
+                  package_manager_version: 'N/A',
+                  change_scope: options?.changeScope ?? 'N/A',
+                  modified_count: String(options?.modifiedCount ?? 'N/A'),
+                  dep_count: String(dependencyCounts.production ?? 0),
+                  dev_dep_count: String(dependencyCounts.development ?? 0),
+                  total_deps: String(dependencyCounts.total ?? 0),
+                  dependency_summary: `${dependencyCounts.total ?? 0} total (${dependencyCounts.production ?? 0} prod, ${dependencyCounts.development ?? 0} dev)`,
+                  dependency_report_content: report.slice(0, 1500) || 'none',
+                  prod_deps: prodList,
+                  dev_deps: devList,
+                  audit_summary: auditSummary,
+                  outdated_list: outdatedList,
+                  manifest_evidence_level: promptEvidence.manifestEvidenceLevel,
+                  runtime_version_evidence: promptEvidence.runtimeVersionEvidence,
+                  lockfile_evidence: promptEvidence.lockfileEvidence,
+                  dependency_tree_evidence: promptEvidence.dependencyTreeEvidence,
+                  manifest_snippet: promptEvidence.manifestSnippet,
+                });
+              },
+              fallbackRole: `You are a senior dependency security and maintenance analyst specializing in ${language} ecosystem best practices.`,
+              fallbackTask: `Analyze the dependency health report for a ${language} project:
 - Total dependencies: ${dependencyCounts.total} (${dependencyCounts.development || 0} dev, ${dependencyCounts.production || 0} production)
 - Vulnerabilities: ${vuln} total (${vulnerabilities.summary?.critical || 0} critical, ${vulnerabilities.summary?.high || 0} high)
-- Outdated packages: ${outdated}`;
-            const approach = `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`;
-            prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
-              language,
+- Outdated packages: ${outdated}`,
+              fallbackApproach: `Provide: (1) security risk assessment, (2) prioritized remediation steps, (3) maintenance recommendations.`,
+              fallbackProjectContext: {
+                language,
+              },
             });
-          }
-          const aiResult = await this.aiCache.withFileChangeGuard('step_09', depHashEntries, () =>
-            this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
-          );
-          const aiContent = aiResult?.content ?? '';
+            const aiResult = await this.aiCache.withFileChangeGuard('step_09', depHashEntries, () =>
+              this.aiHelper.executeRequest(prompt, { persona: 'dependency_analyst' })
+            );
+            const aiContent = aiResult?.content ?? '';
 
-          // Supplementary: JavaScript-developer perspective on package.json
-          let jsContent = '';
-          if (language === 'javascript' || language === 'typescript') {
-            try {
-              // Read the actual package.json so the AI reviews reality, not an invention
-              let currentPackageJson = 'Not found';
+            // Supplementary: JavaScript-developer perspective on package.json
+            let jsContent = '';
+            if (language === 'javascript' || language === 'typescript') {
               try {
-                currentPackageJson = await this.fileOps.readFile(`${projectRoot}/package.json`);
+                // Read the actual package.json so the AI reviews reality, not an invention
+                let currentPackageJson = 'Not found';
+                try {
+                  currentPackageJson = await this.fileOps.readFile(`${projectRoot}/package.json`);
+                } catch {
+                  /* file may not exist */
+                }
+
+                const jsPrompt = buildYamlStepPrompt(parsedYaml, 'javascript_developer_prompt', {
+                  project_name: path.basename(projectRoot),
+                  project_description: options?.projectDescription ?? 'N/A',
+                  project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
+                  primary_language: language,
+                  build_system:
+                    {
+                      javascript: 'npm',
+                      typescript: 'npm',
+                      python: 'pip',
+                      go: 'go',
+                      ruby: 'bundler',
+                      rust: 'cargo',
+                    }[language] ?? 'npm',
+                  test_framework:
+                    {
+                      javascript: 'jest',
+                      typescript: 'jest',
+                      python: 'pytest',
+                      go: 'go test',
+                      ruby: 'rspec',
+                      rust: 'cargo test',
+                    }[language] ?? 'jest',
+                  test_command:
+                    {
+                      javascript: 'npm test',
+                      typescript: 'npm test',
+                      python: 'pytest',
+                      go: 'go test ./...',
+                      ruby: 'rspec',
+                      rust: 'cargo test',
+                    }[language] ?? 'npm test',
+                  lint_command:
+                    {
+                      javascript: 'eslint .',
+                      typescript: 'eslint .',
+                      python: 'flake8',
+                      go: 'golint',
+                      ruby: 'rubocop',
+                      rust: 'cargo clippy',
+                    }[language] ?? 'eslint .',
+                  modified_count: String(options?.modifiedCount ?? 'N/A'),
+                  current_package_json: currentPackageJson,
+                });
+                if (jsPrompt) {
+                  const jsHashEntries = [`package.json:${currentPackageJson}`];
+                  const jsResult = await this.aiCache.withFileChangeGuard(
+                    'step_09_js',
+                    jsHashEntries,
+                    () => this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
+                  );
+                  jsContent = jsResult?.content ?? '';
+                }
               } catch {
-                /* file may not exist */
+                /* optional */
               }
-
-              const jsPrompt = buildYamlStepPrompt(parsedYaml, 'javascript_developer_prompt', {
-                project_name: path.basename(projectRoot),
-                project_description: options?.projectDescription ?? 'N/A',
-                project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
-                primary_language: language,
-                build_system:
-                  {
-                    javascript: 'npm',
-                    typescript: 'npm',
-                    python: 'pip',
-                    go: 'go',
-                    ruby: 'bundler',
-                    rust: 'cargo',
-                  }[language] ?? 'npm',
-                test_framework:
-                  {
-                    javascript: 'jest',
-                    typescript: 'jest',
-                    python: 'pytest',
-                    go: 'go test',
-                    ruby: 'rspec',
-                    rust: 'cargo test',
-                  }[language] ?? 'jest',
-                test_command:
-                  {
-                    javascript: 'npm test',
-                    typescript: 'npm test',
-                    python: 'pytest',
-                    go: 'go test ./...',
-                    ruby: 'rspec',
-                    rust: 'cargo test',
-                  }[language] ?? 'npm test',
-                lint_command:
-                  {
-                    javascript: 'eslint .',
-                    typescript: 'eslint .',
-                    python: 'flake8',
-                    go: 'golint',
-                    ruby: 'rubocop',
-                    rust: 'cargo clippy',
-                  }[language] ?? 'eslint .',
-                modified_count: String(options?.modifiedCount ?? 'N/A'),
-                current_package_json: currentPackageJson,
-              });
-              if (jsPrompt) {
-                const jsHashEntries = [`package.json:${currentPackageJson}`];
-                const jsResult = await this.aiCache.withFileChangeGuard(
-                  'step_09_js',
-                  jsHashEntries,
-                  () => this.aiHelper.executeRequest(jsPrompt, { persona: 'dependency_analyst' })
-                );
-                jsContent = jsResult?.content ?? '';
-              }
-            } catch {
-              /* optional */
             }
-          }
 
-          if (aiContent || jsContent) {
-            const sections = aiContent
-              ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
-              : [report];
-            if (jsContent) sections.push(`\n\n## JavaScript Developer Analysis\n\n${jsContent}`);
-            await this.backlog.saveStepSummary(9, 'Dependency Validation', sections.join(''));
-          }
-        } else {
-          logger.warn('AI helper not available - skipping AI dependency analysis');
-        }
+            return {
+              aiRecommendations: aiContent,
+              extraSections: [{ title: 'JavaScript Developer Analysis', content: jsContent }],
+            };
+          },
+        });
       } catch (aiError) {
         logger.warn(`AI dependency analysis skipped: ${aiError.message}`);
       }
@@ -1259,7 +1258,7 @@ export class Step9DependencyValidator {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    return getPrimaryLanguage(this.techStack, projectRoot);
+    return detectPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

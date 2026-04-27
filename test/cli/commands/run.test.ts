@@ -1,19 +1,33 @@
 /**
  * @fileoverview Tests for CLI Run Command
- * @module test/cli/commands/run
+ * @module test/cli/commands/run.test
  */
 
+import { describe, expect, test } from '@jest/globals';
 import {
-  validateRunOptions,
   createOrchestratorOptions,
   formatWorkflowResult,
+  validateRunOptions,
+} from '../../../src/cli/commands/run.js';
+import type {
+  RunCommandOptions,
+  RunCommandResult,
+  RunOrchestratorOptions,
 } from '../../../src/cli/commands/run.js';
 import { WORKFLOW_STAGES } from '../../../src/orchestrator/main_orchestrator.js';
 
-describe('CLI Run Command - Pure Functions', () => {
-  describe('validateRunOptions', () => {
-    test('should validate correct options', () => {
-      const options = {
+interface WorkflowResultInput extends Pick<RunCommandResult, 'duration' | 'results' | 'success'> {
+  summary?: RunCommandResult['summary'];
+}
+
+function createWorkflowResult(input: WorkflowResultInput): RunCommandResult {
+  return input;
+}
+
+describe('CLI Run Command - Pure Functions', (): void => {
+  describe('validateRunOptions', (): void => {
+    test('should validate correct options', (): void => {
+      const options: RunCommandOptions = {
         stage: 'quick',
         auto: true,
         config: '.workflow-config.yaml',
@@ -25,8 +39,8 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(result.errors).toEqual([]);
     });
 
-    test('should reject invalid stage', () => {
-      const options = {
+    test('should reject invalid stage', (): void => {
+      const options: RunCommandOptions = {
         stage: 'invalid-stage',
       };
 
@@ -37,17 +51,18 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(result.errors[0]).toContain('Invalid stage');
     });
 
-    test('should accept valid stages', () => {
-      const stages = ['quick', 'medium', 'full'];
+    test('should accept valid stages', (): void => {
+      const stages: string[] = ['quick', 'medium', 'full'];
 
-      stages.forEach((stage) => {
-        const result = validateRunOptions({ stage });
+      stages.forEach((stage: string): void => {
+        const options: RunCommandOptions = { stage };
+        const result = validateRunOptions(options);
         expect(result.isValid).toBe(true);
       });
     });
 
-    test('should reject non-string config path', () => {
-      const options = {
+    test('should reject non-string config path', (): void => {
+      const options: RunCommandOptions = {
         config: 123,
       };
 
@@ -58,9 +73,9 @@ describe('CLI Run Command - Pure Functions', () => {
     });
   });
 
-  describe('createOrchestratorOptions', () => {
-    test('should create orchestrator options from CLI options', () => {
-      const cliOptions = {
+  describe('createOrchestratorOptions', (): void => {
+    test('should create orchestrator options from CLI options', (): void => {
+      const cliOptions: RunCommandOptions = {
         stage: 'quick',
         auto: true,
         dryRun: false,
@@ -68,7 +83,7 @@ describe('CLI Run Command - Pure Functions', () => {
         projectRoot: '/test/project',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.workflowDir).toBe('.test_workflow');
       expect(result.projectRoot).toBe('/test/project');
@@ -77,8 +92,8 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(result.dryRun).toBe(false);
     });
 
-    test('should use defaults for missing options', () => {
-      const result = createOrchestratorOptions({});
+    test('should use defaults for missing options', (): void => {
+      const result: RunOrchestratorOptions = createOrchestratorOptions({});
 
       expect(result.workflowDir).toBe('.ai_workflow');
       expect(result.projectRoot).toBe(process.cwd());
@@ -87,64 +102,64 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(result.dryRun).toBe(false);
     });
 
-    test('should handle custom project root path', () => {
-      const cliOptions = {
+    test('should handle custom project root path', (): void => {
+      const cliOptions: RunCommandOptions = {
         projectRoot: '/home/user/my-project',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.projectRoot).toBe('/home/user/my-project');
-      expect(result.workflowDir).toBe('.ai_workflow'); // Uses default
+      expect(result.workflowDir).toBe('.ai_workflow');
     });
 
-    test('should handle custom workflow directory', () => {
-      const cliOptions = {
+    test('should handle custom workflow directory', (): void => {
+      const cliOptions: RunCommandOptions = {
         workflowDir: '.custom_ai_workflow',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.workflowDir).toBe('.custom_ai_workflow');
-      expect(result.projectRoot).toBe(process.cwd()); // Uses default
+      expect(result.projectRoot).toBe(process.cwd());
     });
 
-    test('should handle both custom project root and workflow dir', () => {
-      const cliOptions = {
+    test('should handle both custom project root and workflow dir', (): void => {
+      const cliOptions: RunCommandOptions = {
         projectRoot: '/path/to/project',
         workflowDir: '.custom_workflow',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.projectRoot).toBe('/path/to/project');
       expect(result.workflowDir).toBe('.custom_workflow');
     });
 
-    test('should handle relative project root paths', () => {
-      const cliOptions = {
+    test('should handle relative project root paths', (): void => {
+      const cliOptions: RunCommandOptions = {
         projectRoot: './my-project',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.projectRoot).toBe('./my-project');
     });
 
-    test('should handle absolute workflow directory paths', () => {
-      const cliOptions = {
+    test('should handle absolute workflow directory paths', (): void => {
+      const cliOptions: RunCommandOptions = {
         workflowDir: '/tmp/workflow_artifacts',
       };
 
-      const result = createOrchestratorOptions(cliOptions);
+      const result: RunOrchestratorOptions = createOrchestratorOptions(cliOptions);
 
       expect(result.workflowDir).toBe('/tmp/workflow_artifacts');
     });
   });
 
-  describe('formatWorkflowResult', () => {
-    test('should format successful result', () => {
-      const result = {
+  describe('formatWorkflowResult', (): void => {
+    test('should format successful result', (): void => {
+      const result: RunCommandResult = createWorkflowResult({
         success: true,
         duration: 5432,
         results: {
@@ -153,7 +168,7 @@ describe('CLI Run Command - Pure Functions', () => {
             total: 10,
           },
         },
-      };
+      });
 
       const formatted = formatWorkflowResult(result);
 
@@ -162,8 +177,8 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(formatted).toContain('5s');
     });
 
-    test('should format failed result', () => {
-      const result = {
+    test('should format failed result', (): void => {
+      const result: RunCommandResult = createWorkflowResult({
         success: false,
         duration: 3210,
         results: {
@@ -172,7 +187,7 @@ describe('CLI Run Command - Pure Functions', () => {
             total: 10,
           },
         },
-      };
+      });
 
       const formatted = formatWorkflowResult(result);
 
@@ -181,18 +196,18 @@ describe('CLI Run Command - Pure Functions', () => {
       expect(formatted).toContain('3s');
     });
 
-    test('should handle null result', () => {
+    test('should handle null result', (): void => {
       const formatted = formatWorkflowResult(null);
 
       expect(formatted).toBe('No result available');
     });
 
-    test('should handle result without summary', () => {
-      const result = {
+    test('should handle result without summary', (): void => {
+      const result: RunCommandResult = createWorkflowResult({
         success: true,
         duration: 1000,
         results: {},
-      };
+      });
 
       const formatted = formatWorkflowResult(result);
 
@@ -201,47 +216,54 @@ describe('CLI Run Command - Pure Functions', () => {
     });
   });
 
-  describe('validateRunOptions - alternatives', () => {
-    test('accepts --alternatives absent (false)', () => {
-      const result = validateRunOptions({ alternatives: false });
+  describe('validateRunOptions - alternatives', (): void => {
+    test('accepts --alternatives absent (false)', (): void => {
+      const options: RunCommandOptions = { alternatives: false };
+      const result = validateRunOptions(options);
       expect(result.isValid).toBe(true);
     });
 
-    test('accepts --alternatives bare flag (true)', () => {
-      const result = validateRunOptions({ alternatives: true });
+    test('accepts --alternatives bare flag (true)', (): void => {
+      const options: RunCommandOptions = { alternatives: true };
+      const result = validateRunOptions(options);
       expect(result.isValid).toBe(true);
     });
 
-    test('accepts --alternatives with numeric string', () => {
-      const result = validateRunOptions({ alternatives: '3' });
+    test('accepts --alternatives with numeric string', (): void => {
+      const options: RunCommandOptions = { alternatives: '3' };
+      const result = validateRunOptions(options);
       expect(result.isValid).toBe(true);
     });
 
-    test('rejects --alternatives with value less than 2', () => {
-      const result = validateRunOptions({ alternatives: '1' });
+    test('rejects --alternatives with value less than 2', (): void => {
+      const options: RunCommandOptions = { alternatives: '1' };
+      const result = validateRunOptions(options);
       expect(result.isValid).toBe(false);
       expect(result.errors[0]).toMatch(/at least 2/);
     });
   });
 
-  describe('createOrchestratorOptions - alternatives', () => {
-    test('alternatives is false when flag absent', () => {
-      const result = createOrchestratorOptions({});
+  describe('createOrchestratorOptions - alternatives', (): void => {
+    test('alternatives is false when flag absent', (): void => {
+      const result: RunOrchestratorOptions = createOrchestratorOptions({});
       expect(result.alternatives).toBe(false);
     });
 
-    test('alternatives defaults to 2 when bare flag passed', () => {
-      const result = createOrchestratorOptions({ alternatives: true });
+    test('alternatives defaults to 2 when bare flag passed', (): void => {
+      const options: RunCommandOptions = { alternatives: true };
+      const result: RunOrchestratorOptions = createOrchestratorOptions(options);
       expect(result.alternatives).toBe(2);
     });
 
-    test('alternatives coerced to integer from string', () => {
-      const result = createOrchestratorOptions({ alternatives: '4' });
+    test('alternatives coerced to integer from string', (): void => {
+      const options: RunCommandOptions = { alternatives: '4' };
+      const result: RunOrchestratorOptions = createOrchestratorOptions(options);
       expect(result.alternatives).toBe(4);
     });
 
-    test('alternatives clamped to minimum 2 for values below threshold', () => {
-      const result = createOrchestratorOptions({ alternatives: '1' });
+    test('alternatives clamped to minimum 2 for values below threshold', (): void => {
+      const options: RunCommandOptions = { alternatives: '1' };
+      const result: RunOrchestratorOptions = createOrchestratorOptions(options);
       expect(result.alternatives).toBe(2);
     });
   });

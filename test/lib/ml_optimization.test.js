@@ -645,6 +645,7 @@ describe('MLOptimizer Integration', () => {
     test('handles missing model file gracefully', async () => {
       await expect(optimizer.initialize()).resolves.not.toThrow();
       expect(optimizer.initialized).toBe(true);
+      expect(optimizer.hasPersistedModel).toBe(false);
     });
 
     test('does not reinitialize if already initialized', async () => {
@@ -674,6 +675,7 @@ describe('MLOptimizer Integration', () => {
 
       expect(newOptimizer.historicalData).toHaveLength(2);
       expect(newOptimizer.accuracy.overall).toBe(0.95);
+      expect(newOptimizer.hasPersistedModel).toBe(true);
     });
 
     test('handles corrupted model file', async () => {
@@ -688,7 +690,7 @@ describe('MLOptimizer Integration', () => {
       await optimizer.initialize();
     });
 
-    test('makes predictions for steps with no changes', () => {
+    test('does not skip steps before a persisted model exists', () => {
       const context = {
         changeStats: {
           changePercentage: 0,
@@ -698,10 +700,9 @@ describe('MLOptimizer Integration', () => {
 
       const prediction = optimizer.predict('step1', context);
 
-      // With no history, it still predicts SKIP for no changes (Rule 2)
-      expect(prediction.prediction).toBe(PREDICTION.SKIP);
-      expect(prediction.confidence).toBeGreaterThan(0.9);
-      expect(prediction.reason).toBe(SKIP_REASON.NO_CHANGES);
+      expect(prediction.prediction).toBe(PREDICTION.EXECUTE);
+      expect(prediction.confidence).toBe(0);
+      expect(prediction.reason).toBe(SKIP_REASON.INSUFFICIENT_DATA);
     });
 
     test('throws if not initialized', () => {
@@ -722,6 +723,7 @@ describe('MLOptimizer Integration', () => {
           },
           outcome: 'success',
         }));
+      optimizer.hasPersistedModel = true;
 
       const context = {
         changeStats: {
@@ -854,7 +856,7 @@ describe('MLOptimizer Integration', () => {
       // Make prediction (no history yet)
       let context = { changeStats: { changePercentage: 0, changed: 0 } };
       let prediction = optimizer.predict('step1', context);
-      expect(prediction.prediction).toBe(PREDICTION.SKIP);
+      expect(prediction.prediction).toBe(PREDICTION.EXECUTE);
 
       // Record outcome
       optimizer.recordOutcome('step1', context, prediction, 'success');
@@ -883,6 +885,11 @@ describe('MLOptimizer Integration', () => {
       expect(newOptimizer.historicalData.length).toBe(11);
 
       // Make prediction with loaded model
+      const zeroChangePrediction = newOptimizer.predict('step1', {
+        changeStats: { changePercentage: 0, changed: 0 },
+      });
+      expect(zeroChangePrediction.prediction).toBe(PREDICTION.SKIP);
+
       const newPrediction = newOptimizer.predict('step1', context);
       expect(newPrediction.samplesUsed).toBeGreaterThan(0);
     });

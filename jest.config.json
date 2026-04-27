@@ -11,8 +11,21 @@
     "!src/core/system.js",
     "!src/core/version.js"
   ],
-  "testMatch": ["**/test/**/*.test.js", "**/test/**/*.spec.js", "**/__tests__/**/*.js"],
-  "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/"],
+  "testMatch": [
+    "**/test/**/*.test.js",
+    "**/test/**/*.spec.js",
+    "**/__tests__/**/*.js",
+    "**/test/cli/commands/clean.test.ts",
+    "**/test/cli/commands/config.test.ts",
+    "**/test/cli/commands/deploy.test.ts",
+    "**/test/cli/commands/run.test.ts",
+    "**/test/cli/commands/init.test.ts",
+    "**/test/cli/commands/fix_log_issues.test.ts",
+    "**/test/cli/commands/resume.test.ts",
+    "**/test/cli/commands/status.test.ts"
+  ],
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/build/", "\\.d\\.test\\.ts$"],
+  "extensionsToTreatAsEsm": [".ts"],
   "coveragePathIgnorePatterns": ["/node_modules/", "/scripts/", "/src/core/"],
   "moduleNameMapper": {
     "^react$": "<rootDir>/node_modules/react/index.js",
@@ -22,7 +35,9 @@
     "^olinda_shell_interface\\.js/(.+)$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/$1.js",
     "^olinda_shell_interface\\.js$": "<rootDir>/node_modules/olinda_shell_interface.js/dist/src/index.js"
   },
-  "transform": {},
+  "transform": {
+    "^.+\\.tsx?$": "<rootDir>/scripts/jest-typescript-transformer.cjs"
+  },
   "maxWorkers": "50%",
   "coverageThreshold": {
     "global": {

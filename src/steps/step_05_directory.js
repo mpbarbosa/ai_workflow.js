@@ -18,12 +18,8 @@ import fs from 'fs/promises';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
-import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  loadResolvedAiHelpers,
-} from '../lib/ai_prompt_builder.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { buildStepPromptWithFallback, initializeStepAiContext } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -421,6 +417,7 @@ export function formatDirectoryReport(results) {
     missingCritical = 0,
     undocumented = 0,
     docMismatch = 0,
+    warnings = [],
   } = results;
 
   let report = '# Directory Structure Validation\n\n';
@@ -463,6 +460,14 @@ export function formatDirectoryReport(results) {
   if (organizedDocs > 0) {
     report += '## ✅ Documentation Organized\n\n';
     report += `Successfully categorized and moved ${organizedDocs} documentation files.\n\n`;
+  }
+
+  if (warnings.length > 0) {
+    report += '## Evidence Limitations\n\n';
+    warnings.forEach((warning) => {
+      report += `- ${warning}\n`;
+    });
+    report += '\n';
   }
 
   if (structureIssues.length === 0 && misplacedDocs === 0) {
@@ -589,86 +594,96 @@ export class Step5DirectoryAnalyzer {
         misplacedDocs,
         organizedDocs,
         ...structureResults,
+        warnings: [],
       };
-
-      const report = formatDirectoryReport(results);
+      let degraded = false;
+      let report = formatDirectoryReport(results);
+      let aiRecommendationReport = '';
       await this.backlog.saveStepSummary(5, 'Directory Structure Validation', report);
 
       // Phase AI: AI-powered directory structure analysis
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
       if (aiAvailable) {
-        await this.aiCache.init();
-        let prompt;
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
-        try {
-          const language = options.language || (await this.detectLanguage(projectRoot));
-          const projectKind =
-            options.projectKind ??
-            (this.projectKindConfig
-              ? await this.projectKindConfig.getProjectKind().catch(() => null)
-              : null) ??
-            '';
-          const aiGuidance =
-            projectKind && this.projectKindConfig
-              ? await this.projectKindConfig.getAIGuidance(projectKind).catch(() => null)
-              : null;
-          // 'language_specific_directory_standards' carries project-kind-level directory
-          // conventions (not language-level, despite the placeholder name which predates
-          // the project_kinds system). Injecting the 'generic' kind's content-free bullets
-          // adds prompt tokens with no signal value, so treat 'generic' as absent.
-          const GENERIC_KIND = 'generic';
-          const directoryStandards =
-            projectKind && projectKind !== GENERIC_KIND && aiGuidance?.directory_standards?.length
-              ? aiGuidance.directory_standards.map((s) => `- ${s}`).join('\n')
-              : '';
-          const issueLines =
-            structureResults.issues?.length > 0
-              ? structureResults.issues
-                  .slice(0, 20)
-                  .map((i) => `- [${i.type}] ${i.directory}: ${i.message}`)
-                  .join('\n')
-              : 'No issues detected';
-          const dirTree =
-            (structureResults.existingDirs ?? []).length > 0
-              ? structureResults.existingDirs.slice(0, 50).join('\n')
-              : 'none';
-          const documentationFiles = structureResults.documentationFiles ?? [];
-          const docContext = buildDirectoryDocumentationExcerpts(
-            documentationFiles,
-            structureResults.existingDirs ?? [],
-            2500
-          );
-          prompt = buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
-            project_name: projectRoot,
-            project_description: options.projectDescription || '',
-            primary_language: language,
-            project_kind: projectKind,
-            dir_count: String(results.totalDirs ?? 0),
-            change_scope: options.scope || '',
-            modified_count: String(options.modifiedCount ?? 0),
-            missing_critical: String(structureResults.missingCritical ?? 0),
-            undocumented_dirs: String(structureResults.undocumented ?? 0),
-            doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
-            structure_issues_content: issueLines,
-            dir_tree: dirTree,
-            doc_context: docContext || 'No documentation excerpts available.',
-            language_specific_directory_standards: directoryStandards,
-          });
-        } catch {
-          /* fallback to generic prompt */
-        }
-        if (!prompt) {
-          const role = `You are an expert in software project structure and organization.`;
-          const task = `Analyze these directory structure validation results for project at "${projectRoot}" and provide recommendations:
+        let prompt = await buildStepPromptWithFallback({
+          buildPrompt: async () => {
+            const language = options.language || (await this.detectLanguage(projectRoot));
+            const projectKindGuidanceAvailable = this.projectKindConfig
+              ? await this.projectKindConfig.loadProjectKindsYaml().catch(() => false)
+              : true;
+            if (!projectKindGuidanceAvailable) {
+              degraded = true;
+              results.warnings.push(
+                'Project-kind directory guidance was unavailable, so AI recommendations ran without project_kinds.yaml context.'
+              );
+            }
+            const projectKind =
+              options.projectKind ??
+              (projectKindGuidanceAvailable && this.projectKindConfig
+                ? await this.projectKindConfig.getProjectKind().catch(() => null)
+                : null) ??
+              '';
+            const aiGuidance =
+              projectKind && projectKindGuidanceAvailable && this.projectKindConfig
+                ? await this.projectKindConfig.getAIGuidance(projectKind).catch(() => null)
+                : null;
+            // 'language_specific_directory_standards' carries project-kind-level directory
+            // conventions (not language-level, despite the placeholder name which predates
+            // the project_kinds system). Injecting the 'generic' kind's content-free bullets
+            // adds prompt tokens with no signal value, so treat 'generic' as absent.
+            const GENERIC_KIND = 'generic';
+            const directoryStandards =
+              projectKind && projectKind !== GENERIC_KIND && aiGuidance?.directory_standards?.length
+                ? aiGuidance.directory_standards.map((s) => `- ${s}`).join('\n')
+                : '';
+            const issueLines =
+              structureResults.issues?.length > 0
+                ? structureResults.issues
+                    .slice(0, 20)
+                    .map((i) => `- [${i.type}] ${i.directory}: ${i.message}`)
+                    .join('\n')
+                : 'No issues detected';
+            const dirTree =
+              (structureResults.existingDirs ?? []).length > 0
+                ? structureResults.existingDirs.slice(0, 50).join('\n')
+                : 'none';
+            const documentationFiles = structureResults.documentationFiles ?? [];
+            const docContext = buildDirectoryDocumentationExcerpts(
+              documentationFiles,
+              structureResults.existingDirs ?? [],
+              2500
+            );
+            return buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
+              project_name: projectRoot,
+              project_description: options.projectDescription || '',
+              primary_language: language,
+              project_kind: projectKind,
+              dir_count: String(results.totalDirs ?? 0),
+              change_scope: options.scope || '',
+              modified_count: String(options.modifiedCount ?? 0),
+              missing_critical: String(structureResults.missingCritical ?? 0),
+              undocumented_dirs: String(structureResults.undocumented ?? 0),
+              doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
+              structure_issues_content: issueLines,
+              dir_tree: dirTree,
+              doc_context: docContext || 'No documentation excerpts available.',
+              language_specific_directory_standards: directoryStandards,
+            });
+          },
+          fallbackRole: `You are an expert in software project structure and organization.`,
+          fallbackTask: `Analyze these directory structure validation results for project at "${projectRoot}" and provide recommendations:
 - Directories found: ${(structureResults.existingDirs ?? []).join(', ') || 'none'}
 - Total directories: ${results.totalDirs ?? 0}
 - Misplaced docs: ${results.misplacedDocs ?? 0}
 - Organized docs: ${results.organizedDocs ?? 0}
 - Missing critical dirs: ${structureResults.missingCritical ?? 0}
-- Issues: ${structureResults.issues?.length ?? 0}`;
-          const approach = `Provide concise recommendations to improve the project directory structure. Be specific.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-        }
+- Issues: ${structureResults.issues?.length ?? 0}`,
+          fallbackApproach: `Provide concise recommendations to improve the project directory structure. Be specific.`,
+          fallbackProjectContext: {},
+        });
         const cacheEntries = [
           ...(structureResults.existingDirs ?? []).map((d) => `dir:${d}`),
           ...(structureResults.documentationFiles ?? []).map(
@@ -681,18 +696,25 @@ export class Step5DirectoryAnalyzer {
         const aiContent = aiResult?.content ?? '';
 
         if (aiContent) {
-          await this.backlog.saveStepSummary(
-            5,
-            'Directory Structure Validation',
-            `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`
-          );
+          report = formatDirectoryReport(results);
+          aiRecommendationReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
+          await this.backlog.saveStepSummary(5, 'Directory Structure Validation', aiRecommendationReport);
         }
       } else {
         logger.info('AI helper not available - skipping AI analysis');
       }
 
+      if (results.warnings.length > 0 && !aiRecommendationReport) {
+        report = formatDirectoryReport(results);
+        await this.backlog.saveStepSummary(5, 'Directory Structure Validation', report);
+      }
+
       if (structureResults.missingCritical > 0) {
         logger.error(`Critical: ${structureResults.missingCritical} critical directories missing!`);
+      } else if (degraded) {
+        logger.warn(
+          `Step 5 completed with degraded guidance - ${structureResults.issues.length} issue(s) found`
+        );
       } else if (structureResults.issues.length === 0 && misplacedDocs === 0) {
         logger.success('Step 5 completed - directory structure is well-organized');
       } else {
@@ -701,6 +723,7 @@ export class Step5DirectoryAnalyzer {
 
       return {
         success: true,
+        degraded,
         ...results,
       };
     } catch (error) {

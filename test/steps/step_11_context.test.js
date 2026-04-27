@@ -357,7 +357,8 @@ describe('Step 11: Context Analysis', () => {
       expect(result.issues.critical).toBe(2);
       expect(result.issues.warnings).toBe(1);
       expect(result.issues.passed).toBe(1);
-      expect(result.success).toBe(false);
+      // step_11 is a reporting step — it always succeeds regardless of prior critical failures
+      expect(result.success).toBe(true);
     });
 
     test('calculates workflow duration', async () => {

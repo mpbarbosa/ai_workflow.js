@@ -8,9 +8,9 @@ AI-Powered Workflow Automation for Software Development
 [![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
-**Version:** 2.2.16 🎉 **STABLE RELEASE**
+**Version:** 2.2.17 🎉 **STABLE RELEASE**
 **Status:** Production Ready ✅
-**Last Updated:** April 23, 2026
+**Last Updated:** April 25, 2026
 
 ---
 
@@ -85,7 +85,7 @@ import { Step0Analyzer } from 'ai-workflow/steps';
 
 ## Current Implementation Status
 
-**Version:** 2.2.16 (Stable Release)
+**Version:** 2.2.17 (Stable Release)
 **Tests:** 7,330 passing (3 failing)
 **Coverage:** 86.68% overall, 88.65% orchestrator
 **Security:** 0 vulnerabilities
@@ -226,6 +226,8 @@ npm run format:check
 
 The `ai-workflow` CLI provides a user-friendly command-line interface for workflow automation.
 
+The installed `ai-workflow` command is backed by [`bin/ai-workflow.js`](./bin/ai-workflow.js). For local source checkouts, you can invoke the same entry point directly with `node bin/ai-workflow.js <command>`.
+
 ### Available CLI Commands
 
 | Command  | Description            | Example                             |
@@ -297,15 +299,17 @@ ai-workflow resume --list
 - `npm run format` - Format code with Prettier
 - `npm run format:check` - Check formatting without changes
 
-## Automation Scripts
+## Automation Entry Points and Scripts
 
-| Script                         | Description                                                    | Guide                                                      |
-| ------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------- |
-| `scripts/setup.sh`             | Set up development environment (deps, submodules, directories) | [SETUP.md](./docs/guides/SETUP.md)                         |
-| `scripts/test-integration.sh`  | Run integration tests with optional coverage report            | [TEST_INTEGRATION.md](./docs/guides/TEST_INTEGRATION.md)   |
-| `scripts/validate.sh`          | Full validation pipeline (lint, format, tests, versions)       | [VALIDATE.md](./docs/guides/VALIDATE.md)                   |
-| `scripts/prepare-release.sh`   | Prepare a versioned release (tests, version bump, changelog)   | [PREPARE_RELEASE.md](./docs/guides/PREPARE_RELEASE.md)     |
-| `scripts/cleanup_artifacts.sh` | Clean up workflow artifacts by age/type                        | [CLEANUP_ARTIFACTS.md](./docs/guides/CLEANUP_ARTIFACTS.md) |
+| Path                                         | Description                                                               | Guide                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `bin/ai-workflow.js`                         | Published CLI entry point for `ai-workflow` and direct local invocation.  | [CLI_USAGE_GUIDE.md](./docs/CLI_USAGE_GUIDE.md)            |
+| `scripts/setup.sh`                           | Set up development environment (deps, submodules, directories)            | [SETUP.md](./docs/guides/SETUP.md)                         |
+| `scripts/test-integration.sh`                | Run integration tests with optional coverage report                       | [TEST_INTEGRATION.md](./docs/guides/TEST_INTEGRATION.md)   |
+| `scripts/validate.sh`                        | Full validation pipeline (lint, format, tests, versions)                  | [VALIDATE.md](./docs/guides/VALIDATE.md)                   |
+| `scripts/prepare-release.sh`                 | Prepare a versioned release (tests, version bump, changelog)              | [PREPARE_RELEASE.md](./docs/guides/PREPARE_RELEASE.md)     |
+| `scripts/cleanup_artifacts.sh`               | Clean up workflow artifacts by age/type                                   | [CLEANUP_ARTIFACTS.md](./docs/guides/CLEANUP_ARTIFACTS.md) |
+| `scripts/postprocess-typedoc-media-links.js` | Post-process generated TypeDoc media links after `npm run docs:generate`. | [scripts/README.md](./scripts/README.md)                   |
 
 ## Contributing
 

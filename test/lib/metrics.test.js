@@ -20,6 +20,7 @@ import {
   generateMetricsSummary,
 } from '../../src/lib/metrics.js';
 import { Config } from '../../src/lib/config.js';
+import { jest } from '@jest/globals';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -328,19 +329,21 @@ describe('Metrics - Wrapper Class', () => {
       expect(metrics.stepStartTimes.get(0)).toBeGreaterThan(0);
     });
 
-    it('should track step end time and duration', (done) => {
-      metrics.startStepTimer(1);
+    it('should track step end time and duration', () => {
+      const nowSpy = jest.spyOn(Date, 'now');
+      try {
+        nowSpy.mockReturnValueOnce(1000);
+        metrics.startStepTimer(1);
 
-      setTimeout(() => {
+        nowSpy.mockReturnValueOnce(1050);
         metrics.endStepTimer(1, 'passed');
 
         const duration = metrics.getStepDuration(1);
-        expect(duration).toBeGreaterThanOrEqual(50);
-        expect(duration).toBeLessThan(200);
-
-        expect(metrics.stepEndTimes.get(1)).toBeGreaterThan(0);
-        done();
-      }, 50);
+        expect(duration).toBe(50);
+        expect(metrics.stepEndTimes.get(1)).toBe(1050);
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
 
     it('should track step status', () => {

@@ -14,25 +14,174 @@
  * @since 2026-02-27
  */
 
-import path from 'path';
-import fs from 'fs';
-import yaml from 'js-yaml';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import chalk from 'chalk';
+// @ts-expect-error - js-yaml does not ship types in the current TypeScript setup.
+import yaml from 'js-yaml';
 import { logger } from '../../core/logger.js';
+// @ts-expect-error - legacy JS executor module is untyped in the current TypeScript setup.
 import { executeStream } from '../../core/executor.js';
+
+export interface DeployCommandOptions {
+  config?: string;
+  dryRun?: boolean;
+  projectRoot?: string;
+  source?: string;
+  verbose?: boolean;
+}
+
+export interface DeployValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface DeployCommandResult {
+  success?: boolean;
+  skipped?: boolean;
+  reason?: string;
+  error?: string;
+  duration?: number;
+}
+
+export interface BuildDeployCommandResult {
+  command: string;
+  cwd: string;
+}
+
+export interface PromptMergeStep {
+  description: string;
+  command: string;
+  cwd: string;
+  outputPath: string;
+}
+
+export interface AlreadyDeployedResult {
+  message: string;
+  hint: string;
+}
+
+export interface NpmPublishErrorHint {
+  message: string;
+  hint: string;
+  url: string | null;
+}
+
+export interface MissingNpmTokenPreflight {
+  message: string;
+  hint: string;
+  source: 'command' | 'script';
+}
+
+export type DeploymentEnv = Record<string, string | undefined>;
+
+export interface RawCdnFallbackSection {
+  script?: unknown;
+  command?: unknown;
+  description?: unknown;
+  args?: unknown;
+  env?: unknown;
+}
+
+export interface RawDeploySection {
+  enabled?: unknown;
+  script?: unknown;
+  command?: unknown;
+  description?: unknown;
+  args?: unknown;
+  cdn_fallback?: unknown;
+}
+
+export interface WorkflowConfigRecord {
+  deploy?: unknown;
+  [key: string]: unknown;
+}
+
+export interface DeploymentExecutionConfig {
+  script: string | null;
+  command: string | null;
+  description: string;
+  args: string | null;
+  enabled: true;
+}
+
+export interface CdnFallbackConfig extends DeploymentExecutionConfig {
+  env: DeploymentEnv;
+}
+
+export interface ResolvedDeployConfig extends DeploymentExecutionConfig {
+  cdnFallback: CdnFallbackConfig | null;
+}
+
+interface CommandExecutionErrorDetails {
+  message: string;
+  stderr?: string;
+  exitCode: number | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getStringValue(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function getOptionalStringValue(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return typeof value === 'string' ? value : String(value);
+}
+
+function getEnvironmentMap(value: unknown): DeploymentEnv {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const env: DeploymentEnv = {};
+  for (const [key, envValue] of Object.entries(value)) {
+    if (typeof envValue === 'string' || envValue === undefined) {
+      env[key] = envValue;
+    } else if (envValue !== null) {
+      env[key] = String(envValue);
+    }
+  }
+
+  return env;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getCommandExecutionErrorDetails(error: unknown): CommandExecutionErrorDetails {
+  if (error instanceof Error) {
+    const candidate = error as Error & { stderr?: unknown; exitCode?: unknown };
+    return {
+      message: error.message,
+      stderr: typeof candidate.stderr === 'string' ? candidate.stderr : undefined,
+      exitCode: typeof candidate.exitCode === 'number' ? candidate.exitCode : null,
+    };
+  }
+
+  return {
+    message: String(error),
+    exitCode: null,
+  };
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Command Logic
 // ============================================================================
 
 /**
- * Validate deploy command options
+ * Validate deploy command options.
  * @pure
- * @param {Object} options - Command options
- * @returns {Object} Validation result { isValid: boolean, errors: string[] }
  */
-export function validateDeployOptions(options) {
-  const errors = [];
+export function validateDeployOptions(options: DeployCommandOptions): DeployValidationResult {
+  const errors: string[] = [];
 
   if (options.projectRoot && typeof options.projectRoot !== 'string') {
     errors.push('Project root must be a string');
@@ -49,25 +198,35 @@ export function validateDeployOptions(options) {
 }
 
 /**
- * Resolve deploy configuration from the workflow config object
+ * Resolve deploy configuration from the workflow config object.
  * @pure
- * @param {Object} workflowConfig - Parsed .workflow-config.yaml content
- * @returns {Object} Result { config: Object|null, error: string|null }
  */
-export function resolveDeployConfig(workflowConfig) {
-  if (!workflowConfig || typeof workflowConfig !== 'object') {
+export function resolveDeployConfig(workflowConfig: unknown): {
+  config: ResolvedDeployConfig | null;
+  error: string | null;
+} {
+  if (!isRecord(workflowConfig)) {
     return { config: null, error: 'Invalid workflow configuration' };
   }
 
-  const deploySection = workflowConfig.deploy;
+  const deploySectionValue = workflowConfig.deploy;
 
-  if (!deploySection) {
+  if (!deploySectionValue) {
     return {
       config: null,
       error:
         'No deploy: section found in .workflow-config.yaml. Add a deploy: section to enable deployment.',
     };
   }
+
+  if (!isRecord(deploySectionValue)) {
+    return {
+      config: null,
+      error: 'deploy: section must specify either script: or command:',
+    };
+  }
+
+  const deploySection = deploySectionValue as RawDeploySection;
 
   if (deploySection.enabled === false) {
     return {
@@ -76,7 +235,10 @@ export function resolveDeployConfig(workflowConfig) {
     };
   }
 
-  if (!deploySection.script && !deploySection.command) {
+  const script = getStringValue(deploySection.script);
+  const command = getStringValue(deploySection.command);
+
+  if (!script && !command) {
     return {
       config: null,
       error: 'deploy: section must specify either script: or command:',
@@ -85,10 +247,10 @@ export function resolveDeployConfig(workflowConfig) {
 
   return {
     config: {
-      script: deploySection.script || null,
-      command: deploySection.command || null,
-      description: deploySection.description || 'Deploy project',
-      args: deploySection.args || null,
+      script,
+      command,
+      description: getStringValue(deploySection.description) || 'Deploy project',
+      args: getOptionalStringValue(deploySection.args),
       enabled: true,
       cdnFallback: resolveCdnFallbackConfig(deploySection),
     },
@@ -97,14 +259,14 @@ export function resolveDeployConfig(workflowConfig) {
 }
 
 /**
- * Build the shell command string to execute for deployment
+ * Build the shell command string to execute for deployment.
  * @pure
- * @param {Object} deployConfig - Resolved deploy configuration
- * @param {string} projectRoot - Absolute project root path
- * @param {string|null} [extraArgs] - Additional CLI arguments to append (overrides config args)
- * @returns {Object} { command: string, cwd: string }
  */
-export function buildDeployCommand(deployConfig, projectRoot, extraArgs = null) {
+export function buildDeployCommand(
+  deployConfig: DeploymentExecutionConfig,
+  projectRoot: string,
+  extraArgs: string | null = null
+): BuildDeployCommandResult {
   if (!deployConfig || typeof deployConfig !== 'object') {
     throw new Error('deployConfig must be a valid object');
   }
@@ -139,39 +301,49 @@ export function buildDeployCommand(deployConfig, projectRoot, extraArgs = null) 
  * authoritative sub-files.
  *
  * @pure
- * @param {string} projectRoot - Absolute project root path
- * @param {(path: string) => boolean} [existsFn] - File-existence probe for testing
- * @returns {{ description: string, command: string, cwd: string, outputPath: string }|null}
  */
-export function resolvePromptMergeStep(projectRoot, existsFn = fs.existsSync) {
+export function resolvePromptMergeStep(
+  projectRoot: string,
+  existsFn: (candidatePath: string) => boolean = fs.existsSync
+): PromptMergeStep | null {
   if (typeof projectRoot !== 'string' || projectRoot.trim() === '') {
     return null;
   }
 
-  const candidateLayouts = [
+  const candidateLayouts: PromptMergeStep[] = [
     {
-      scriptPath: path.join(projectRoot, '.workflow_core', 'scripts', 'build_ai_helpers.py'),
-      indexPath: path.join(projectRoot, '.workflow_core', 'config', 'ai_helpers', 'index.yaml'),
+      description: 'Merge prompt configuration',
+      command: `python3 "${path.join(projectRoot, '.workflow_core', 'scripts', 'build_ai_helpers.py')}" --validate`,
+      cwd: projectRoot,
       outputPath: path.join(projectRoot, '.workflow_core', 'config', 'ai_helpers.yaml'),
     },
     {
-      scriptPath: path.join(projectRoot, 'scripts', 'build_ai_helpers.py'),
-      indexPath: path.join(projectRoot, 'config', 'ai_helpers', 'index.yaml'),
+      description: 'Merge prompt configuration',
+      command: `python3 "${path.join(projectRoot, 'scripts', 'build_ai_helpers.py')}" --validate`,
+      cwd: projectRoot,
       outputPath: path.join(projectRoot, 'config', 'ai_helpers.yaml'),
     },
   ];
 
-  for (const candidate of candidateLayouts) {
+  const candidateFiles = [
+    {
+      scriptPath: path.join(projectRoot, '.workflow_core', 'scripts', 'build_ai_helpers.py'),
+      indexPath: path.join(projectRoot, '.workflow_core', 'config', 'ai_helpers', 'index.yaml'),
+      step: candidateLayouts[0],
+    },
+    {
+      scriptPath: path.join(projectRoot, 'scripts', 'build_ai_helpers.py'),
+      indexPath: path.join(projectRoot, 'config', 'ai_helpers', 'index.yaml'),
+      step: candidateLayouts[1],
+    },
+  ];
+
+  for (const candidate of candidateFiles) {
     if (!existsFn(candidate.scriptPath) || !existsFn(candidate.indexPath)) {
       continue;
     }
 
-    return {
-      description: 'Merge prompt configuration',
-      command: `python3 "${candidate.scriptPath}" --validate`,
-      cwd: projectRoot,
-      outputPath: candidate.outputPath,
-    };
+    return candidate.step;
   }
 
   return null;
@@ -182,19 +354,28 @@ export function resolvePromptMergeStep(projectRoot, existsFn = fs.existsSync) {
  * Skips blank lines and lines starting with #.
  * Values may optionally be quoted with single or double quotes.
  * @pure
- * @param {string} content - Raw text content of the .env file
- * @returns {Object} Key/value pairs found in the file
  */
-export function parseEnvFile(content) {
-  if (!content || typeof content !== 'string') return {};
-  const result = {};
+export function parseEnvFile(content: string): DeploymentEnv {
+  if (!content || typeof content !== 'string') {
+    return {};
+  }
+
+  const result: DeploymentEnv = {};
+
   for (const raw of content.split('\n')) {
     const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
     const eqIdx = line.indexOf('=');
-    if (eqIdx < 1) continue;
+    if (eqIdx < 1) {
+      continue;
+    }
+
     const key = line.slice(0, eqIdx).trim();
     let value = line.slice(eqIdx + 1).trim();
+
     // Strip surrounding quotes
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
@@ -202,18 +383,20 @@ export function parseEnvFile(content) {
     ) {
       value = value.slice(1, -1);
     }
-    if (key) result[key] = value;
+
+    if (key) {
+      result[key] = value;
+    }
   }
+
   return result;
 }
 
 /**
- * Format deploy result for display
+ * Format deploy result for display.
  * @pure
- * @param {Object} result - Execution result
- * @returns {string} Formatted result message
  */
-export function formatDeployResult(result) {
+export function formatDeployResult(result: DeployCommandResult | null | undefined): string {
   if (!result) {
     return 'No result available';
   }
@@ -239,12 +422,11 @@ export function formatDeployResult(result) {
  * follow the exit-code convention but still print recognisable messages.
  *
  * @pure
- * @param {number|null} exitCode - Process exit code from the deployment script
- * @param {string} [output] - Combined stdout + stderr captured during deployment
- * @returns {{ message: string, hint: string }|null} Structured result, or null when
- *   the error is not an "already deployed" condition.
  */
-export function detectAlreadyDeployedError(exitCode, output = '') {
+export function detectAlreadyDeployedError(
+  exitCode: number | null | undefined,
+  output = ''
+): AlreadyDeployedResult | null {
   const alreadyExistsPatterns = [
     /already exists and is already delivered/i,
     /already published/i,
@@ -257,7 +439,9 @@ export function detectAlreadyDeployedError(exitCode, output = '') {
   const matchesOutput =
     typeof output === 'string' && alreadyExistsPatterns.some((re) => re.test(output));
 
-  if (!isExitCode3 && !matchesOutput) return null;
+  if (!isExitCode3 && !matchesOutput) {
+    return null;
+  }
 
   return {
     message: 'This version is already deployed — nothing to do.',
@@ -271,26 +455,31 @@ export function detectAlreadyDeployedError(exitCode, output = '') {
  * when those keys are not explicitly overridden in the sub-section.
  * Returns null when no `cdn_fallback` key is present.
  * @pure
- * @param {Object} deploySection - The raw deploy: section from workflow config
- * @returns {Object|null} Resolved CDN fallback config, or null
  */
-export function resolveCdnFallbackConfig(deploySection) {
-  if (!deploySection || !deploySection.cdn_fallback) return null;
-  const fallback = deploySection.cdn_fallback;
+export function resolveCdnFallbackConfig(
+  deploySection: RawDeploySection | null | undefined
+): CdnFallbackConfig | null {
+  if (!deploySection || !isRecord(deploySection.cdn_fallback)) {
+    return null;
+  }
+
+  const fallback = deploySection.cdn_fallback as RawCdnFallbackSection;
   const script = Object.prototype.hasOwnProperty.call(fallback, 'script')
-    ? fallback.script
-    : deploySection.script || null;
+    ? getStringValue(fallback.script)
+    : getStringValue(deploySection.script);
   const command = Object.prototype.hasOwnProperty.call(fallback, 'command')
-    ? fallback.command
-    : deploySection.command || null;
+    ? getStringValue(fallback.command)
+    : getStringValue(deploySection.command);
+
   return {
     script,
     command,
-    description: fallback.description || 'Deploy to CDN only (npm publish skipped)',
+    description:
+      getStringValue(fallback.description) || 'Deploy to CDN only (npm publish skipped)',
     args: Object.prototype.hasOwnProperty.call(fallback, 'args')
-      ? fallback.args
-      : deploySection.args || null,
-    env: fallback.env && typeof fallback.env === 'object' ? fallback.env : {},
+      ? getOptionalStringValue(fallback.args)
+      : getOptionalStringValue(deploySection.args),
+    env: getEnvironmentMap(fallback.env),
     enabled: true,
   };
 }
@@ -298,13 +487,10 @@ export function resolveCdnFallbackConfig(deploySection) {
 /**
  * Return true when NPM_TOKEN is set and non-empty in the given environment object.
  * @pure
- * @param {Object} env - Environment variables object (e.g. process.env)
- * @returns {boolean}
  */
-export function hasNpmToken(env) {
+export function hasNpmToken(env: unknown): boolean {
   return (
-    typeof env === 'object' &&
-    env !== null &&
+    isRecord(env) &&
     typeof env.NPM_TOKEN === 'string' &&
     env.NPM_TOKEN.length > 0
   );
@@ -317,11 +503,11 @@ export function hasNpmToken(env) {
  * abort for the same reason.
  *
  * @pure
- * @param {string} text - Deploy command or script content
- * @returns {boolean}
  */
-export function referencesNpmToken(text) {
-  if (!text || typeof text !== 'string') return false;
+export function referencesNpmToken(text: string | null | undefined): boolean {
+  if (!text || typeof text !== 'string') {
+    return false;
+  }
 
   return /\bNPM_TOKEN\b/.test(text) || /npm Automation token/i.test(text);
 }
@@ -332,24 +518,26 @@ export function referencesNpmToken(text) {
  *
  * Returns null when the token is present or when the deploy configuration does
  * not visibly depend on NPM_TOKEN, allowing non-npm deploy scripts to proceed.
- *
- * @param {Object} deployConfig - Resolved deploy configuration
- * @param {string} projectRoot - Absolute project root path
- * @param {Object} deployEnv - Effective environment variables for the deployment
- * @param {(path: string) => string} [readFileFn] - File reader for testing
- * @param {(path: string) => boolean} [existsFn] - File existence probe for testing
- * @returns {{ message: string, hint: string, source: string }|null}
  */
 export function resolveMissingNpmTokenPreflight(
-  deployConfig,
-  projectRoot,
-  deployEnv,
-  readFileFn = (candidatePath) => fs.readFileSync(candidatePath, 'utf8'),
-  existsFn = fs.existsSync
-) {
-  if (!deployConfig || typeof deployConfig !== 'object') return null;
-  if (typeof projectRoot !== 'string' || projectRoot.trim() === '') return null;
-  if (hasNpmToken(deployEnv)) return null;
+  deployConfig: DeploymentExecutionConfig | null | undefined,
+  projectRoot: string,
+  deployEnv: unknown,
+  readFileFn: (candidatePath: string) => string = (candidatePath) =>
+    fs.readFileSync(candidatePath, 'utf8'),
+  existsFn: (candidatePath: string) => boolean = fs.existsSync
+): MissingNpmTokenPreflight | null {
+  if (!deployConfig || typeof deployConfig !== 'object') {
+    return null;
+  }
+
+  if (typeof projectRoot !== 'string' || projectRoot.trim() === '') {
+    return null;
+  }
+
+  if (hasNpmToken(deployEnv)) {
+    return null;
+  }
 
   if (referencesNpmToken(deployConfig.command)) {
     return {
@@ -367,11 +555,15 @@ export function resolveMissingNpmTokenPreflight(
     ? deployConfig.script
     : path.join(projectRoot, deployConfig.script);
 
-  if (!existsFn(scriptPath)) return null;
+  if (!existsFn(scriptPath)) {
+    return null;
+  }
 
   try {
     const scriptContent = readFileFn(scriptPath);
-    if (!referencesNpmToken(scriptContent)) return null;
+    if (!referencesNpmToken(scriptContent)) {
+      return null;
+    }
   } catch {
     return null;
   }
@@ -388,11 +580,11 @@ export function resolveMissingNpmTokenPreflight(
  * primary deployment. Returns true when a CDN fallback is configured AND the npm
  * token is absent from the effective deployment environment.
  * @pure
- * @param {Object|null} cdnFallbackConfig - Resolved CDN fallback config (or null)
- * @param {Object} deployEnv - Effective environment variables for the deployment
- * @returns {boolean}
  */
-export function shouldUseCdnFallback(cdnFallbackConfig, deployEnv) {
+export function shouldUseCdnFallback(
+  cdnFallbackConfig: CdnFallbackConfig | null,
+  deployEnv: unknown
+): boolean {
   return cdnFallbackConfig !== null && !hasNpmToken(deployEnv);
 }
 
@@ -400,11 +592,11 @@ export function shouldUseCdnFallback(cdnFallbackConfig, deployEnv) {
  * Detect well-known npm publish errors from captured output and return
  * a structured hint object, or null when no known pattern is matched.
  * @pure
- * @param {string} output - Combined stdout + stderr captured during deployment
- * @returns {{ message: string, hint: string, url: string|null }|null}
  */
-export function detectNpmPublishError(output) {
-  if (!output || typeof output !== 'string') return null;
+export function detectNpmPublishError(output: string | null | undefined): NpmPublishErrorHint | null {
+  if (!output || typeof output !== 'string') {
+    return null;
+  }
 
   // Missing token detected by the deploy script before calling npm
   if (/NPM_TOKEN is not set/i.test(output) || /\bNPM_TOKEN\b.*\bnot set\b/i.test(output)) {
@@ -421,6 +613,7 @@ export function detectNpmPublishError(output) {
       /credentials/i.test(output) ||
       /token/i.test(output) ||
       /You may not perform that action/i.test(output);
+
     if (isCredentials) {
       return {
         message: 'npm publish failed: invalid or expired token.',
@@ -428,6 +621,7 @@ export function detectNpmPublishError(output) {
         url: 'https://www.npmjs.com/settings/~/tokens',
       };
     }
+
     return {
       message: 'npm publish failed: access forbidden (E403).',
       hint: 'Check that your npm token has publish rights for this package.',
@@ -483,14 +677,9 @@ export function detectNpmPublishError(output) {
 // ============================================================================
 
 /**
- * Execute the deploy command
- * @param {Object} options - Command options
- * @param {string} [options.projectRoot] - Project root directory
- * @param {string} [options.config] - Path to .workflow-config.yaml
- * @param {boolean} [options.dryRun] - Preview without executing
- * @param {boolean} [options.verbose] - Verbose output
+ * Execute the deploy command.
  */
-export async function deployCommand(options = {}) {
+export async function deployCommand(options: DeployCommandOptions = {}): Promise<void> {
   const projectRoot = options.projectRoot ? path.resolve(options.projectRoot) : process.cwd();
 
   const configPath = options.config
@@ -503,7 +692,9 @@ export async function deployCommand(options = {}) {
   const validation = validateDeployOptions(options);
   if (!validation.isValid) {
     logger.error(chalk.red('Invalid options:'));
-    validation.errors.forEach((e) => logger.error(chalk.red(`  • ${e}`)));
+    validation.errors.forEach((validationError) =>
+      logger.error(chalk.red(`  • ${validationError}`))
+    );
     process.exit(1);
   }
 
@@ -514,18 +705,19 @@ export async function deployCommand(options = {}) {
     process.exit(1);
   }
 
-  let workflowConfig;
+  let workflowConfig: unknown;
+
   try {
     const rawYaml = fs.readFileSync(configPath, 'utf8');
     workflowConfig = yaml.load(rawYaml);
   } catch (error) {
-    logger.error(chalk.red(`Failed to parse configuration: ${error.message}`));
+    logger.error(chalk.red(`Failed to parse configuration: ${getErrorMessage(error)}`));
     process.exit(1);
   }
 
   // Resolve deploy configuration
   const { config: deployConfig, error: deployError } = resolveDeployConfig(workflowConfig);
-  if (deployError) {
+  if (deployError || deployConfig === null) {
     logger.error(chalk.red(`Deploy configuration error: ${deployError}`));
     process.exit(1);
   }
@@ -533,34 +725,38 @@ export async function deployCommand(options = {}) {
   // Load .env file from project root (if present) and merge into environment.
   // Must happen before the CDN fallback check so NPM_TOKEN presence can be inspected.
   const envFilePath = path.join(projectRoot, '.env');
-  let deployEnv = { ...process.env };
+  let deployEnv: DeploymentEnv = { ...process.env };
+
   if (fs.existsSync(envFilePath)) {
     try {
       const envContent = fs.readFileSync(envFilePath, 'utf8');
       const fileVars = parseEnvFile(envContent);
       const fileVarCount = Object.keys(fileVars).length;
       deployEnv = { ...deployEnv, ...fileVars };
+
       if (options.verbose && fileVarCount > 0) {
         console.log(chalk.gray(`   Loaded ${fileVarCount} variable(s) from ${envFilePath}`));
         console.log();
       }
-    } catch (envErr) {
-      logger.warn(chalk.yellow(`Warning: failed to read ${envFilePath}: ${envErr.message}`));
+    } catch (error) {
+      logger.warn(chalk.yellow(`Warning: failed to read ${envFilePath}: ${getErrorMessage(error)}`));
     }
   }
 
   // CDN fallback: when NPM_TOKEN is absent and a cdn_fallback is configured, use it
   // instead of the primary deploy config so npm publish is never attempted.
-  let activeDeployConfig = deployConfig;
+  let activeDeployConfig: DeploymentExecutionConfig | CdnFallbackConfig = deployConfig;
   const cdnFallbackConfig = deployConfig.cdnFallback;
   let usingCdnFallback = false;
 
-  if (shouldUseCdnFallback(cdnFallbackConfig, deployEnv)) {
+  if (cdnFallbackConfig && shouldUseCdnFallback(cdnFallbackConfig, deployEnv)) {
+    const fallbackConfig = cdnFallbackConfig;
     usingCdnFallback = true;
-    activeDeployConfig = cdnFallbackConfig;
+    activeDeployConfig = fallbackConfig;
+
     // Merge any extra env vars declared inside cdn_fallback.env
-    if (cdnFallbackConfig.env && Object.keys(cdnFallbackConfig.env).length > 0) {
-      deployEnv = { ...deployEnv, ...cdnFallbackConfig.env };
+    if (fallbackConfig.env && Object.keys(fallbackConfig.env).length > 0) {
+      deployEnv = { ...deployEnv, ...fallbackConfig.env };
     }
   }
 
@@ -571,19 +767,23 @@ export async function deployCommand(options = {}) {
   const { command, cwd } = buildDeployCommand(activeDeployConfig, projectRoot, extraArgs);
 
   console.log();
+
   if (promptMergeStep) {
     console.log(chalk.cyan(`🧩 ${promptMergeStep.description}`));
     console.log(chalk.gray(`   Command: ${promptMergeStep.command}`));
     console.log(chalk.gray(`   Output: ${promptMergeStep.outputPath}`));
     console.log();
   }
+
   console.log(chalk.cyan(`📦 ${activeDeployConfig.description}`));
+
   if (usingCdnFallback) {
     console.log(
       chalk.yellow('⚠ NPM_TOKEN not set – delivering via CDN only (npm publish skipped)')
     );
     console.log(chalk.gray('  Set NPM_TOKEN to also publish to npm.'));
   }
+
   console.log(chalk.gray(`   Command: ${command}`));
   console.log(chalk.gray(`   Working directory: ${cwd}`));
   console.log();
@@ -595,17 +795,17 @@ export async function deployCommand(options = {}) {
   }
 
   if (promptMergeStep) {
-    const promptMergeOutput = [];
+    const promptMergeOutput: string[] = [];
 
     try {
       await executeStream(promptMergeStep.command, {
         cwd: promptMergeStep.cwd,
         env: deployEnv,
-        onStdout: (line) => {
+        onStdout: (line: string) => {
           promptMergeOutput.push(line);
           process.stdout.write(line);
         },
-        onStderr: (line) => {
+        onStderr: (line: string) => {
           promptMergeOutput.push(line);
           process.stderr.write(chalk.yellow(line));
         },
@@ -614,11 +814,13 @@ export async function deployCommand(options = {}) {
       console.log(chalk.green('✓ Prompt merge complete'));
       console.log();
     } catch (error) {
+      const executionError = getCommandExecutionErrorDetails(error);
       const capturedOutput = promptMergeOutput.join('');
-      console.log(chalk.red(`✗ Prompt merge failed: ${error.message}`));
 
-      if (error.stderr) {
-        console.log(chalk.gray(error.stderr));
+      console.log(chalk.red(`✗ Prompt merge failed: ${executionError.message}`));
+
+      if (executionError.stderr) {
+        console.log(chalk.gray(executionError.stderr));
       } else if (!options.verbose && capturedOutput.trim()) {
         const lines = capturedOutput.trim().split('\n');
         console.log(chalk.gray(lines.slice(-5).join('\n')));
@@ -632,14 +834,17 @@ export async function deployCommand(options = {}) {
   const missingTokenPreflight = usingCdnFallback
     ? null
     : resolveMissingNpmTokenPreflight(activeDeployConfig, projectRoot, deployEnv);
+
   if (missingTokenPreflight) {
     const skipMessage = formatDeployResult({
       success: true,
       skipped: true,
       reason: missingTokenPreflight.message,
     });
+
     console.log(chalk.yellow(`⚠ ${skipMessage}`));
     console.log(chalk.yellow(`  ${missingTokenPreflight.hint}`));
+
     if (cdnFallbackConfig === null) {
       console.log(
         chalk.yellow(
@@ -647,6 +852,7 @@ export async function deployCommand(options = {}) {
         )
       );
     }
+
     console.log();
     process.exit(0);
   }
@@ -655,35 +861,36 @@ export async function deployCommand(options = {}) {
   const startTime = Date.now();
 
   // Buffer all output so we can analyse it for known errors on failure
-  const outputBuffer = [];
+  const outputBuffer: string[] = [];
 
   try {
     await executeStream(command, {
       cwd,
       env: deployEnv,
-      onStdout: (line) => {
+      onStdout: (line: string) => {
         outputBuffer.push(line);
         process.stdout.write(line);
       },
-      onStderr: (line) => {
+      onStderr: (line: string) => {
         outputBuffer.push(line);
         process.stderr.write(chalk.yellow(line));
       },
     });
 
     const duration = Date.now() - startTime;
-
     const resultMessage = formatDeployResult({ success: true, duration });
+
     console.log(chalk.green(`✓ ${resultMessage}`));
     console.log();
 
     process.exit(0);
   } catch (error) {
+    const executionError = getCommandExecutionErrorDetails(error);
     const duration = Date.now() - startTime;
     const capturedOutput = outputBuffer.join('');
 
     // Idempotency: if the artifact already exists this run is a no-op, not a failure.
-    const alreadyDeployed = detectAlreadyDeployedError(error.exitCode ?? null, capturedOutput);
+    const alreadyDeployed = detectAlreadyDeployedError(executionError.exitCode, capturedOutput);
     if (alreadyDeployed) {
       console.log(chalk.yellow(`⚠ ${alreadyDeployed.message}`));
       console.log(chalk.gray(`  ${alreadyDeployed.hint}`));
@@ -704,17 +911,24 @@ export async function deployCommand(options = {}) {
         );
         console.log();
       }
+
       console.log(chalk.red(`✗ ${npmError.message}`));
       console.log(chalk.yellow(`  ${npmError.hint}`));
+
       if (npmError.url) {
         console.log(chalk.gray(`  ${npmError.url}`));
       }
     } else {
-      const resultMessage = formatDeployResult({ success: false, error: error.message, duration });
+      const resultMessage = formatDeployResult({
+        success: false,
+        error: executionError.message,
+        duration,
+      });
+
       console.log(chalk.red(`✗ ${resultMessage}`));
 
-      if (error.stderr) {
-        console.log(chalk.gray(error.stderr));
+      if (executionError.stderr) {
+        console.log(chalk.gray(executionError.stderr));
       } else if (!options.verbose && capturedOutput.trim()) {
         // Surface the last few lines of captured output to help diagnose the failure
         const lines = capturedOutput.trim().split('\n');
@@ -728,7 +942,7 @@ export async function deployCommand(options = {}) {
   }
 }
 
-export default {
+const deployCommandModule = {
   deployCommand,
   validateDeployOptions,
   resolveDeployConfig,
@@ -744,3 +958,7 @@ export default {
   resolveMissingNpmTokenPreflight,
   shouldUseCdnFallback,
 };
+
+export { deployCommandModule };
+
+export default deployCommandModule;

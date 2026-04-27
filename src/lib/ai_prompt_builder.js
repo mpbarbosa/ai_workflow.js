@@ -325,32 +325,30 @@ export function injectProjectContext(prompt, projectInfo = {}) {
   }
 
   const parts = [prompt];
+  const contextLines = [];
 
-  // Add project context section
-  if (Object.keys(projectInfo).length > 0) {
-    const contextLines = ['', '**Project Context**:'];
+  if (projectInfo.description) {
+    contextLines.push(`- **Description**: ${projectInfo.description}`);
+  }
 
-    if (projectInfo.description) {
-      contextLines.push(`- **Description**: ${projectInfo.description}`);
-    }
+  if (projectInfo.language) {
+    contextLines.push(`- **Language**: ${projectInfo.language}`);
+  }
 
-    if (projectInfo.language) {
-      contextLines.push(`- **Language**: ${projectInfo.language}`);
-    }
+  if (projectInfo.projectKind) {
+    contextLines.push(`- **Project Type**: ${projectInfo.projectKind}`);
+  }
 
-    if (projectInfo.projectKind) {
-      contextLines.push(`- **Project Type**: ${projectInfo.projectKind}`);
-    }
+  if (projectInfo.framework) {
+    contextLines.push(`- **Framework**: ${projectInfo.framework}`);
+  }
 
-    if (projectInfo.framework) {
-      contextLines.push(`- **Framework**: ${projectInfo.framework}`);
-    }
+  if (projectInfo.techStack && projectInfo.techStack.length > 0) {
+    contextLines.push(`- **Tech Stack**: ${projectInfo.techStack.join(', ')}`);
+  }
 
-    if (projectInfo.techStack && projectInfo.techStack.length > 0) {
-      contextLines.push(`- **Tech Stack**: ${projectInfo.techStack.join(', ')}`);
-    }
-
-    parts.push(contextLines.join('\n'));
+  if (contextLines.length > 0) {
+    parts.push(['', '**Project Context**:', ...contextLines].join('\n'));
   }
 
   return parts.join('\n');
@@ -702,6 +700,9 @@ export function buildDocAnalysisPrompt(options) {
 - If the prompt does not include the actual content or diff for a file in scope, explicitly say the result is unavailable or inconclusive for that file
 - If the visible files are real project files but do not materially affect the scoped documentation target, explicitly say the result is not applicable for that file
 - Only update what is truly outdated or incorrect
+- Do not add placeholder "planned" or "coming soon" entries to current-state docs based only on roadmap or future-work evidence
+- Never infer release dates or "Last updated" values; only edit metadata that has an explicit replacement in the visible evidence
+- When version/tests/coverage/date appear as one summary block, treat them as linked metadata and only change the lines supported by visible evidence
 - Make informed decisions based on available context
 - Default to unavailable, inconclusive, or not applicable rather than "no changes" when critical evidence is missing or tangential`;
 

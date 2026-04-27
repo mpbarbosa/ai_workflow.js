@@ -472,6 +472,7 @@ export class MLOptimizer {
     this.historicalData = [];
     this.accuracy = {};
     this.initialized = false;
+    this.hasPersistedModel = false;
   }
 
   /**
@@ -506,6 +507,7 @@ export class MLOptimizer {
       const exists = await this.fileOps.exists(filePath);
       if (!exists) {
         logger.debug('No model file found, starting fresh');
+        this.hasPersistedModel = false;
         return;
       }
 
@@ -519,6 +521,7 @@ export class MLOptimizer {
       this.historicalData = model.historicalData;
       this.accuracy = model.accuracy;
       this.config = { ...this.config, ...model.config };
+      this.hasPersistedModel = true;
 
       logger.debug(`Loaded model with ${this.historicalData.length} historical records`);
     } catch (error) {
@@ -546,6 +549,7 @@ export class MLOptimizer {
       const json = serializeModel(model, timestamp); // Pure function
 
       await this.fileOps.writeFile(filePath, json);
+      this.hasPersistedModel = true;
       logger.debug(`Saved model with ${this.historicalData.length} records`);
     } catch (error) {
       logger.error(`Failed to save model: ${error.message}`);
@@ -562,6 +566,13 @@ export class MLOptimizer {
   predict(stepId, context) {
     if (!this.initialized) {
       throw new Error('Optimizer not initialized. Call initialize() first.');
+    }
+    if (!this.hasPersistedModel) {
+      return {
+        prediction: PREDICTION.EXECUTE,
+        confidence: 0,
+        reason: SKIP_REASON.INSUFFICIENT_DATA,
+      };
     }
 
     // Extract features from context

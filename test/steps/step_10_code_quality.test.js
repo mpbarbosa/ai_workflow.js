@@ -28,13 +28,16 @@ import {
   isStep10CodeReviewableFile,
   isErrorResilienceReviewableFile,
   buildFileContentMap,
+  buildSupportingQualityPromptFields,
   buildPromptFileEntries,
   buildCodePromptSlices,
   formatFileContentMap,
   formatPromptFileEntries,
   buildCodeContentHash,
+  resolveCohesionGuideStatus,
   shouldRunErrorResiliencePrompt,
 } from '../../src/steps/step_10_code_quality.js';
+import { Step10AiReviewService } from '../../src/steps/step_10_ai_review.js';
 
 describe('Step 10: Code Quality Analysis', () => {
   // ========================================================================
@@ -691,6 +694,49 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
     });
   });
 
+  describe('buildSupportingQualityPromptFields', () => {
+    test('summarizes per-language linter evidence for prompt injection', () => {
+      const fields = buildSupportingQualityPromptFields([
+        {
+          language: 'javascript',
+          sourceFileCount: 3,
+          linterCommand: 'npm run lint',
+          linterResults: { totalIssues: 0, errors: 0, warnings: 0, infos: 0 },
+        },
+      ]);
+
+      expect(fields.supportingQualityScopeNote).toContain('supporting evidence only');
+      expect(fields.supportingQualityContext).toContain('javascript: 3 source file(s)');
+      expect(fields.supportingQualityContext).toContain('`npm run lint`');
+      expect(fields.supportingQualityContext).toContain('no issues found');
+    });
+
+    test('falls back to explicit unavailable wording when no evidence exists', () => {
+      const fields = buildSupportingQualityPromptFields([]);
+
+      expect(fields.supportingQualityScopeNote).toContain('No supplementary tooling');
+      expect(fields.supportingQualityContext).toContain('evidence unavailable');
+    });
+  });
+
+  describe('resolveCohesionGuideStatus', () => {
+    test('reports present and missing mandatory guide files', async () => {
+      const fileOps = {
+        exists: async (filePath) => filePath.endsWith('HIGH_COHESION_GUIDE.md'),
+      };
+
+      const status = await resolveCohesionGuideStatus(fileOps, '/project', 2);
+
+      expect(status).toContain('HIGH_COHESION_GUIDE.md`: PRESENT');
+      expect(status).toContain('LOW_COUPLING_GUIDE.md`: MISSING');
+    });
+
+    test('marks guide status unavailable when file checks cannot run', async () => {
+      const status = await resolveCohesionGuideStatus(null, '/project', 2);
+      expect(status).toContain('Unavailable');
+    });
+  });
+
   describe('isStep10CodeReviewableFile', () => {
     test('returns true for source-like executable files', () => {
       expect(isStep10CodeReviewableFile('src/app.ts')).toBe(true);
@@ -924,6 +970,120 @@ src/utils.py:15:10: E302 expected 2 blank lines`;
         // The file content embedded in the prompt must be truncated — no 8000-char run of 'x'
         expect(promptContents[0]).not.toContain('x'.repeat(4001));
       }
+    });
+
+    test('AI prompt builder injects supplementary quality evidence and cohesion guide status', async () => {
+      const service = new Step10AiReviewService({
+        fileOps: {
+          exists: async (filePath) =>
+            filePath.endsWith('HIGH_COHESION_GUIDE.md') ||
+            filePath.endsWith('.prettierrc.json') ||
+            filePath.endsWith('CONTRIBUTING.md') ||
+            filePath.endsWith('copilot-instructions.md'),
+          readFile: async (filePath) => {
+            if (filePath.endsWith('package.json')) {
+              return JSON.stringify({
+                scripts: {
+                  format: 'prettier --write "**/*.{js,json,md}"',
+                  'format:check': 'prettier --check "**/*.{js,json,md}"',
+                },
+              });
+            }
+            return '';
+          },
+        },
+      });
+
+      const prompt = await service.buildQualitySlicePrompt({
+        sharedParsedYaml: {
+          step10_code_quality_prompt: {
+            task_template: [
+              'Supplementary:',
+              '{supporting_quality_scope_note}',
+              '{supporting_quality_context}',
+              'Guides:',
+              '{cohesion_guide_status}',
+              '{file_content_map}',
+            ].join('\n'),
+            approach: 'Review only shown files.',
+          },
+        },
+        promptSlice: {
+          entries: [{ displayPath: 'src/index.js', excerpt: 'export const main = () => {};' }],
+          scopePaths: ['src/index.js'],
+          oversizedPaths: [],
+        },
+        promptSlices: [{ scopePaths: ['src/index.js'] }],
+        partition: { index: 0, total: 1 },
+        sliceIndex: 0,
+        projectRoot: '/project',
+        options: { modifiedFiles: [] },
+        primaryLanguage: 'javascript',
+        detectedLanguages: ['javascript'],
+        aggregateTotals: { totalIssues: 0, fileCount: 1 },
+        perLanguageResults: [
+          {
+            language: 'javascript',
+            sourceFileCount: 1,
+            linterCommand: 'npm run lint',
+            linterResults: { totalIssues: 0, errors: 0, warnings: 0, infos: 0 },
+          },
+        ],
+        report: '# Code Quality Report',
+        reviewableSourceFiles: ['src/index.js'],
+      });
+
+      expect(prompt).toContain('supporting evidence only');
+      expect(prompt).toContain('javascript: 1 source file(s)');
+      expect(prompt).toContain('Formatter tooling evidence:');
+      expect(prompt).toContain('`.prettierrc.json` present');
+      expect(prompt).toContain('`format`');
+      expect(prompt).toContain('Project convention sources:');
+      expect(prompt).toContain('`CONTRIBUTING.md`: PRESENT');
+      expect(prompt).toContain('`.github/copilot-instructions.md`: PRESENT');
+      expect(prompt).toContain('HIGH_COHESION_GUIDE.md`: PRESENT');
+      expect(prompt).toContain('LOW_COUPLING_GUIDE.md`: MISSING');
+    });
+
+    test('AI prompt builder falls back to .workflow-config.yaml for project kind when options omit it', async () => {
+      const service = new Step10AiReviewService({
+        fileOps: {
+          exists: async () => false,
+          readFile: async (filePath) => {
+            if (filePath.endsWith('.workflow-config.yaml')) {
+              return "project:\n  kind: 'nodejs_automation'\n";
+            }
+            return '';
+          },
+        },
+      });
+
+      const prompt = await service.buildQualitySlicePrompt({
+        sharedParsedYaml: {
+          step10_code_quality_prompt: {
+            task_template: ['Kind: {project_kind}', '{file_content_map}'].join('\n'),
+            approach: 'Review only shown files.',
+          },
+        },
+        promptSlice: {
+          entries: [{ displayPath: 'src/index.js', excerpt: 'export const main = () => {};' }],
+          scopePaths: ['src/index.js'],
+          oversizedPaths: [],
+        },
+        promptSlices: [{ scopePaths: ['src/index.js'] }],
+        partition: { index: 0, total: 1 },
+        sliceIndex: 0,
+        projectRoot: '/project',
+        options: { modifiedFiles: [] },
+        primaryLanguage: 'javascript',
+        detectedLanguages: ['javascript'],
+        aggregateTotals: { totalIssues: 0, fileCount: 1 },
+        perLanguageResults: [],
+        report: '# Code Quality Report',
+        reviewableSourceFiles: ['src/index.js'],
+      });
+
+      expect(prompt).toContain('Kind: nodejs_automation');
     });
 
     // AI phase partition system: each run reviews one small batch of files.

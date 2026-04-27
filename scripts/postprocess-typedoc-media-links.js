@@ -30,6 +30,20 @@ const rewrites = [
     filePath: join(projectRoot, 'docs/api/html/media/PREPARE_RELEASE.md'),
     replacements: [['(../../CHANGELOG.md)', '(../../../../CHANGELOG.md)']],
   },
+  {
+    filePath: join(projectRoot, 'docs/api/html/media/SETUP.md'),
+    replacements: [
+      ['(../getting-started/INSTALLATION.md)', '(../../../getting-started/INSTALLATION.md)'],
+      ['(../../scripts/README.md)', '(../../../../scripts/README.md)'],
+    ],
+  },
+  {
+    filePath: join(projectRoot, 'docs/api/html/media/TEST_INTEGRATION.md'),
+    replacements: [
+      ['(./TESTING_GUIDE.md)', '(../../../guides/TESTING_GUIDE.md)'],
+      ['(../../scripts/README.md)', '(../../../../scripts/README.md)'],
+    ],
+  },
 ];
 
 export function postprocessTypedocMediaLinks() {

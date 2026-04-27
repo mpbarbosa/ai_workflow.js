@@ -459,7 +459,12 @@ ${docContentsContext}
 
 **Primary partition findings**:
 ${findingsContext}`;
-  const approach = `Use the partition findings to reconcile cross-partition contradictions, but ground every final conclusion in the visible documentation excerpts above. Provide one final whole-scope answer only. Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If the partition findings conflict or the visible documentation evidence is incomplete, mark the affected file Inconclusive instead of guessing.`;
+  const approach = `Use the partition findings to reconcile cross-partition contradictions, but ground every final conclusion in the visible documentation excerpts above. Provide one final whole-scope answer only. Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If the partition findings conflict or the visible documentation evidence is incomplete, mark the affected file Inconclusive instead of guessing.
+
+- Treat current-state docs (status summaries, implementation tables, released step lists, "current version" blocks) as describing shipped behavior unless the visible scoped document already labels that section as planned/future work.
+- Do not promote roadmap-only or planned items into released/current-state docs unless the visible implementation evidence in this prompt shows the feature already exists.
+- When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines), reconcile them as a linked set. Update only the values explicitly supported by visible evidence, and keep any unsupported line Unavailable or Inconclusive rather than guessing.
+- Never invent or infer release dates or "Last updated" dates from prompt timestamps, roadmap phases, or general recency.`;
 
   return injectProjectContext(buildStructuredPrompt({ role, task, approach }), projectInfo);
 }
@@ -779,20 +784,38 @@ export class Step1DocumentationAnalyzer {
         logger.info('Running parallel documentation analysis...');
         const rawResult = await this.parallelProcessor.validate(
           docsToProcess,
-          async (_category, files) => {
+          async (_category, files, { signal } = {}) => {
+            const ensureActive = () => {
+              if (signal?.aborted) {
+                const error = new Error('Cancelled');
+                error.name = 'AbortError';
+                throw error;
+              }
+            };
+
+            ensureActive();
             if (!aiAvailable) {
               return { success: true, skipped: true, reason: 'ai_unavailable' };
             }
-            const projectInfo = {
-              language: this.configManager?.config?.tech_stack?.primary_language,
-              projectKind: this.configManager?.config?.project?.kind,
-            };
+            const projectInfo = {};
+            const primaryLanguage = this.configManager?.config?.tech_stack?.primary_language;
+            const projectKind = this.configManager?.config?.project?.kind;
+
+            if (primaryLanguage) {
+              projectInfo.language = primaryLanguage;
+            }
+
+            if (projectKind) {
+              projectInfo.projectKind = projectKind;
+            }
             const evidenceFiles = selectStep1EvidenceFiles(files, classification);
+            ensureActive();
             const { fileEntries } = await loadReadableReviewFiles(
               this.fileOps,
               projectRoot,
               evidenceFiles
             );
+            ensureActive();
             const scopedDocEntries = getStep1ScopedDocEntries(fileEntries, files);
             const scopedDocPathsContext = buildStep1ScopedDocPathsContext(files);
             const scopedDocContents = buildStep1ScopedDocContextBlock(scopedDocEntries);
@@ -842,7 +865,9 @@ export class Step1DocumentationAnalyzer {
 
             const { success, content: combinedContent } = await runPartitionedAiResponses({
               partitions: partitionsToAnalyze,
+              shouldContinue: () => !signal?.aborted,
               buildPrompt: (partition, { index: i, total }) => {
+                ensureActive();
                 const filePathsContext = buildPartitionFilePathsContext(partition.entries);
                 const fileContentsSection = buildReviewFileContentsBlock(partition.entries);
                 let prompt = null;
@@ -921,16 +946,20 @@ export class Step1DocumentationAnalyzer {
 
                 return prompt;
               },
-              executePartition: (_partition, { index: i, total }, prompt) =>
-                this.aiCache.withFileChangeGuard(
+              executePartition: (_partition, { index: i, total }, prompt) => {
+                ensureActive();
+                return this.aiCache.withFileChangeGuard(
                   `step_01|${cacheCategory}|part:${i + 1}/${total}`,
                   fileHashEntries,
-                  () =>
-                    this.aiHelper.executeRequest(prompt, {
+                  () => {
+                    ensureActive();
+                    return this.aiHelper.executeRequest(prompt, {
                       persona: 'documentation_expert',
                       model: selectedModel,
-                    })
-                ),
+                    });
+                  }
+                );
+              },
               trackSuccess: (response, currentSuccess) =>
                 currentSuccess && response?.success !== false,
             });
@@ -938,6 +967,7 @@ export class Step1DocumentationAnalyzer {
             let finalSuccess = success;
 
             if (partitionsToAnalyze.length > 1) {
+              ensureActive();
               let synthesisPrompt = buildStep1SynthesisPrompt({
                 changedFiles: evidenceFiles,
                 docFiles: files,
@@ -954,11 +984,13 @@ export class Step1DocumentationAnalyzer {
               const synthesisResult = await this.aiCache.withFileChangeGuard(
                 `step_01|${cacheCategory}|synthesis`,
                 [...fileHashEntries, `partition-findings:${combinedContent}`],
-                () =>
-                  this.aiHelper.executeRequest(synthesisPrompt, {
+                () => {
+                  ensureActive();
+                  return this.aiHelper.executeRequest(synthesisPrompt, {
                     persona: 'documentation_expert',
                     model: selectedModel,
-                  })
+                  });
+                }
               );
 
               finalSuccess = finalSuccess && synthesisResult?.success !== false;
@@ -990,6 +1022,13 @@ export class Step1DocumentationAnalyzer {
             speedup: procStats.speedup?.speedup ?? null,
           },
         };
+
+        if (rawResult.success !== true || rawResult.validatedFiles < rawResult.totalFiles) {
+          const failureReason =
+            rawResult.errors?.map((entry) => entry?.error).filter(Boolean).join('; ') ||
+            'Documentation analysis did not complete for every targeted file';
+          throw new Error(failureReason);
+        }
 
         logger.success(
           `Parallel analysis completed: ${analysisResult.stats.processed} docs in ${analysisResult.stats.totalTime}ms`

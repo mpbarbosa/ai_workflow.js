@@ -31,6 +31,7 @@ import {
   splitReviewPromptEntry,
 } from '../lib/review_step_helpers.js';
 import { ReviewStepBase } from '../lib/review_step_base.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 
 export {
   buildReviewFileContentsBlock as buildAccessibilityFileContentsBlock,
@@ -313,10 +314,12 @@ export class Step22AccessibilityReview extends ReviewStepBase {
       );
 
       let aiContent = '';
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
 
       if (aiAvailable) {
-        await this.aiCache.init();
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const promptPartitions =

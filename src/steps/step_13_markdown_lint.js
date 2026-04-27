@@ -20,12 +20,8 @@ import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  loadResolvedAiHelpers,
-} from '../lib/ai_prompt_builder.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { buildStepPromptWithFallback, initializeStepAiContext } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -477,11 +473,21 @@ export class Step13MarkdownLint {
 
       // Phase 3: Run mdl linting (pass enumerated files to avoid git-lock race)
       let lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
+      let aiCacheToken = 'baseline';
 
       // Phase 3.5: Auto-fix violations that markdownlint-cli can correct
       if (lintResults.issues.length > 0) {
+        const beforeFixSnapshot = await this._captureMarkdownSnapshot(markdownFiles);
         const fixResult = await this._runAutoFix(projectRoot, markdownFiles);
         if (fixResult.applied) {
+          const afterFixSnapshot = await this._captureMarkdownSnapshot(markdownFiles);
+          if (beforeFixSnapshot === afterFixSnapshot) {
+            aiCacheToken = 'autofix-noop';
+            await this.aiCache.invalidateFileChangeGuard('step_13');
+            this.logger.warn('Auto-fix reported success but did not change markdown files');
+          } else {
+            aiCacheToken = 'autofix-applied';
+          }
           // Re-lint to capture the post-fix state
           lintResults = await this._runMdlLinting(projectRoot, markdownFiles);
           this.logger.info(`Auto-fix applied. Remaining violations: ${lintResults.issues.length}`);
@@ -498,7 +504,7 @@ export class Step13MarkdownLint {
         antiPatterns,
         mdlInstalled.version,
         projectRoot,
-        context
+        { ...context, aiCacheToken }
       );
     } catch (error) {
       this.logger.error(`Markdown linting failed: ${error.message}`);
@@ -716,6 +722,24 @@ export class Step13MarkdownLint {
     return allAntiPatterns;
   }
 
+  async _captureMarkdownSnapshot(files) {
+    if (!this.fileOps) {
+      return '';
+    }
+
+    const snapshots = [];
+    for (const file of files) {
+      try {
+        const content = await this.fileOps.readFile(file);
+        snapshots.push(`${file}:${content}`);
+      } catch {
+        snapshots.push(`${file}:<unreadable>`);
+      }
+    }
+
+    return snapshots.join('\n---\n');
+  }
+
   /**
    * Generate final report
    * @private
@@ -751,10 +775,11 @@ export class Step13MarkdownLint {
     }
 
     // Phase AI: AI-powered markdown lint analysis
-    const aiAvailable = await this.aiHelper.initialize();
+    const aiAvailable = await initializeStepAiContext({
+      aiHelper: this.aiHelper,
+      aiCache: this.aiCache,
+    });
     if (aiAvailable) {
-      await this.aiCache.init();
-
       // Build grounding data for the prompt (prevents hallucination of file/rule names)
       const byRule = groupIssuesByRule(lintResults.issues);
       const byFile = groupIssuesByFile(lintResults.issues);
@@ -806,21 +831,18 @@ export class Step13MarkdownLint {
           ? String(context.modifiedCount)
           : String(modifiedFiles.filter((f) => /\.md$/i.test(f)).length) || 'unknown';
 
-      let prompt;
-      try {
-        const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
-        prompt = buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
-          project_name: projectRoot,
-          lint_report: lintReport,
-          current_branch: currentBranch,
-          modified_md_count: modifiedMdCount,
-        });
-      } catch {
-        /* fallback to generic prompt */
-      }
-      if (!prompt) {
-        const role = `You are an expert in Markdown authoring and documentation quality.`;
-        const task = `Analyze these markdown linting results for the project at: ${projectRoot}
+      const prompt = await buildStepPromptWithFallback({
+        buildPrompt: async () => {
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
+          return buildYamlStepPrompt(parsedYaml, 'markdown_lint_prompt', {
+            project_name: projectRoot,
+            lint_report: lintReport,
+            current_branch: currentBranch,
+            modified_md_count: modifiedMdCount,
+          });
+        },
+        fallbackRole: `You are an expert in Markdown authoring and documentation quality.`,
+        fallbackTask: `Analyze these markdown linting results for the project at: ${projectRoot}
 
 - Files linted: ${fileCount}
 - Total issues: ${stats.totalIssues}
@@ -834,17 +856,18 @@ ${issuesByRule || '(none)'}
 Issues by file (top 10):
 ${issuesByFile || '(none)'}
 
-IMPORTANT: Only reference the files and rules listed above. Do not invent file paths or rule names not present in this data.`;
-        const approach = `Provide actionable fixes for the rules and files listed above. Be precise and reference only the data provided.`;
-        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {
+IMPORTANT: Only reference the files and rules listed above. Do not invent file paths or rule names not present in this data.`,
+        fallbackApproach: `Provide actionable fixes for the rules and files listed above. Be precise and reference only the data provided.`,
+        fallbackProjectContext: {
           project_name: projectRoot,
-        });
-      }
+        },
+      });
       // Hash key: lint results capture all meaningful input changes (derived from file content).
       const lintHashEntries = [
         `fileCount:${fileCount}`,
         `issues:${issuesByRule}`,
         `byFile:${issuesByFile}`,
+        `autofix:${context.aiCacheToken || 'baseline'}`,
       ];
       const aiResult = await this.aiCache.withFileChangeGuard('step_13', lintHashEntries, () =>
         this.aiHelper.executeRequest(prompt, { persona: 'technical_writer' })
@@ -866,6 +889,7 @@ IMPORTANT: Only reference the files and rules listed above. Do not invent file p
 
     return {
       success: true,
+      degraded: context.aiCacheToken === 'autofix-noop' && stats.totalIssues > 0,
       status,
       stats,
       issues: lintResults.issues,

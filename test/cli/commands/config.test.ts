@@ -10,26 +10,41 @@ import {
   formatConfigValue,
   formatValidationErrors,
 } from '../../../src/cli/commands/config.js';
+import type { ConfigRecord, ConfigValidationIssue } from '../../../src/cli/commands/config.js';
 
-describe('Config Command - Pure Functions', () => {
-  describe('validateConfigAction', () => {
-    test('should be valid for show action', () => {
+interface TestProjectConfig {
+  name: string;
+  kind: string;
+}
+
+interface TestWorkflowConfig {
+  enabled: boolean;
+}
+
+interface TestConfig extends ConfigRecord {
+  project: TestProjectConfig;
+  workflow: TestWorkflowConfig;
+}
+
+describe('Config Command - Pure Functions', (): void => {
+  describe('validateConfigAction', (): void => {
+    test('should be valid for show action', (): void => {
       const result = validateConfigAction('show', []);
       expect(result.isValid).toBe(true);
       expect(result.action).toBe('show');
     });
 
-    test('should be valid for get action with one arg', () => {
+    test('should be valid for get action with one arg', (): void => {
       const result = validateConfigAction('get', ['project.name']);
       expect(result.isValid).toBe(true);
     });
 
-    test('should be valid for set action with two args', () => {
+    test('should be valid for set action with two args', (): void => {
       const result = validateConfigAction('set', ['project.name', 'MyProject']);
       expect(result.isValid).toBe(true);
     });
 
-    test('should be invalid for unknown action', () => {
+    test('should be invalid for unknown action', (): void => {
       const result = validateConfigAction('delete', []);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
@@ -37,21 +52,21 @@ describe('Config Command - Pure Functions', () => {
       );
     });
 
-    test('should be invalid for get without key', () => {
+    test('should be invalid for get without key', (): void => {
       const result = validateConfigAction('get', []);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('get action requires exactly one argument: key');
     });
 
-    test('should be invalid for set without value', () => {
+    test('should be invalid for set without value', (): void => {
       const result = validateConfigAction('set', ['key']);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain('set action requires exactly two arguments: key value');
     });
   });
 
-  describe('getConfigValue', () => {
-    const config = {
+  describe('getConfigValue', (): void => {
+    const config: TestConfig = {
       project: {
         name: 'MyProject',
         kind: 'nodejs_api',
@@ -61,63 +76,63 @@ describe('Config Command - Pure Functions', () => {
       },
     };
 
-    test('should get top-level value', () => {
-      const value = getConfigValue(config, 'workflow');
+    test('should get top-level value', (): void => {
+      const value = getConfigValue<TestWorkflowConfig>(config, 'workflow');
       expect(value).toEqual({ enabled: true });
     });
 
-    test('should get nested value', () => {
-      const value = getConfigValue(config, 'project.name');
+    test('should get nested value', (): void => {
+      const value = getConfigValue<TestProjectConfig['name']>(config, 'project.name');
       expect(value).toBe('MyProject');
     });
 
-    test('should return undefined for non-existent key', () => {
+    test('should return undefined for non-existent key', (): void => {
       const value = getConfigValue(config, 'project.foo');
       expect(value).toBeUndefined();
     });
 
-    test('should return undefined for null config', () => {
+    test('should return undefined for null config', (): void => {
       const value = getConfigValue(null, 'project.name');
       expect(value).toBeUndefined();
     });
 
-    test('should return undefined for empty keyPath', () => {
+    test('should return undefined for empty keyPath', (): void => {
       const value = getConfigValue(config, '');
       expect(value).toBeUndefined();
     });
   });
 
-  describe('formatConfigValue', () => {
-    test('should format string value', () => {
+  describe('formatConfigValue', (): void => {
+    test('should format string value', (): void => {
       const formatted = formatConfigValue('hello');
       expect(formatted).toBe('hello');
     });
 
-    test('should format number value', () => {
+    test('should format number value', (): void => {
       const formatted = formatConfigValue(42);
       expect(formatted).toBe('42');
     });
 
-    test('should format object value as JSON', () => {
+    test('should format object value as JSON', (): void => {
       const formatted = formatConfigValue({ name: 'test' });
       expect(formatted).toContain('"name"');
       expect(formatted).toContain('"test"');
     });
 
-    test('should format null value', () => {
+    test('should format null value', (): void => {
       const formatted = formatConfigValue(null);
       expect(formatted).toContain('not set');
     });
 
-    test('should format undefined value', () => {
+    test('should format undefined value', (): void => {
       const formatted = formatConfigValue(undefined);
       expect(formatted).toContain('not set');
     });
   });
 
-  describe('formatValidationErrors', () => {
-    test('should format error list', () => {
-      const errors = [
+  describe('formatValidationErrors', (): void => {
+    test('should format error list', (): void => {
+      const errors: ConfigValidationIssue[] = [
         { path: 'project.name', message: 'Required field' },
         { path: 'workflow.stages', message: 'Invalid format' },
       ];
@@ -128,12 +143,12 @@ describe('Config Command - Pure Functions', () => {
       expect(formatted).toContain('workflow.stages: Invalid format');
     });
 
-    test('should handle empty errors', () => {
+    test('should handle empty errors', (): void => {
       const formatted = formatValidationErrors([]);
       expect(formatted).toBe('No errors');
     });
 
-    test('should handle null errors', () => {
+    test('should handle null errors', (): void => {
       const formatted = formatValidationErrors(null);
       expect(formatted).toBe('No errors');
     });

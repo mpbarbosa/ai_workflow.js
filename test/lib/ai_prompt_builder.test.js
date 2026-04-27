@@ -229,6 +229,19 @@ describe('AI Prompt Builder Module - Template Processing', () => {
       expect(result).toBe('Test prompt');
     });
 
+    test('skips empty project context sections when all values are missing', () => {
+      const prompt = 'Test prompt';
+      const result = injectProjectContext(prompt, {
+        language: undefined,
+        projectKind: undefined,
+        framework: '',
+        techStack: [],
+      });
+
+      expect(result).toBe('Test prompt');
+      expect(result).not.toContain('**Project Context**');
+    });
+
     test('returns empty string for invalid prompt', () => {
       expect(injectProjectContext(null)).toBe('');
       expect(injectProjectContext(undefined)).toBe('');
@@ -725,6 +738,19 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       const result = buildDocAnalysisPrompt(options);
 
       expect(result).toContain('No files');
+    });
+
+    test('includes guardrails for planned items and unsupported metadata guesses', () => {
+      const result = buildDocAnalysisPrompt({
+        changedFiles: ['ROADMAP.md', 'package.json'],
+        docFiles: ['README.md'],
+      });
+
+      expect(result).toContain(
+        'Do not add placeholder "planned" or "coming soon" entries to current-state docs'
+      );
+      expect(result).toContain('Never infer release dates or "Last updated" values');
+      expect(result).toContain('treat them as linked metadata');
     });
   });
 

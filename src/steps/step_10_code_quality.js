@@ -26,6 +26,7 @@ export {
   buildCodeContentHash,
   buildCodePromptSlices,
   buildFileContentMap,
+  buildSupportingQualityPromptFields,
   buildPromptFileEntries,
   formatFileContentMap,
   formatPromptFileEntries,
@@ -33,6 +34,7 @@ export {
   isStep10CodeReviewableFile,
   isStep10GeneratedArtifactPath,
   prioritizeSourceFiles,
+  resolveCohesionGuideStatus,
   shouldRunErrorResiliencePrompt,
 } from './step_10_ai_review.js';
 
@@ -726,6 +728,7 @@ export class Step10CodeQualityAnalyzer {
       let alternatives = [];
       let recommendedAlternative = null;
       let erContent = '';
+      let reviewCoverage = null;
       try {
         const aiReviewResult = await this.createAiReviewService().review({
           projectRoot,
@@ -741,15 +744,24 @@ export class Step10CodeQualityAnalyzer {
         alternatives = aiReviewResult.alternatives;
         recommendedAlternative = aiReviewResult.recommendedAlternative;
         erContent = aiReviewResult.erFindings;
+        reviewCoverage = aiReviewResult.reviewCoverage;
       } catch (aiError) {
         logger.warn(`AI code quality review skipped: ${aiError.message}`);
       }
 
       const hasErrors = aggregateTotals.errors > 0;
       if (hasErrors) {
-        logger.warn('Step 10 completed with errors');
+        logger.warn(
+          reviewCoverage
+            ? `Step 10 completed with errors; ${reviewCoverage}`
+            : 'Step 10 completed with errors'
+        );
       } else {
-        logger.success('Step 10 completed - code quality validated!');
+        logger.success(
+          reviewCoverage
+            ? `Step 10 completed - lint checks passed; ${reviewCoverage}`
+            : 'Step 10 completed - code quality validated!'
+        );
       }
 
       return {
@@ -763,6 +775,7 @@ export class Step10CodeQualityAnalyzer {
         alternatives,
         recommendedAlternative,
         erFindings: erContent,
+        reviewCoverage,
       };
     } catch (error) {
       logger.error(`Step 10 failed: ${error.message}`);

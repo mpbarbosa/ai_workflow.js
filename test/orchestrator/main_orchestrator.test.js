@@ -10,6 +10,8 @@ import {
   buildWorkflowConfigStepIndex,
   getConfiguredStepsForStage,
   filterStepIdsByProfile,
+  enforceTerminalStepOrder,
+  sanitizeWorkflowConfigDependencies,
   detectWorkflowConfigStructure,
   buildGeneratedWorkflowConfig,
   calculateProgress,
@@ -123,23 +125,27 @@ describe('Main Orchestrator - Pure Functions', () => {
     test('should return quick validation steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.QUICK);
 
-      expect(steps).toHaveLength(6);
+      expect(steps).toHaveLength(10);
       expect(steps).toContain('step_00');
+      expect(steps).toContain('step_0b');
       expect(steps).toContain('step_01');
       expect(steps).toContain('step_01_5');
       expect(steps).toContain('step_02');
       expect(steps).toContain('step_04');
       expect(steps).toContain('step_05');
+      expect(steps.slice(-3)).toEqual(['step_17', 'step_0f', 'step_12']);
     });
 
     test('should return medium validation steps', () => {
       const steps = getStepsForStage(WORKFLOW_STAGES.MEDIUM);
 
-      expect(steps).toHaveLength(14);
+      expect(steps).toHaveLength(18);
+      expect(steps).toContain('step_0b');
       expect(steps).toContain('step_01_5'); // Copilot instructions validation
       expect(steps).toContain('step_08'); // Test execution
       expect(steps).toContain('step_10'); // Code quality
       expect(steps).toContain('step_21'); // Doc consolidation
+      expect(steps.slice(-3)).toEqual(['step_17', 'step_0f', 'step_12']);
     });
 
     test('should return full workflow steps', () => {
@@ -235,6 +241,31 @@ describe('Main Orchestrator - Pure Functions', () => {
         'step_01_5',
         'step_02',
         'step_05',
+        'step_17',
+        'step_0f',
+        'step_12',
+      ]);
+    });
+
+    test('enforces terminal finalization steps at the end of full-stage configured plans', () => {
+      const workflowConfig = {
+        workflow: {
+          steps: [
+            { id: '00', enabled: true },
+            { id: '12', enabled: true },
+            { id: '16', enabled: true },
+            { id: '17', enabled: true },
+            { id: '0f', enabled: true },
+          ],
+        },
+      };
+
+      expect(getConfiguredStepsForStage(WORKFLOW_STAGES.FULL, workflowConfig)).toEqual([
+        'step_00',
+        'step_16',
+        'step_17',
+        'step_0f',
+        'step_12',
       ]);
     });
   });
@@ -354,6 +385,61 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(
         filterStepIdsByProfile(plannedSteps, [2, 4], dependencyIndex, ['step_08'], ['step_12'])
       ).toEqual(plannedSteps);
+    });
+
+    test('does not collapse focus=all plans to the preserved terminal dependency chain', () => {
+      const plannedSteps = ['step_00', 'step_04', 'step_08', 'step_16', 'step_17', 'step_0f', 'step_12'];
+      const dependencyIndex = {
+        step_04: ['step_00'],
+        step_08: ['step_04'],
+        step_16: ['step_08'],
+        step_17: ['step_16'],
+        step_0f: ['step_17'],
+        step_12: ['step_0f'],
+      };
+
+      expect(filterStepIdsByProfile(plannedSteps, [], dependencyIndex, 'all', ['step_12'])).toEqual(
+        plannedSteps
+      );
+    });
+  });
+
+  describe('terminal finalization helpers', () => {
+    test('enforceTerminalStepOrder moves terminal steps to the tail without dropping other steps', () => {
+      expect(
+        enforceTerminalStepOrder(['step_12', 'step_00', 'step_17', 'step_16', 'step_0f'])
+      ).toEqual(['step_00', 'step_16', 'step_17', 'step_0f', 'step_12']);
+    });
+
+    test('sanitizeWorkflowConfigDependencies removes terminal dependencies from non-terminal steps', () => {
+      expect(sanitizeWorkflowConfigDependencies('step_16', ['step_08', 'step_12', 'step_17'])).toEqual([
+        'step_08',
+      ]);
+    });
+
+    test('sanitizeWorkflowConfigDependencies preserves required terminal chain defaults', () => {
+      expect(
+        sanitizeWorkflowConfigDependencies('step_17', ['step_10'], ['step_03', 'step_11_6'])
+      ).toEqual(['step_10', 'step_03', 'step_11_6']);
+      expect(sanitizeWorkflowConfigDependencies('step_12', ['step_10'], ['step_0f'])).toEqual([
+        'step_10',
+        'step_0f',
+      ]);
+      expect(sanitizeWorkflowConfigDependencies('step_0f', ['step_10'], ['step_17'])).toEqual([
+        'step_10',
+        'step_17',
+      ]);
+    });
+
+    test('sanitizeWorkflowConfigDependencies preserves locked verification ordering defaults', () => {
+      expect(sanitizeWorkflowConfigDependencies('step_10', ['step_06'], ['step_09'])).toEqual([
+        'step_06',
+        'step_09',
+      ]);
+      expect(sanitizeWorkflowConfigDependencies('step_11', ['step_10'], ['step_13'])).toEqual([
+        'step_10',
+        'step_13',
+      ]);
     });
   });
 
@@ -1256,6 +1342,69 @@ describe('Main Orchestrator - Integration Tests', () => {
           expect(step.executor).toBeUndefined();
         }
       });
+
+      test('should enforce bootstrap and terminal summary dependencies', () => {
+        orchestrator.registerAllSteps();
+
+        expect(orchestrator.stepRegistry.get('step_01').dependencies).toEqual(['step_0b']);
+        expect(orchestrator.stepRegistry.get('step_17').dependencies).toEqual([
+          'step_03',
+          'step_11_6',
+          'step_20',
+          'step_23',
+        ]);
+      });
+
+      test('preserves canonical step semantics when project config applies aliases', () => {
+        // Overriding canonical dependencies requires a dependency_comment — omitting it throws
+        expect(() =>
+          orchestrator.registerAllSteps({
+            workflow: {
+              steps: [
+                {
+                  id: 'step_21',
+                  name: 'Architecture Review',
+                  description: 'Project-specific alias for architecture checks',
+                  dependencies: ['step_05'],
+                },
+              ],
+            },
+          })
+        ).toThrow(
+          new RegExp(
+            [
+              '\\.workflow-config\\.yaml',
+              'dependency_comment',
+              'Canonical dependencies: \\[step_02_5\\]',
+              'Configured dependencies: \\[step_05\\]',
+            ].join('.*')
+          )
+        );
+      });
+
+      test('preserves canonical step semantics when project config applies aliases with dependency_comment', () => {
+        orchestrator.registerAllSteps({
+          workflow: {
+            steps: [
+              {
+                id: 'step_21',
+                name: 'Architecture Review',
+                description: 'Project-specific alias for architecture checks',
+                dependencies: ['step_05'],
+                dependency_comment: 'Custom dependency for architecture checks',
+              },
+            ],
+          },
+        });
+
+        const step = orchestrator.stepRegistry.get('step_21');
+
+        expect(step.name).toBe('Architecture Review');
+        expect(step.dependencies).toEqual(['step_05']);
+        expect(step.metadata.canonicalName).toBe('Doc Consolidation');
+        expect(step.metadata.canonicalDescription).toContain('Find similar markdown docs');
+        expect(step.metadata.canonicalDependencies).toEqual(['step_02_5']);
+      });
     });
 
     describe('Bug Fix: Checkpoint save with wrong parameters', () => {
@@ -1596,6 +1745,26 @@ describe('Main Orchestrator - Integration Tests', () => {
           .catch(() => false);
         expect(exists).toBe(false);
       });
+
+      test('does not persist commit_history.json for failed workflow runs', async () => {
+        orchestrator.gitOps = makeGitMock();
+        orchestrator.workflowEngine.loadWorkflow = async (w) => w;
+        orchestrator.workflowEngine.executeWorkflow = async () => ({
+          success: false,
+          summary: { total: 1, succeeded: 0, failed: 1, skipped: 0 },
+          results: [{ stepId: 'step_00', stepName: 'Pre-Analysis', success: false, duration: 10 }],
+        });
+        orchestrator.summaryGenerator.generateSummary = async () => 'Summary';
+        orchestrator.checkpointManager.save = async () => 'cp-id';
+
+        await orchestrator.execute();
+
+        const exists = await fs
+          .access(`${testDir}/commit_history.json`)
+          .then(() => true)
+          .catch(() => false);
+        expect(exists).toBe(false);
+      });
     });
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1871,6 +2040,38 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Health checks failed');
       expect(logContent).toContain('✗ Workflow terminated before completion');
+    });
+
+    test('execute fails before pre-flight suites when workflow overrides are invalid', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir, projectRoot: process.cwd() });
+      const preflightSpy = mockSkippedPreflightSuites(orch);
+
+      orch.profileManager.detectProfile = async () => 'full_validation';
+      orch._ensureProjectWorkflowConfig = async () => ({
+        workflow: {
+          steps: [
+            {
+              id: 'step_02',
+              dependencies: ['step_01'],
+            },
+          ],
+        },
+      });
+
+      const result = await orch.execute({});
+      const logContent = await fs.readFile(
+        path.join(localTestDir, 'logs', orch.configManager.workflowRunId, 'workflow.log'),
+        'utf8'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('dependency_comment');
+      expect(result.error).toContain('.workflow-config.yaml');
+      expect(result.error).toContain('Canonical dependencies: [step_01_5]');
+      expect(result.error).toContain('Configured dependencies: [step_01]');
+      expect(preflightSpy).not.toHaveBeenCalled();
+      expect(logContent).not.toContain('Pre-flight quality suites passed');
+      expect(logContent).not.toContain('All health checks passed');
     });
 
     test('resume emits step events during workflow execution', async () => {

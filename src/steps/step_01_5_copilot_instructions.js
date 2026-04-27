@@ -42,8 +42,32 @@ export const COPILOT_SUPPORTING_SURFACES = [
   ['.workflow_fspec/', 'Functional specification submodule'],
   ['.ai_workflow/', 'Runtime artifacts, cache, and checkpoints'],
 ];
+export const COPILOT_INSTRUCTIONS_FINDING_CLASSIFICATIONS = [
+  'supported guidance',
+  'unsupported claim',
+  'stale detail',
+  'duplicate reference',
+  'inconclusive',
+];
+export const COPILOT_INSTRUCTIONS_FINDING_ACTIONS = [
+  'keep',
+  'rewrite',
+  'remove',
+  'omit pending evidence',
+];
+export const COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS = [
+  'Package Metadata',
+  'Copilot File Purpose',
+  'Validation Commands',
+  'Stable Source Layers',
+  'Supporting Workflow Surfaces',
+  'Authoritative Reference Docs',
+  'Public Package Entry Points',
+];
 const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|d\.ts)$/i;
 const NON_SOURCE_LAYER_DIRS = new Set(['__tests__', '__mocks__', 'fixtures']);
+const FINDING_SECTION_PATTERN = /^###\s+Finding\s+\d+\s+-\s+.+$/gm;
+const QUOTED_SNIPPET_PATTERN = /"([^"]+)"|`([^`]+)`/g;
 
 function sortNatural(values) {
   return [...values].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -255,6 +279,150 @@ export function extractCopilotInstructionsFindings(responseText) {
   return ensureTrailingNewline(text);
 }
 
+function extractFindingBulletValue(sectionText, label) {
+  const pattern = new RegExp(`^- \\*\\*${label}\\*\\*: (.+)$`, 'm');
+  return sectionText.match(pattern)?.[1]?.trim() || '';
+}
+
+function splitFindingSections(findingsText) {
+  const text = String(findingsText ?? '').trim();
+  if (!text) {
+    return [];
+  }
+
+  const matches = [...text.matchAll(FINDING_SECTION_PATTERN)];
+  if (matches.length === 0) {
+    return [];
+  }
+
+  return matches.map((match, index) => {
+    const start = match.index ?? 0;
+    const end = matches[index + 1]?.index ?? text.length;
+    return text.slice(start, end).trim();
+  });
+}
+
+function collectQuotedSnippets(text) {
+  return [...String(text ?? '').matchAll(QUOTED_SNIPPET_PATTERN)]
+    .map((match) => match[1] || match[2] || '')
+    .filter(Boolean);
+}
+
+function validateRepoFactEvidence(repoFactEvidence, repoFactsContext, requiresExplicitSupport) {
+  const trimmedEvidence = String(repoFactEvidence ?? '').trim();
+  if (!trimmedEvidence) {
+    return {
+      valid: false,
+      issues: ['Missing `Repo-fact evidence` bullet value.'],
+    };
+  }
+
+  if (trimmedEvidence === 'not available') {
+    return requiresExplicitSupport
+      ? {
+          valid: false,
+          issues: [
+            '`supported guidance` findings must cite explicit surfaced repo-fact support, not `not available`.',
+          ],
+        }
+      : { valid: true, issues: [] };
+  }
+
+  const quotedSnippets = collectQuotedSnippets(trimmedEvidence);
+  const invalidSnippets = quotedSnippets.filter((snippet) => !repoFactsContext.includes(snippet));
+  if (invalidSnippets.length > 0) {
+    return {
+      valid: false,
+      issues: invalidSnippets.map(
+        (snippet) => `Repo-fact evidence cites unsupported snippet "${snippet}".`
+      ),
+    };
+  }
+
+  const matchedHeadings = COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS.filter((heading) =>
+    trimmedEvidence.includes(heading)
+  );
+  if (requiresExplicitSupport && quotedSnippets.length === 0 && matchedHeadings.length === 0) {
+    return {
+      valid: false,
+      issues: [
+        '`supported guidance` findings must cite at least one surfaced repo-fact heading or quoted snippet.',
+      ],
+    };
+  }
+
+  return { valid: true, issues: [] };
+}
+
+function formatInvalidFindings(issues) {
+  const lines = [
+    'Structured findings could not be trusted.',
+    '',
+    'Validation issues:',
+    ...issues.map((issue) => `- ${issue}`),
+    '',
+    'See the raw AI response below for the untrusted original output.',
+  ];
+  return `${lines.join('\n')}\n`;
+}
+
+export function validateCopilotInstructionsFindings(findingsText, repoFactsContext = '') {
+  const normalizedFindings = ensureTrailingNewline(String(findingsText ?? '').trim());
+  if (!normalizedFindings) {
+    return {
+      valid: false,
+      issues: ['No `## Findings` content was returned.'],
+      findings: formatInvalidFindings(['No `## Findings` content was returned.']),
+    };
+  }
+
+  const sections = splitFindingSections(normalizedFindings);
+  if (sections.length === 0) {
+    return {
+      valid: false,
+      issues: ['No `### Finding N - ...` sections were returned inside `## Findings`.'],
+      findings: formatInvalidFindings([
+        'No `### Finding N - ...` sections were returned inside `## Findings`.',
+      ]),
+    };
+  }
+
+  const issues = [];
+  for (const section of sections) {
+    const heading = section.split('\n', 1)[0] || 'Unknown finding';
+    const classification = extractFindingBulletValue(section, 'Classification');
+    const action = extractFindingBulletValue(section, 'Action');
+    const repoFactEvidence = extractFindingBulletValue(section, 'Repo-fact evidence');
+
+    if (!COPILOT_INSTRUCTIONS_FINDING_CLASSIFICATIONS.includes(classification)) {
+      issues.push(
+        `${heading} uses unsupported classification "${classification || '(missing)'}".`
+      );
+    }
+
+    if (!COPILOT_INSTRUCTIONS_FINDING_ACTIONS.includes(action)) {
+      issues.push(`${heading} uses unsupported action "${action || '(missing)'}".`);
+    }
+
+    const repoFactValidation = validateRepoFactEvidence(
+      repoFactEvidence,
+      repoFactsContext,
+      classification === 'supported guidance'
+    );
+    if (!repoFactValidation.valid) {
+      for (const issue of repoFactValidation.issues) {
+        issues.push(`${heading}: ${issue}`);
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    findings: issues.length === 0 ? normalizedFindings : formatInvalidFindings(issues),
+  };
+}
+
 export function buildCopilotInstructionsRepoFactsContext(facts) {
   const validationCommands = Object.entries(facts.validationCommands ?? {})
     .map(([label, command]) => `- ${label}: \`${command}\``)
@@ -387,10 +555,19 @@ export class Step1_5CopilotInstructionsValidator {
     );
 
     const aiContent = aiResult?.content ?? '';
-    const findings = extractCopilotInstructionsFindings(aiContent);
+    const extractedFindings = extractCopilotInstructionsFindings(aiContent);
+    const findingsValidation = validateCopilotInstructionsFindings(extractedFindings, repoFacts);
+    const findings = findingsValidation.findings;
     const correctedContent = extractCorrectedCopilotInstructions(aiContent);
     const normalizedCurrent = ensureTrailingNewline(currentContent.trim());
     const updated = correctedContent.length > 0 && correctedContent !== normalizedCurrent;
+    const findingsValidationSection = findingsValidation.valid
+      ? []
+      : [
+          '### Findings validation issues',
+          ...findingsValidation.issues.map((issue) => `- ${issue}`),
+          '',
+        ];
 
     if (updated) {
       await this.fileOps.writeFile(targetPath, correctedContent);
@@ -406,9 +583,11 @@ export class Step1_5CopilotInstructionsValidator {
       `- **Updated**: ${updated ? 'yes' : 'no'}`,
       `- **Validation commands surfaced**: ${Object.values(facts.validationCommands).join(', ') || 'none'}`,
       `- **Reference docs surfaced**: ${facts.referenceDocs.map((doc) => `\`${doc}\``).join(', ') || 'none'}`,
+      `- **Structured findings valid**: ${findingsValidation.valid ? 'yes' : 'no'}`,
       '',
       repoFacts.trim(),
       '',
+      ...findingsValidationSection,
       '### Findings',
       findings ? findings.trim() : 'No structured findings returned.',
       '',
@@ -424,6 +603,8 @@ export class Step1_5CopilotInstructionsValidator {
       file: COPILOT_INSTRUCTIONS_RELATIVE_PATH,
       facts,
       findings,
+      findingsValid: findingsValidation.valid,
+      findingsValidationIssues: findingsValidation.issues,
     };
   }
 

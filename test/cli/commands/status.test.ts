@@ -5,11 +5,21 @@
 
 import { describe, test, expect } from '@jest/globals';
 import { formatWorkflowStatus, calculateSummaryStats } from '../../../src/cli/commands/status.js';
+import type {
+  WorkflowCheckpoint,
+  WorkflowMetricsEntry,
+  WorkflowStatusData,
+  WorkflowStatusSummary,
+} from '../../../src/cli/commands/status.js';
 
-describe('Status Command - Pure Functions', () => {
-  describe('formatWorkflowStatus', () => {
-    test('should format status with checkpoints', () => {
-      const status = {
+interface WorkflowStatusWithCheckpoints extends WorkflowStatusData {
+  checkpoints: WorkflowCheckpoint[];
+}
+
+describe('Status Command - Pure Functions', (): void => {
+  describe('formatWorkflowStatus', (): void => {
+    test('should format status with checkpoints', (): void => {
+      const status: WorkflowStatusWithCheckpoints = {
         checkpoints: [
           {
             workflowId: 'wf-123',
@@ -25,58 +35,60 @@ describe('Status Command - Pure Functions', () => {
         },
       };
 
-      const formatted = formatWorkflowStatus(status);
+      const formatted: string = formatWorkflowStatus(status);
       expect(formatted).toContain('Workflow Status');
       expect(formatted).toContain('wf-123');
       expect(formatted).toContain('50%');
       expect(formatted).toContain('Total Executions: 10');
     });
 
-    test('should handle status without checkpoints', () => {
-      const status = {
+    test('should handle status without checkpoints', (): void => {
+      const status: WorkflowStatusData = {
         checkpoints: [],
         metrics: null,
       };
 
-      const formatted = formatWorkflowStatus(status);
+      const formatted: string = formatWorkflowStatus(status);
       expect(formatted).toContain('No checkpoints found');
     });
 
-    test('should handle null status', () => {
-      const result = formatWorkflowStatus(null);
+    test('should handle null status', (): void => {
+      const result: string = formatWorkflowStatus(null);
       expect(result).toBe('No workflow status available');
     });
   });
 
-  describe('calculateSummaryStats', () => {
-    test('should calculate stats with data', () => {
-      const checkpoints = [
+  describe('calculateSummaryStats', (): void => {
+    test('should calculate stats with data', (): void => {
+      const checkpoints: WorkflowCheckpoint[] = [
         {
           workflowId: 'wf-1',
           timestamp: 100,
+          state: {},
         },
         {
           workflowId: 'wf-2',
           timestamp: 200,
+          state: {},
         },
       ];
 
-      const metrics = [
+      const metrics: WorkflowMetricsEntry[] = [
         { duration: 100, success: true },
         { duration: 200, success: true },
         { duration: 150, success: false },
       ];
 
-      const stats = calculateSummaryStats(checkpoints, metrics);
+      const stats: WorkflowStatusSummary = calculateSummaryStats(checkpoints, metrics);
       expect(stats.totalCheckpoints).toBe(2);
       expect(stats.totalExecutions).toBe(3);
-      expect(stats.latestCheckpoint.workflowId).toBe('wf-1');
+      expect(stats.latestCheckpoint?.workflowId).toBe('wf-1');
       expect(stats.avgDuration).toBe(150);
       expect(stats.successRate).toBeCloseTo(66.67, 1);
     });
 
-    test('should handle empty data', () => {
-      const stats = calculateSummaryStats([], []);
+    test('should handle empty data', (): void => {
+      const stats: WorkflowStatusSummary = calculateSummaryStats([], []);
       expect(stats.totalCheckpoints).toBe(0);
       expect(stats.totalExecutions).toBe(0);
       expect(stats.latestCheckpoint).toBeNull();
@@ -84,18 +96,18 @@ describe('Status Command - Pure Functions', () => {
       expect(stats.successRate).toBe(0);
     });
 
-    test('should handle null data', () => {
-      const stats = calculateSummaryStats(null, null);
+    test('should handle null data', (): void => {
+      const stats: WorkflowStatusSummary = calculateSummaryStats(null, null);
       expect(stats.totalCheckpoints).toBe(0);
       expect(stats.totalExecutions).toBe(0);
     });
   });
 });
 
-describe('Status Command - additional branch coverage', () => {
-  describe('formatWorkflowStatus — missing metadata fields', () => {
-    test('renders defaults when checkpoint has no metadata', () => {
-      const status = {
+describe('Status Command - additional branch coverage', (): void => {
+  describe('formatWorkflowStatus — missing metadata fields', (): void => {
+    test('renders defaults when checkpoint has no metadata', (): void => {
+      const status: WorkflowStatusWithCheckpoints = {
         checkpoints: [
           {
             workflowId: 'wf-bare',
@@ -105,14 +117,14 @@ describe('Status Command - additional branch coverage', () => {
           },
         ],
       };
-      const result = formatWorkflowStatus(status);
+      const result: string = formatWorkflowStatus(status);
       expect(result).toContain('wf-bare');
       expect(result).toContain('0%');
       expect(result).toContain('0/0');
     });
 
-    test('omits Recent Metrics section when metrics is absent', () => {
-      const status = {
+    test('omits Recent Metrics section when metrics is absent', (): void => {
+      const status: WorkflowStatusWithCheckpoints = {
         checkpoints: [
           {
             workflowId: 'wf-no-metrics',
@@ -123,21 +135,23 @@ describe('Status Command - additional branch coverage', () => {
         ],
         // no metrics key
       };
-      const result = formatWorkflowStatus(status);
+      const result: string = formatWorkflowStatus(status);
       expect(result).not.toContain('Recent Metrics');
     });
   });
 
-  describe('calculateSummaryStats — single metric', () => {
-    test('calculates correctly with a single successful metric', () => {
-      const stats = calculateSummaryStats([], [{ duration: 60, success: true }]);
+  describe('calculateSummaryStats — single metric', (): void => {
+    test('calculates correctly with a single successful metric', (): void => {
+      const metrics: WorkflowMetricsEntry[] = [{ duration: 60, success: true }];
+      const stats: WorkflowStatusSummary = calculateSummaryStats([], metrics);
       expect(stats.totalExecutions).toBe(1);
       expect(stats.avgDuration).toBe(60);
       expect(stats.successRate).toBe(100);
     });
 
-    test('calculates correctly with a single failed metric', () => {
-      const stats = calculateSummaryStats([], [{ duration: 30, success: false }]);
+    test('calculates correctly with a single failed metric', (): void => {
+      const metrics: WorkflowMetricsEntry[] = [{ duration: 30, success: false }];
+      const stats: WorkflowStatusSummary = calculateSummaryStats([], metrics);
       expect(stats.successRate).toBe(0);
     });
   });

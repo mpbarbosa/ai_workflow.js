@@ -102,11 +102,16 @@ export async function runPartitionedAiResponses({
   executePartition,
   extractContent = (response) => response?.content ?? response?.text ?? '',
   trackSuccess = (_response, currentSuccess) => currentSuccess,
+  shouldContinue = () => true,
 }) {
   const aiSections = [];
   let success = true;
 
   for (let i = 0; i < partitions.length; i++) {
+    if (!shouldContinue()) {
+      break;
+    }
+
     const partition = partitions[i];
     const partitionCtx = {
       index: i,
@@ -118,6 +123,9 @@ export async function runPartitionedAiResponses({
     if (!prompt) continue;
 
     const response = await executePartition(partition, partitionCtx, prompt);
+    if (!shouldContinue()) {
+      break;
+    }
     success = trackSuccess(response, success);
     const responseContent = extractContent(response);
 

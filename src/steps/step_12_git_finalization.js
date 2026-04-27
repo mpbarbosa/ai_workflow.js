@@ -26,12 +26,8 @@ import GitSubmodules, {
 } from '../lib/git_submodules.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  loadResolvedAiHelpers,
-} from '../lib/ai_prompt_builder.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { buildStepPromptWithFallback } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -452,6 +448,15 @@ export function formatGitReport(data) {
   return sections.join('\n');
 }
 
+export function isWorktreeClean(status = {}) {
+  return (
+    (status.modified || []).length === 0 &&
+    (status.staged || []).length === 0 &&
+    (status.untracked || []).length === 0 &&
+    (status.deleted || []).length === 0
+  );
+}
+
 // ============================================================================
 // IMPURE WRAPPER CLASS - Step12GitFinalization
 // ============================================================================
@@ -509,7 +514,9 @@ export class Step12GitFinalization {
 
       // Phase 3: Check if commit needed
       if (gitState.totalChanges === 0) {
-        return this._handleNoChanges(gitState);
+        const result = await this._handleNoChanges(gitState);
+        await this._ensureCleanWorktree();
+        return result;
       }
 
       // Phase 4: Stage changes
@@ -530,6 +537,8 @@ export class Step12GitFinalization {
         ...gitState,
         commitsAhead: committed ? gitState.commitsAhead + 1 : gitState.commitsAhead,
       });
+
+      await this._ensureCleanWorktree();
 
       // Phase 8: Generate report
       return this._generateReport(gitState, commitMessage, pushResult);
@@ -921,36 +930,33 @@ export class Step12GitFinalization {
         const cats = gitState.categories || {};
         const changeScope = `${gitState.commitType}(${gitState.commitScope}): ${projectFileCount} project files changed (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})`;
 
-        let prompt;
-        try {
-          const parsedYaml = await loadResolvedAiHelpers(null);
-          // commit_types comes from the YAML config block itself
-          const commitTypesText = parsedYaml?.step12_git_commit_prompt?.commit_types || '';
-          prompt = buildYamlStepPrompt(parsedYaml, 'step12_git_commit_prompt', {
-            project_name: projectName,
-            project_description: projectDescription,
-            script_version: projectVersion,
-            change_scope: changeScope,
-            git_context: gitCtx.gitLog,
-            changed_files: gitCtx.changedFiles,
-            diff_summary: gitCtx.diffSummary,
-            git_analysis_content: baseMessage,
-            diff_sample: gitCtx.diffSample,
-            commit_types: commitTypesText,
-          });
-        } catch {
-          /* fallback to generic prompt */
-        }
-        if (!prompt) {
-          const role = `You are an expert Git commit message writer following the Conventional Commits specification.`;
-          const task = `Generate a concise, accurate git commit message for these changes:
+        const prompt = await buildStepPromptWithFallback({
+          buildPrompt: async () => {
+            const parsedYaml = await loadResolvedAiHelpers(null);
+            // commit_types comes from the YAML config block itself
+            const commitTypesText = parsedYaml?.step12_git_commit_prompt?.commit_types || '';
+            return buildYamlStepPrompt(parsedYaml, 'step12_git_commit_prompt', {
+              project_name: projectName,
+              project_description: projectDescription,
+              script_version: projectVersion,
+              change_scope: changeScope,
+              git_context: gitCtx.gitLog,
+              changed_files: gitCtx.changedFiles,
+              diff_summary: gitCtx.diffSummary,
+              git_analysis_content: baseMessage,
+              diff_sample: gitCtx.diffSample,
+              commit_types: commitTypesText,
+            });
+          },
+          fallbackRole: `You are an expert Git commit message writer following the Conventional Commits specification.`,
+          fallbackTask: `Generate a concise, accurate git commit message for these changes:
 - Type: ${gitState.commitType}(${gitState.commitScope})
 - Changed project files: ${projectFileCount} (docs: ${cats.documentation || 0}, tests: ${cats.tests || 0}, code: ${cats.code || 0}, config: ${cats.config || 0})
 ${stagedFileCount > projectFileCount ? `- All staged files: ${stagedFileCount} (includes workflow artifacts)\n` : ''}- Changed Files list is the authoritative project-file scope
-- Base message: ${baseMessage}`;
-          const approach = `Output ONLY the commit message (subject + optional body). Follow Conventional Commits. Subject ≤72 chars.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-        }
+- Base message: ${baseMessage}`,
+          fallbackApproach: `Output ONLY the commit message (subject + optional body). Follow Conventional Commits. Subject ≤72 chars.`,
+          fallbackProjectContext: {},
+        });
         const cacheKey = `step_12|${gitState.commitType}|${gitState.modifiedCount}|${gitState.totalChanges}`;
         const response = await this.aiCache.withCache(prompt, cacheKey, () =>
           this.aiHelper.executeRequest(prompt, { persona: 'git_specialist' })
@@ -1129,6 +1135,14 @@ ${stagedFileCount > projectFileCount ? `- All staged files: ${stagedFileCount} (
     };
   }
 
+  async _ensureCleanWorktree() {
+    const finalStatusOutput = await this._executeGit(GIT_OPERATIONS.status);
+    const finalStatus = parseGitStatus(finalStatusOutput);
+    if (!isWorktreeClean(finalStatus)) {
+      throw new Error('Step 12 postcondition failed: target repo worktree is not clean');
+    }
+  }
+
   /**
    * Execute git command
    * @private
@@ -1137,20 +1151,20 @@ ${stagedFileCount > projectFileCount ? `- All staged files: ${stagedFileCount} (
     const cwd = this._projectRoot || process.cwd();
     if (this.executor && typeof this.executor.execute === 'function') {
       const result = await this.executor.execute(command, { shell: true, cwd });
-      return result.stdout || '';
+      return result?.stdout || '';
     }
 
     // Fallback: executor may be the raw execute function (default export)
     if (typeof this.executor === 'function') {
       const result = await this.executor(command, { shell: true, cwd });
-      return result.stdout || '';
+      return result?.stdout || '';
     }
 
     // Fallback: use executor module functions if available
     const executor = this.executor;
     if (executor && typeof executor.executeCommand === 'function') {
       const result = await executor.executeCommand(command, { shell: true, cwd });
-      return result.stdout || '';
+      return result?.stdout || '';
     }
 
     throw new Error('No executor available for git commands');

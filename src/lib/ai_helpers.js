@@ -60,11 +60,18 @@ const ISSUE_METADATA_RE =
 const ISSUE_PERFORMANCE_RE =
   /\b(performance|startup|bundle|eager|lazy-?load|re-?export|memory|latency|throughput|sync(?:hronous)? i\/o)\b/i;
 const FILE_REFERENCE_RE = /\b[\w./-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx|md|json|ya?ml)\b/;
-const NO_ISSUES_RE = /\b(no (actionable )?(issues|findings)|nothing to fix|no changes needed)\b/i;
+const ISSUE_ACTIONABLE_VERDICT_RE = /\b(?:specific edit required|unavailable|inconclusive)\b/i;
+const ISSUE_REASON_LINE_RE = /^(?:\*\*)?Reason(?:ing)?\*{0,2}:?/i;
+const NO_ISSUES_RE =
+  /\b(no (?:actionable |concrete |major |critical |high-severity )?(issues?|findings)|nothing to fix|no changes needed)\b/i;
+const NO_IMPACT_SIGNAL_RE =
+  /\b(no update is required|no updates required|do(?:es)? not affect|do(?:es)? not require (?:changes|updates)|remain(?:s)? accurate|already documented|already correct|functionally equivalent)\b/i;
 const SUMMARY_TABLE_HEADER_RE =
   /^\|\s*file\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
 const SUMMARY_TABLE_ROW_RE = /^\|.+\|.+\|.+\|.+\|?$/;
 const SUMMARY_TABLE_SEPARATOR_RE = /^\|\s*[-:| ]+\|$/;
+const SUMMARY_TABLE_NO_ISSUE_ROW_RE =
+  /^\|\s*(?:\(none found.*?\)|[^|]+)\s*\|\s*(?:no concrete issues found|no actionable issues found|none found in these excerpts)\s*\|/i;
 
 // Default AI request parameters
 const DEFAULT_REQUEST = {
@@ -175,6 +182,15 @@ export function extractActionableIssueSignals(responseContent) {
   const candidates = [];
   const seen = new Set();
   const addCandidate = (line) => {
+    if (
+      !line ||
+      NO_IMPACT_SIGNAL_RE.test(line) ||
+      NO_ISSUES_RE.test(line) ||
+      SUMMARY_TABLE_NO_ISSUE_ROW_RE.test(line)
+    ) {
+      return;
+    }
+
     if (!seen.has(line)) {
       seen.add(line);
       candidates.push(line);
@@ -187,17 +203,20 @@ export function extractActionableIssueSignals(responseContent) {
     .filter(Boolean);
   let inIssueSection = false;
   let inSummaryTable = false;
+  let inActionableVerdict = false;
 
   for (const line of lines) {
     const isHeading = /^#{1,6}\s+\S/.test(line);
     const isIssueSectionHeading = ISSUE_SECTION_RE.test(line);
     const isBullet = ISSUE_BULLET_RE.test(line);
     const isFindingHeading = ISSUE_FINDING_HEADING_RE.test(line);
+    const hasActionableVerdict = ISSUE_ACTIONABLE_VERDICT_RE.test(line);
     const mentionsIssue = ISSUE_KEYWORD_RE.test(line);
     const mentionsAction = ISSUE_ACTION_RE.test(line);
     const mentionsMetadata = ISSUE_METADATA_RE.test(line);
     const mentionsPerformance = ISSUE_PERFORMANCE_RE.test(line);
     const mentionsFile = FILE_REFERENCE_RE.test(line);
+    const isReasonLine = ISSUE_REASON_LINE_RE.test(line);
 
     if (isIssueSectionHeading) {
       inIssueSection = true;
@@ -223,6 +242,12 @@ export function extractActionableIssueSignals(responseContent) {
       inSummaryTable = false;
     }
 
+    if (hasActionableVerdict) {
+      addCandidate(line);
+      inActionableVerdict = true;
+      continue;
+    }
+
     if (
       isFindingHeading &&
       inIssueSection &&
@@ -235,29 +260,46 @@ export function extractActionableIssueSignals(responseContent) {
     if (isHeading) {
       inIssueSection = false;
       inSummaryTable = false;
+      inActionableVerdict = false;
+      continue;
+    }
+
+    if (
+      inActionableVerdict &&
+      (isReasonLine ||
+        mentionsIssue ||
+        mentionsAction ||
+        mentionsMetadata ||
+        mentionsPerformance ||
+        mentionsFile ||
+        SUMMARY_TABLE_ROW_RE.test(line))
+    ) {
+      addCandidate(line);
       continue;
     }
 
     if (
       (isBullet &&
-        (inIssueSection ||
-          mentionsIssue ||
-          mentionsAction ||
-          mentionsMetadata ||
-          mentionsPerformance ||
-          mentionsFile)) ||
-      (inIssueSection &&
-        (mentionsIssue ||
-          mentionsAction ||
-          mentionsMetadata ||
-          mentionsPerformance ||
-          mentionsFile))
+        (mentionsIssue || mentionsAction || mentionsMetadata || hasActionableVerdict)) ||
+      (inIssueSection && (mentionsIssue || mentionsAction || mentionsMetadata))
     ) {
       addCandidate(line);
     }
   }
 
-  if (candidates.length === 0 && NO_ISSUES_RE.test(text)) {
+  if (
+    candidates.length === 1 &&
+    ISSUE_ACTIONABLE_VERDICT_RE.test(candidates[0]) &&
+    (NO_ISSUES_RE.test(text) || NO_IMPACT_SIGNAL_RE.test(text))
+  ) {
+    return [];
+  }
+
+  if (candidates.length === 0 && (NO_ISSUES_RE.test(text) || NO_IMPACT_SIGNAL_RE.test(text))) {
+    return [];
+  }
+
+  if (candidates.every((candidate) => SUMMARY_TABLE_HEADER_RE.test(candidate))) {
     return [];
   }
 

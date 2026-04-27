@@ -502,6 +502,58 @@ describe('AI Helpers Module - Pure Functions', () => {
         )
       ).toEqual([]);
     });
+
+    test('captures verdict-style specific edits and their supporting reason lines', () => {
+      const response = [
+        'README.md',
+        '',
+        '**Specific edit required**',
+        '',
+        'Reason: ROADMAP.md Phase 15.3 is planned work, so README should not add a shipped step row for step_24.',
+        '',
+        'Locate the workflow step table in README.md (where steps up to `step_23` are listed).',
+        '',
+        '| `step_24` | Python Packaging Review (Planned) | [Planned: see ROADMAP.md](./ROADMAP.md#phase-15) |',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([
+        '**Specific edit required**',
+        'Reason: ROADMAP.md Phase 15.3 is planned work, so README should not add a shipped step row for step_24.',
+        'Locate the workflow step table in README.md (where steps up to `step_23` are listed).',
+        '| `step_24` | Python Packaging Review (Planned) | [Planned: see ROADMAP.md](./ROADMAP.md#phase-15) |',
+      ]);
+    });
+
+    test('ignores contradictory verdict blocks that explicitly say no update is required', () => {
+      const response = [
+        'README.md: **Specific edit required**',
+        '**Reason:** The version badge is already correct, so no update is required for these fields.',
+        'The usage instructions remain accurate and do not require changes based on the evidence provided.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores explanatory no-impact bullets without actionable edits', () => {
+      const response = [
+        '- The changes to `src/cli/commands/config.js` are functionally equivalent and do not affect the README.',
+        '- The CLI usage and command names remain unchanged and are already documented at the appropriate level.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores no-issue summary rows and neutral observations in performance responses', () => {
+      const response = [
+        '| File | Issue Type | Severity | Impact |',
+        '| scripts/smoke-test-copilot-sdk.js | No concrete issues found | N/A | N/A |',
+        '- Only imports `@github/copilot-sdk` and `url` at the top.',
+        '- This is a smoke test script, not a performance-critical path.',
+        '- No evidence of performance anti-patterns in the provided excerpt.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
   });
 });
 

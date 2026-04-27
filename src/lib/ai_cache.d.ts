@@ -351,6 +351,7 @@ export declare class AiCache {
      * );
      */
     withFileChangeGuard<T>(stepId: string, fileContents: string[], aiFunction: () => Promise<T>): Promise<T>;
+    invalidateFileChangeGuard(stepId: string): Promise<boolean>;
     /**
      * Load the step hash store from disk.
      * @private

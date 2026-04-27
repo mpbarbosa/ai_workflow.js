@@ -18,6 +18,7 @@
 import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
+import { generateCacheKey } from '../lib/ai_cache.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
 import { filterReviewTargets, loadReadableReviewFiles } from '../lib/review_prompt_scope.js';
 import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
@@ -28,10 +29,10 @@ import {
   MAX_PROMPT_ENTRY_CHARS,
   MAX_PROMPT_PARTITION_CHARS,
   MAX_PROMPT_ENTRIES_PER_PARTITION,
-  runPartitionedAiAnalysis,
   splitReviewPromptEntry,
 } from '../lib/review_step_helpers.js';
 import { ReviewStepBase } from '../lib/review_step_base.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 
 export {
   buildReviewFileContentsBlock as buildPerformanceFileContentsBlock,
@@ -43,6 +44,8 @@ export {
 };
 const TEST_FILE_PATH_PATTERN = /(^|\/)(test|tests|__tests__)(\/|$)/i;
 const TEST_FILE_NAME_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/i;
+const PARTITION_SUFFIX_RE = /\s+\(part \d+\/\d+\)$/i;
+const PERFORMANCE_FILE_REFERENCE_RE = /\b[\w./-]+\.[cm]?[jt]sx?\b/g;
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -87,6 +90,76 @@ export function isPerformanceReviewTarget(filePath) {
  */
 export function filterPerformanceReviewTargets(files) {
   return filterReviewTargets(files, isPerformanceReviewTarget);
+}
+
+/**
+ * Normalize a performance-review scope path so prompt partition labels do not
+ * affect file identity comparisons.
+ *
+ * @param {string} filePath - Relative or absolute file path
+ * @returns {string}
+ */
+export function normalizePerformanceScopePath(filePath) {
+  return String(filePath ?? '').replace(/\\/g, '/').replace(PARTITION_SUFFIX_RE, '').trim();
+}
+
+/**
+ * Extract JavaScript/TypeScript file references mentioned in an AI response.
+ *
+ * @param {string} aiResponse - Raw AI response text
+ * @returns {string[]} Deduplicated file references in normalized form
+ */
+export function extractPerformanceResponseFileMentions(aiResponse) {
+  const response = String(aiResponse ?? '');
+  const matches = response.match(PERFORMANCE_FILE_REFERENCE_RE) || [];
+
+  return [...new Set(matches.map(normalizePerformanceScopePath).filter(Boolean))];
+}
+
+/**
+ * Validate that an AI response stays within the current partition's visible file scope.
+ *
+ * @param {string} aiResponse - Raw AI response text
+ * @param {string[]} relativeFilePaths - Relative file paths included in the current partition
+ * @returns {{adequate: boolean, reason: string, offScopeMentions: string[]}}
+ */
+export function validatePerformanceAiResponseScope(aiResponse, relativeFilePaths) {
+  const response = String(aiResponse ?? '');
+  const scopePaths = [...new Set((relativeFilePaths ?? []).map(normalizePerformanceScopePath))].filter(
+    Boolean
+  );
+
+  if (scopePaths.length === 0) {
+    return { adequate: true, reason: 'no files to check', offScopeMentions: [] };
+  }
+
+  if (response.trim().length === 0) {
+    return { adequate: false, reason: 'empty response', offScopeMentions: [] };
+  }
+
+  const offScopeMentions = extractPerformanceResponseFileMentions(response).filter((reference) => {
+    const referenceBase = path.posix.basename(reference);
+    return !scopePaths.some((scopePath) => {
+      const scopeBase = path.posix.basename(scopePath);
+      return (
+        scopePath === reference ||
+        scopePath.endsWith(`/${reference}`) ||
+        reference.endsWith(`/${scopePath}`) ||
+        scopeBase === reference ||
+        scopeBase === referenceBase
+      );
+    });
+  });
+
+  if (offScopeMentions.length > 0) {
+    return {
+      adequate: false,
+      reason: `response referenced file(s) outside the visible scope: ${offScopeMentions.join(', ')}`,
+      offScopeMentions,
+    };
+  }
+
+  return { adequate: true, reason: 'response stayed within visible scope', offScopeMentions: [] };
 }
 
 /**
@@ -265,10 +338,12 @@ export class Step23PerfReview extends ReviewStepBase {
       );
 
       let aiContent = '';
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
 
       if (aiAvailable) {
-        await this.aiCache.init();
         try {
           let buildSystem = 'npm';
           try {
@@ -290,42 +365,96 @@ export class Step23PerfReview extends ReviewStepBase {
             );
           }
 
-          aiContent = await runPartitionedAiAnalysis({
-            partitions: partitionsToAnalyze,
-            buildPrompt: (partition, { index: i, total }) => {
-              const filePathsContext = buildPartitionFilePathsContext(partition.entries);
-              const fileContentBlock = buildReviewFileContentsBlock(partition.entries);
-              return buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
-                partition_header:
-                  total > 1
-                    ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
-                    : '',
-                partition_scope_note:
-                  total > 1
-                    ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current performance-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
-                    : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
-                project_name: options.projectName ?? path.basename(projectRoot),
-                project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
-                primary_language: 'JavaScript/TypeScript',
-                build_system: buildSystem,
-                source_file_count:
-                  total > 1
-                    ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
-                    : String(relativeFiles.length),
-                file_paths:
-                  filePathsContext ||
-                  '      - (no readable JavaScript/TypeScript files were available)',
-                file_content_block:
-                  fileContentBlock ||
-                  '_No readable file excerpts were available in the current context window._',
-              });
-            },
-            buildCacheKey: (_partition, { index: i, total }) =>
-              `step_23:performance_engineer:part:${i + 1}/${total}:signals:${scores.totalIssues}`,
-            persona: 'performance_engineer',
-            aiCache: this.aiCache,
-            aiHelper: this.aiHelper,
-          });
+          const aiSections = [];
+
+          for (let i = 0; i < partitionsToAnalyze.length; i++) {
+            const partition = partitionsToAnalyze[i];
+            const total = partitionsToAnalyze.length;
+            const filePathsContext = buildPartitionFilePathsContext(partition.entries);
+            const fileContentBlock = buildReviewFileContentsBlock(partition.entries);
+            const prompt = buildYamlStepPrompt(parsedYaml, 'performance_review_prompt', {
+              partition_header:
+                total > 1
+                  ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
+                  : '',
+              partition_scope_note:
+                total > 1
+                  ? `This request covers ${partition.scopePaths.length} of ${relativeFiles.length} JavaScript/TypeScript files in the current performance-review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                  : `This request contains the full readable JavaScript/TypeScript scope for this run (${fileEntries.length} readable file(s)).`,
+              project_name: options.projectName ?? path.basename(projectRoot),
+              project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
+              primary_language: 'JavaScript/TypeScript',
+              build_system: buildSystem,
+              source_file_count:
+                total > 1
+                  ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
+                  : String(relativeFiles.length),
+              file_paths:
+                filePathsContext || '      - (no readable JavaScript/TypeScript files were available)',
+              file_content_block:
+                fileContentBlock ||
+                '_No readable file excerpts were available in the current context window._',
+            });
+            const cacheContext = `step_23:performance_engineer:part:${i + 1}/${total}:signals:${scores.totalIssues}`;
+            const cacheKey = generateCacheKey(prompt, cacheContext);
+
+            let aiResult = await this.aiCache.withCache(prompt, cacheContext, () =>
+              this.aiHelper.executeRequest(prompt, { persona: 'performance_engineer' })
+            );
+            let partitionContent = aiResult?.content ?? aiResult ?? '';
+            let scopeValidation = validatePerformanceAiResponseScope(
+              partitionContent,
+              partition.scopePaths
+            );
+
+            if (!scopeValidation.adequate) {
+              logger.warn(
+                `[step_23] Partition ${i + 1}: invalid AI response scope (${scopeValidation.reason}). Re-running with a fresh AI session.`
+              );
+              if (typeof this.aiCache.delete === 'function') {
+                await this.aiCache.delete(cacheKey);
+              }
+              if (typeof this.aiHelper.cleanup === 'function') {
+                await this.aiHelper.cleanup();
+              }
+
+              const reinitialized = await this.aiHelper.initialize();
+              if (reinitialized) {
+                aiResult = await this.aiHelper.executeRequest(prompt, {
+                  persona: 'performance_engineer',
+                });
+                partitionContent = aiResult?.content ?? '';
+                scopeValidation = validatePerformanceAiResponseScope(
+                  partitionContent,
+                  partition.scopePaths
+                );
+              }
+            }
+
+            if (!scopeValidation.adequate) {
+              logger.warn(
+                `[step_23] Partition ${i + 1}: omitting off-scope AI response (${scopeValidation.reason})`
+              );
+              const validationNote =
+                `> **Validation note:** Partition ${i + 1}/${total} AI response referenced files outside the visible scope ` +
+                `(${scopeValidation.offScopeMentions.join(', ') || 'unknown off-scope file'}). ` +
+                'That response was omitted from the final report.';
+              aiSections.push(
+                total > 1 ? `#### Partition ${i + 1} of ${total}\n\n${validationNote}` : validationNote
+              );
+              continue;
+            }
+
+            if (partitionContent) {
+              aiSections.push(
+                total > 1
+                  ? `#### Partition ${i + 1} of ${total}\n\n${partitionContent}`
+                  : partitionContent
+              );
+            }
+          }
+
+          aiContent = aiSections.join('\n\n');
         } catch (promptError) {
           logger.warn(`Step 23: AI analysis skipped — ${promptError.message}`);
         }

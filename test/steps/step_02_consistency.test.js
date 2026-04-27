@@ -14,11 +14,13 @@ import {
   isFileReference,
   normalizeFilePath,
   validateFileReferences,
+  findRepoRootMatch,
   formatConsistencyReport,
   partitionFiles,
   buildPartitionContext,
   categorizeFiles,
   validateAiResponseQuality,
+  normalizeBrokenLinkReference,
   summarizeBrokenLinkAssessments,
   MIN_COVERAGE_RATIO,
   ISSUE_TYPE,
@@ -290,6 +292,18 @@ describe('Step 2: Consistency Analysis', () => {
     });
   });
 
+  describe('findRepoRootMatch', () => {
+    test('returns repo-relative path when the raw target exists from project root', () => {
+      const existingFiles = new Set(['/project/docs/README.md']);
+      expect(findRepoRootMatch('docs/README.md', existingFiles, '/project')).toBe('docs/README.md');
+    });
+
+    test('returns null when no repo-root match exists', () => {
+      const existingFiles = new Set(['/project/docs/README.md']);
+      expect(findRepoRootMatch('./MODULE_STRUCTURE.md', existingFiles, '/project')).toBeNull();
+    });
+  });
+
   // ========================================================================
   // PURE FUNCTIONS - Reporting
   // ========================================================================
@@ -355,6 +369,23 @@ describe('Step 2: Consistency Analysis', () => {
 
       expect(report).toContain('... and 5 more');
     });
+
+    test('flags degraded AI partitions when broken-link evidence is downgraded', () => {
+      const report = formatConsistencyReport({
+        filesChecked: 2,
+        totalIssues: 0,
+        brokenLinks: [{ file: 'README.md', line: 10, text: 'Link', link: 'missing.md' }],
+        brokenLinkCandidates: 1,
+        confirmedBrokenLinks: 0,
+        falsePositiveBrokenLinks: 0,
+        unverifiedBrokenLinks: 1,
+        degradedAiPartitions: 1,
+        versionIssues: [],
+      });
+
+      expect(report).toContain('Degraded AI partitions**: 1');
+      expect(report).toContain('some AI-backed broken-link assessments were degraded');
+    });
   });
 
   describe('summarizeBrokenLinkAssessments', () => {
@@ -377,6 +408,33 @@ describe('Step 2: Consistency Analysis', () => {
         falsePositive: 1,
         unverified: 1,
       });
+    });
+
+    test('normalizes prompt-only repo-path hints before matching references', () => {
+      const flaggedItems = [
+        'docs/api/steps/step_02_consistency.md:396 → docs/README.md',
+      ];
+      const aiResponse = [
+        '#### Reference: docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)',
+        '- **Status:** Confirmed Broken',
+      ].join('\n');
+
+      expect(summarizeBrokenLinkAssessments(flaggedItems, aiResponse)).toEqual({
+        totalCandidates: 1,
+        confirmed: 1,
+        falsePositive: 0,
+        unverified: 0,
+      });
+    });
+  });
+
+  describe('normalizeBrokenLinkReference', () => {
+    test('strips repo-path hints from prompt-formatted references', () => {
+      expect(
+        normalizeBrokenLinkReference(
+          'docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)'
+        )
+      ).toBe('docs/api/steps/step_02_consistency.md:396 → docs/README.md');
     });
   });
 
@@ -686,6 +744,45 @@ describe('Step 2: Consistency Analysis', () => {
       expect(instance).toBeDefined();
       expect(instance.aiHelper).toBeDefined();
     });
+
+    test('downgrades low-quality AI broken-link assessments to degraded unverified results', async () => {
+      const mockAiCache = {
+        init: () => Promise.resolve(),
+        invalidateFileChangeGuard: () => Promise.resolve(),
+        withFileChangeGuard: (cacheStepId, _entries, callback) => callback(),
+      };
+      const mockAiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: () => Promise.resolve({ content: 'No issues found.' }),
+      };
+      const analyzerWithAi = new Step2ConsistencyAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+      });
+
+      mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('package.json')) {
+          return Promise.resolve(JSON.stringify({ version: '1.0.0' }));
+        }
+        return Promise.resolve('[Broken](missing.md)');
+      };
+
+      const result = await analyzerWithAi.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.degraded).toBe(true);
+      expect(result.confirmedBrokenLinks).toBe(0);
+      expect(result.unverifiedBrokenLinks).toBe(1);
+      expect(result.degradedAiPartitions).toBe(1);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('AI broken-link review was downgraded to unverified'),
+        ])
+      );
+    });
   });
 
   // ========================================================================
@@ -732,6 +829,28 @@ describe('Step 2: Consistency Analysis', () => {
     test('formats each entry as "file:line → target"', () => {
       const { brokenRefsList } = buildPartitionContext(partFiles, brokenLinks, 0, 1);
       expect(brokenRefsList).toContain('docs/testing/TESTING.md:49 → ./.github/TDD_GUIDE.md');
+    });
+
+    test('includes repo-root hints in prompt text but keeps raw flagged refs separate', () => {
+      const hintedLinks = [
+        {
+          file: 'docs/api/steps/step_02_consistency.md',
+          line: 396,
+          link: 'docs/README.md',
+          repoRootMatch: 'docs/README.md',
+        },
+      ];
+      const { brokenRefsList, flaggedRefs } = buildPartitionContext(
+        ['docs/api/steps/step_02_consistency.md'],
+        hintedLinks,
+        0,
+        1
+      );
+
+      expect(brokenRefsList).toContain(
+        'docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)'
+      );
+      expect(flaggedRefs).toEqual(['docs/api/steps/step_02_consistency.md:396 → docs/README.md']);
     });
 
     test('returns "none" when no broken links match partition', () => {
@@ -1121,6 +1240,10 @@ Fix: Create the file or update the link.
       let storedResponse = null;
       mockAiCache = {
         init: () => Promise.resolve(),
+        invalidateFileChangeGuard: async () => {
+          storedHash = null;
+          storedResponse = null;
+        },
         withFileChangeGuard: async (_stepId, fileContents, fn) => {
           const hash = [...fileContents].sort().join('|');
           if (hash === storedHash && storedResponse !== null) {
@@ -1165,6 +1288,31 @@ Fix: Create the file or update the link.
       await analyzer.execute('/project');
 
       expect(aiCallCount).toBeGreaterThan(countAfterFirst); // new AI call issued
+    });
+
+    test('invalidates cached 0%-coverage AI responses and re-analyzes', async () => {
+      let invalidateCount = 0;
+      mockAiCache.invalidateFileChangeGuard = async () => {
+        invalidateCount += 1;
+      };
+      mockAiCache.withFileChangeGuard = async (_stepId, _fileContents, fn) => fn();
+      mockFileOps.glob = () => Promise.resolve([DOC_FILE]);
+      mockFileOps.readFile = (file) =>
+        Promise.resolve(file === DOC_FILE ? '# Project\n\nSee [Guide](docs/reference.md)\n' : '');
+      mockAiHelper.executeRequest = () => {
+        aiCallCount += 1;
+        return Promise.resolve({
+          content:
+            aiCallCount === 1
+              ? 'Generic reply with no grounded broken-link analysis.'
+              : 'README.md:3 → docs/reference.md is broken and should be fixed.',
+        });
+      };
+
+      await analyzer.execute('/project');
+
+      expect(invalidateCount).toBe(1);
+      expect(aiCallCount).toBe(2);
     });
   });
 });

@@ -13,15 +13,18 @@ import { logger, stripAnsi } from '../core/logger.js';
 import * as executor from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
-import { TechStackDetector, getPrimaryLanguage } from '../lib/tech_stack.js';
+import { TechStackDetector } from '../lib/tech_stack.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  AI_HELPERS_PATH,
-} from '../lib/ai_prompt_builder.js';
+  buildStepPromptWithFallback,
+  detectAndLogPrimaryLanguage,
+  detectPrimaryLanguage,
+  enrichStepSummaryWithOptionalAiAnalysis,
+  logLanguageAwareSkippedStepOutcomeAndReturn,
+  logStepOutcomeAndReturn,
+} from './step_execution_helpers.js';
+import { buildYamlStepPrompt, AI_HELPERS_PATH, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -935,28 +938,25 @@ export class Step8TestExecutor {
       logger.step('Step 8: Test Execution');
 
       // Phase 1: Detect language and test command
-      const language = await this.detectLanguage(projectRoot);
-      logger.info(`Detected language: ${language}`);
+      const language = await detectAndLogPrimaryLanguage(this.techStack, projectRoot);
 
       const workflowConfig = await this._readWorkflowConfig(projectRoot);
       const skipDecision = getTestExecutionSkipDecision(workflowConfig);
       if (skipDecision.skip) {
-        logger.info(`Skipping test execution: ${skipDecision.reason}`);
-        await this.backlog.saveStepSummary(
-          8,
-          'Test Execution',
-          `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${skipDecision.reason}\n`
-        );
-
-        return {
-          success: true,
-          skipped: true,
+        return logLanguageAwareSkippedStepOutcomeAndReturn({
+          backlog: this.backlog,
+          stepId: 8,
+          stepName: 'Test Execution',
           language,
-          testResults: {},
-          coverage: {},
+          logMessage: `Skipping test execution: ${skipDecision.reason}`,
+          summary: `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${skipDecision.reason}\n`,
+          result: {
+            testResults: {},
+            coverage: {},
+          },
           message: skipDecision.reason,
           reason: 'tests_disabled',
-        };
+        });
       }
 
       const testCommand = await this.determineTestCommand(projectRoot, language);
@@ -967,25 +967,22 @@ export class Step8TestExecutor {
           workflowConfig,
         });
         if (missingCommandDecision.skip) {
-          logger.info(`Skipping test execution: ${missingCommandDecision.reason}`);
-          await this.backlog.saveStepSummary(
-            8,
-            'Test Execution',
-            `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${missingCommandDecision.reason}\n`
-          );
-
-          return {
-            success: true,
-            skipped: true,
+          return logLanguageAwareSkippedStepOutcomeAndReturn({
+            backlog: this.backlog,
+            stepId: 8,
+            stepName: 'Test Execution',
             language,
-            testResults: {},
-            coverage: {},
+            logMessage: `Skipping test execution: ${missingCommandDecision.reason}`,
+            summary: `# Test Execution Report\n\n- **Status**: ⏭️ Skipped\n- **Language**: ${language}\n- **Reason**: ${missingCommandDecision.reason}\n`,
+            result: {
+              testResults: {},
+              coverage: {},
+            },
             message: missingCommandDecision.reason,
             reason: 'tests_not_applicable',
-          };
+          });
         }
 
-        logger.warn(missingCommandDecision.reason);
         const report = formatTestReport({
           success: false,
           language,
@@ -994,14 +991,20 @@ export class Step8TestExecutor {
           duration: 0,
           exitCode: -1,
         });
-        await this.backlog.saveStepSummary(8, 'Test Execution', report);
-
-        return {
-          success: false,
-          language,
-          testResults: {},
-          message: missingCommandDecision.reason,
-        };
+        return logStepOutcomeAndReturn({
+          backlog: this.backlog,
+          stepId: 8,
+          stepName: 'Test Execution',
+          logMethod: 'warn',
+          logMessage: missingCommandDecision.reason,
+          summary: report,
+          result: {
+            success: false,
+            language,
+            testResults: {},
+            message: missingCommandDecision.reason,
+          },
+        });
       }
 
       logger.info(`Test command: ${testCommand}`);
@@ -1023,43 +1026,46 @@ export class Step8TestExecutor {
         `Tests: ${testResults.passed} passed, ${testResults.failed} failed, ${testResults.skipped} skipped`
       );
 
-      // Phase 4: Collect coverage (if available)
-      const { coverage, coverageJson } = await this.collectCoverage(projectRoot, language);
-
-      if (coverage.statements !== undefined) {
-        logger.info(`Coverage: ${coverage.statements}% statements`);
-      }
-
-      // Phase 4b: Identify per-file coverage gaps
-      const coverageThreshold = await this.readCoverageThreshold(projectRoot);
-      const configuredCoverageThreshold = await this.readConfiguredCoverageThreshold(projectRoot);
-      const coverageGaps = parseCoverageGaps(coverageJson, coverageThreshold);
-      if (coverageGaps.length > 0) {
-        logger.warn(`Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`);
-      }
-
-      // Phase 5: Generate report
-      const duration = Date.now() - startTime;
-      // "no tests found" can mean three different things:
-      //   1. Jest literally found no test files → exits 1 + prints "No tests found" → warn only
-      //   2. Runner/compiler crashed before finding tests → exits 1, silent/different output
-      //   3. All tests passed, no output issues
+      // "no tests found" must remain distinct from a silent runner crash:
+      //   1. Jest/Vitest explicitly reports no test files → warn only, non-blocking
+      //   2. Runner/compiler exits non-zero with no output on both attempts → inconclusive failure
+      //   3. All tests passed or produced explicit failure diagnostics
       // "runnerCrashed" is set by runTests() when both the initial run and the --ci retry
-      // produced 0 bytes of output with a non-zero exit code. We treat that silent exit
-      // the same as "no tests found" — warn and continue rather than halting the workflow —
-      // but keep the root cause explicitly inconclusive in prompts and summaries.
+      // produced 0 bytes of output with a non-zero exit code.
       const noTestsMessageInOutput = hasNoTestsFoundMessage(testResult.output);
       const runnerCrashed = !!testResult.runnerCrashed;
       const silentRunnerExit = runnerCrashed && !noTestsMessageInOutput;
+      const duration = Date.now() - startTime;
       const noTestsFound =
         testResults.total === 0 &&
         (testResults.suitesFailed ?? 0) === 0 &&
-        (testResult.exitCode === 0 || noTestsMessageInOutput || runnerCrashed);
+        (testResult.exitCode === 0 || noTestsMessageInOutput);
       const anyFailure =
         testResults.failed > 0 ||
         (testResults.suitesFailed ?? 0) > 0 ||
+        silentRunnerExit ||
         (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
+
+      // Phase 4: Collect coverage only when the current run produced usable runtime evidence.
+      const coverageThreshold = await this.readCoverageThreshold(projectRoot);
+      const configuredCoverageThreshold = await this.readConfiguredCoverageThreshold(projectRoot);
+      let coverage = {};
+      let coverageJson = null;
+      let coverageGaps = [];
+
+      if (!silentRunnerExit) {
+        ({ coverage, coverageJson } = await this.collectCoverage(projectRoot, language));
+
+        if (coverage.statements !== undefined) {
+          logger.info(`Coverage: ${coverage.statements}% statements`);
+        }
+
+        coverageGaps = parseCoverageGaps(coverageJson, coverageThreshold);
+        if (coverageGaps.length > 0) {
+          logger.warn(`Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`);
+        }
+      }
 
       logger.debug(
         `[step_08] noTestsMessageInOutput: ${noTestsMessageInOutput}, runnerCrashed: ${runnerCrashed}, noTestsFound: ${noTestsFound}, anyFailure: ${anyFailure}, success: ${success}, exitCode: ${testResult.exitCode}`
@@ -1079,106 +1085,115 @@ export class Step8TestExecutor {
       await this.backlog.saveStepSummary(8, 'Test Execution', report);
 
       // Phase AI: AI-powered test result analysis
-      const aiAvailable = await this.aiHelper.initialize();
-      if (aiAvailable) {
-        await this.aiCache.init();
-
-        const coverageGapsText = describeCoveragePromptContext({
-          noTestsFound,
-          coverage,
-          coverageJson,
-          coverageGaps,
-          coverageThreshold,
-        });
-        const configuredTestFramework =
-          this.configManager?.getConfig?.()?.tech_stack?.test_framework ||
-          (await this._readTestFrameworkFromConfig(projectRoot)) ||
-          language;
-        const [testConfigPaths, detectedTestTypes, ciConfigPaths] = await Promise.all([
-          detectTestConfigPaths(projectRoot),
-          detectTestTypes(projectRoot),
-          detectCiConfigPaths(projectRoot),
-        ]);
-        const validationScriptExecution = isValidationScriptExecution({
-          testCommand,
-          testFramework: configuredTestFramework,
-          testConfigPaths,
-          testTypes: detectedTestTypes,
-        });
-        const explicitE2eEvidence = hasExplicitE2eEvidence({
-          testCommand,
-          testFramework: configuredTestFramework,
-          testConfigPaths,
-          testTypes: detectedTestTypes,
-        });
-        const promptTestTypes = validationScriptExecution ? 'validation-script' : detectedTestTypes;
-        const promptResultsSummary = formatPromptResultsSummary({
-          isValidationScript: validationScriptExecution,
-          testResults,
-        });
-        const promptCoverageThreshold = formatPromptCoverageThreshold(configuredCoverageThreshold);
-        const promptScope = validationScriptExecution
-          ? 'validation script only'
-          : 'automated test suite only';
-        const promptExecutionSummary = noTestsFound
-          ? silentRunnerExit
+      const skipAiAnalysis = silentRunnerExit;
+      if (skipAiAnalysis) {
+        logger.warn(
+          '[step_08] Skipping AI analysis because the test runner produced no runtime evidence on either attempt'
+        );
+      }
+      await enrichStepSummaryWithOptionalAiAnalysis({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+        shouldInitialize: !skipAiAnalysis,
+        unavailableMessage: 'AI helper not available - skipping AI analysis',
+        backlog: this.backlog,
+        stepId: 8,
+        stepName: 'Test Execution',
+        summary: report,
+        buildAnalysis: async () => {
+          const coverageGapsText = describeCoveragePromptContext({
+            noTestsFound,
+            coverage,
+            coverageJson,
+            coverageGaps,
+            coverageThreshold,
+          });
+          const configuredTestFramework =
+            this.configManager?.getConfig?.()?.tech_stack?.test_framework ||
+            (await this._readTestFrameworkFromConfig(projectRoot)) ||
+            language;
+          const [testConfigPaths, detectedTestTypes, ciConfigPaths] = await Promise.all([
+            detectTestConfigPaths(projectRoot),
+            detectTestTypes(projectRoot),
+            detectCiConfigPaths(projectRoot),
+          ]);
+          const validationScriptExecution = isValidationScriptExecution({
+            testCommand,
+            testFramework: configuredTestFramework,
+            testConfigPaths,
+            testTypes: detectedTestTypes,
+          });
+          const explicitE2eEvidence = hasExplicitE2eEvidence({
+            testCommand,
+            testFramework: configuredTestFramework,
+            testConfigPaths,
+            testTypes: detectedTestTypes,
+          });
+          const promptTestTypes =
+            validationScriptExecution ? 'validation-script' : detectedTestTypes;
+          const promptResultsSummary = formatPromptResultsSummary({
+            isValidationScript: validationScriptExecution,
+            testResults,
+          });
+          const promptCoverageThreshold = formatPromptCoverageThreshold(configuredCoverageThreshold);
+          const promptScope = validationScriptExecution
+            ? 'validation script only'
+            : 'automated test suite only';
+          const promptExecutionSummary = silentRunnerExit
             ? validationScriptExecution
-              ? `The validation command exited without output in ${duration}ms; no validation, typecheck, or test diagnostics could be confirmed from captured evidence`
-              : `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence`
-            : validationScriptExecution
-              ? `The validation command completed without reporting test-case counts in ${duration}ms`
-              : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
-          : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`;
-        const promptOutput = noTestsFound
-          ? silentRunnerExit
+              ? `The validation command exited without output in ${duration}ms; no validation, typecheck, or test diagnostics could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
+              : `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
+            : noTestsFound
+              ? validationScriptExecution
+                ? `The validation command completed without reporting test-case counts in ${duration}ms`
+                : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
+              : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`;
+          const promptOutput = silentRunnerExit
             ? validationScriptExecution
               ? `none — validation command produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
               : `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
-            : (testResult.output ?? '').slice(0, 2000) ||
-              (validationScriptExecution
-                ? `validation command completed without reporting test cases (exit code ${testResult.exitCode})`
-                : `runner reported no test files (exit code ${testResult.exitCode})`)
-          : (testResult.output ?? '').slice(0, 2000) || 'none';
-        const failedTestList =
-          validationScriptExecution && !anyFailure
-            ? 'none — validation-script run did not report named test cases'
-            : anyFailure
-              ? (testResult.output ?? '').slice(0, 1000)
-              : 'none';
+            : noTestsFound
+              ? (testResult.output ?? '').slice(0, 2000) ||
+                (validationScriptExecution
+                  ? `validation command completed without reporting test cases (exit code ${testResult.exitCode})`
+                  : `runner reported no test files (exit code ${testResult.exitCode})`)
+              : (testResult.output ?? '').slice(0, 2000) || 'none';
+          const failedTestList =
+            validationScriptExecution && !anyFailure
+              ? 'none — validation-script run did not report named test cases'
+              : anyFailure
+                ? (testResult.output ?? '').slice(0, 1000)
+                : 'none';
 
-        let prompt;
-        try {
-          const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
-          const parsedYaml = yaml.load(yamlContent);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step8_test_exec_prompt', {
-            project_name: path.basename(projectRoot),
-            project_description: options?.projectDescription ?? 'N/A',
-            primary_language: language,
-            test_framework: configuredTestFramework,
-            test_command: testCommand,
-            test_config_paths: testConfigPaths,
-            test_types: promptTestTypes,
-            test_exit_code: noTestsFound
-              ? silentRunnerExit
-                ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as non-blocking rather than as a confirmed test failure)`
-                : `${testResult.exitCode} (no tests found message detected in runner output; treated as no-tests-found, not a test failure)`
-              : String(testResult.exitCode),
-            results_summary: promptResultsSummary,
-            project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
-            ci_config_paths: ciConfigPaths,
-            execution_summary: promptExecutionSummary,
-            test_output: promptOutput,
-            failed_test_list: failedTestList,
-            coverage_threshold: promptCoverageThreshold,
-            coverage_gaps: coverageGapsText,
-            scope_label: promptScope,
-          });
-        } catch {
-          /* fallback to generic prompt */
-        }
-        if (!prompt) {
-          const role = `You are an expert in software testing and quality assurance.`;
-          const task = `Analyze these test execution results and provide recommendations:
+          const prompt = await buildStepPromptWithFallback({
+            buildPrompt: async () => {
+              const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+              return buildYamlStepPrompt(parsedYaml, 'step8_test_exec_prompt', {
+                project_name: path.basename(projectRoot),
+                project_description: options?.projectDescription ?? 'N/A',
+                primary_language: language,
+                test_framework: configuredTestFramework,
+                test_command: testCommand,
+                test_config_paths: testConfigPaths,
+                test_types: promptTestTypes,
+                test_exit_code: silentRunnerExit
+                  ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as a blocking inconclusive failure that requires manual investigation)`
+                  : noTestsFound
+                    ? `${testResult.exitCode} (no tests found message detected in runner output; treated as no-tests-found, not a test failure)`
+                    : String(testResult.exitCode),
+                results_summary: promptResultsSummary,
+                project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
+                ci_config_paths: ciConfigPaths,
+                execution_summary: promptExecutionSummary,
+                test_output: promptOutput,
+                failed_test_list: failedTestList,
+                coverage_threshold: promptCoverageThreshold,
+                coverage_gaps: coverageGapsText,
+                scope_label: promptScope,
+              });
+            },
+            fallbackRole: `You are an expert in software testing and quality assurance.`,
+            fallbackTask: `Analyze these test execution results and provide recommendations:
 - Language: ${language}
 - Tests passed: ${testResults.passed ?? 0}
 - Tests failed: ${testResults.failed ?? 0}
@@ -1186,59 +1201,69 @@ export class Step8TestExecutor {
 - Coverage threshold: ${promptCoverageThreshold}
 - Modules below threshold:\n${coverageGapsText}
 - Duration: ${duration}ms
-- Exit code: ${testResult.exitCode}`;
-          const approach = `Identify the most likely root causes of failures and coverage gaps. Suggest concrete, targeted tests for each module below threshold. Prioritize core logic, error handling, and edge cases. Be concise.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-        }
-        const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}|${coverageGaps.length}`;
-        const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
-        );
-        const aiContent = aiResult?.content ?? '';
+- Exit code: ${testResult.exitCode}`,
+            fallbackApproach: `Identify the most likely root causes of failures and coverage gaps. Suggest concrete, targeted tests for each module below threshold. Prioritize core logic, error handling, and edge cases. Be concise.`,
+            fallbackProjectContext: {},
+          });
+          const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}|${coverageGaps.length}`;
+          const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
+            this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+          );
+          const aiContent = aiResult?.content ?? '';
 
-        // Supplementary: e2e test engineering analysis — only for frontend/browser projects.
-        // Library and API projects have no UI, so browser-based E2E tests are not applicable.
-        const fePks = ['react_spa', 'client_spa', 'static_website'];
-        const resolvedKind = options?.projectType ?? options?.projectKind ?? '';
-        let e2eContent = '';
-        if (fePks.includes(resolvedKind) && !validationScriptExecution && explicitE2eEvidence) {
-          try {
-            const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
-            const parsedYaml2 = yaml.load(yamlContent2);
-            const e2ePrompt = buildYamlStepPrompt(parsedYaml2, 'e2e_test_engineer_prompt', {
-              project_name: path.basename(projectRoot),
-              project_description: options?.projectDescription ?? 'N/A',
-              project_type: resolvedKind,
-              e2e_framework: configuredTestFramework,
-              test_command: testCommand,
-              browser_targets: '',
-              modified_count: String((options?.modifiedFiles ?? []).length),
-            });
-            if (e2ePrompt) {
-              const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
-              const e2eResult = await this.aiCache.withCache(e2ePrompt, e2eKey, () =>
-                this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
-              );
-              e2eContent = e2eResult?.content ?? '';
+          // Supplementary: e2e test engineering analysis — only for frontend/browser projects.
+          // Library and API projects have no UI, so browser-based E2E tests are not applicable.
+          const fePks = ['react_spa', 'client_spa', 'static_website'];
+          const resolvedKind = options?.projectType ?? options?.projectKind ?? '';
+          let e2eContent = '';
+          if (fePks.includes(resolvedKind) && !validationScriptExecution && explicitE2eEvidence) {
+            try {
+              const yamlContent2 = await this.fileOps.readFile(AI_HELPERS_PATH);
+              const parsedYaml2 = yaml.load(yamlContent2);
+              const e2ePrompt = buildYamlStepPrompt(parsedYaml2, 'e2e_test_engineer_prompt', {
+                project_name: path.basename(projectRoot),
+                project_description: options?.projectDescription ?? 'N/A',
+                project_type: resolvedKind,
+                e2e_framework: configuredTestFramework,
+                test_command: testCommand,
+                browser_targets: '',
+                modified_count: String((options?.modifiedFiles ?? []).length),
+              });
+              if (e2ePrompt) {
+                const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
+                const e2eResult = await this.aiCache.withCache(e2ePrompt, e2eKey, () =>
+                  this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
+                );
+                e2eContent = e2eResult?.content ?? '';
+              }
+            } catch {
+              /* optional */
             }
-          } catch {
-            /* optional */
           }
-        }
 
-        if (aiContent || e2eContent) {
-          const sections = aiContent
-            ? [`${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`]
-            : [report];
-          if (e2eContent) sections.push(`\n\n## E2E Test Engineering Analysis\n\n${e2eContent}`);
-          await this.backlog.saveStepSummary(8, 'Test Execution', sections.join(''));
-        }
-      } else {
-        logger.warn('AI helper not available - skipping AI analysis');
-      }
+          return {
+            aiRecommendations: aiContent,
+            extraSections: [{ title: 'E2E Test Engineering Analysis', content: e2eContent }],
+          };
+        },
+      });
 
       if (!success) {
-        if (testResults.failed > 0 || testResults.suitesFailed > 0) {
+        if (runnerCrashed) {
+          logger.warn(
+            `Step 8 blocked - test runner exited with code ${testResult.exitCode} but produced no output ` +
+              `on either attempt. Run \`${testCommand}\` manually to investigate.`
+          );
+          await this.backlog.saveStepSummary(
+            8,
+            'Test Execution',
+            `${report}\n\n## ❌ Inconclusive Test Runner Failure\n\n` +
+              `The test runner exited with code ${testResult.exitCode} but produced no output on either attempt.\n` +
+              `The root cause could not be confirmed from the captured evidence, so this run cannot be treated as a passing or no-tests-found outcome.\n\n` +
+              `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate before relying on downstream workflow results.\n`,
+            '❌'
+          );
+        } else if (testResults.failed > 0 || testResults.suitesFailed > 0) {
           logger.warn(
             `Step 8 completed - ${testResults.failed} test(s) failed` +
               (testResults.suitesFailed > 0
@@ -1251,33 +1276,17 @@ export class Step8TestExecutor {
           );
         }
       } else if (noTestsFound) {
-        if (runnerCrashed) {
-          logger.warn(
-            `Step 8 completed - test runner exited with code ${testResult.exitCode} but produced no output ` +
-              `on either attempt. Run \`${testCommand}\` manually to investigate.`
-          );
-          await this.backlog.saveStepSummary(
-            8,
-            'Test Execution',
-            `${report}\n\n## ⚠️ Silent Runner Exit\n\n` +
-              `The test runner exited with code ${testResult.exitCode} but produced no output on either attempt.\n` +
-              `The root cause could not be confirmed from the captured evidence.\n\n` +
-              `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate.\n`,
-            '⚠️'
-          );
-        } else {
-          logger.warn('Step 8 completed - no tests found');
-          await this.backlog.saveStepSummary(
-            8,
-            'Test Execution',
-            `${report}\n\n## ⚠️ Recommendation\n\nNo test suite was found in this project. ` +
-              `Consider adding tests to enable regression detection (Req 1 — Workflow Engine Requirements).\n` +
-              `- For Node.js: \`npm init jest\` or add a \`test\` script to \`package.json\`\n` +
-              `- For Python: add \`pytest\` and a \`tests/\` directory\n` +
-              `- For shell scripts: add \`bats\` tests\n`,
-            '⚠️'
-          );
-        }
+        logger.warn('Step 8 completed - no tests found');
+        await this.backlog.saveStepSummary(
+          8,
+          'Test Execution',
+          `${report}\n\n## ⚠️ Recommendation\n\nNo test suite was found in this project. ` +
+            `Consider adding tests to enable regression detection (Req 1 — Workflow Engine Requirements).\n` +
+            `- For Node.js: \`npm init jest\` or add a \`test\` script to \`package.json\`\n` +
+            `- For Python: add \`pytest\` and a \`tests/\` directory\n` +
+            `- For shell scripts: add \`bats\` tests\n`,
+          '⚠️'
+        );
       } else {
         logger.success('Step 8 completed - all tests passed!');
       }
@@ -1298,7 +1307,7 @@ export class Step8TestExecutor {
    * @returns {Promise<string>} Language name
    */
   async detectLanguage(projectRoot) {
-    return getPrimaryLanguage(this.techStack, projectRoot);
+    return detectPrimaryLanguage(this.techStack, projectRoot);
   }
 
   /**

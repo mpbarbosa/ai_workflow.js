@@ -1,7 +1,7 @@
 # ai_workflow.js — Project Roadmap
 
-> **Current version:** 1.6.3 · **Status:** Production Ready ✅
-> **Tests:** 5,837 passing · **Coverage:** 86.79% · **Vulnerabilities:** 0
+> **Current version:** 2.2.16 · **Status:** Production Ready ✅
+> **Tests:** 7,434 passing · **Coverage:** 87.62% · **Vulnerabilities:** 0
 
 This roadmap tracks the evolution of **ai_workflow.js** from its initial architecture through
 upcoming feature work and long-term vision. Phases 1–11 are complete and shipped as v1.0.0.
@@ -236,7 +236,7 @@ the CLI → orchestrator → step injection chain.
 - [x] `run.js` `createOrchestratorOptions()` derives `streamingEnabled: !!(verbose || tui)`
 - [x] `resume.js` `resumeCommand()` carries the same derivation for checkpoint-resume runs
 - [x] `MainOrchestrator` injects a streaming `AiHelper` into every step when enabled
-- [x] Tests: `test/cli/commands/run.test.js` covers `verbose`/`streamingEnabled` cases
+- [x] Tests: `test/cli/commands/run.test.ts` covers `verbose`/`streamingEnabled` cases
 
 ---
 

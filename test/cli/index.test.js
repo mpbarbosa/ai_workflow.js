@@ -41,14 +41,14 @@ describe('CLI Index - Pure Functions', () => {
       const result = validateCliArgs('not an array');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Arguments must be an array');
+      expect(result.errors).toEqual(['Arguments must be an array']);
     });
 
     test('should reject too few arguments', () => {
       const result = validateCliArgs(['node']);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors).toEqual(['Invalid arguments: missing node and script path']);
     });
   });
 });

@@ -14,7 +14,62 @@
 
 import chalk from 'chalk';
 import { logger } from '../../core/logger.js';
+// @ts-expect-error - legacy JS checkpoint manager module is untyped in the current TypeScript setup.
 import { CheckpointManager } from '../../orchestrator/checkpoint_manager.js';
+
+export interface StatusCommandOptions {
+  verbose?: boolean;
+  workflowDir?: string;
+}
+
+export interface WorkflowCheckpointState {
+  completedSteps?: string[];
+  failedSteps?: string[];
+}
+
+export interface WorkflowCheckpointMetadata {
+  progress?: number;
+  totalSteps?: number;
+}
+
+export interface WorkflowCheckpoint {
+  workflowId: string;
+  timestamp: number | string | Date;
+  state: WorkflowCheckpointState;
+  metadata?: WorkflowCheckpointMetadata;
+}
+
+export interface WorkflowMetricsEntry {
+  duration?: number;
+  success?: boolean;
+}
+
+export interface WorkflowMetricsSummary {
+  avgDuration?: number;
+  successRate?: number;
+  totalExecutions?: number;
+}
+
+export interface WorkflowStatusData {
+  checkpoints?: WorkflowCheckpoint[];
+  metrics?: WorkflowMetricsSummary | null;
+}
+
+export interface WorkflowStatusSummary {
+  avgDuration: number;
+  latestCheckpoint: WorkflowCheckpoint | null;
+  successRate: number;
+  totalCheckpoints: number;
+  totalExecutions: number;
+}
+
+interface CheckpointManagerLike {
+  list(): Promise<WorkflowCheckpoint[]>;
+}
+
+function getStepCount(steps: string[] | undefined): number {
+  return steps?.length ?? 0;
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Formatting Logic
@@ -23,15 +78,13 @@ import { CheckpointManager } from '../../orchestrator/checkpoint_manager.js';
 /**
  * Format workflow status for display
  * @pure
- * @param {Object} status - Workflow status data
- * @returns {string} Formatted status
  */
-export function formatWorkflowStatus(status) {
+export function formatWorkflowStatus(status: WorkflowStatusData | null | undefined): string {
   if (!status) {
     return 'No workflow status available';
   }
 
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push(chalk.cyan.bold('Workflow Status'));
   lines.push(chalk.gray('─'.repeat(60)));
@@ -44,7 +97,7 @@ export function formatWorkflowStatus(status) {
     lines.push(chalk.gray(`  Progress: ${latest.metadata?.progress || 0}%`));
     lines.push(
       chalk.gray(
-        `  Steps: ${latest.state.completedSteps?.length || 0}/${latest.metadata?.totalSteps || 0}`
+        `  Steps: ${latest.state.completedSteps?.length ?? 0}/${latest.metadata?.totalSteps || 0}`
       )
     );
   } else {
@@ -68,18 +121,23 @@ export function formatWorkflowStatus(status) {
 /**
  * Calculate summary statistics
  * @pure
- * @param {Array<Object>} checkpoints - Checkpoint data
- * @param {Array<Object>} metrics - Metrics data
- * @returns {Object} Summary statistics
  */
-export function calculateSummaryStats(checkpoints, metrics) {
+export function calculateSummaryStats(
+  checkpoints: WorkflowCheckpoint[] | null | undefined,
+  metrics: WorkflowMetricsEntry[] | null | undefined
+): WorkflowStatusSummary {
+  const metricsList = metrics ?? [];
+
   return {
-    totalCheckpoints: checkpoints?.length || 0,
-    totalExecutions: metrics?.length || 0,
-    latestCheckpoint: checkpoints?.[0] || null,
+    totalCheckpoints: checkpoints?.length ?? 0,
+    totalExecutions: metricsList.length,
+    latestCheckpoint: checkpoints?.[0] ?? null,
     avgDuration:
-      metrics?.reduce((sum, m) => sum + (m.duration || 0), 0) / (metrics?.length || 1) || 0,
-    successRate: (metrics?.filter((m) => m.success).length / (metrics?.length || 1)) * 100 || 0,
+      metricsList.reduce((sum, metric) => sum + (metric.duration || 0), 0) /
+        (metricsList.length || 1) || 0,
+    successRate:
+      ((metricsList.filter((metric) => metric.success).length || 0) / (metricsList.length || 1)) *
+        100 || 0,
   };
 }
 
@@ -89,10 +147,8 @@ export function calculateSummaryStats(checkpoints, metrics) {
 
 /**
  * Execute the status command
- * @param {Object} options - Command options
- * @returns {Promise<void>}
  */
-export async function statusCommand(options) {
+export async function statusCommand(options: StatusCommandOptions = {}): Promise<void> {
   try {
     const workflowDir = options.workflowDir || '.ai_workflow';
 
@@ -103,12 +159,15 @@ export async function statusCommand(options) {
     console.log();
 
     // Load checkpoints
-    const checkpointManager = new CheckpointManager(workflowDir);
-    let checkpoints = [];
+    const checkpointManager = new CheckpointManager(workflowDir) as CheckpointManagerLike;
+    let checkpoints: WorkflowCheckpoint[] = [];
     try {
       checkpoints = await checkpointManager.list();
       // Sort by timestamp descending
-      checkpoints.sort((a, b) => b.timestamp - a.timestamp);
+      checkpoints.sort(
+        (leftCheckpoint, rightCheckpoint) =>
+          Number(new Date(rightCheckpoint.timestamp)) - Number(new Date(leftCheckpoint.timestamp))
+      );
     } catch {
       logger.warn(chalk.yellow('Could not load checkpoints'));
     }
@@ -130,12 +189,13 @@ export async function statusCommand(options) {
     console.log(chalk.white(`Progress: ${latest.metadata?.progress || 0}%`));
     console.log(
       chalk.white(
-        `Steps Completed: ${latest.state.completedSteps?.length || 0}/${latest.metadata?.totalSteps || 0}`
+        `Steps Completed: ${getStepCount(latest.state.completedSteps)}/${latest.metadata?.totalSteps || 0}`
       )
     );
 
-    if (latest.state.failedSteps?.length > 0) {
-      console.log(chalk.red(`Failed Steps: ${latest.state.failedSteps.length}`));
+    const failedStepsCount = getStepCount(latest.state.failedSteps);
+    if (failedStepsCount > 0) {
+      console.log(chalk.red(`Failed Steps: ${failedStepsCount}`));
     }
 
     console.log();
@@ -147,7 +207,9 @@ export async function statusCommand(options) {
       console.log(chalk.gray(`Total checkpoints: ${checkpoints.length}`));
       console.log(
         chalk.gray(
-          `Oldest: ${new Date(checkpoints[checkpoints.length - 1].timestamp).toLocaleString()}`
+          `Oldest: ${new Date(
+            checkpoints[checkpoints.length - 1].timestamp
+          ).toLocaleString()}`
         )
       );
       console.log();
@@ -162,10 +224,11 @@ export async function statusCommand(options) {
     console.log();
 
     process.exit(0);
-  } catch (error) {
-    logger.error(chalk.red(`Error: ${error.message}`));
-    if (options.verbose && error.stack) {
-      logger.error(chalk.gray(error.stack));
+  } catch (error: unknown) {
+    const errorDetails = error instanceof Error ? error : new Error(String(error));
+    logger.error(chalk.red(`Error: ${errorDetails.message}`));
+    if (options.verbose && errorDetails.stack) {
+      logger.error(chalk.gray(errorDetails.stack));
     }
     process.exit(1);
   }

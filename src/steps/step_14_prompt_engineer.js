@@ -19,12 +19,8 @@
 import { STEP_KIND } from './step_contract.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
-import {
-  buildStructuredPrompt,
-  injectProjectContext,
-  buildYamlStepPrompt,
-  loadResolvedAiHelpers,
-} from '../lib/ai_prompt_builder.js';
+import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { buildStepPromptWithFallback, initializeStepAiContext } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -619,31 +615,30 @@ export class Step14PromptEngineer {
     }
 
     // Phase AI: AI-powered prompt quality improvement suggestions
-    const aiAvailable = await this.aiHelper.initialize();
+    const aiAvailable = await initializeStepAiContext({
+      aiHelper: this.aiHelper,
+      aiCache: this.aiCache,
+    });
     if (aiAvailable) {
-      await this.aiCache.init();
-      let prompt;
-      try {
-        const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
-        prompt = buildYamlStepPrompt(parsedYaml, 'step14_prompt_engineer_prompt', {
-          total_prompts: String(stats.totalPrompts),
-          average_score: String(stats.averageScore),
-          total_improvements: String(stats.totalImprovements),
-          below_threshold: String(stats.belowThreshold ?? 0),
-        });
-      } catch {
-        /* fallback to generic prompt */
-      }
-      if (!prompt) {
-        const role = `You are an expert prompt engineer specializing in LLM system prompt optimization.`;
-        const task = `Analyze these AI persona prompt quality metrics:
+      const prompt = await buildStepPromptWithFallback({
+        buildPrompt: async () => {
+          const parsedYaml = await loadResolvedAiHelpers(this.fileOps ?? null);
+          return buildYamlStepPrompt(parsedYaml, 'step14_prompt_engineer_prompt', {
+            total_prompts: String(stats.totalPrompts),
+            average_score: String(stats.averageScore),
+            total_improvements: String(stats.totalImprovements),
+            below_threshold: String(stats.belowThreshold ?? 0),
+          });
+        },
+        fallbackRole: `You are an expert prompt engineer specializing in LLM system prompt optimization.`,
+        fallbackTask: `Analyze these AI persona prompt quality metrics:
 - Total prompts analyzed: ${stats.totalPrompts}
 - Average quality score: ${stats.averageScore}/100
 - Total improvements identified: ${stats.totalImprovements}
-- Prompts below threshold: ${stats.belowThreshold ?? 0}`;
-        const approach = `Suggest the highest-impact structural improvements for AI system prompts. Be concise and specific.`;
-        prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-      }
+- Prompts below threshold: ${stats.belowThreshold ?? 0}`,
+        fallbackApproach: `Suggest the highest-impact structural improvements for AI system prompts. Be concise and specific.`,
+        fallbackProjectContext: {},
+      });
       const cacheKey = `step_14|${stats.totalPrompts}|${stats.averageScore}`;
       const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
         this.aiHelper.executeRequest(prompt, { persona: 'prompt_engineer' })

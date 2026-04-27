@@ -8,7 +8,7 @@
  * supplementary error-resilience pass.
  */
 
-import { basename } from 'path';
+import { basename, join } from 'path';
 import yaml from 'js-yaml';
 import { logger } from '../core/logger.js';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
@@ -63,6 +63,18 @@ const STEP10_GENERATED_PATH_PATTERNS = [
 
 const FRONT_END_PROJECT_KINDS = new Set(['react_spa', 'client_spa', 'static_website']);
 const STEP10_AI_PERSONA = 'code_quality_analyst';
+const PRETTIER_CONFIG_CANDIDATES = [
+  '.prettierrc',
+  '.prettierrc.json',
+  '.prettierrc.yaml',
+  '.prettierrc.yml',
+  '.prettierrc.js',
+  '.prettierrc.cjs',
+  '.prettierrc.mjs',
+  'prettier.config.js',
+  'prettier.config.cjs',
+  'prettier.config.mjs',
+];
 
 /**
  * Sort file paths so source files (src/) appear before test files (test/).
@@ -270,6 +282,186 @@ export function formatPromptFileEntries(entries) {
     .join('\n\n');
 }
 
+function summarizeLinterResult(result = {}) {
+  if (result.skipped) return 'linter skipped';
+  if (!result.linterResults) return 'linter result unavailable';
+  if (result.linterResults.totalIssues === 0) return 'no issues found';
+
+  const parts = [`${result.linterResults.totalIssues} issue(s)`];
+  if (typeof result.linterResults.errors === 'number') {
+    parts.push(`${result.linterResults.errors} error(s)`);
+  }
+  if (typeof result.linterResults.warnings === 'number') {
+    parts.push(`${result.linterResults.warnings} warning(s)`);
+  }
+  if (typeof result.linterResults.infos === 'number' && result.linterResults.infos > 0) {
+    parts.push(`${result.linterResults.infos} info finding(s)`);
+  }
+  return parts.join(', ');
+}
+
+export function buildSupportingQualityPromptFields(perLanguageResults = []) {
+  if (!Array.isArray(perLanguageResults) || perLanguageResults.length === 0) {
+    return {
+      supportingQualityScopeNote:
+        '(No supplementary tooling, convention, or test evidence was supplied beyond the automated findings summary.)',
+      supportingQualityContext:
+        '- Additional Step 10 evidence unavailable for this prompt; rely on the automated findings and visible file excerpts only.',
+    };
+  }
+
+  return {
+    supportingQualityScopeNote:
+      'Use this section as supporting evidence only. It summarizes the broader Step 10 quality-validation run and may cover more files than this specific prompt slice. Do not restate it as file-level pass/fail evidence unless the exact visible file or path is named.',
+    supportingQualityContext: [
+      '- Step 10 quality-validation snapshot:',
+      ...perLanguageResults.map((result) => {
+        const language = result.language ?? 'unknown';
+        const count = result.sourceFileCount ?? 0;
+        const linter = result.linterCommand ? `; linter: \`${result.linterCommand}\`` : '';
+        return `  - ${language}: ${count} source file(s)${linter}; result: ${summarizeLinterResult(result)}`;
+      }),
+    ].join('\n'),
+  };
+}
+
+function normalizeEvidenceState(value) {
+  if (value === null) return 'UNAVAILABLE';
+  return value ? 'PRESENT' : 'MISSING';
+}
+
+async function safeFileExists(fileOps, absolutePath) {
+  if (fileOps?.exists) {
+    try {
+      return Boolean(await fileOps.exists(absolutePath));
+    } catch {
+      return false;
+    }
+  }
+
+  if (fileOps?.readFile) {
+    try {
+      await fileOps.readFile(absolutePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return null;
+}
+
+async function safeReadText(fileOps, absolutePath) {
+  if (!fileOps?.readFile) return null;
+
+  try {
+    return await fileOps.readFile(absolutePath);
+  } catch {
+    return null;
+  }
+}
+
+async function findFirstExistingRelativePath(fileOps, projectRoot, relativePaths) {
+  for (const relativePath of relativePaths) {
+    const exists = await safeFileExists(fileOps, join(projectRoot, relativePath));
+    if (exists) return relativePath;
+  }
+
+  return null;
+}
+
+async function resolveProjectKind(fileOps, projectRoot, options = {}) {
+  const explicitKind = [options?.projectType, options?.projectKind].find(
+    (value) => typeof value === 'string' && value.trim().length > 0
+  );
+  if (explicitKind) return explicitKind.trim();
+
+  const configText = await safeReadText(fileOps, join(projectRoot, '.workflow-config.yaml'));
+  if (!configText) return '';
+
+  try {
+    const parsed = yaml.load(configText);
+    const configuredKind = parsed?.project?.kind;
+    return typeof configuredKind === 'string' ? configuredKind.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+async function resolveFormatterEvidence(fileOps, projectRoot) {
+  const configPath = await findFirstExistingRelativePath(
+    fileOps,
+    projectRoot,
+    PRETTIER_CONFIG_CANDIDATES
+  );
+  const packageJsonText = await safeReadText(fileOps, join(projectRoot, 'package.json'));
+
+  let formatScripts = [];
+  if (packageJsonText) {
+    try {
+      const parsed = JSON.parse(packageJsonText);
+      formatScripts = ['format', 'format:check'].filter(
+        (scriptName) => typeof parsed?.scripts?.[scriptName] === 'string'
+      );
+    } catch {
+      formatScripts = [];
+    }
+  }
+
+  if (!configPath && formatScripts.length === 0) {
+    return '- Formatter tooling evidence: unavailable beyond the aggregate snapshot. Do not recommend adding formatter tooling unless the prompt explicitly shows it is missing.';
+  }
+
+  const lines = ['- Formatter tooling evidence:'];
+  lines.push(
+    `  - Config: ${configPath ? `\`${configPath}\` present` : 'no checked Prettier config file found'}`
+  );
+  if (formatScripts.length > 0) {
+    lines.push(`  - package.json scripts: ${formatScripts.map((name) => `\`${name}\``).join(', ')}`);
+  } else if (packageJsonText) {
+    lines.push('  - package.json scripts: no `format` / `format:check` script found');
+  }
+
+  return lines.join('\n');
+}
+
+async function resolveConventionEvidence(fileOps, projectRoot) {
+  const [contributingExists, copilotInstructionsExists] = await Promise.all([
+    safeFileExists(fileOps, join(projectRoot, 'CONTRIBUTING.md')),
+    safeFileExists(fileOps, join(projectRoot, '.github', 'copilot-instructions.md')),
+  ]);
+
+  if (contributingExists === null && copilotInstructionsExists === null) {
+    return '- Project convention sources: unavailable for this prompt.';
+  }
+
+  return [
+    '- Project convention sources:',
+    `  - \`CONTRIBUTING.md\`: ${normalizeEvidenceState(contributingExists)}`,
+    `  - \`.github/copilot-instructions.md\`: ${normalizeEvidenceState(copilotInstructionsExists)}`,
+  ].join('\n');
+}
+
+export async function resolveCohesionGuideStatus(fileOps, projectRoot, reviewableFileCount = 0) {
+  if (reviewableFileCount <= 0) {
+    return 'Not applicable — no reviewable code files were selected for this Step 10 prompt.';
+  }
+
+  const [highExists, lowExists] = await Promise.all([
+    safeFileExists(fileOps, join(projectRoot, '.github', 'HIGH_COHESION_GUIDE.md')),
+    safeFileExists(fileOps, join(projectRoot, '.github', 'LOW_COUPLING_GUIDE.md')),
+  ]);
+
+  if (highExists === null || lowExists === null) {
+    return 'Unavailable — guide-status checks could not be performed for this run.';
+  }
+
+  return [
+    `- \`.github/HIGH_COHESION_GUIDE.md\`: ${highExists ? 'PRESENT' : 'MISSING'}`,
+    `- \`.github/LOW_COUPLING_GUIDE.md\`: ${lowExists ? 'PRESENT' : 'MISSING'}`,
+  ].join('\n');
+}
+
 /**
  * Build an 8-character content hash from file contents for cache-key freshness.
  * Combines the first 80 chars of each file (sorted by path) into a simple checksum.
@@ -313,6 +505,8 @@ function createEmptyAiReviewResult() {
     alternatives: [],
     recommendedAlternative: null,
     erFindings: '',
+    reviewCoverage: null,
+    reviewedPartition: null,
   };
 }
 
@@ -358,9 +552,17 @@ export class Step10AiReviewService {
     );
 
     const fileContents = await this.readPartitionFileContents(context.projectRoot, partition.files);
-    const sharedPromptContext = await this.loadSharedPromptContext(
+    const resolvedProjectKind = await resolveProjectKind(
+      this.fileOps,
       context.projectRoot,
       context.options
+    );
+    const resolvedOptions = resolvedProjectKind
+      ? { ...(context.options ?? {}), projectKind: resolvedProjectKind }
+      : { ...(context.options ?? {}) };
+    const sharedPromptContext = await this.loadSharedPromptContext(
+      context.projectRoot,
+      resolvedOptions
     );
 
     const promptSlices = buildCodePromptSlices(fileContents, {
@@ -377,6 +579,8 @@ export class Step10AiReviewService {
     const aiContent = await this.runCodeQualityReview({
       ...context,
       ...sharedPromptContext,
+      options: resolvedOptions,
+      resolvedProjectKind,
       partition,
       promptSlices,
       fileContents,
@@ -388,7 +592,7 @@ export class Step10AiReviewService {
     );
 
     let erContent = '';
-    const currentKind = context.options?.projectType ?? context.options?.projectKind ?? '';
+    const currentKind = resolvedProjectKind;
     if (
       sharedPromptContext.sharedParsedYaml &&
       shouldRunErrorResiliencePrompt(currentKind) &&
@@ -425,6 +629,16 @@ export class Step10AiReviewService {
       alternatives: parsedAlternatives.alternatives,
       recommendedAlternative: parsedAlternatives.recommended,
       erFindings: erContent,
+      reviewCoverage:
+        partition.total > 1
+          ? `AI review covered partition ${partition.index + 1}/${partition.total} (${partition.files.length} files)`
+          : `AI review covered ${partition.files.length} file(s) in the only partition`,
+      reviewedPartition: {
+        index: partition.index,
+        total: partition.total,
+        label: partition.label,
+        fileCount: partition.files.length,
+      },
     };
   }
 
@@ -515,7 +729,7 @@ export class Step10AiReviewService {
         .map((filePath) => [filePath, context.fileContents[filePath]])
     );
 
-    let prompt = this.buildQualitySlicePrompt(context);
+    let prompt = await this.buildQualitySlicePrompt(context);
     if (!prompt) {
       prompt = buildCodeQualityPrompt({
         codeFiles: context.promptSlice.scopePaths,
@@ -553,13 +767,22 @@ export class Step10AiReviewService {
       : aiContent;
   }
 
-  buildQualitySlicePrompt(context) {
+  async buildQualitySlicePrompt(context) {
     try {
       if (!context.sharedParsedYaml) return '';
 
       const fileContentMap = formatPromptFileEntries(context.promptSlice.entries);
       const projectName = basename(context.projectRoot);
       const modifiedFiles = context.options?.modifiedFiles ?? [];
+      const resolvedProjectKind =
+        context.resolvedProjectKind ??
+        (await resolveProjectKind(this.fileOps, context.projectRoot, context.options));
+      const supportingFields = buildSupportingQualityPromptFields(context.perLanguageResults);
+      const [formatterEvidence, conventionEvidence, cohesionGuideStatus] = await Promise.all([
+        resolveFormatterEvidence(this.fileOps, context.projectRoot),
+        resolveConventionEvidence(this.fileOps, context.projectRoot),
+        resolveCohesionGuideStatus(this.fileOps, context.projectRoot, context.reviewableSourceFiles.length),
+      ]);
       const prompt = buildYamlStepPrompt(context.sharedParsedYaml, 'step10_code_quality_prompt', {
         partition_header:
           context.promptSlices.length > 1
@@ -572,7 +795,7 @@ export class Step10AiReviewService {
         project_name: projectName,
         project_description: context.options?.projectDescription ?? '',
         primary_language: context.primaryLanguage,
-        project_kind: context.options?.projectKind ?? '',
+        project_kind: resolvedProjectKind,
         tech_stack_summary: context.detectedLanguages.join(', '),
         change_scope: context.options?.changeScope ?? 'full',
         files_in_scope: context.promptSlice.scopePaths.length,
@@ -587,6 +810,15 @@ export class Step10AiReviewService {
           context.promptSlice.oversizedPaths.length > 0
             ? context.promptSlice.oversizedPaths.join(', ')
             : '(none)',
+        supporting_quality_scope_note: supportingFields.supportingQualityScopeNote,
+        supporting_quality_context: [
+          supportingFields.supportingQualityContext,
+          formatterEvidence,
+          conventionEvidence,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        cohesion_guide_status: cohesionGuideStatus,
         sample_code: '',
         file_content_map: fileContentMap,
       });

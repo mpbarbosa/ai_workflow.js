@@ -17,6 +17,7 @@
  */
 
 import { createRequire } from 'module';
+import { logger } from '../core/logger.js';
 
 // createRequire works in both CJS and ESM across all supported Node versions.
 const _require = createRequire(import.meta.url);
@@ -76,7 +77,9 @@ export class ClaudeProviderWrapper {
     try {
       const mod = _require('@anthropic-ai/claude-agent-sdk');
       return typeof mod.query === 'function';
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.debug(`Claude SDK availability check failed: ${message}`);
       return false;
     }
   }

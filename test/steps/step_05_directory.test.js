@@ -450,6 +450,19 @@ describe('Step 5: Directory Structure Validation', () => {
 
       expect(report).toContain('... and 5 more');
     });
+
+    test('includes degraded evidence warnings in the report', () => {
+      const report = formatDirectoryReport({
+        totalDirs: 2,
+        misplacedDocs: 1,
+        organizedDocs: 0,
+        structureIssues: [],
+        warnings: ['Project-kind guidance unavailable'],
+      });
+
+      expect(report).toContain('Evidence Limitations');
+      expect(report).toContain('Project-kind guidance unavailable');
+    });
   });
 
   // ========================================================================
@@ -607,6 +620,42 @@ describe('Step 5: Directory Structure Validation', () => {
       // but with zero results
       expect(result.success).toBe(true);
       expect(result.totalDirs).toBe(0);
+    });
+
+    test('marks results degraded when project-kind guidance is unavailable during AI review', async () => {
+      analyzer = new Step5DirectoryAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        config: mockConfig,
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: () => Promise.resolve({ content: 'Keep docs grouped under docs/.' }),
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_cacheKey, _entries, callback) => callback(),
+        },
+        projectKindConfig: {
+          loadProjectKindsYaml: () => Promise.resolve(false),
+          getProjectKind: () => Promise.resolve('library'),
+          getAIGuidance: () => Promise.resolve(null),
+        },
+      });
+      analyzer._listDirsRecursive = () => Promise.resolve(['/project/src']);
+      mockFileOps.listDirectory = () =>
+        Promise.resolve(['/project/README.md', '/project/GUIDE.md', '/project/package.json']);
+      mockFileOps.readFile = () => Promise.resolve('Project has src and docs directories.');
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.degraded).toBe(true);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Project-kind directory guidance was unavailable'),
+        ])
+      );
     });
   });
 });

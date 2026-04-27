@@ -14,25 +14,98 @@
 
 import chalk from 'chalk';
 import { logger } from '../../core/logger.js';
+// @ts-expect-error - legacy JS module is untyped in the current TypeScript setup.
 import { Config } from '../../lib/config.js';
+
+export type ConfigAction = 'show' | 'validate' | 'get' | 'set';
+
+export interface ConfigCommandValidationResult {
+  isValid: boolean;
+  errors: string[];
+  action: string;
+}
+
+export interface ConfigValidationIssue {
+  path?: string;
+  message: string;
+}
+
+export interface ConfigCommandOptions {
+  config?: string;
+  verbose?: boolean;
+}
+
+export type ConfigValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ConfigRecord
+  | ConfigValue[];
+
+export interface ConfigRecord {
+  [key: string]: ConfigValue | undefined;
+}
+
+export interface WorkflowConfigManager {
+  configPath: string;
+  getAll(): ConfigRecord;
+  validate(): {
+    isValid: boolean;
+    errors: ConfigValidationIssue[];
+  };
+  set(key: string, value: ConfigValue): void;
+}
+
+const VALID_ACTIONS: ConfigAction[] = ['show', 'validate', 'get', 'set'];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function createConfigManager(configPath: string): WorkflowConfigManager {
+  return new Config(configPath) as unknown as WorkflowConfigManager;
+}
+
+function parseConfigInput(value: string): ConfigValue {
+  if (value.startsWith('{') || value.startsWith('[')) {
+    try {
+      return JSON.parse(value) as ConfigValue;
+    } catch {
+      return value;
+    }
+  }
+
+  if (value === 'true' || value === 'false') {
+    return value === 'true';
+  }
+
+  if (!Number.isNaN(Number(value))) {
+    return Number(value);
+  }
+
+  return value;
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Config Operations
 // ============================================================================
 
 /**
- * Validate config command action
- * @pure
- * @param {string} action - Action to perform
- * @param {Array<string>} args - Additional arguments
- * @returns {Object} Validation result
+ * Validate config command action.
  */
-export function validateConfigAction(action, args) {
-  const errors = [];
-  const validActions = ['show', 'validate', 'get', 'set'];
+export function validateConfigAction(
+  action: string,
+  args: string[]
+): ConfigCommandValidationResult {
+  const errors: string[] = [];
 
-  if (!validActions.includes(action)) {
-    errors.push(`Invalid action: ${action}. Valid actions: ${validActions.join(', ')}`);
+  if (!VALID_ACTIONS.includes(action as ConfigAction)) {
+    errors.push(`Invalid action: ${action}. Valid actions: ${VALID_ACTIONS.join(', ')}`);
   }
 
   if (action === 'get' && args.length !== 1) {
@@ -51,38 +124,34 @@ export function validateConfigAction(action, args) {
 }
 
 /**
- * Get nested config value by key path
- * @pure
- * @param {Object} config - Configuration object
- * @param {string} keyPath - Dot-separated key path (e.g., 'project.name')
- * @returns {*} Config value or undefined
+ * Get nested config value by key path.
  */
-export function getConfigValue(config, keyPath) {
+export function getConfigValue<T = ConfigValue>(
+  config: ConfigRecord | null | undefined,
+  keyPath: string
+): T | undefined {
   if (!config || !keyPath) {
     return undefined;
   }
 
   const keys = keyPath.split('.');
-  let value = config;
+  let value: unknown = config;
 
   for (const key of keys) {
-    if (value && typeof value === 'object' && key in value) {
+    if (isRecord(value) && key in value) {
       value = value[key];
     } else {
       return undefined;
     }
   }
 
-  return value;
+  return value as T | undefined;
 }
 
 /**
- * Format config value for display
- * @pure
- * @param {*} value - Config value
- * @returns {string} Formatted value
+ * Format config value for display.
  */
-export function formatConfigValue(value) {
+export function formatConfigValue(value: ConfigValue | undefined): string {
   if (value === null || value === undefined) {
     return chalk.gray('(not set)');
   }
@@ -95,19 +164,23 @@ export function formatConfigValue(value) {
 }
 
 /**
- * Format validation errors
- * @pure
- * @param {Array<Object>} errors - Validation errors
- * @returns {string} Formatted error list
+ * Format validation errors.
  */
-export function formatValidationErrors(errors) {
+export function formatValidationErrors(
+  errors: ConfigValidationIssue[] | string[] | null | undefined
+): string {
   if (!errors || errors.length === 0) {
     return 'No errors';
   }
 
   const lines = ['Validation errors:'];
-  errors.forEach((err, index) => {
-    lines.push(`  ${index + 1}. ${err.path || 'config'}: ${err.message}`);
+  errors.forEach((error, index) => {
+    if (typeof error === 'string') {
+      lines.push(`  ${index + 1}. config: ${error}`);
+      return;
+    }
+
+    lines.push(`  ${index + 1}. ${error.path || 'config'}: ${error.message}`);
   });
 
   return lines.join('\n');
@@ -118,12 +191,12 @@ export function formatValidationErrors(errors) {
 // ============================================================================
 
 /**
- * Execute the config show action
- * @param {Config} configManager - Config manager instance
- * @param {Object} options - Command options
- * @returns {Promise<void>}
+ * Execute the config show action.
  */
-async function showConfig(configManager, options) {
+async function showConfig(
+  configManager: WorkflowConfigManager,
+  options: ConfigCommandOptions
+): Promise<void> {
   try {
     const config = configManager.getAll();
 
@@ -139,16 +212,14 @@ async function showConfig(configManager, options) {
       console.log();
     }
   } catch (error) {
-    throw new Error(`Failed to show config: ${error.message}`, { cause: error });
+    throw new Error(`Failed to show config: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
 /**
- * Execute the config validate action
- * @param {Config} configManager - Config manager instance
- * @returns {Promise<void>}
+ * Execute the config validate action.
  */
-async function validateConfig(configManager) {
+async function validateConfig(configManager: WorkflowConfigManager): Promise<void> {
   try {
     const result = configManager.validate();
 
@@ -164,17 +235,14 @@ async function validateConfig(configManager) {
 
     process.exit(result.isValid ? 0 : 1);
   } catch (error) {
-    throw new Error(`Failed to validate config: ${error.message}`, { cause: error });
+    throw new Error(`Failed to validate config: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
 /**
- * Execute the config get action
- * @param {Config} configManager - Config manager instance
- * @param {string} key - Config key to get
- * @returns {Promise<void>}
+ * Execute the config get action.
  */
-async function getConfigKey(configManager, key) {
+async function getConfigKey(configManager: WorkflowConfigManager, key: string): Promise<void> {
   try {
     const config = configManager.getAll();
     const value = getConfigValue(config, key);
@@ -187,32 +255,20 @@ async function getConfigKey(configManager, key) {
     }
     console.log();
   } catch (error) {
-    throw new Error(`Failed to get config value: ${error.message}`, { cause: error });
+    throw new Error(`Failed to get config value: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
 /**
- * Execute the config set action
- * @param {Config} configManager - Config manager instance
- * @param {string} key - Config key to set
- * @param {string} value - Config value to set
- * @returns {Promise<void>}
+ * Execute the config set action.
  */
-async function setConfigKey(configManager, key, value) {
+async function setConfigKey(
+  configManager: WorkflowConfigManager,
+  key: string,
+  value: string
+): Promise<void> {
   try {
-    // Parse value if it looks like JSON
-    let parsedValue = value;
-    if (value.startsWith('{') || value.startsWith('[')) {
-      try {
-        parsedValue = JSON.parse(value);
-      } catch {
-        // Keep as string if not valid JSON
-      }
-    } else if (value === 'true' || value === 'false') {
-      parsedValue = value === 'true';
-    } else if (!isNaN(value)) {
-      parsedValue = Number(value);
-    }
+    const parsedValue = parseConfigInput(value);
 
     configManager.set(key, parsedValue);
 
@@ -220,38 +276,34 @@ async function setConfigKey(configManager, key, value) {
     console.log(chalk.green(`✓ Set ${key} = ${formatConfigValue(parsedValue)}`));
     console.log();
   } catch (error) {
-    throw new Error(`Failed to set config value: ${error.message}`, { cause: error });
+    throw new Error(`Failed to set config value: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
 /**
- * Execute the config command
- * @param {string} action - Action to perform (show, validate, get, set)
- * @param {Array<string>} args - Additional arguments
- * @param {Object} options - Command options
- * @returns {Promise<void>}
+ * Execute the config command.
  */
-export async function configCommand(action, args, options) {
+export async function configCommand(
+  action: string,
+  args: string[],
+  options: ConfigCommandOptions
+): Promise<void> {
   try {
-    // Validate action
     const validation = validateConfigAction(action, args);
     if (!validation.isValid) {
       logger.error(chalk.red('Invalid action:'));
-      validation.errors.forEach((err) => logger.error(chalk.red(`  - ${err}`)));
+      validation.errors.forEach((error) => logger.error(chalk.red(`  - ${error}`)));
       process.exit(1);
     }
 
-    // Display banner
     console.log();
     console.log(chalk.blue('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
     console.log(chalk.blue('  Configuration'));
     console.log(chalk.blue('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
 
-    // Load config
     const configPath = options.config || '.workflow-config.yaml';
-    const configManager = new Config(configPath);
+    const configManager = createConfigManager(configPath);
 
-    // Execute action
     switch (action) {
       case 'show':
         await showConfig(configManager, options);
@@ -271,18 +323,21 @@ export async function configCommand(action, args, options) {
 
     process.exit(0);
   } catch (error) {
-    logger.error(chalk.red(`Error: ${error.message}`));
-    if (options.verbose && error.stack) {
+    logger.error(chalk.red(`Error: ${getErrorMessage(error)}`));
+    if (options.verbose && error instanceof Error && error.stack) {
       logger.error(chalk.gray(error.stack));
     }
     process.exit(1);
   }
 }
 
-export default {
+const configCommandModule = {
   configCommand,
   validateConfigAction,
   getConfigValue,
   formatConfigValue,
   formatValidationErrors,
 };
+
+export { configCommandModule };
+export default configCommandModule;

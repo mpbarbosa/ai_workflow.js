@@ -24,6 +24,30 @@ describe('ClaudeProviderWrapper', () => {
     it('returns a boolean', () => {
       expect(typeof ClaudeProviderWrapper.isAvailable()).toBe('boolean');
     });
+
+    it('logs the probe failure reason when SDK availability check throws', async () => {
+      const debug = jest.fn();
+
+      await jest.isolateModulesAsync(async () => {
+        jest.unstable_mockModule('module', () => ({
+          createRequire: () => () => {
+            throw new Error('missing sdk');
+          },
+        }));
+        jest.unstable_mockModule('../../src/core/logger.js', () => ({
+          logger: { debug },
+        }));
+
+        const { ClaudeProviderWrapper: IsolatedClaudeProviderWrapper } = await import(
+          '../../src/lib/claude_sdk_wrapper.js'
+        );
+
+        expect(IsolatedClaudeProviderWrapper.isAvailable()).toBe(false);
+      });
+
+      expect(debug).toHaveBeenCalledWith('Claude SDK availability check failed: missing sdk');
+      jest.resetModules();
+    });
   });
 
   describe('_getInner', () => {

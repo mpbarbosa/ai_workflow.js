@@ -3,6 +3,7 @@
  * @group steps
  */
 
+import fs from 'fs/promises';
 import {
   Step4ConfigAnalyzer,
   isConfigFile,
@@ -15,9 +16,11 @@ import {
   checkConfigBestPractices,
   formatConfigReport,
   buildFileContentsBlock,
+  buildStep4QualityPromptContext,
   buildPackageLockPromptSummary,
   summarizeConfigContentForPrompt,
   buildConfigPromptPartitions,
+  selectConfigPromptPartitions,
   assessPromptEvidence,
   groupConfigFilesList,
   validateAiResponseQuality,
@@ -897,6 +900,67 @@ describe('Step 4: Configuration Validation', () => {
       expect(seenPrompt).not.toContain('"node_modules/react"');
     });
 
+    test('supplementary quality prompt injects visible config file contents and scope note', async () => {
+      const seenRequests = [];
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt, options = {}) => {
+          seenRequests.push({ prompt, options });
+          return Promise.resolve({
+            content: 'Visible excerpts reviewed with no additional findings.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package.json', 'package-lock.json']);
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('package.json')) {
+          return '{"name":"demo","version":"1.0.0"}';
+        }
+        if (filePath.endsWith('package-lock.json')) {
+          return JSON.stringify({
+            name: 'demo',
+            version: '1.0.0',
+            lockfileVersion: 3,
+            packages: {
+              '': {
+                dependencies: { react: '^19.0.0' },
+              },
+              'node_modules/react': { version: '19.0.0' },
+            },
+          });
+        }
+        return fs.readFile(filePath, 'utf8');
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      const qualityRequest = seenRequests.find(
+        (request) => request.options?.persona === 'code_quality_analyst'
+      );
+
+      expect(qualityRequest).toBeTruthy();
+      expect(qualityRequest.prompt).toContain(
+        'Supplementary file-level quality review scoped to 2 configuration file(s) in this run.'
+      );
+      expect(qualityRequest.prompt).toContain('--- package.json ---');
+      expect(qualityRequest.prompt).toContain('{"name":"demo","version":"1.0.0"}');
+      expect(qualityRequest.prompt).toContain('--- package-lock.json ---');
+      expect(qualityRequest.prompt).toContain('[generated npm lockfile summary]');
+    });
+
     test('handles git operation failures gracefully', async () => {
       mockGitOps.getModifiedFiles = () => Promise.reject(new Error('Git error'));
       mockFileOps.glob = () => Promise.resolve(['package.json']);
@@ -1216,9 +1280,29 @@ describe('Step 4: Configuration Validation', () => {
       );
 
       expect(summary).toContain('[generated npm lockfile summary]');
-      expect(summary).toContain('"react": "19.0.0"');
-      expect(summary).toContain('"typescript": "5.8.2"');
+      expect(summary).toContain('"react": {');
+      expect(summary).toContain('"declaredSpec": "^19.0.0"');
+      expect(summary).toContain('"resolvedVersion": "19.0.0"');
+      expect(summary).toContain('"typescript": {');
+      expect(summary).toContain('"declaredSpec": "^5.8.0"');
+      expect(summary).toContain('"resolvedVersion": "5.8.2"');
       expect(summary).not.toContain('"node_modules/react"');
+    });
+  });
+
+  describe('buildStep4QualityPromptContext', () => {
+    test('builds file-content and scope-note placeholders for supplementary quality review', () => {
+      const context = buildStep4QualityPromptContext([
+        { relativePath: 'package.json', content: '{"name":"demo"}' },
+        { relativePath: 'package-lock.json', content: '{"lockfileVersion":3}' },
+      ]);
+
+      expect(context.filesToReview).toBe('package.json, package-lock.json');
+      expect(context.fileContentMap).toContain('--- package.json ---');
+      expect(context.fileContentMap).toContain('--- package-lock.json ---');
+      expect(context.qualityScopeNote).toContain(
+        'Supplementary file-level quality review scoped to 2 configuration file(s) in this run.'
+      );
     });
   });
 
@@ -1254,6 +1338,41 @@ describe('Step 4: Configuration Validation', () => {
       expect(partitions[0].entries[1].relativePath).toContain('.workflow-config.yaml (part 1/2)');
       expect(partitions[1].entries[0].relativePath).toContain('.workflow-config.yaml (part 2/2)');
       expect(partitions[0].scopePaths).toEqual(['package.json', '.workflow-config.yaml']);
+    });
+  });
+
+  describe('selectConfigPromptPartitions', () => {
+    test('scopes AI review to modified config files when deterministic validation found no issues', () => {
+      const { promptPartitions, scopeNote } = selectConfigPromptPartitions(
+        [
+          { relativePath: 'package.json', content: '{"name":"demo"}' },
+          { relativePath: '.github/workflows/test.yml', content: 'name: test' },
+        ],
+        {
+          modifiedFiles: ['.github/workflows/test.yml'],
+          totalIssues: 0,
+        }
+      );
+
+      expect(promptPartitions).toHaveLength(1);
+      expect(promptPartitions[0].scopePaths).toEqual(['.github/workflows/test.yml']);
+      expect(scopeNote).toContain('scoped to 1 modified configuration file');
+    });
+
+    test('caps oversized AI prompt runs while keeping deterministic validation authoritative', () => {
+      const fileEntries = Array.from({ length: 30 }, (_, index) => ({
+        relativePath: `configs/${index}.json`,
+        content: `{"value":"${'x'.repeat(MAX_PROMPT_ENTRY_CHARS + 10)}"}`,
+      }));
+
+      const { promptPartitions, scopeNote } = selectConfigPromptPartitions(fileEntries, {
+        totalIssues: 2,
+        maxPartitions: 2,
+      });
+
+      expect(promptPartitions).toHaveLength(2);
+      expect(scopeNote).toContain('capped to 2 partition(s)');
+      expect(scopeNote).toContain('deterministic validation still covered the full configuration set');
     });
   });
 

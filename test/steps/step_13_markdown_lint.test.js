@@ -553,6 +553,44 @@ docs/guide.md:10: MD022 Blank lines around headers`;
       );
     });
 
+    test('invalidates step cache when auto-fix is a no-op', async () => {
+      const mockAiCache = {
+        init: jest.fn().mockResolvedValue(),
+        invalidateFileChangeGuard: jest.fn().mockResolvedValue(true),
+        withFileChangeGuard: jest.fn().mockResolvedValue({ content: 'AI recommendations' }),
+      };
+      const mockAiHelper = {
+        initialize: jest.fn().mockResolvedValue(true),
+        executeRequest: jest.fn().mockResolvedValue({ content: 'AI recommendations' }),
+      };
+      mockFileOps.listDirectoryRecursive = jest.fn().mockResolvedValue(['README.md']);
+      mockFileOps.readFile = jest.fn().mockResolvedValue('# Heading\n');
+      mockExecutor.executeCommand = jest
+        .fn()
+        .mockResolvedValueOnce({ stdout: '0.11.0', stderr: '' })
+        .mockRejectedValueOnce({ stdout: 'README.md:1: MD041 First line should be a top-level heading\n' })
+        .mockResolvedValueOnce({ stdout: '', stderr: '' })
+        .mockRejectedValueOnce({ stdout: 'README.md:1: MD041 First line should be a top-level heading\n' });
+
+      const step = new Step13MarkdownLint({
+        aiHelper: mockAiHelper,
+        aiCache: mockAiCache,
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+      });
+
+      await step.execute({ projectRoot: '/project' });
+
+      expect(mockAiCache.invalidateFileChangeGuard).toHaveBeenCalledWith('step_13');
+      expect(mockAiCache.withFileChangeGuard).toHaveBeenCalledWith(
+        'step_13',
+        expect.arrayContaining([expect.stringContaining('autofix:autofix-noop')]),
+        expect.any(Function)
+      );
+    });
+
     // [BUG FIX 9a42860] promptsDir must be forwarded to AiHelper
     test('[BUG FIX] promptsDir option is accepted without error', () => {
       const step = new Step13MarkdownLint({

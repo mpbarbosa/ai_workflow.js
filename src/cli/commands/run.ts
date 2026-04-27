@@ -14,10 +14,133 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import { logger } from '../../core/logger.js';
+// @ts-expect-error - legacy JS orchestrator module is untyped in the current TypeScript setup.
 import { MainOrchestrator, WORKFLOW_STAGES } from '../../orchestrator/main_orchestrator.js';
+// @ts-expect-error - legacy JS startup evaluator module is untyped in the current TypeScript setup.
 import { StartupResumeEvaluator } from '../../lib/startup_resume_evaluator.js';
+
+export type ProviderName = 'copilot' | 'claude';
+export type AlternativesOption = boolean | number | string;
+
+export interface RunCommandOptions {
+  alternatives?: AlternativesOption;
+  auto?: boolean;
+  config?: unknown;
+  dryRun?: boolean;
+  noAutoResume?: boolean;
+  parallel?: boolean;
+  projectRoot?: string;
+  provider?: string;
+  sdkSmokeTest?: boolean;
+  stage?: string;
+  tui?: boolean;
+  verbose?: boolean;
+  workflowDir?: string;
+}
+
+export interface RunOptionsValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface RunOrchestratorOptions {
+  workflowDir: string;
+  projectRoot: string;
+  stage: string;
+  auto: boolean;
+  dryRun: boolean;
+  noParallel: boolean;
+  sdkSmokeTest: boolean;
+  alternatives: boolean | number;
+  verbose: boolean;
+  streamingEnabled: boolean;
+  provider: string;
+}
+
+export interface WorkflowResultSummary {
+  failed?: number;
+  succeeded?: number;
+  total?: number;
+}
+
+export interface WorkflowExecutionResults {
+  summary?: WorkflowResultSummary;
+}
+
+export interface RunResultSummary {
+  report?: string;
+}
+
+export interface RunCommandResult {
+  aborted?: boolean;
+  duration: number;
+  error?: string;
+  results: WorkflowExecutionResults;
+  success: boolean;
+  summary?: RunResultSummary | string | null;
+}
+
+export interface StartupDecision {
+  shouldResume: boolean;
+  checkpointId: string | null;
+  workflowId?: string | null;
+  lastRunState: string;
+  reason: string;
+  logDirName: string | null;
+}
+
+export interface CheckpointState {
+  completedSteps?: number | string[];
+}
+
+export interface CheckpointMetadata {
+  id: string;
+  state: CheckpointState;
+}
+
+interface CheckpointManagerLike {
+  list(): Promise<CheckpointMetadata[]>;
+}
+
+interface StartupResumeEvaluatorLike {
+  checkpointManager: CheckpointManagerLike;
+  evaluate(): Promise<StartupDecision>;
+}
+
+interface RunOrchestratorLike {
+  workflowDir: string;
+  abort(): void;
+  execute(): Promise<RunCommandResult>;
+  resume(checkpointId: string): Promise<RunCommandResult>;
+}
+
+interface TuiRunResult extends RunCommandResult {
+  aborted: boolean;
+}
+
+interface StartTuiOptions {
+  stage: string;
+  version: string;
+  verbose: boolean;
+}
+
+interface StartTuiModule {
+  startTui: (orchestrator: RunOrchestratorLike, options: StartTuiOptions) => Promise<TuiRunResult>;
+}
+
+function createRunOrchestrator(options: RunOrchestratorOptions): RunOrchestratorLike {
+  return new MainOrchestrator(options) as unknown as RunOrchestratorLike;
+}
+
+function createStartupResumeEvaluator(workflowDir: string): StartupResumeEvaluatorLike {
+  return new StartupResumeEvaluator({ workflowDir }) as unknown as StartupResumeEvaluatorLike;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 // ============================================================================
 // PURE FUNCTIONS - Command Logic
@@ -26,33 +149,33 @@ import { StartupResumeEvaluator } from '../../lib/startup_resume_evaluator.js';
 /**
  * Validate run command options
  * @pure
- * @param {Object} options - Command options
- * @returns {Object} Validation result
  */
-export function validateRunOptions(options) {
-  const errors = [];
+export function validateRunOptions(
+  options: RunCommandOptions = {}
+): RunOptionsValidationResult {
+  const errors: string[] = [];
 
   // Validate stage
-  const validStages = Object.values(WORKFLOW_STAGES);
+  const validStages = Object.values(WORKFLOW_STAGES) as string[];
   if (options.stage && !validStages.includes(options.stage)) {
     errors.push(`Invalid stage: ${options.stage}. Must be one of: ${validStages.join(', ')}`);
   }
 
   // Validate config path
-  if (options.config && typeof options.config !== 'string') {
+  if (options.config !== undefined && typeof options.config !== 'string') {
     errors.push('Config path must be a string');
   }
 
   // Validate alternatives
   if (options.alternatives !== false && options.alternatives !== undefined) {
-    const n = parseInt(options.alternatives, 10);
-    if (!isNaN(n) && n < 2) {
+    const alternativesCount = Number.parseInt(String(options.alternatives), 10);
+    if (!Number.isNaN(alternativesCount) && alternativesCount < 2) {
       errors.push('--alternatives must be at least 2');
     }
   }
 
   // Validate provider
-  const validProviders = ['copilot', 'claude'];
+  const validProviders: string[] = ['copilot', 'claude'];
   if (options.provider && !validProviders.includes(options.provider)) {
     errors.push(`Invalid provider: ${options.provider}. Must be one of: ${validProviders.join(', ')}`);
   }
@@ -66,14 +189,17 @@ export function validateRunOptions(options) {
 /**
  * Create orchestrator options from CLI options
  * @pure
- * @param {Object} cliOptions - CLI command options
- * @returns {Object} Orchestrator options
  */
-export function createOrchestratorOptions(cliOptions) {
+export function createOrchestratorOptions(
+  cliOptions: RunCommandOptions = {}
+): RunOrchestratorOptions {
   const rawAlt = cliOptions.alternatives;
   const alternatives =
-    rawAlt === false || rawAlt === undefined ? false : Math.max(2, parseInt(rawAlt, 10) || 2);
-  const verbose = !!cliOptions.verbose;
+    rawAlt === false || rawAlt === undefined
+      ? false
+      : Math.max(2, Number.parseInt(String(rawAlt), 10) || 2);
+  const verbose = Boolean(cliOptions.verbose);
+
   return {
     workflowDir: cliOptions.workflowDir || '.ai_workflow',
     projectRoot: cliOptions.projectRoot || process.cwd(),
@@ -92,10 +218,8 @@ export function createOrchestratorOptions(cliOptions) {
 /**
  * Format workflow result for display
  * @pure
- * @param {Object} result - Workflow execution result
- * @returns {string} Formatted result message
  */
-export function formatWorkflowResult(result) {
+export function formatWorkflowResult(result: RunCommandResult | null | undefined): string {
   if (!result) {
     return 'No result available';
   }
@@ -116,13 +240,13 @@ export function formatWorkflowResult(result) {
 /**
  * Format last execution status for display at startup
  * @pure
- * @param {string} projectRoot - Target project path
- * @param {Object} decision - AutoResumeDecision from StartupResumeEvaluator
- * @param {Object|null} checkpoint - Latest checkpoint metadata (from list()), or null
- * @returns {string[]} Lines to print
  */
-export function formatLastExecutionStatus(projectRoot, decision, checkpoint) {
-  const lines = [];
+function formatLastExecutionStatus(
+  projectRoot: string,
+  decision: StartupDecision,
+  checkpoint: CheckpointMetadata | null
+): string[] {
+  const lines: string[] = [];
   lines.push(chalk.gray(`Project: ${projectRoot}`));
 
   if (!decision.logDirName) {
@@ -152,12 +276,10 @@ export function formatLastExecutionStatus(projectRoot, decision, checkpoint) {
 
 /**
  * Execute the run command
- * @param {Object} options - Command options
- * @returns {Promise<void>}
  */
-export async function runCommand(options) {
-  let spinner = null;
-  let onSigint = null;
+export async function runCommand(options: RunCommandOptions = {}): Promise<void> {
+  let spinner: Ora | null = null;
+  let onSigint: (() => void) | null = null;
 
   try {
     // Validate options
@@ -183,26 +305,28 @@ export async function runCommand(options) {
 
     // Create orchestrator (workflowDir is resolved to projectRoot inside the constructor)
     const orchestratorOptions = createOrchestratorOptions(options);
-    const orchestrator = new MainOrchestrator(orchestratorOptions);
+    const orchestrator = createRunOrchestrator(orchestratorOptions);
 
     // ── Startup status display ───────────────────────────────────────────────
     // Evaluate last-execution state before starting so we can always show the
     // user what happened last time, even when no resume is needed.
     // Use orchestrator.workflowDir (resolved absolute path) so the evaluator
     // looks in the correct directory regardless of where the CLI was invoked from.
-    const startupEvaluator = new StartupResumeEvaluator({
-      workflowDir: orchestrator.workflowDir,
-    });
+    const startupEvaluator = createStartupResumeEvaluator(orchestrator.workflowDir);
     const startupDecision = await startupEvaluator.evaluate();
 
     // Fetch the latest checkpoint metadata for richer status info (best-effort)
-    let latestCheckpointMeta = null;
+    let latestCheckpointMeta: CheckpointMetadata | null = null;
     if (startupDecision.shouldResume && startupDecision.checkpointId) {
       try {
-        const cpList = await startupEvaluator.checkpointManager.list();
-        latestCheckpointMeta = cpList.find((c) => c.id === startupDecision.checkpointId) ?? null;
-      } catch {
-        // ignore — status display is best-effort
+        const checkpointList = await startupEvaluator.checkpointManager.list();
+        latestCheckpointMeta =
+          checkpointList.find((checkpoint) => checkpoint.id === startupDecision.checkpointId) ??
+          null;
+      } catch (error) {
+        logger.debug(
+          `[runCommand] Failed to load checkpoint metadata for startup status: ${getErrorMessage(error)}`
+        );
       }
     }
 
@@ -215,11 +339,12 @@ export async function runCommand(options) {
 
     // ── TUI mode ────────────────────────────────────────────────────────────
     if (options.tui) {
-      const { startTui } = await import('../tui/index.js');
+      // @ts-expect-error - legacy JS TUI module is untyped in the current TypeScript setup.
+      const { startTui } = (await import('../tui/index.js')) as StartTuiModule;
       const result = await startTui(orchestrator, {
         stage: orchestratorOptions.stage,
         version: '1.6.3',
-        verbose: !!options.verbose,
+        verbose: Boolean(options.verbose),
       });
       process.exit(result.aborted ? 130 : result.success ? 0 : 1);
       return;
@@ -243,12 +368,12 @@ export async function runCommand(options) {
     // Before starting a fresh run, inspect the most recent execution log.
     // When the last workflow was interrupted before completion and a valid
     // checkpoint exists, resume automatically (unless --no-auto-resume is set).
-    let result;
+    let result: RunCommandResult;
     if (!options.noAutoResume) {
       // Re-use the decision already computed above for the status display.
       const resumeDecision = startupDecision;
 
-      if (resumeDecision.shouldResume) {
+      if (resumeDecision.shouldResume && resumeDecision.checkpointId) {
         if (spinner) spinner.stop();
         console.log(
           chalk.yellow(`\n⚠ Incomplete workflow detected (${resumeDecision.logDirName})`)
@@ -268,7 +393,9 @@ export async function runCommand(options) {
     }
 
     // Remove SIGINT listener — workflow has finished
-    process.removeListener('SIGINT', onSigint);
+    if (onSigint) {
+      process.removeListener('SIGINT', onSigint);
+    }
 
     // Stop spinner
     if (spinner) {
@@ -323,12 +450,19 @@ export async function runCommand(options) {
       spinner.fail('Workflow failed');
     }
 
-    logger.error(chalk.red(`Error: ${error.message}`));
-    if (options.verbose && error.stack) {
+    logger.error(chalk.red(`Error: ${getErrorMessage(error)}`));
+    if (options.verbose && error instanceof Error && error.stack) {
       logger.error(chalk.gray(error.stack));
     }
     process.exit(1);
   }
 }
 
-export default { runCommand, validateRunOptions, createOrchestratorOptions, formatWorkflowResult };
+const runCommandExports = {
+  runCommand,
+  validateRunOptions,
+  createOrchestratorOptions,
+  formatWorkflowResult,
+};
+
+export default runCommandExports;

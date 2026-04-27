@@ -592,6 +592,9 @@ export class TechStackDetector {
 
       // camelCase alias consumed by step_02, step_03, step_05, and step_00
       techStack.primaryLanguage = techStack.primary_language;
+      techStack.buildSystem = techStack.build_system;
+      techStack.testFramework = techStack.test_framework;
+      techStack.testCommand = techStack.test_command;
 
       // Cache result
       this.cache.set(cacheKey, techStack);

@@ -4,12 +4,14 @@
  * @jest-environment node
  */
 
+import { jest } from '@jest/globals';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   validateWorkflowConfig,
   buildExecutionPlan,
+  formatExecutionPlanLines,
   shouldExecuteStep,
   mergeStepResults,
   calculateWorkflowProgress,
@@ -135,6 +137,22 @@ describe('Workflow Engine Module - Pure Functions', () => {
       expect(plan).toHaveLength(2);
     });
 
+    test('prioritizes critical steps with larger dependency cones among ready steps', () => {
+      const steps = [
+        { id: 'independent', name: 'Independent', critical: false },
+        { id: 'gate', name: 'Gate' },
+        { id: 'downstream_a', name: 'Downstream A', dependencies: ['gate'] },
+        { id: 'downstream_b', name: 'Downstream B', dependencies: ['gate'] },
+      ];
+
+      const plan = buildExecutionPlan(steps);
+
+      expect(plan[0].id).toBe('gate');
+      expect(plan.findIndex((step) => step.id === 'independent')).toBeGreaterThan(
+        plan.findIndex((step) => step.id === 'downstream_a')
+      );
+    });
+
     test('throws on circular dependencies', () => {
       const steps = [
         { id: 'step1', name: 'Step 1', dependencies: ['step2'] },
@@ -170,6 +188,20 @@ describe('Workflow Engine Module - Pure Functions', () => {
 
       expect(plan).toHaveLength(1);
       expect(plan[0].id).toBe('step1');
+    });
+  });
+
+  describe('formatExecutionPlanLines', () => {
+    test('formats sorted execution steps with dependency detail', () => {
+      expect(
+        formatExecutionPlanLines([
+          { id: 'step_08', name: 'Step 8', dependencies: ['step_07'] },
+          { id: 'step_09', name: 'Step 9' },
+        ])
+      ).toEqual([
+        '  1. Step 8 (step_08) | deps: step_07',
+        '  2. Step 9 (step_09)',
+      ]);
     });
   });
 
@@ -930,6 +962,51 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       // step_01 should have seen projectType written by step_00's contextUpdate
       expect(result.results[1].output.capturedType).toBe('nodejs_api');
     });
+
+    test('blocks only the dependency cone after a critical failure', async () => {
+      const executionOrder = [];
+      const workflow = {
+        name: 'dependency-cone',
+        version: '1.0.0',
+        steps: [
+          {
+            id: 'gate',
+            name: 'Gate',
+            handler: async () => {
+              executionOrder.push('gate');
+              return { success: false };
+            },
+          },
+          {
+            id: 'blocked',
+            name: 'Blocked',
+            dependencies: ['gate'],
+            handler: async () => {
+              executionOrder.push('blocked');
+              return { success: true };
+            },
+          },
+          {
+            id: 'independent',
+            name: 'Independent',
+            critical: false,
+            handler: async () => {
+              executionOrder.push('independent');
+              return { success: true };
+            },
+          },
+        ],
+      };
+
+      await engine.loadWorkflow(workflow);
+      const result = await engine.executeWorkflow();
+
+      expect(executionOrder).toEqual(['gate', 'independent']);
+      expect(result.results.find((entry) => entry.stepId === 'blocked')).toMatchObject({
+        skipped: true,
+        blockedBy: 'gate',
+      });
+    });
   });
 
   describe('executeStep', () => {
@@ -999,6 +1076,43 @@ describe('Workflow Engine Module - WorkflowEngine Class', () => {
       expect(result.success).toBe(true);
       expect(result.skipped).toBe(true);
       expect(result.reason).toBe('project type not eligible');
+    });
+
+    test('propagates degraded warnings from step output', async () => {
+      const step = {
+        id: 'step1',
+        name: 'Step 1',
+        handler: async () => ({
+          success: true,
+          degraded: true,
+          warnings: ['AI evidence degraded'],
+        }),
+      };
+
+      const result = await engine.executeStep(step, {});
+
+      expect(result.success).toBe(true);
+      expect(result.degraded).toBe(true);
+      expect(result.warnings).toEqual(['AI evidence degraded']);
+    });
+
+    test('emits budget exceeded events when a step runs past its wall-time budget', async () => {
+      const step = {
+        id: 'step1',
+        name: 'Step 1',
+        max_step_wall_time: 0.001,
+        handler: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return { success: true };
+        },
+      };
+      const budgetExceeded = jest.fn();
+      engine.on('step:budget_exceeded', budgetExceeded);
+
+      const result = await engine.executeStep(step, {});
+
+      expect(result.budgetExceeded).toBeDefined();
+      expect(budgetExceeded).toHaveBeenCalledTimes(1);
     });
   });
 

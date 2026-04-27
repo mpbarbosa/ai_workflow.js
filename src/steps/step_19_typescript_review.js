@@ -31,6 +31,7 @@ import {
   MAX_CHARS_PER_FILE,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -215,10 +216,12 @@ export class Step19TypescriptReview {
       );
 
       let aiContent = '';
-      const aiAvailable = await this.aiHelper.initialize();
+      const aiAvailable = await initializeStepAiContext({
+        aiHelper: this.aiHelper,
+        aiCache: this.aiCache,
+      });
 
       if (aiAvailable) {
-        await this.aiCache.init();
         try {
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const tsconfigs = await this._discoverTsConfigFiles(projectRoot);

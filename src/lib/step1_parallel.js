@@ -305,6 +305,7 @@ export class Step1ParallelProcessor {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.tasks = [];
     this.runningTasks = new Set();
+    this.taskControllers = new Map();
     this.startTime = null;
     this.endTime = null;
   }
@@ -488,13 +489,22 @@ export class Step1ParallelProcessor {
     task.status = TASK_STATUS.RUNNING;
     task.startTime = Date.now();
     this.runningTasks.add(task.id);
+    const controller = new AbortController();
+    this.taskControllers.set(task.id, controller);
 
     try {
       // Execute with timeout
       const result = await this._executeWithTimeout(
-        () => validator(task.category, task.files),
-        this.config.timeout
+        () => validator(task.category, task.files, { signal: controller.signal, task }),
+        this.config.timeout,
+        controller
       );
+
+       if (result?.success === false) {
+        const error = new Error(result.error || 'Validation failed');
+        error.result = result;
+        throw error;
+      }
 
       task.status = TASK_STATUS.COMPLETED;
       task.result = result;
@@ -506,6 +516,7 @@ export class Step1ParallelProcessor {
       );
     } catch (error) {
       task.status = error.message === 'Timeout' ? TASK_STATUS.TIMEOUT : TASK_STATUS.FAILED;
+      task.result = error.result ?? null;
       task.error = error.message;
       task.endTime = Date.now();
       task.duration = Math.round((task.endTime - task.startTime) / 1000);
@@ -513,6 +524,7 @@ export class Step1ParallelProcessor {
       logger.error(`Step1Parallel: Failed to validate ${task.category}: ${error.message}`);
     } finally {
       this.runningTasks.delete(task.id);
+      this.taskControllers.delete(task.id);
     }
   }
 
@@ -521,10 +533,13 @@ export class Step1ParallelProcessor {
    * @private
    * @async
    */
-  async _executeWithTimeout(fn, timeout) {
+  async _executeWithTimeout(fn, timeout, controller = null) {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('Timeout')), timeout);
+      timeoutId = setTimeout(() => {
+        controller?.abort?.();
+        reject(new Error('Timeout'));
+      }, timeout);
     });
     return Promise.race([fn(), timeoutPromise]).finally(() => clearTimeout(timeoutId));
   }
@@ -559,8 +574,13 @@ export class Step1ParallelProcessor {
       }
     }
 
+    for (const controller of this.taskControllers.values()) {
+      controller.abort();
+    }
+
     logger.warn(`Step1Parallel: Cancelled ${this.runningTasks.size} running tasks`);
     this.runningTasks.clear();
+    this.taskControllers.clear();
   }
 
   /**
@@ -569,6 +589,7 @@ export class Step1ParallelProcessor {
   reset() {
     this.tasks = [];
     this.runningTasks.clear();
+    this.taskControllers.clear();
     this.startTime = null;
     this.endTime = null;
   }

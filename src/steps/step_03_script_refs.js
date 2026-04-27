@@ -10,8 +10,6 @@ import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { getPrimaryLanguage } from '../lib/tech_stack.js';
 import {
-  buildStructuredPrompt,
-  injectProjectContext,
   buildYamlStepPrompt,
   buildAlternativesDirective,
   parseAlternatives,
@@ -23,6 +21,7 @@ import {
   buildStepDependencies,
   initializeAiServices,
 } from './step_analysis_helpers.js';
+import { buildStepPromptWithFallback } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -619,47 +618,44 @@ export class Step3ScriptAnalyzer {
       let parsedAlternatives = { alternatives: [], recommended: null };
       const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
       if (aiAvailable) {
-        let prompt;
-        try {
-          const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
-          const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
-          // Cap coverage map to avoid prompt bloat in large repos
-          const DOC_COVERAGE_MAX = 1500;
-          let docCoverageMap = formatDocCoverageMap(coverageMap);
-          if (docCoverageMap.length > DOC_COVERAGE_MAX) {
-            docCoverageMap = docCoverageMap.slice(0, DOC_COVERAGE_MAX) + '\n... [truncated]';
-          }
-          const DOC_CONTEXT_MAX = 2000;
-          const docContext = buildDocumentationExcerpts(allDocFiles, scripts, DOC_CONTEXT_MAX);
-          prompt = buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
-            project_name: projectRoot,
-            project_description: options.projectDescription || '',
-            primary_language: promptLanguage,
-            scripts_dir: directories.join(', '),
-            script_count: String(results.scriptsFound ?? 0),
-            change_scope: options.scope || '',
-            modified_count: String(missingReferences.length),
-            issues: String(totalIssues),
-            script_issues_content: `Broken doc references (referenced in docs but file missing on disk): ${missingReferences.length}\nUndocumented scripts (exist on disk but not found in any doc file): ${undocumented.length}\nNon-executable scripts: ${nonExecutable.length}`,
-            all_scripts: scripts.length > 0 ? scripts.join('\n') : 'none',
-            doc_coverage_map: docCoverageMap || 'No doc files found.',
-            doc_context: docContext || 'No documentation files available.',
-          });
-        } catch {
-          /* fallback to generic prompt */
-        }
-        if (!prompt) {
-          const role = `You are an expert in shell scripting and script reference validation.`;
-          const task = `Analyze these script reference validation results for project at "${projectRoot}" and provide recommendations:
+        let prompt = await buildStepPromptWithFallback({
+          buildPrompt: async () => {
+            const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
+            const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
+            // Cap coverage map to avoid prompt bloat in large repos
+            const DOC_COVERAGE_MAX = 1500;
+            let docCoverageMap = formatDocCoverageMap(coverageMap);
+            if (docCoverageMap.length > DOC_COVERAGE_MAX) {
+              docCoverageMap = docCoverageMap.slice(0, DOC_COVERAGE_MAX) + '\n... [truncated]';
+            }
+            const DOC_CONTEXT_MAX = 2000;
+            const docContext = buildDocumentationExcerpts(allDocFiles, scripts, DOC_CONTEXT_MAX);
+            return buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
+              project_name: projectRoot,
+              project_description: options.projectDescription || '',
+              primary_language: promptLanguage,
+              scripts_dir: directories.join(', '),
+              script_count: String(results.scriptsFound ?? 0),
+              change_scope: options.scope || '',
+              modified_count: String(missingReferences.length),
+              issues: String(totalIssues),
+              script_issues_content: `Broken doc references (referenced in docs but file missing on disk): ${missingReferences.length}\nUndocumented scripts (exist on disk but not found in any doc file): ${undocumented.length}\nNon-executable scripts: ${nonExecutable.length}`,
+              all_scripts: scripts.length > 0 ? scripts.join('\n') : 'none',
+              doc_coverage_map: docCoverageMap || 'No doc files found.',
+              doc_context: docContext || 'No documentation files available.',
+            });
+          },
+          fallbackRole: `You are an expert in shell scripting and script reference validation.`,
+          fallbackTask: `Analyze these script reference validation results for project at "${projectRoot}" and provide recommendations:
 - Total scripts: ${results.scriptsFound ?? 0}
 - Scripts found: ${scripts.join(', ') || 'none'}
 - Missing references: ${missingReferences.length}
 - Non-executable scripts: ${nonExecutable.length}
 - Undocumented scripts: ${undocumented.length}
-- Total issues: ${totalIssues}`;
-          const approach = `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`;
-          prompt = injectProjectContext(buildStructuredPrompt({ role, task, approach }), {});
-        }
+- Total issues: ${totalIssues}`,
+          fallbackApproach: `List the top 3 actionable recommendations to fix the script reference issues. Be concise.`,
+          fallbackProjectContext: {},
+        });
         if (options.alternatives) {
           const n = options.alternatives === true ? 2 : options.alternatives;
           prompt += buildAlternativesDirective(n);

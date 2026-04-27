@@ -11,6 +11,9 @@ import {
   filterPerformanceReviewTargets,
   isPerformanceSensitiveProject,
   isPerformanceReviewTarget,
+  normalizePerformanceScopePath,
+  extractPerformanceResponseFileMentions,
+  validatePerformanceAiResponseScope,
   scorePerfIssues,
   splitPerformancePromptEntry,
   buildPerformancePromptPartitions,
@@ -93,6 +96,47 @@ describe('step_23_perf_review - Pure Functions', () => {
           'src/helpers.spec.ts',
         ])
       ).toEqual(['src/index.js', 'src/app.ts']);
+    });
+  });
+
+  describe('performance response scope validation', () => {
+    test('normalizes partition labels before comparing file identities', () => {
+      expect(normalizePerformanceScopePath('src/app.ts (part 2/3)')).toBe('src/app.ts');
+    });
+
+    test('extracts normalized JavaScript and TypeScript file mentions from AI responses', () => {
+      expect(
+        extractPerformanceResponseFileMentions(
+          'Reviewed `src/app.ts (part 1/2)` plus src/lib/helpers.js and step_02_consistency.js.'
+        )
+      ).toEqual(['src/app.ts', 'src/lib/helpers.js', 'step_02_consistency.js']);
+    });
+
+    test('rejects off-scope file mentions in AI responses', () => {
+      expect(
+        validatePerformanceAiResponseScope(
+          'Performance Review: src/steps/step_02_consistency.js and src/steps/step_04_config_validation.js',
+          ['src/steps/step_04_config_validation.js']
+        )
+      ).toEqual({
+        adequate: false,
+        reason:
+          'response referenced file(s) outside the visible scope: src/steps/step_02_consistency.js',
+        offScopeMentions: ['src/steps/step_02_consistency.js'],
+      });
+    });
+
+    test('accepts basename-only mentions for in-scope files', () => {
+      expect(
+        validatePerformanceAiResponseScope(
+          'No issues found in step_04_config_validation.js.',
+          ['src/steps/step_04_config_validation.js']
+        )
+      ).toEqual({
+        adequate: true,
+        reason: 'response stayed within visible scope',
+        offScopeMentions: [],
+      });
     });
   });
 
@@ -412,6 +456,7 @@ describe('Step23PerfReview - Wrapper', () => {
   const makeAiHelper = (content = 'Performance findings') => ({
     initialize: jest.fn().mockResolvedValue(true),
     executeRequest: jest.fn().mockResolvedValue({ content }),
+    cleanup: jest.fn().mockResolvedValue(undefined),
   });
 
   const makeAiCache = () => {
@@ -426,6 +471,7 @@ describe('Step23PerfReview - Wrapper', () => {
         await cache.set(`${prompt}|${context}`, response, { prompt, context });
         return response;
       }),
+      delete: jest.fn().mockResolvedValue(true),
     };
     return cache;
   };
@@ -759,6 +805,39 @@ describe('Step23PerfReview - Wrapper', () => {
     expect(result.report).toContain('#### Partition 1 of 2');
     expect(result.report).toContain('partition one findings');
     expect(result.report).toContain('partition two findings');
+  });
+
+  test('retries with a fresh AI session and omits responses that stay off-scope', async () => {
+    const aiHelper = {
+      initialize: jest.fn().mockResolvedValue(true),
+      executeRequest: jest
+        .fn()
+        .mockResolvedValueOnce({
+          content:
+            'Performance Review: src/steps/step_02_consistency.js and src/steps/step_04_config_validation.js',
+        })
+        .mockResolvedValueOnce({
+          content:
+            'Performance Review: src/steps/step_02_consistency.js still appears alongside src/steps/step_04_config_validation.js',
+        }),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+    };
+    const aiCache = makeAiCache();
+    const step = new Step23PerfReview({
+      fileOps: makeFileOps(['src/steps/step_04_config_validation.js'], 'export const value = 1;\n'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache,
+      techStack: makeTechStack(),
+    });
+
+    const result = await step.execute('/project');
+
+    expect(aiHelper.cleanup).toHaveBeenCalledTimes(1);
+    expect(aiCache.delete).toHaveBeenCalledTimes(1);
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(result.report).toContain('Validation note');
+    expect(result.report).not.toContain('step_02_consistency.js still appears');
   });
 
   test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {

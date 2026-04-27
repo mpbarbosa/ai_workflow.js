@@ -26,6 +26,7 @@ import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import { initializeStepAiContext } from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -457,9 +458,11 @@ export class Step11_5AwsLbsValidator {
       // AI-powered architectural review using aws_cloud_architect_prompt (opt-in)
       try {
         if (this.aiHelper) {
-          const aiAvailable = await this.aiHelper.initialize();
+          const aiAvailable = await initializeStepAiContext({
+            aiHelper: this.aiHelper,
+            aiCache: this.aiCache,
+          });
           if (aiAvailable) {
-            await this.aiCache.init();
             const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
             const archPrompt = buildYamlStepPrompt(parsedYaml, 'aws_cloud_architect_prompt', {
               project_name: projectRoot,
