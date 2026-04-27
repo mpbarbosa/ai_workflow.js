@@ -1,8 +1,8 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 43,
-  "filesHash": "2fb1c77b",
+  "totalPartitions": 44,
+  "filesHash": "1be3a069",
   "partitionLabels": [
     "test/cli",
     "test/cli (2)",
@@ -10,6 +10,7 @@
     "test/cli (4)",
     "test/cli (5)",
     "test/cli (6)",
+    "test/cli (7)",
     "test/core",
     "test/e2e",
     "test/e2e (2)",
@@ -28,7 +29,6 @@
     "test/lib (8)",
     "test/lib (9)",
     "test/lib (10)",
-    "test/lib (11)",
     "test/orchestrator",
     "test/orchestrator (2)",
     "test/scripts",
@@ -46,7 +46,8 @@
     "test/steps (11)",
     "test/steps (12)",
     "test/steps (13)",
-    "test/types, test/utils, scripts"
+    "test/types, test/utils",
+    "src/steps"
   ],
-  "updatedAt": "2026-04-24T19:45:49.129Z"
+  "updatedAt": "2026-04-27T20:39:00.028Z"
 }

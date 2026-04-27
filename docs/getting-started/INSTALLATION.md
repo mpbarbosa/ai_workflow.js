@@ -1,7 +1,7 @@
 # Installation Guide
 
-**Version:** 1.9.11
-**Last Updated:** February 1, 2026
+**Version:** 2.2.16
+**Last Updated:** April 26, 2026
 
 Complete installation instructions for ai_workflow.js across different platforms and use cases.
 
@@ -13,7 +13,7 @@ Complete installation instructions for ai_workflow.js across different platforms
 - [Installation Methods](#installation-methods)
   - [Development Installation](#development-installation)
   - [Global CLI Installation](#global-cli-installation)
-  - [npm Package Installation](#npm-package-installation)
+  - [Local Dependency Usage](#local-dependency-usage)
 - [Platform-Specific Instructions](#platform-specific-instructions)
   - [Linux/macOS](#linuxmacos)
   - [Windows](#windows)
@@ -48,7 +48,7 @@ Complete installation instructions for ai_workflow.js across different platforms
 ```bash
 # Check Node.js version
 node --version
-# Expected: v18.x.x or higher
+# Expected: v20.x.x or higher
 
 # Check npm version
 npm --version
@@ -88,10 +88,8 @@ cd ai_workflow.js
 npm install
 ```
 
-This installs:
-
-- Production dependencies: `@github/copilot-sdk`, `js-yaml`
-- Development dependencies: `jest`, `eslint`, `prettier`, `husky`, `lint-staged`
+This installs the repository's runtime and development dependencies declared in
+`package.json`.
 
 #### 3. Verify Installation
 
@@ -99,10 +97,8 @@ This installs:
 # Run test suite
 npm test
 
-# Expected output:
-# Test Suites: 13 passed, 13 total
-# Tests:       693 passed, 695 total
-# Time:        ~10-20 seconds
+# Expected result:
+# The repository test suite completes successfully.
 ```
 
 #### 4. Set Up Git Hooks (Optional)
@@ -132,11 +128,12 @@ npm install
 npm link
 ```
 
-#### Option 2: Install from npm (Future)
+#### Option 2: Link an Existing Local Checkout
 
 ```bash
-# Once published to npm registry
-npm install -g ai-workflow
+# From an already-installed local checkout
+cd /path/to/ai_workflow.js
+npm link
 ```
 
 After installation, verify:
@@ -151,21 +148,32 @@ ai-workflow --help
 
 ---
 
-### npm Package Installation
+### Local Dependency Usage
 
-**Best for:** Using ai_workflow.js as a library in your project.
+**Best for:** Using ai_workflow.js from another local project while this
+repository remains unpublished on npm.
 
-#### Install as Dependency
+#### Link a Local Checkout
 
 ```bash
-# Production dependency
-npm install ai-workflow
+# In the ai_workflow.js checkout
+cd /path/to/ai_workflow.js
+npm install
+npm link
 
-# Or with Yarn
-yarn add ai-workflow
+# In your consuming project
+cd /path/to/your-project
+npm link ai-workflow
+```
 
-# Or with pnpm
-pnpm add ai-workflow
+You can also use a local file dependency in `package.json`, for example:
+
+```json
+{
+  "dependencies": {
+    "ai-workflow": "file:../ai_workflow.js"
+  }
+}
 ```
 
 #### Import in Your Code
@@ -583,8 +591,8 @@ export PATH=~/.npm-global/bin:$PATH
 # Reload shell
 source ~/.bashrc
 
-# Now install globally without sudo
-npm install -g ai-workflow
+# Now re-run the global link without sudo
+npm link
 ```
 
 #### 6. Husky Pre-Commit Hook Fails
@@ -647,17 +655,18 @@ npm install
 npm test
 ```
 
-### Upgrade npm Package
+### Refresh Local Link
 
 ```bash
-# Check current version
-npm list ai-workflow
+# In the ai_workflow.js checkout
+git pull origin main
+git submodule update --remote --merge
+npm install
+npm link
 
-# Update to latest
-npm update ai-workflow
-
-# Or install specific version
-npm install ai-workflow@1.2.0
+# In the consuming project
+cd /path/to/your-project
+npm link ai-workflow
 ```
 
 ### Breaking Changes
@@ -674,15 +683,15 @@ Check [CHANGELOG.md](../../CHANGELOG.md) for breaking changes before upgrading.
 # Unlink global package
 npm unlink ai-workflow
 
-# Or uninstall
-npm uninstall -g ai-workflow
+# Or remove the global link
+npm unlink -g ai-workflow
 ```
 
 ### Remove Local Installation
 
 ```bash
-# Remove from project
-npm uninstall ai-workflow
+# Remove linked dependency from project
+npm unlink ai-workflow
 
 # Or delete entire project
 cd ..

@@ -393,9 +393,9 @@ const versions = extractVersions(content);
 // ['v1.2.0', 'v1.1.0']
 
 // Extract links from markdown
-const markdown = 'See [docs](docs/README.md)';
+const markdown = 'See [docs](../../README.md)';
 const links = extractLinks(markdown);
-// [{ text: 'docs', url: 'docs/README.md', type: 'markdown', line: 1 }]
+// [{ text: 'docs', url: '../../README.md', type: 'markdown', line: 1 }]
 ```
 
 ## Error Handling

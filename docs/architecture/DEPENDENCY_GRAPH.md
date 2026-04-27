@@ -1,7 +1,7 @@
 # Dependency Graph
 
-**AI Workflow Automation v1.9.11**
-**Last Updated:** 2026-02-01
+**AI Workflow Automation v2.2.16**
+**Last Updated:** 2026-04-26
 **Audience:** Architects, Developers
 
 ---
@@ -588,7 +588,7 @@ What does it depend on?
 ### 4. Update Documentation
 
 - Add module to this dependency graph
-- Document in MODULE_STRUCTURE.md
+- Document in `docs/ARCHITECTURE.md` or the relevant architecture reference
 - Create API documentation
 
 ---
@@ -596,10 +596,10 @@ What does it depend on?
 ## Additional Resources
 
 - **[Design Principles](./DESIGN_PRINCIPLES.md)** - Architectural patterns
-- **[Module Structure](./MODULE_STRUCTURE.md)** - Module organization
+- **[Architecture Summary](../ARCHITECTURE.md)** - Stable repository structure and links
 - **[Developer Guide](../guides/DEVELOPER_GUIDE.md)** - Development workflow
 
 ---
 
-**Last Updated:** 2026-02-01
-**Version:** 1.9.11
+**Last Updated:** 2026-04-26
+**Version:** 2.2.16

@@ -1,7 +1,7 @@
 # Design Principles
 
-**AI Workflow Automation v1.9.11**
-**Last Updated:** 2026-02-01
+**AI Workflow Automation v2.2.16**
+**Last Updated:** 2026-04-26
 **Audience:** Architects, Senior Developers
 
 ---
@@ -754,11 +754,11 @@ await fs.mkdir(dir);
 
 ## Additional Resources
 
-- **[Module Structure](./MODULE_STRUCTURE.md)** - Detailed module organization
+- **[Architecture Summary](../ARCHITECTURE.md)** - Stable repository structure and links
 - **[Dependency Graph](./DEPENDENCY_GRAPH.md)** - Module dependencies
 - **[Developer Guide](../guides/DEVELOPER_GUIDE.md)** - Development workflow
 
 ---
 
-**Last Updated:** 2026-02-01
-**Version:** 1.9.11
+**Last Updated:** 2026-04-26
+**Version:** 2.2.16

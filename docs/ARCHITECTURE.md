@@ -25,15 +25,17 @@ workflow artifacts kept alongside the source.
 | `scripts/` | Developer automation scripts for setup, validation, testing, release preparation, and maintenance. |
 | `test/` | Unit, integration, fixture, and step-level coverage that mirrors the source layout. |
 | `docs/architecture/` | Detailed architecture references, including design principles and dependency graphs. |
+| `docs/misc/` | Overflow documentation and uncategorized notes that do not fit the primary guides, reports, or reference sections. |
 | `.workflow_core/` | Shared workflow templates and helper configuration maintained as a submodule. |
 | `.workflow_fspec/` | Functional specification submodule. |
 | `.ai_workflow/` | Runtime artifacts such as logs, checkpoints, metrics, cache, and summaries. |
 
-## Runtime artifact directories
+## Local tooling and runtime artifact directories
 
-The repository also creates several gitignored working directories during local
-development and test runs:
+The repository also contains local tooling configuration and creates several
+gitignored working directories during local development and test runs:
 
+- `.claude/` - local assistant tooling settings, including repo-specific command permission overrides
 - `.ai_workflow/` - workflow outputs, logs, summaries, metrics, and cache
 - `.test-cache/` - Jest transform and module cache
 - `.test-e2e/` - temporary end-to-end test work directories

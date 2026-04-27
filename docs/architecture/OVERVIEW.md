@@ -1,7 +1,7 @@
 # Architecture Overview
 
-**Version:** 1.9.11
-**Last Updated:** February 8, 2026
+**Version:** 2.2.16
+**Last Updated:** April 26, 2026
 
 This document provides a high-level overview of the ai_workflow.js architecture, design patterns, and module organization.
 
@@ -524,7 +524,7 @@ All scripts are idempotent and exit with code 0 on success, non-zero on failure.
 ## See Also
 
 - [Design Principles](./DESIGN_PRINCIPLES.md) - Detailed design patterns
-- [Module Structure](./MODULE_STRUCTURE.md) - Module organization details
+- [Architecture Summary](../ARCHITECTURE.md) - Stable repository structure and cross-links
 - [Dependency Graph](./DEPENDENCY_GRAPH.md) - Dependency visualization
 - [Developer Guide](../guides/DEVELOPER_GUIDE.md) - Development workflow
 - [API Reference](../api/README.md) - Complete API documentation

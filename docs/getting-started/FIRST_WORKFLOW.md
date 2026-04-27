@@ -1,7 +1,7 @@
 # First Workflow Tutorial
 
-**Version:** 1.9.11
-**Last Updated:** February 1, 2026
+**Version:** 2.2.16
+**Last Updated:** April 26, 2026
 
 Build your first workflow from scratch using ai_workflow.js! This tutorial walks you through creating a complete project analysis workflow that detects project type, analyzes tech stack, and generates a report.
 
@@ -45,7 +45,7 @@ A **Project Analyzer** workflow that:
 ## Prerequisites
 
 - ✅ ai_workflow.js installed ([Installation Guide](./INSTALLATION.md))
-- ✅ Node.js 18+ and npm 9+
+- ✅ Node.js 20+ and npm 9+
 - ✅ Basic JavaScript/Node.js knowledge
 - ✅ A project to analyze (or use ai_workflow.js itself)
 
@@ -70,12 +70,13 @@ npm pkg set type=module
 ### 2. Install ai_workflow.js
 
 ```bash
-# If using as npm package (future)
-npm install ai-workflow
-
-# Or link to local development version
+# ai_workflow.js is currently used from a local checkout
+# that has already had npm install run
 npm link /path/to/ai_workflow.js
 ```
+
+This tutorial assumes you are linking a local `ai_workflow.js` checkout into
+your sample project. The package is not published as a public npm dependency.
 
 ### 3. Create Project Structure
 

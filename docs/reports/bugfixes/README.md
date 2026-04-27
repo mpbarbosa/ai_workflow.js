@@ -15,5 +15,5 @@ regression tests added.
 
 ## Related
 
-- [Implementation reports](../implementation/) — migration plans and completion summaries
+- [Implementation reports](../implementation/README.md) — migration plans and completion summaries
 - [Analysis reports](../analysis/) — correction and analysis reports

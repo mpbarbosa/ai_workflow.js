@@ -211,7 +211,7 @@ Modules following v2.0.0 referential transparency architecture:
 - [Architecture: Overview](../architecture/OVERVIEW.md)
 - [Testing Guide](TESTING_GUIDE.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
-- [Full Reference (canonical)](.../../.github/REFERENTIAL_TRANSPARENCY.md)
+- [Full Reference (canonical)](../../.github/REFERENTIAL_TRANSPARENCY.md)
 
 ---
 

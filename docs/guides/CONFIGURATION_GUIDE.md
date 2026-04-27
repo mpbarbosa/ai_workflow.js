@@ -331,25 +331,34 @@ workflow:
 
 ### Step Configuration
 
+Use `workflow.steps` to override the generated canonical step set, not to invent a new pipeline from scratch.
+
+- Every step entry must declare an `id`.
+- Preserve the canonical dependencies by default.
+- If you intentionally change `dependencies`, add `dependency_comment` explaining why.
+- Safe customizations that do **not** require dependency overrides include `enabled`, `name`, `description`, and `ai_persona`.
+
 ```yaml
 workflow:
-  # Enable/disable specific step types
   steps:
-    file_operations: true
-    git_operations: true
-    ai_integration: true
-    validation: true
-    reporting: true
+    - id: step_01_5
+      name: "Copilot Instructions Validation"
+      enabled: true
+      dependencies:
+        - step_01
 
-  # Step-specific options
-  step_options:
-    file_operations:
-      max_file_size: 10485760 # 10MB in bytes
-      encoding: 'utf-8'
+    - id: step_02
+      name: "Consistency Analysis"
+      enabled: true
+      dependencies:
+        - step_01_5
 
-    git_operations:
-      auto_commit: false
-      commit_message_template: 'feat: {{description}}'
+    - id: step_21
+      name: "Architecture Review"
+      description: "Project-specific alias for architecture checks"
+      dependencies:
+        - step_02_5
+      dependency_comment: "Project routes architecture review through the canonical doc-consolidation slot."
 ```
 
 ### Logging Configuration
@@ -628,11 +637,7 @@ project:
   name: 'Data Processing Service'
   type: 'python-application'
   kind: 'python_app'
-<<<<<<< HEAD
   version: '1.9.11'
-=======
-  version: '1.6.1'
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
   description: 'Data processing service with Flask'
 
 tech_stack:

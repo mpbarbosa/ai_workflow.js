@@ -1,7 +1,7 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v1.9.11**
-**Last Updated:** 2026-03-11
+**AI Workflow Automation v2.2.16**
+**Last Updated:** 2026-04-23
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 
 ---
@@ -1002,7 +1002,7 @@ registry.register(6, MyStep6, { sequential: true, dependsOn: [5] });
 | --------------------------- | ------------------------------------------------------------------ |
 | User Guide                  | [`docs/guides/USER_GUIDE.md`](USER_GUIDE.md)                       |
 | Configuration Reference     | [`docs/guides/CONFIGURATION_GUIDE.md`](CONFIGURATION_GUIDE.md)     |
-| CLI Reference               | [`docs/reference/CLI_REFERENCE.md`](../reference/CLI_REFERENCE.md) |
+| CLI Usage Guide             | [`docs/CLI_USAGE_GUIDE.md`](../CLI_USAGE_GUIDE.md)                 |
 | Architecture Overview       | [`docs/architecture/OVERVIEW.md`](../architecture/OVERVIEW.md)     |
 | Troubleshooting Guide       | [`docs/guides/TROUBLESHOOTING.md`](TROUBLESHOOTING.md)             |
 | Developer Guide             | [`docs/guides/DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)             |
