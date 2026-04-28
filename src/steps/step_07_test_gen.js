@@ -245,13 +245,8 @@ export function categorizeUntestedFiles(untestedFiles) {
  * @returns {string} Formatted report
  */
 export function formatTestGenerationReport(results) {
-  const {
-    totalSourceFiles = 0,
-    totalTestFiles = 0,
-    untestedFiles = [],
-    coveragePercentage = 0,
-    categories = {},
-  } = results;
+  const { totalSourceFiles = 0, totalTestFiles = 0, untestedFiles = [], categories = {} } = results;
+  const testedSourceFiles = Math.max(0, totalSourceFiles - untestedFiles.length);
 
   let report = '# Test Generation Report\n\n';
 
@@ -259,22 +254,18 @@ export function formatTestGenerationReport(results) {
   report += '## Summary\n\n';
   report += `- **Total Source Files**: ${totalSourceFiles}\n`;
   report += `- **Total Test Files**: ${totalTestFiles}\n`;
+  report += `- **Matched Source Files**: ${testedSourceFiles}/${totalSourceFiles}\n`;
   report += `- **Untested Files**: ${untestedFiles.length}\n`;
-  report += `- **Test Coverage**: ${coveragePercentage}%\n\n`;
+  report += '- **Inventory Type**: File matching only (not measured runtime coverage)\n\n';
 
-  // Coverage status
-  if (coveragePercentage === 100) {
-    report += '## ✅ Excellent Coverage\n\n';
-    report += 'All source files have corresponding tests!\n\n';
-  } else if (coveragePercentage >= 80) {
-    report += '## 👍 Good Coverage\n\n';
-    report += `${coveragePercentage}% of source files have tests. Consider testing the remaining ${untestedFiles.length} file(s).\n\n`;
-  } else if (coveragePercentage >= 50) {
-    report += '## ⚠️ Moderate Coverage\n\n';
-    report += `Only ${coveragePercentage}% of source files have tests. ${untestedFiles.length} file(s) need testing.\n\n`;
+  // Inventory status
+  if (totalSourceFiles > 0 && untestedFiles.length === 0) {
+    report += '## ✅ Test File Inventory Complete\n\n';
+    report +=
+      'Every discovered source file has at least one corresponding test file by naming convention. This inventory does not prove line, branch, or runtime coverage.\n\n';
   } else if (totalSourceFiles > 0) {
-    report += '## 🚨 Low Coverage\n\n';
-    report += `Only ${coveragePercentage}% of source files have tests. ${untestedFiles.length} file(s) urgently need testing!\n\n`;
+    report += '## ⚠️ Test File Inventory Gaps\n\n';
+    report += `${untestedFiles.length} of ${totalSourceFiles} discovered source file(s) do not have a corresponding test file by naming convention.\n\n`;
   }
 
   // Untested files by category
@@ -309,7 +300,7 @@ export function formatTestGenerationReport(results) {
     report += '1. Prioritize testing critical business logic files\n';
     report += '2. Start with files that have the most dependencies\n';
     report += '3. Consider using test generation tools or AI assistance\n';
-    report += '4. Aim for at least 80% test coverage\n\n';
+    report += '4. Confirm measured coverage with the real test runner coverage report\n\n';
   }
 
   return report;
@@ -544,7 +535,9 @@ export class Step7TestGenerator {
       const testedCount = sourceFiles.length - untestedFiles.length;
       const coveragePercentage = calculateCoverage(testedCount, sourceFiles.length);
 
-      logger.info(`Test coverage: ${coveragePercentage}%`);
+      logger.info(
+        `Test file inventory: ${testedCount}/${sourceFiles.length} source file(s) matched to test files by naming convention`
+      );
 
       // Phase 5: Categorize untested files
       const categories = categorizeUntestedFiles(untestedFiles);
@@ -642,7 +635,9 @@ export class Step7TestGenerator {
       }
 
       if (untestedFiles.length === 0) {
-        logger.success('Step 7 completed - all files have tests!');
+        logger.success(
+          'Step 7 completed - all discovered source files have corresponding test files'
+        );
       } else {
         logger.warn(`Step 7 completed - ${untestedFiles.length} file(s) need testing`);
       }

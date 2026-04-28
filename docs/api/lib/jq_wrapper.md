@@ -1,7 +1,7 @@
 # jq_wrapper
 
 **Module:** `src/lib/jq_wrapper.js`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Impure wrapper
 
 Safe JSON operations with jq command-line tool integration.
@@ -46,25 +46,29 @@ import { JqWrapper, validateJson, sanitizeArgjsonValue } from './lib/jq_wrapper.
 Validate if a string is well-formed JSON.
 
 **Signature:**
+
 ```javascript
 function validateJson(jsonString: string): boolean
 ```
 
 **Parameters:**
+
 - `jsonString` (string): JSON string to validate
 
 **Returns:**
+
 - (boolean): True if valid JSON, false otherwise
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
-validateJson('{"foo": "bar"}');  // true
-validateJson('{invalid}');        // false
-validateJson('');                 // false
-validateJson('null');             // true
-validateJson('[1, 2, 3]');        // true
+validateJson('{"foo": "bar"}'); // true
+validateJson('{invalid}'); // false
+validateJson(''); // false
+validateJson('null'); // true
+validateJson('[1, 2, 3]'); // true
 ```
 
 ---
@@ -74,28 +78,32 @@ validateJson('[1, 2, 3]');        // true
 Sanitize a value for use with jq `--argjson` flag. Ensures value is a valid JSON primitive (number, boolean, null, or object/array).
 
 **Signature:**
+
 ```javascript
 function sanitizeArgjsonValue(value: any, defaultValue?: any): number | boolean | null | string
 ```
 
 **Parameters:**
+
 - `value` (any): Value to sanitize
 - `defaultValue` (any, optional): Default value if sanitization fails (default: 0)
 
 **Returns:**
+
 - (number | boolean | null | string): Sanitized JSON primitive
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
-sanitizeArgjsonValue(42);                    // 42
-sanitizeArgjsonValue('true');                // true
-sanitizeArgjsonValue('invalid', 0);          // 0
-sanitizeArgjsonValue({foo: 'bar'});          // {foo: 'bar'} (parsed object)
-sanitizeArgjsonValue('');                    // 0 (default)
-sanitizeArgjsonValue(NaN, 99);               // 99
-sanitizeArgjsonValue([1, 2, 3]);             // [1, 2, 3]
+sanitizeArgjsonValue(42); // 42
+sanitizeArgjsonValue('true'); // true
+sanitizeArgjsonValue('invalid', 0); // 0
+sanitizeArgjsonValue({ foo: 'bar' }); // {foo: 'bar'} (parsed object)
+sanitizeArgjsonValue(''); // 0 (default)
+sanitizeArgjsonValue(NaN, 99); // 99
+sanitizeArgjsonValue([1, 2, 3]); // [1, 2, 3]
 ```
 
 ---
@@ -105,6 +113,7 @@ sanitizeArgjsonValue([1, 2, 3]);             // [1, 2, 3]
 Parse jq command arguments to extract `--argjson` pairs.
 
 **Signature:**
+
 ```javascript
 function parseJqArguments(args: string[]): {
   argjsonPairs: Array<{name: string, value: string}>,
@@ -113,14 +122,17 @@ function parseJqArguments(args: string[]): {
 ```
 
 **Parameters:**
+
 - `args` (string[]): jq command arguments
 
 **Returns:**
+
 - (Object): Object with `argjsonPairs` array and `otherArgs` array
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 parseJqArguments(['--argjson', 'count', '5', '.foo']);
 // {
@@ -145,6 +157,7 @@ parseJqArguments(['-n', '--argjson', 'x', '10', '--argjson', 'y', '20', '{sum: (
 Validate `--argjson` argument pairs.
 
 **Signature:**
+
 ```javascript
 function validateArgjsonPairs(argjsonPairs: Array<{name: string, value: string}>): {
   valid: boolean,
@@ -153,22 +166,25 @@ function validateArgjsonPairs(argjsonPairs: Array<{name: string, value: string}>
 ```
 
 **Parameters:**
+
 - `argjsonPairs` (Array): Parsed `--argjson` pairs from `parseJqArguments`
 
 **Returns:**
+
 - (Object): Validation result with `valid` boolean and `errors` array
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
-validateArgjsonPairs([{name: 'count', value: '5'}]);
+validateArgjsonPairs([{ name: 'count', value: '5' }]);
 // { valid: true, errors: [] }
 
-validateArgjsonPairs([{name: 'count', value: ''}]);
+validateArgjsonPairs([{ name: 'count', value: '' }]);
 // { valid: false, errors: ['--argjson variable "count" has empty value'] }
 
-validateArgjsonPairs([{name: 'data', value: 'not-json'}]);
+validateArgjsonPairs([{ name: 'data', value: 'not-json' }]);
 // { valid: false, errors: ['--argjson variable "data" value "not-json" may not be valid JSON'] }
 ```
 
@@ -179,19 +195,23 @@ validateArgjsonPairs([{name: 'data', value: 'not-json'}]);
 Build jq command string from arguments with proper escaping.
 
 **Signature:**
+
 ```javascript
 function buildJqCommand(args: string[]): string
 ```
 
 **Parameters:**
+
 - `args` (string[]): jq command arguments
 
 **Returns:**
+
 - (string): Escaped command string ready for execution
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 buildJqCommand(['-n', '--arg', 'name', 'test', '{name: $name}']);
 // "jq -n --arg name test '{name: $name}'"
@@ -209,6 +229,7 @@ buildJqCommand(['-n', '{foo: "bar with spaces"}']);
 Safe jq command execution with validation and logging.
 
 **Constructor:**
+
 ```javascript
 new JqWrapper(options?: {
   debug?: boolean,
@@ -217,6 +238,7 @@ new JqWrapper(options?: {
 ```
 
 **Options:**
+
 - `debug` (boolean, optional): Enable debug logging (default: false)
 - `callerContext` (string, optional): Caller context for error messages (default: 'unknown')
 
@@ -231,6 +253,7 @@ new JqWrapper(options?: {
 Execute jq command with validation.
 
 **Signature:**
+
 ```javascript
 execute(args: string[], options?: {
   throwOnError?: boolean
@@ -238,18 +261,22 @@ execute(args: string[], options?: {
 ```
 
 **Parameters:**
+
 - `args` (string[]): jq command arguments
 - `options.throwOnError` (boolean, optional): Throw error on validation/execution failure (default: true)
 
 **Returns:**
+
 - (string): jq command output (empty string on error if throwOnError=false)
 
 **Throws:**
+
 - `ExecutionError`: If validation fails or jq execution fails (when throwOnError=true)
 
 **Side Effects:** Executes shell command, logs errors/debug info
 
 **Example:**
+
 ```javascript
 const wrapper = new JqWrapper({ debug: true, callerContext: 'test-script' });
 
@@ -273,6 +300,7 @@ const result3 = wrapper.execute(['invalid syntax'], { throwOnError: false });
 Execute jq command and parse result as JSON.
 
 **Signature:**
+
 ```javascript
 executeAndParse(args: string[], options?: {
   throwOnError?: boolean
@@ -280,18 +308,22 @@ executeAndParse(args: string[], options?: {
 ```
 
 **Parameters:**
+
 - `args` (string[]): jq command arguments
 - `options` (Object, optional): Execution options (same as execute)
 
 **Returns:**
+
 - (any): Parsed JSON result
 
 **Throws:**
+
 - `ExecutionError`: If execution or JSON parsing fails
 
 **Side Effects:** Executes shell command, logs errors/debug info
 
 **Example:**
+
 ```javascript
 const wrapper = new JqWrapper();
 
@@ -334,9 +366,13 @@ const wrapper = new JqWrapper({ callerContext: 'user-processor' });
 // Safe --argjson usage (validated)
 const result = wrapper.executeAndParse([
   '-n',
-  '--argjson', 'count', '5',
-  '--argjson', 'active', 'true',
-  '{count: $count, active: $active}'
+  '--argjson',
+  'count',
+  '5',
+  '--argjson',
+  'active',
+  'true',
+  '{count: $count, active: $active}',
 ]);
 
 console.log(result);
@@ -375,8 +411,10 @@ const sanitized = sanitizeArgjsonValue(userCount, 0);
 const wrapper = new JqWrapper();
 const result = wrapper.executeAndParse([
   '-n',
-  '--argjson', 'count', String(sanitized),
-  '{count: $count}'
+  '--argjson',
+  'count',
+  String(sanitized),
+  '{count: $count}',
 ]);
 
 console.log(result);
@@ -392,7 +430,7 @@ import { JqWrapper } from './lib/jq_wrapper.js';
 
 const wrapper = new JqWrapper({
   debug: true,
-  callerContext: 'data-processor'
+  callerContext: 'data-processor',
 });
 
 try {
@@ -420,7 +458,7 @@ const items = ['valid', '', 'also-valid'];
 for (const item of items) {
   const result = wrapper.execute(
     ['-n', '--argjson', 'item', item, '{item: $item}'],
-    { throwOnError: false }  // Don't throw, return empty string on error
+    { throwOnError: false } // Don't throw, return empty string on error
   );
 
   if (result) {
@@ -494,6 +532,7 @@ apk add jq
 ### Migration Notes
 
 Migrated from `src/workflow/lib/jq_wrapper.sh` (v1.0.1) with enhancements:
+
 - Added pure function architecture
 - Improved validation logic
 - Enhanced error messages with context

@@ -1,7 +1,7 @@
 # ai_cache
 
 **Module:** `src/lib/ai_cache.ts`
-**Version:** 2.1.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Impure wrapper
 
 AI response caching for token reduction and performance optimization.

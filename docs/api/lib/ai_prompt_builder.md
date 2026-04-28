@@ -1,7 +1,7 @@
 # ai_prompt_builder
 
 **Module:** `src/lib/ai_prompt_builder.js`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Impure wrapper
 
 Dynamic AI prompt generation with project-aware context injection and template substitution.
@@ -40,7 +40,7 @@ import {
   injectProjectContext,
   formatCodeBlock,
   buildDocAnalysisPrompt,
-  PromptBuilder
+  PromptBuilder,
 } from './lib/ai_prompt_builder.js';
 ```
 
@@ -53,31 +53,35 @@ import {
 Build prompt from template with variable substitution.
 
 **Signature:**
+
 ```javascript
 function buildPromptFromTemplate(template: string, context?: Object): string
 ```
 
 **Parameters:**
+
 - `template` (string): Template string with `{variable}` or `${variable}` placeholders
 - `context` (Object, optional): Key-value pairs for substitution (default: {})
 
 **Returns:**
+
 - (string): Template with placeholders replaced
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
-const prompt = buildPromptFromTemplate(
-  'Analyze {file} for {language}',
-  { file: 'app.js', language: 'JavaScript' }
-);
+const prompt = buildPromptFromTemplate('Analyze {file} for {language}', {
+  file: 'app.js',
+  language: 'JavaScript',
+});
 // => 'Analyze app.js for JavaScript'
 
-const prompt2 = buildPromptFromTemplate(
-  'Review ${module} in ${framework} project',
-  { module: 'auth', framework: 'Express' }
-);
+const prompt2 = buildPromptFromTemplate('Review ${module} in ${framework} project', {
+  module: 'auth',
+  framework: 'Express',
+});
 // => 'Review auth in Express project'
 ```
 
@@ -88,6 +92,7 @@ const prompt2 = buildPromptFromTemplate(
 Inject project-specific information into prompt.
 
 **Signature:**
+
 ```javascript
 function injectProjectContext(prompt: string, projectInfo?: {
   language?: string,
@@ -98,21 +103,24 @@ function injectProjectContext(prompt: string, projectInfo?: {
 ```
 
 **Parameters:**
+
 - `prompt` (string): Base prompt text
 - `projectInfo` (Object, optional): Project information
 
 **Returns:**
+
 - (string): Prompt with project context section appended
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const enhanced = injectProjectContext('Analyze the code', {
   language: 'JavaScript',
   projectKind: 'nodejs_api',
   framework: 'Express',
-  techStack: ['Jest', 'ESLint', 'Prettier']
+  techStack: ['Jest', 'ESLint', 'Prettier'],
 });
 // => 'Analyze the code
 //
@@ -130,21 +138,25 @@ const enhanced = injectProjectContext('Analyze the code', {
 Format code with markdown syntax highlighting.
 
 **Signature:**
+
 ```javascript
 function formatCodeBlock(code: string, language?: string): string
 ```
 
 **Parameters:**
+
 - `code` (string): Code to format
 - `language` (string, optional): Language identifier for syntax highlighting (default: '')
 
 **Returns:**
+
 - (string): Code wrapped in markdown code block
 
 **Pure:** ✅ Yes
 
 **Example:**
-```javascript
+
+````javascript
 formatCodeBlock('function test() { return true; }', 'javascript');
 // => '```javascript
 // function test() { return true; }
@@ -154,7 +166,7 @@ formatCodeBlock('Plain text');
 // => '```
 // Plain text
 // ```'
-```
+````
 
 ---
 
@@ -163,6 +175,7 @@ formatCodeBlock('Plain text');
 Build file list context section.
 
 **Signature:**
+
 ```javascript
 function buildFileListContext(files: string[], options?: {
   maxFiles?: number,
@@ -172,17 +185,20 @@ function buildFileListContext(files: string[], options?: {
 ```
 
 **Parameters:**
+
 - `files` (string[]): Array of file paths
 - `options.maxFiles` (number, optional): Maximum files to include (default: 50)
 - `options.includeExtensions` (string[], optional): Only include these extensions
 - `options.excludePatterns` (string[], optional): Exclude patterns (regex strings)
 
 **Returns:**
+
 - (string): Formatted file list section
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const files = ['src/app.js', 'src/utils.js', 'test/app.test.js', 'README.md'];
 
@@ -207,6 +223,7 @@ buildFileListContext(files, { includeExtensions: ['.js'] });
 Truncate context to fit within token limit.
 
 **Signature:**
+
 ```javascript
 function truncateContext(
   context: string,
@@ -216,16 +233,19 @@ function truncateContext(
 ```
 
 **Parameters:**
+
 - `context` (string): Context to truncate
 - `maxTokens` (number): Maximum tokens (approximated as chars/4)
 - `truncationMessage` (string, optional): Message to append (default: '...(truncated)')
 
 **Returns:**
+
 - (string): Truncated context with message if truncated
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const longText = 'A'.repeat(1000);
 const truncated = truncateContext(longText, 100);
@@ -243,6 +263,7 @@ truncateContext(shortText, 1000);
 Build multi-section structured prompt.
 
 **Signature:**
+
 ```javascript
 function buildStructuredPrompt(sections: Array<{
   title: string,
@@ -252,19 +273,22 @@ function buildStructuredPrompt(sections: Array<{
 ```
 
 **Parameters:**
+
 - `sections` (Array): Array of section objects with title and content
 
 **Returns:**
+
 - (string): Formatted structured prompt with sections
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildStructuredPrompt([
   { title: 'Task', content: 'Review code for security issues' },
   { title: 'Context', content: 'Express.js REST API' },
-  { title: 'Focus Areas', content: 'SQL injection, XSS, CSRF' }
+  { title: 'Focus Areas', content: 'SQL injection, XSS, CSRF' },
 ]);
 // => '# Task
 //
@@ -286,6 +310,7 @@ const prompt = buildStructuredPrompt([
 Build documentation analysis prompt (Step 1).
 
 **Signature:**
+
 ```javascript
 function buildDocAnalysisPrompt(options: {
   files?: string[],
@@ -296,23 +321,26 @@ function buildDocAnalysisPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.files` (string[], optional): Changed files to analyze
 - `options.changesSummary` (string, optional): Summary of recent changes
 - `options.projectInfo` (Object, optional): Project context
 - `options.focus` (string[], optional): Specific focus areas
 
 **Returns:**
+
 - (string): Structured documentation analysis prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildDocAnalysisPrompt({
   files: ['src/auth.js', 'README.md'],
   changesSummary: 'Added authentication module',
   projectInfo: { language: 'JavaScript', framework: 'Express' },
-  focus: ['API docs', 'Usage examples']
+  focus: ['API docs', 'Usage examples'],
 });
 // => Multi-section prompt for documentation analysis
 ```
@@ -324,6 +352,7 @@ const prompt = buildDocAnalysisPrompt({
 Build consistency checking prompt (Step 2).
 
 **Signature:**
+
 ```javascript
 function buildConsistencyPrompt(options: {
   documentationType?: string,
@@ -334,23 +363,26 @@ function buildConsistencyPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.documentationType` (string, optional): Type of docs to check (e.g., 'API', 'User Guide')
 - `options.files` (string[], optional): Files to check
 - `options.standards` (string[], optional): Style standards to enforce
 - `options.projectInfo` (Object, optional): Project context
 
 **Returns:**
+
 - (string): Structured consistency checking prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildConsistencyPrompt({
   documentationType: 'API',
   files: ['docs/api/*.md'],
   standards: ['JSDoc', 'Markdown lint'],
-  projectInfo: { language: 'JavaScript' }
+  projectInfo: { language: 'JavaScript' },
 });
 ```
 
@@ -361,6 +393,7 @@ const prompt = buildConsistencyPrompt({
 Build test review prompt (Step 3).
 
 **Signature:**
+
 ```javascript
 function buildTestReviewPrompt(options: {
   testFiles?: string[],
@@ -372,6 +405,7 @@ function buildTestReviewPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.testFiles` (string[], optional): Test files to review
 - `options.coverageReport` (string, optional): Coverage data
 - `options.codeFiles` (string[], optional): Source files being tested
@@ -379,18 +413,20 @@ function buildTestReviewPrompt(options: {
 - `options.focusAreas` (string[], optional): Specific areas to focus on
 
 **Returns:**
+
 - (string): Structured test review prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildTestReviewPrompt({
   testFiles: ['test/auth.test.js'],
   coverageReport: 'Coverage: 85%',
   codeFiles: ['src/auth.js'],
   projectInfo: { language: 'JavaScript', framework: 'Jest' },
-  focusAreas: ['Edge cases', 'Error handling']
+  focusAreas: ['Edge cases', 'Error handling'],
 });
 ```
 
@@ -401,6 +437,7 @@ const prompt = buildTestReviewPrompt({
 Build test generation prompt (Step 4).
 
 **Signature:**
+
 ```javascript
 function buildTestGenPrompt(options: {
   targetFile?: string,
@@ -412,6 +449,7 @@ function buildTestGenPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.targetFile` (string, optional): File to generate tests for
 - `options.sourceCode` (string, optional): Source code content
 - `options.existingTests` (string, optional): Existing test code
@@ -419,17 +457,19 @@ function buildTestGenPrompt(options: {
 - `options.testFramework` (string, optional): Test framework name
 
 **Returns:**
+
 - (string): Structured test generation prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildTestGenPrompt({
   targetFile: 'src/utils.js',
   sourceCode: 'function add(a, b) { return a + b; }',
   testFramework: 'Jest',
-  projectInfo: { language: 'JavaScript' }
+  projectInfo: { language: 'JavaScript' },
 });
 ```
 
@@ -440,6 +480,7 @@ const prompt = buildTestGenPrompt({
 Build code quality analysis prompt (Step 5).
 
 **Signature:**
+
 ```javascript
 function buildCodeQualityPrompt(options: {
   files?: string[],
@@ -451,6 +492,7 @@ function buildCodeQualityPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.files` (string[], optional): Files to analyze
 - `options.linterResults` (string, optional): Linter output
 - `options.complexity` (Object, optional): Complexity metrics
@@ -458,18 +500,20 @@ function buildCodeQualityPrompt(options: {
 - `options.standards` (string[], optional): Code standards to check
 
 **Returns:**
+
 - (string): Structured code quality prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildCodeQualityPrompt({
   files: ['src/app.js'],
   linterResults: '5 warnings, 2 errors',
   complexity: { cyclomatic: 15 },
   projectInfo: { language: 'JavaScript' },
-  standards: ['Airbnb style guide', 'ESLint']
+  standards: ['Airbnb style guide', 'ESLint'],
 });
 ```
 
@@ -480,6 +524,7 @@ const prompt = buildCodeQualityPrompt({
 Build technical writer prompt for bootstrap documentation (Step 0b).
 
 **Signature:**
+
 ```javascript
 function buildTechnicalWriterPrompt(options: {
   projectStructure?: string[],
@@ -491,6 +536,7 @@ function buildTechnicalWriterPrompt(options: {
 ```
 
 **Parameters:**
+
 - `options.projectStructure` (string[], optional): Project directory structure
 - `options.codeFiles` (string[], optional): Source code files
 - `options.existingDocs` (string[], optional): Existing documentation files
@@ -498,18 +544,20 @@ function buildTechnicalWriterPrompt(options: {
 - `options.documentationTypes` (string[], optional): Types of docs to generate
 
 **Returns:**
+
 - (string): Structured technical writer prompt
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const prompt = buildTechnicalWriterPrompt({
   projectStructure: ['src/', 'test/', 'docs/'],
   codeFiles: ['src/app.js', 'src/utils.js'],
   existingDocs: [],
   projectInfo: { language: 'JavaScript', projectKind: 'nodejs_api' },
-  documentationTypes: ['README', 'API docs', 'User guide']
+  documentationTypes: ['README', 'API docs', 'User guide'],
 });
 ```
 
@@ -522,6 +570,7 @@ const prompt = buildTechnicalWriterPrompt({
 High-level prompt builder with configuration management.
 
 **Constructor:**
+
 ```javascript
 new PromptBuilder(config?: {
   maxTokens?: number,
@@ -531,6 +580,7 @@ new PromptBuilder(config?: {
 ```
 
 **Options:**
+
 - `maxTokens` (number, optional): Maximum prompt tokens (default: 4000)
 - `projectInfo` (Object, optional): Default project context
 - `defaultPersona` (string, optional): Default AI persona
@@ -546,15 +596,17 @@ new PromptBuilder(config?: {
 Build prompt from template with auto-injection of project context.
 
 **Signature:**
+
 ```javascript
 build(template: string, context?: Object): string
 ```
 
 **Example:**
+
 ```javascript
 const builder = new PromptBuilder({
   maxTokens: 4000,
-  projectInfo: { language: 'JavaScript', framework: 'Express' }
+  projectInfo: { language: 'JavaScript', framework: 'Express' },
 });
 
 const prompt = builder.build('Analyze {file}', { file: 'app.js' });
@@ -568,22 +620,24 @@ const prompt = builder.build('Analyze {file}', { file: 'app.js' });
 Build prompt for specific workflow step.
 
 **Signature:**
+
 ```javascript
 buildForStep(step: number | string, options?: Object): string
 ```
 
 **Example:**
+
 ```javascript
 const builder = new PromptBuilder();
 
 const docPrompt = builder.buildForStep(1, {
   files: ['README.md'],
-  changesSummary: 'Updated installation section'
+  changesSummary: 'Updated installation section',
 });
 // => Documentation analysis prompt (Step 1)
 
 const testPrompt = builder.buildForStep('test_review', {
-  testFiles: ['test/app.test.js']
+  testFiles: ['test/app.test.js'],
 });
 // => Test review prompt (Step 3)
 ```
@@ -609,7 +663,7 @@ Expected output: {output_format}
 const prompt = buildPromptFromTemplate(template, {
   filename: 'src/auth.js',
   focus_areas: '- Security\n- Error handling\n- Performance',
-  output_format: 'Markdown report'
+  output_format: 'Markdown report',
 });
 
 console.log(prompt);
@@ -628,7 +682,7 @@ const enriched = injectProjectContext(basePrompt, {
   language: 'JavaScript',
   projectKind: 'react_spa',
   framework: 'React',
-  techStack: ['Redux', 'TypeScript', 'Jest']
+  techStack: ['Redux', 'TypeScript', 'Jest'],
 });
 
 console.log(enriched);
@@ -675,12 +729,12 @@ const changedFiles = [
   'src/middleware/auth.js',
   'test/auth.test.js',
   'docs/api/auth.md',
-  'README.md'
+  'README.md',
 ];
 
 const fileContext = buildFileListContext(changedFiles, {
   maxFiles: 3,
-  includeExtensions: ['.js', '.md']
+  includeExtensions: ['.js', '.md'],
 });
 
 const prompt = `
@@ -702,7 +756,7 @@ import { buildStructuredPrompt } from './lib/ai_prompt_builder.js';
 const prompt = buildStructuredPrompt([
   {
     title: 'Task',
-    content: 'Generate unit tests for the authentication module'
+    content: 'Generate unit tests for the authentication module',
   },
   {
     title: 'Requirements',
@@ -711,16 +765,16 @@ const prompt = buildStructuredPrompt([
 - Cover happy path and edge cases
 - Include mocking for database calls
 - Aim for 90%+ code coverage
-    `.trim()
+    `.trim(),
   },
   {
     title: 'Source Code',
-    content: formatCodeBlock(sourceCode, 'javascript')
+    content: formatCodeBlock(sourceCode, 'javascript'),
   },
   {
     title: 'Output Format',
-    content: 'Complete test file with describe/it blocks'
-  }
+    content: 'Complete test file with describe/it blocks',
+  },
 ]);
 ```
 
@@ -737,13 +791,13 @@ const prompt = buildDocAnalysisPrompt({
   projectInfo: {
     language: 'JavaScript',
     projectKind: 'nodejs_api',
-    framework: 'Express'
+    framework: 'Express',
   },
   focus: [
     'API endpoint documentation',
     'Authentication flow diagrams',
-    'Example requests/responses'
-  ]
+    'Example requests/responses',
+  ],
 });
 
 console.log(prompt);
@@ -765,8 +819,8 @@ const prompt = buildTestGenPrompt({
   testFramework: 'Jest',
   projectInfo: {
     language: 'JavaScript',
-    techStack: ['Jest', 'supertest']
-  }
+    techStack: ['Jest', 'supertest'],
+  },
 });
 ```
 
@@ -782,22 +836,22 @@ const builder = new PromptBuilder({
   projectInfo: {
     language: 'JavaScript',
     projectKind: 'nodejs_api',
-    framework: 'Express'
+    framework: 'Express',
   },
-  defaultPersona: 'documentation_expert'
+  defaultPersona: 'documentation_expert',
 });
 
 // Build prompt for Step 1 (documentation)
 const step1Prompt = builder.buildForStep(1, {
   files: ['README.md', 'API.md'],
-  changesSummary: 'Added new features'
+  changesSummary: 'Added new features',
 });
 
 // Build custom prompt with template
-const customPrompt = builder.build(
-  'Review {file} for {aspect}',
-  { file: 'auth.js', aspect: 'security' }
-);
+const customPrompt = builder.build('Review {file} for {aspect}', {
+  file: 'auth.js',
+  aspect: 'security',
+});
 ```
 
 ---
@@ -819,6 +873,7 @@ Token estimation uses approximation: `tokens ≈ characters / 4`. For precise li
 ### Template Syntax
 
 Supports two placeholder formats:
+
 - `{variable}` - Simple placeholder
 - `${variable}` - Shell-style placeholder
 
@@ -827,6 +882,7 @@ Both are replaced with the same precedence.
 ### Context Injection
 
 Project context is automatically appended to prompts. Structure:
+
 ```
 **Project Context**:
 - **Language**: {language}

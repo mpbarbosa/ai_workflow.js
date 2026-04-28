@@ -33,6 +33,9 @@ export const DEFAULT_CONFIG = {
   interactive: true,
   minFiles: 5,
   excludePatterns: ['CHANGELOG.md', 'LICENSE*', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md'],
+  // Maximum files to archive in a single run without AI validation.
+  // If the candidate set exceeds this and no AI analyzer is available, archival is skipped.
+  maxOutdatedArchivalWithoutAI: 50,
 };
 
 /**
@@ -502,8 +505,23 @@ export class DocumentationOptimizer {
       let reportResult = null;
 
       if (summary.filesOptimized > 0) {
-        optimizationResults = await this.executeOptimizations();
-        reportResult = await this.generateReport(optimizationResults);
+        const maxWithoutAI = this.state.config.maxOutdatedArchivalWithoutAI;
+        const outdatedCount = this.state.outdatedFiles.length;
+        if (!this.aiAnalyzer && outdatedCount > maxWithoutAI) {
+          this.logger.warn(
+            `⚠ Archival skipped: ${outdatedCount} outdated files identified but no AI analyzer ` +
+              `is available to validate them. Only ${maxWithoutAI} files may be archived ` +
+              `without AI review (maxOutdatedArchivalWithoutAI). ` +
+              `Provide an AI analyzer or lower the candidate count before re-running.`
+          );
+          this.state.errors.push({
+            phase: PHASES.OPTIMIZATION,
+            error: `Archival blocked: ${outdatedCount} candidates exceed maxOutdatedArchivalWithoutAI (${maxWithoutAI}) and no AI analyzer is configured.`,
+          });
+        } else {
+          optimizationResults = await this.executeOptimizations();
+          reportResult = await this.generateReport(optimizationResults);
+        }
       } else {
         this.logger.info('No optimizations needed');
       }

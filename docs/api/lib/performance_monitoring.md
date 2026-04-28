@@ -1,7 +1,7 @@
 # performance_monitoring — Real-time Performance Monitoring
 
 **Module:** `src/lib/performance_monitoring.js`
-**Version:** v2.0.0
+**Version:** v2.2.16
 **Phase:** 8 (Performance Optimization)
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
@@ -59,13 +59,13 @@ Default alert thresholds:
 
 ```javascript
 export const DEFAULT_THRESHOLDS = {
-  DURATION_WARNING:  5000,       // 5 seconds
-  DURATION_CRITICAL: 30000,      // 30 seconds
-  MEMORY_WARNING:    536870912,  // 512 MB (bytes)
-  MEMORY_CRITICAL:   1073741824, // 1 GB (bytes)
-  OPS_PER_SEC_MIN:   10,
+  DURATION_WARNING: 5000, // 5 seconds
+  DURATION_CRITICAL: 30000, // 30 seconds
+  MEMORY_WARNING: 536870912, // 512 MB (bytes)
+  MEMORY_CRITICAL: 1073741824, // 1 GB (bytes)
+  OPS_PER_SEC_MIN: 10,
   OPS_PER_SEC_WARNING: 5,
-  TRENDING_WINDOW:   10,         // samples for rolling average
+  TRENDING_WINDOW: 10, // samples for rolling average
 };
 ```
 
@@ -75,8 +75,8 @@ Alert severity level identifiers:
 
 ```javascript
 export const ALERT_SEVERITY = {
-  INFO:     'info',
-  WARNING:  'warning',
+  INFO: 'info',
+  WARNING: 'warning',
   CRITICAL: 'critical',
 };
 ```
@@ -97,8 +97,8 @@ Check whether a duration exceeds a threshold.
 **Example:**
 
 ```javascript
-isDurationSlow(6000, 5000);  // true  — exceeds warning threshold
-isDurationSlow(3000, 5000);  // false — within threshold
+isDurationSlow(6000, 5000); // true  — exceeds warning threshold
+isDurationSlow(3000, 5000); // false — within threshold
 isDurationSlow('abc', 5000); // false — invalid input safe default
 ```
 
@@ -116,8 +116,8 @@ Check whether memory usage exceeds a threshold.
 **Example:**
 
 ```javascript
-isMemoryHigh(600_000_000, DEFAULT_THRESHOLDS.MEMORY_WARNING);  // true  (600 MB > 512 MB)
-isMemoryHigh(100_000_000, DEFAULT_THRESHOLDS.MEMORY_WARNING);  // false
+isMemoryHigh(600_000_000, DEFAULT_THRESHOLDS.MEMORY_WARNING); // true  (600 MB > 512 MB)
+isMemoryHigh(100_000_000, DEFAULT_THRESHOLDS.MEMORY_WARNING); // false
 ```
 
 ### `determineAlertSeverity(metrics, thresholds)`
@@ -161,7 +161,11 @@ Format a human-readable alert message.
 **Example:**
 
 ```javascript
-generateAlertMessage('step_01_documentation', { duration: 6000, memory: { heapUsed: 25 } }, 'warning');
+generateAlertMessage(
+  'step_01_documentation',
+  { duration: 6000, memory: { heapUsed: 25 } },
+  'warning'
+);
 // "[WARNING] Operation 'step_01_documentation' took 6.0s (memory: 25MB)"
 
 generateAlertMessage('step_07_linting', { duration: 35000 }, 'critical');
@@ -177,7 +181,7 @@ Impure wrapper that hooks into workflow step events and emits real-time alerts.
 **Constructor:**
 
 ```javascript
-constructor(options = {});
+constructor((options = {}));
 ```
 
 **Options:**
@@ -255,7 +259,7 @@ if (alert) {
 const monitor = new PerformanceMonitor({
   thresholds: {
     ...DEFAULT_THRESHOLDS,
-    DURATION_WARNING: 2000,   // stricter: warn after 2s
+    DURATION_WARNING: 2000, // stricter: warn after 2s
     DURATION_CRITICAL: 10000, // stricter: critical after 10s
   },
 });
@@ -264,7 +268,11 @@ const monitor = new PerformanceMonitor({
 ### Pure Function Testing
 
 ```javascript
-import { isDurationSlow, determineAlertSeverity, ALERT_SEVERITY } from 'ai-workflow/lib/performance_monitoring';
+import {
+  isDurationSlow,
+  determineAlertSeverity,
+  ALERT_SEVERITY,
+} from 'ai-workflow/lib/performance_monitoring';
 
 test('flags slow operations', () => {
   expect(isDurationSlow(6000, 5000)).toBe(true);

@@ -79,21 +79,21 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 **6 Modules | Pure Functions & Classes**
 
-| Module                    | Purpose           | Key Features                                   |
-| ------------------------- | ----------------- | ---------------------------------------------- |
+| Module                         | Purpose           | Key Features                                   |
+| ------------------------------ | ----------------- | ---------------------------------------------- |
 | [colors](./core/colors.md)     | Terminal colors   | ANSI codes, color support detection            |
 | [logger](./core/logger.md)     | Logging           | Multi-level logging, quiet/verbose modes       |
 | [system](./core/system.md)     | System info       | OS detection, package manager detection        |
 | [version](./core/version.md)   | Versioning        | Semver parsing, version comparison             |
 | [executor](./core/executor.md) | Command execution | Shell commands, streaming output, sudo support |
-| [errors](./utils/errors.md)     | Error handling    | Custom error types with context                |
+| [errors](./utils/errors.md)    | Error handling    | Custom error types with context                |
 
 ### Configuration & Workflow (Phase 2)
 
 **4 Modules | Pure Functions + Wrappers**
 
-| Module                                  | Purpose       | Key Features                             |
-| --------------------------------------- | ------------- | ----------------------------------
+| Module | Purpose | Key Features |
+| ------ | ------- | ------------ |
 
 ---
 
@@ -101,7 +101,7 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 # API Reference
 
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Last Updated:** February 7, 2026
 
 Complete API documentation for ai_workflow.js modules (Phase 1-8).
@@ -191,7 +191,7 @@ Workflow orchestration and execution management:
 
 # API Reference
 
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Last Updated:** February 7, 2026
 
 Complete API documentation for ai_workflow.js modules (Phase 1-8).

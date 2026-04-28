@@ -554,6 +554,28 @@ describe('AI Helpers Module - Pure Functions', () => {
 
       expect(extractActionableIssueSignals(response)).toEqual([]);
     });
+
+    test('ignores praise-only detailed findings after a no-issues performance verdict', () => {
+      const response = [
+        '### Summary Table',
+        '',
+        '| File         | Issue Type               | Severity | Impact |',
+        '|--------------|--------------------------|----------|--------|',
+        '| src/app.ts   | No concrete issues found | —        | —      |',
+        '',
+        '### Detailed Findings',
+        '',
+        '- No evidence of tight-loop object allocation or closure leaks. Controllers and error boundaries are instantiated only as needed.',
+        '- Use of `Record<string, ...>` for error boundaries and arrays for DOM node lists is appropriate for the scale and access patterns shown.',
+        '- The code demonstrates good async handling (e.g., waiting for dependencies, error boundaries).',
+        '',
+        '### Conclusion',
+        '',
+        'No actionable performance issues are present in the provided excerpts.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
   });
 });
 
@@ -1439,7 +1461,9 @@ describe('AiHelper class - additional method coverage', () => {
       authenticated: true,
       availableModels: [{ id: 'claude-haiku-4.5' }],
     });
-    const fallbackSend = jest.fn().mockResolvedValue({ content: 'Fallback response', success: true });
+    const fallbackSend = jest
+      .fn()
+      .mockResolvedValue({ content: 'Fallback response', success: true });
     const fallbackCleanup = jest.fn().mockResolvedValue(undefined);
     const fallbackWrapper = {
       initialize: fallbackInitialize,
@@ -1744,6 +1768,30 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     const coreIdx = content.indexOf('**Workflow Core Version:**');
     expect(projectIdx).toBeLessThan(workflowIdx);
     expect(workflowIdx).toBeLessThan(coreIdx);
+  });
+
+  test('prefers the live package.json version in workingDirectory over a stale injected version', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const projectDir = await mkdtemp(path.join(tmpdir(), 'ai-log-working-dir-'));
+    await writeFile(
+      path.join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'demo-project', version: '9.9.9' }),
+      'utf8'
+    );
+    const helper = new AiHelper({
+      promptsDir,
+      workingDirectory: projectDir,
+      projectVersion: '1.2.3',
+    });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('**Project Version:** 9.9.9');
+    expect(content).not.toContain('**Project Version:** 1.2.3');
   });
 
   test('adds an auto-extracted issue snapshot ahead of the raw prompt and response blocks', async () => {

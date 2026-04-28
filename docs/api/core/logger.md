@@ -3,7 +3,7 @@
 # logger.js API Documentation
 
 **Module:** `core/logger`
-**Version:** 1.9.11
+**Version:** 2.2.16
 **Architecture:** Class-based
 
 ## Overview
@@ -219,7 +219,7 @@ logger.info('Step 1: Validate documentation');
 
 ### Error Handling
 
-```javascript
+````javascript
 const l
 
 ---
@@ -229,7 +229,7 @@ const l
 # logger - Logging Module
 
 **Module:** `core/logger`
-**Version:** 1.9.11
+**Version:** 2.2.16
 **Type:** Class-based with singleton instance
 
 ## Overview
@@ -266,7 +266,7 @@ Main logger class with configurable output formatting.
 
 ```javascript
 new Logger(options?)
-```
+````
 
 **Parameters:**
 

@@ -7,9 +7,16 @@
  */
 
 import path from 'path';
+import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { FileOperations } from './file_operations.js';
 import { logger } from '../core/logger.js';
+
+// Fallback: project_kinds.yaml bundled with the ai_workflow package itself
+const PACKAGE_CORE_CONFIG_PATH = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../.workflow_core'
+);
 
 // ============================================================================
 // PURE FUNCTIONS (No I/O, testable)
@@ -217,32 +224,49 @@ export class ProjectKindConfigManager {
    * @returns {Promise<Object|null>} Parsed YAML content or null on error
    */
   async loadProjectKindsYaml() {
-    const yamlPath = this.getProjectKindsPath();
+    const primaryPath = this.getProjectKindsPath();
+    const fallbackPath = path.join(PACKAGE_CORE_CONFIG_PATH, 'config', 'project_kinds.yaml');
 
     if (this.verbose) {
-      logger.info(`Loading project_kinds.yaml from: ${yamlPath}`);
+      logger.info(`Loading project_kinds.yaml from: ${primaryPath}`);
     }
 
-    try {
-      const exists = await this.fileOps.exists(yamlPath);
-      if (!exists) {
-        logger.error(`project_kinds.yaml not found at: ${yamlPath}`);
-        return null;
-      }
-
-      const content = await this.fileOps.readFile(yamlPath);
-      const parsed = parseYaml(content);
-
-      if (!parsed) {
-        logger.error(`Failed to parse project_kinds.yaml at: ${yamlPath}`);
-        return null;
-      }
-
-      return parsed;
-    } catch (error) {
-      logger.error(`Error loading project_kinds.yaml: ${error.message}`);
-      return null;
+    const candidates = [primaryPath];
+    if (primaryPath !== fallbackPath) {
+      candidates.push(fallbackPath);
     }
+
+    for (const yamlPath of candidates) {
+      try {
+        const exists = await this.fileOps.exists(yamlPath);
+        if (!exists) {
+          continue;
+        }
+
+        const content = await this.fileOps.readFile(yamlPath);
+        const parsed = parseYaml(content);
+
+        if (!parsed) {
+          logger.error(`Failed to parse project_kinds.yaml at: ${yamlPath}`);
+          continue;
+        }
+
+        if (yamlPath !== primaryPath) {
+          logger.info(
+            `project_kinds.yaml not found in target project — using package fallback: ${yamlPath}`
+          );
+        }
+
+        return parsed;
+      } catch (error) {
+        logger.error(`Error loading project_kinds.yaml from ${yamlPath}: ${error.message}`);
+      }
+    }
+
+    logger.error(
+      `project_kinds.yaml not found at: ${primaryPath} (also tried package fallback: ${fallbackPath})`
+    );
+    return null;
   }
 
   /**

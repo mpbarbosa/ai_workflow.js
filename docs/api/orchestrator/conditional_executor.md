@@ -1,7 +1,7 @@
 # Conditional Executor API
 
 **Module:** `orchestrator/conditional_executor`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -182,10 +182,11 @@ Evaluates a condition against context. Supports multiple condition types.
 1. **Boolean**: Returns directly
 2. **Function**: Calls function with context, returns true if result is true
 3. **Object**: Evaluates based on `type` field:
-  - `impact`: Match context.impact === value
-  - `filePattern`: Match files against regex
-  - `phase`: Match context.step.phase === value
-  - `projectKind`: Match context.projectKind === value
+
+- `impact`: Match context.impact === value
+- `filePattern`: Match files against regex
+- `phase`: Match context.step.phase === value
+- `projectKind`: Match context.projectKind === value
 
 **Example:**
 
@@ -662,7 +663,10 @@ for (const { step, priority } of plan.execute) {
 ### File Pattern Filtering
 
 ```javascript
-import { filterFilesByPattern, matchesPattern } from 'ai_workflow.js/orchestrator/conditional_executor';
+import {
+  filterFilesByPattern,
+  matchesPattern,
+} from 'ai_workflow.js/orchestrator/conditional_executor';
 
 const files = [
   'src/api/users.js',

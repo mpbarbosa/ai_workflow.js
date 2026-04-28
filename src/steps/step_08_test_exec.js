@@ -10,7 +10,7 @@ import { STEP_KIND } from './step_contract.js';
 import path from 'path';
 import { access, readdir } from 'node:fs/promises';
 import { logger, stripAnsi } from '../core/logger.js';
-import * as executor from '../core/executor.js';
+import executor, { normalizeExecutor } from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
@@ -24,7 +24,11 @@ import {
   logLanguageAwareSkippedStepOutcomeAndReturn,
   logStepOutcomeAndReturn,
 } from './step_execution_helpers.js';
-import { buildYamlStepPrompt, AI_HELPERS_PATH, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
+import {
+  buildYamlStepPrompt,
+  AI_HELPERS_PATH,
+  loadResolvedAiHelpers,
+} from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -907,6 +911,100 @@ export function buildCiRetryCmd(cmd) {
   return cmd;
 }
 
+function normalizeCommandForComparison(command = '') {
+  return String(command).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+export function findMatchingPreflightTestCommand(preflightCheck, testCommand = '') {
+  const commands = Array.isArray(preflightCheck?.commands) ? preflightCheck.commands : [];
+  const normalizedTestCommand = normalizeCommandForComparison(testCommand);
+
+  return (
+    commands.find(
+      (entry) => normalizeCommandForComparison(entry?.command) === normalizedTestCommand
+    ) ||
+    commands.find((entry) => entry?.name === 'test') ||
+    null
+  );
+}
+
+export function formatPreflightCorrelationNote(preflightCheck, testCommand = '') {
+  const matchedCommand = findMatchingPreflightTestCommand(preflightCheck, testCommand);
+  if (!matchedCommand?.passed) {
+    return '';
+  }
+
+  const command = matchedCommand.command || testCommand || 'the configured test command';
+  return `Pre-flight correlation: \`${command}\` already passed earlier in this workflow run, so a silent exit here points to an execution-environment problem rather than a confirmed test assertion failure.`;
+}
+
+export function buildSilentFailureProbeCommands({ language = '', testCommand = '' } = {}) {
+  const normalizedLanguage = String(language).trim().toLowerCase();
+  const normalizedCommand = String(testCommand).trim().toLowerCase();
+
+  if (normalizedLanguage === 'javascript' || normalizedLanguage === 'typescript') {
+    return [
+      { label: 'node', command: 'node --version' },
+      { label: 'npm', command: 'npm --version' },
+      {
+        label: 'jest',
+        command:
+          "node -e \"try { const fs=require('node:fs'); const pkg=require.resolve('jest/package.json'); const version=JSON.parse(fs.readFileSync(pkg, 'utf8')).version; process.stdout.write(version); } catch (error) { console.error(error.message); process.exit(1); }\"",
+      },
+    ];
+  }
+
+  if (normalizedLanguage === 'python' || normalizedCommand.includes('pytest')) {
+    return [
+      { label: 'python', command: 'python --version' },
+      { label: 'pytest', command: 'pytest --version' },
+    ];
+  }
+
+  if (normalizedLanguage === 'go' || normalizedCommand.startsWith('go test')) {
+    return [{ label: 'go', command: 'go version' }];
+  }
+
+  if (normalizedLanguage === 'java' || normalizedCommand.startsWith('mvn test')) {
+    return [
+      { label: 'java', command: 'java -version' },
+      { label: 'mvn', command: 'mvn --version' },
+    ];
+  }
+
+  if (normalizedLanguage === 'ruby' || normalizedCommand.startsWith('rspec')) {
+    return [
+      { label: 'ruby', command: 'ruby --version' },
+      { label: 'rspec', command: 'rspec --version' },
+    ];
+  }
+
+  if (normalizedLanguage === 'rust' || normalizedCommand.startsWith('cargo test')) {
+    return [{ label: 'cargo', command: 'cargo --version' }];
+  }
+
+  return [];
+}
+
+export function formatSilentFailureProbes(probeResults = []) {
+  if (!Array.isArray(probeResults) || probeResults.length === 0) {
+    return '';
+  }
+
+  return probeResults
+    .map((probe) => {
+      const output = String(probe?.output ?? '')
+        .trim()
+        .replace(/\s+/g, ' ');
+      if (probe?.ok) {
+        return `${probe.label}: ok${output ? ` (${output})` : ''}`;
+      }
+      const exitCode = Number.isFinite(probe?.exitCode) ? `exit ${probe.exitCode}` : 'failed';
+      return `${probe?.label || 'probe'}: ${exitCode}${output ? ` (${output})` : ''}`;
+    })
+    .join('; ');
+}
+
 /**
  * Step 8 executor for test execution
  */
@@ -914,7 +1012,7 @@ export class Step8TestExecutor {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.executor = options.executor || executor;
+    this.executor = normalizeExecutor(options.executor || executor);
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();
@@ -1008,11 +1106,18 @@ export class Step8TestExecutor {
       }
 
       logger.info(`Test command: ${testCommand}`);
+      const preflightCorrelationNote = formatPreflightCorrelationNote(
+        options.preflightCheck,
+        testCommand
+      );
+      if (preflightCorrelationNote) {
+        logger.info(preflightCorrelationNote);
+      }
 
       // Phase 2: Execute tests
       logger.debug(`[step_08] Executing test command: ${testCommand} in ${projectRoot}`);
       logger.step('Executing tests...');
-      const testResult = await this.runTests(projectRoot, testCommand, options);
+      const testResult = await this.runTests(projectRoot, testCommand, { ...options, language });
       logger.debug(`[step_08] Test command exited with code ${testResult.exitCode}`);
       logger.debug(`[step_08] Raw output length: ${testResult.output.length} chars`);
 
@@ -1034,7 +1139,9 @@ export class Step8TestExecutor {
       // produced 0 bytes of output with a non-zero exit code.
       const noTestsMessageInOutput = hasNoTestsFoundMessage(testResult.output);
       const runnerCrashed = !!testResult.runnerCrashed;
-      const silentRunnerExit = runnerCrashed && !noTestsMessageInOutput;
+      const executionError = testResult.executionError || '';
+      const noRuntimeEvidenceFailure =
+        !noTestsMessageInOutput && (runnerCrashed || executionError.length > 0);
       const duration = Date.now() - startTime;
       const noTestsFound =
         testResults.total === 0 &&
@@ -1043,7 +1150,7 @@ export class Step8TestExecutor {
       const anyFailure =
         testResults.failed > 0 ||
         (testResults.suitesFailed ?? 0) > 0 ||
-        silentRunnerExit ||
+        noRuntimeEvidenceFailure ||
         (testResult.exitCode !== 0 && !noTestsFound);
       const success = !anyFailure;
 
@@ -1054,7 +1161,7 @@ export class Step8TestExecutor {
       let coverageJson = null;
       let coverageGaps = [];
 
-      if (!silentRunnerExit) {
+      if (!noRuntimeEvidenceFailure) {
         ({ coverage, coverageJson } = await this.collectCoverage(projectRoot, language));
 
         if (coverage.statements !== undefined) {
@@ -1063,12 +1170,14 @@ export class Step8TestExecutor {
 
         coverageGaps = parseCoverageGaps(coverageJson, coverageThreshold);
         if (coverageGaps.length > 0) {
-          logger.warn(`Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`);
+          logger.warn(
+            `Coverage gaps: ${coverageGaps.length} module(s) below ${coverageThreshold}%`
+          );
         }
       }
 
       logger.debug(
-        `[step_08] noTestsMessageInOutput: ${noTestsMessageInOutput}, runnerCrashed: ${runnerCrashed}, noTestsFound: ${noTestsFound}, anyFailure: ${anyFailure}, success: ${success}, exitCode: ${testResult.exitCode}`
+        `[step_08] noTestsMessageInOutput: ${noTestsMessageInOutput}, runnerCrashed: ${runnerCrashed}, executionError: ${executionError || 'none'}, noTestsFound: ${noTestsFound}, anyFailure: ${anyFailure}, success: ${success}, exitCode: ${testResult.exitCode}`
       );
 
       const results = {
@@ -1085,10 +1194,10 @@ export class Step8TestExecutor {
       await this.backlog.saveStepSummary(8, 'Test Execution', report);
 
       // Phase AI: AI-powered test result analysis
-      const skipAiAnalysis = silentRunnerExit;
+      const skipAiAnalysis = noRuntimeEvidenceFailure;
       if (skipAiAnalysis) {
         logger.warn(
-          '[step_08] Skipping AI analysis because the test runner produced no runtime evidence on either attempt'
+          '[step_08] Skipping AI analysis because no runtime evidence was captured for this execution attempt'
         );
       }
       await enrichStepSummaryWithOptionalAiAnalysis({
@@ -1129,29 +1238,36 @@ export class Step8TestExecutor {
             testConfigPaths,
             testTypes: detectedTestTypes,
           });
-          const promptTestTypes =
-            validationScriptExecution ? 'validation-script' : detectedTestTypes;
+          const promptTestTypes = validationScriptExecution
+            ? 'validation-script'
+            : detectedTestTypes;
           const promptResultsSummary = formatPromptResultsSummary({
             isValidationScript: validationScriptExecution,
             testResults,
           });
-          const promptCoverageThreshold = formatPromptCoverageThreshold(configuredCoverageThreshold);
+          const promptCoverageThreshold = formatPromptCoverageThreshold(
+            configuredCoverageThreshold
+          );
           const promptScope = validationScriptExecution
             ? 'validation script only'
             : 'automated test suite only';
-          const promptExecutionSummary = silentRunnerExit
-            ? validationScriptExecution
-              ? `The validation command exited without output in ${duration}ms; no validation, typecheck, or test diagnostics could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
-              : `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
+          const promptExecutionSummary = noRuntimeEvidenceFailure
+            ? executionError
+              ? `The workflow could not capture any runtime evidence in ${duration}ms because command execution failed before the runner produced usable output: ${executionError}`
+              : validationScriptExecution
+                ? `The validation command exited without output in ${duration}ms; no validation, typecheck, or test diagnostics could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
+                : `The test runner exited without output in ${duration}ms; no tests, assertion failures, or discovery/configuration cause could be confirmed from captured evidence, so the workflow treated this as a blocking inconclusive failure`
             : noTestsFound
               ? validationScriptExecution
                 ? `The validation command completed without reporting test-case counts in ${duration}ms`
                 : `No tests were discovered or executed (runner reported no test files in ${duration}ms)`
               : `${testResults.passed ?? 0} passed, ${testResults.failed ?? 0} failed, ${testResults.skipped ?? 0} skipped in ${duration}ms${testResults.suitesFailed > 0 ? ` (${testResults.suitesFailed} suite${testResults.suitesFailed > 1 ? 's' : ''} failed to run)` : ''}`;
-          const promptOutput = silentRunnerExit
-            ? validationScriptExecution
-              ? `none — validation command produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
-              : `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
+          const promptOutput = noRuntimeEvidenceFailure
+            ? executionError
+              ? `none — command failed before runtime evidence was captured (exit code ${testResult.exitCode}; error: ${executionError})`
+              : validationScriptExecution
+                ? `none — validation command produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
+                : `none — test runner produced no output (exit code ${testResult.exitCode}; root cause unavailable from captured evidence)`
             : noTestsFound
               ? (testResult.output ?? '').slice(0, 2000) ||
                 (validationScriptExecution
@@ -1176,8 +1292,10 @@ export class Step8TestExecutor {
                 test_command: testCommand,
                 test_config_paths: testConfigPaths,
                 test_types: promptTestTypes,
-                test_exit_code: silentRunnerExit
-                  ? `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as a blocking inconclusive failure that requires manual investigation)`
+                test_exit_code: noRuntimeEvidenceFailure
+                  ? executionError
+                    ? `${testResult.exitCode} (command execution failed before runtime evidence was captured: ${executionError})`
+                    : `${testResult.exitCode} (runner exited without output; root cause unavailable from captured evidence, so the workflow treated it as a blocking inconclusive failure that requires manual investigation)`
                   : noTestsFound
                     ? `${testResult.exitCode} (no tests found message detected in runner output; treated as no-tests-found, not a test failure)`
                     : String(testResult.exitCode),
@@ -1249,18 +1367,56 @@ export class Step8TestExecutor {
       });
 
       if (!success) {
-        if (runnerCrashed) {
+        if (executionError) {
+          const probeSummary = formatSilentFailureProbes(testResult.diagnosticProbes);
+          const resumeHint = options.resumeCommandHint || 'ai-workflow resume --latest';
+          logger.warn(
+            `Step 8 blocked - command execution failed before runtime evidence was captured: ${executionError}. ` +
+              `Run \`${testCommand}\` manually to investigate, then \`${resumeHint}\`.`
+          );
+          if (preflightCorrelationNote) {
+            logger.warn(preflightCorrelationNote);
+          }
+          if (probeSummary) {
+            logger.warn(`[step_08] Diagnostic probes — ${probeSummary}`);
+          }
+          await this.backlog.saveStepSummary(
+            8,
+            'Test Execution',
+            `${report}\n\n## ❌ Test Execution Setup Failure\n\n` +
+              `The workflow could not capture runtime evidence because command execution failed before the test runner produced usable output.\n` +
+              `**Captured error**: ${executionError}\n\n` +
+              (preflightCorrelationNote
+                ? `**Pre-flight correlation**: ${preflightCorrelationNote}\n\n`
+                : '') +
+              (probeSummary ? `**Diagnostic probes**: ${probeSummary}\n\n` : '') +
+              `**Action required**: Run \`${testCommand}\` manually in the project directory to confirm the repository state. If the manual command succeeds, investigate the workflow executor/invocation path before relying on downstream workflow results. After fixing the issue, resume with \`${resumeHint}\`.\n`,
+            '❌'
+          );
+        } else if (runnerCrashed) {
+          const probeSummary = formatSilentFailureProbes(testResult.diagnosticProbes);
+          const resumeHint = options.resumeCommandHint || 'ai-workflow resume --latest';
           logger.warn(
             `Step 8 blocked - test runner exited with code ${testResult.exitCode} but produced no output ` +
-              `on either attempt. Run \`${testCommand}\` manually to investigate.`
+              `on either attempt. Run \`${testCommand}\` manually to investigate, then \`${resumeHint}\`.`
           );
+          if (preflightCorrelationNote) {
+            logger.warn(preflightCorrelationNote);
+          }
+          if (probeSummary) {
+            logger.warn(`[step_08] Diagnostic probes — ${probeSummary}`);
+          }
           await this.backlog.saveStepSummary(
             8,
             'Test Execution',
             `${report}\n\n## ❌ Inconclusive Test Runner Failure\n\n` +
               `The test runner exited with code ${testResult.exitCode} but produced no output on either attempt.\n` +
               `The root cause could not be confirmed from the captured evidence, so this run cannot be treated as a passing or no-tests-found outcome.\n\n` +
-              `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate before relying on downstream workflow results.\n`,
+              (preflightCorrelationNote
+                ? `**Pre-flight correlation**: ${preflightCorrelationNote}\n\n`
+                : '') +
+              (probeSummary ? `**Diagnostic probes**: ${probeSummary}\n\n` : '') +
+              `**Action required**: Run \`${testCommand}\` manually in the project directory to investigate before relying on downstream workflow results. After fixing the issue, resume with \`${resumeHint}\`.\n`,
             '❌'
           );
         } else if (testResults.failed > 0 || testResults.suitesFailed > 0) {
@@ -1394,14 +1550,29 @@ export class Step8TestExecutor {
         const output = (result.stdout || '') + (result.stderr || '');
         logger.debug(`[step_08] Test runner exited 0 — output length: ${output.length} chars`);
         logger.debug(`[step_08] Output snippet: ${output.slice(0, 400).replace(/\n/g, '↵')}`);
-        return { exitCode: result.exitCode || 0, output };
+        return {
+          exitCode: result.exitCode || 0,
+          output,
+          noRuntimeEvidence: false,
+          executionError: '',
+        };
       } catch (error) {
-        const output = (error.stdout || '') + (error.stderr || '');
+        const streamOutput = (error.stdout || '') + (error.stderr || '');
+        const executionError =
+          streamOutput.length === 0 && typeof error?.message === 'string'
+            ? error.message.trim()
+            : '';
+        const output = streamOutput || executionError;
         logger.debug(
           `[step_08] Test runner exited ${error.exitCode ?? 1} — output length: ${output.length} chars`
         );
         logger.debug(`[step_08] Output snippet: ${output.slice(0, 400).replace(/\n/g, '↵')}`);
-        return { exitCode: error.exitCode || 1, output };
+        return {
+          exitCode: error.exitCode || 1,
+          output,
+          noRuntimeEvidence: streamOutput.length === 0,
+          executionError,
+        };
       }
     };
 
@@ -1410,20 +1581,76 @@ export class Step8TestExecutor {
     // If the runner exited non-zero with no output it likely crashed before writing
     // anything (e.g. OOM kill, ts-jest compilation panic, broken pipe).  Retry once
     // with an explicit `--ci` flag (Jest / Vitest) to surface diagnostic output.
-    if (firstRun.output.length === 0 && firstRun.exitCode !== 0) {
+    if (firstRun.noRuntimeEvidence && firstRun.exitCode !== 0) {
       logger.warn(
         '[step_08] Test runner produced no output (possible crash) — retrying with --ci flag'
       );
       const ciCmd = buildCiRetryCmd(testCommand);
       const retry = await runOnce(ciCmd);
-      if (retry.output.length > 0 || retry.exitCode === 0) {
+      if (!retry.noRuntimeEvidence || retry.exitCode === 0) {
         return retry;
       }
-      // Both runs produced no output — return the original result with a sentinel
-      return { ...firstRun, runnerCrashed: true };
+      // Both runs produced no output — capture diagnostics before returning
+      try {
+        const mem = process.memoryUsage();
+        logger.debug(
+          `[step_08] Crash diagnostics — process RSS: ${Math.round(mem.rss / 1024 / 1024)}MB, ` +
+            `heapUsed: ${Math.round(mem.heapUsed / 1024 / 1024)}MB, ` +
+            `heapTotal: ${Math.round(mem.heapTotal / 1024 / 1024)}MB`
+        );
+      } catch {
+        // non-fatal
+      }
+      return {
+        ...firstRun,
+        runnerCrashed: firstRun.executionError.length === 0 && retry.executionError.length === 0,
+        executionError: firstRun.executionError || retry.executionError || '',
+        diagnosticProbes: await this.runSilentFailureProbes(projectRoot, {
+          language: options.language,
+          testCommand,
+        }),
+      };
     }
 
     return firstRun;
+  }
+
+  async runSilentFailureProbes(projectRoot, { language = '', testCommand = '' } = {}) {
+    const probes = buildSilentFailureProbeCommands({ language, testCommand });
+    if (probes.length === 0) {
+      return [];
+    }
+
+    const env = { ...process.env, CI: 'true', FORCE_COLOR: '0' };
+    const timeout = 5000;
+    const results = [];
+
+    for (const probe of probes) {
+      try {
+        const result = await this.executor.execute(probe.command, {
+          cwd: projectRoot,
+          timeout,
+          shell: true,
+          env,
+        });
+        results.push({
+          label: probe.label,
+          ok: true,
+          exitCode: result.exitCode || 0,
+          output: `${result.stdout || ''}${result.stderr || ''}`.trim(),
+        });
+      } catch (error) {
+        results.push({
+          label: probe.label,
+          ok: false,
+          exitCode: error.exitCode ?? 1,
+          output:
+            `${error.stdout || ''}${error.stderr || ''}${error.message ? ` ${error.message}` : ''}`.trim(),
+        });
+      }
+    }
+
+    return results;
   }
 
   /**

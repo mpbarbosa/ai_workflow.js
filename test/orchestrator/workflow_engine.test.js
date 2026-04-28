@@ -192,15 +192,28 @@ describe('Workflow Engine Module - Pure Functions', () => {
   });
 
   describe('formatExecutionPlanLines', () => {
-    test('formats sorted execution steps with dependency detail', () => {
+    test('omits deps that are not present in the plan (disabled / excluded steps)', () => {
+      // step_07 is declared as a dep of step_08 but is not in the plan array —
+      // it should be hidden so the log only shows effective (resolvable) deps.
       expect(
         formatExecutionPlanLines([
           { id: 'step_08', name: 'Step 8', dependencies: ['step_07'] },
           { id: 'step_09', name: 'Step 9' },
         ])
+      ).toEqual(['  1. Step 8 (step_08)', '  2. Step 9 (step_09)']);
+    });
+
+    test('shows deps that are present in the plan', () => {
+      expect(
+        formatExecutionPlanLines([
+          { id: 'step_07', name: 'Step 7' },
+          { id: 'step_08', name: 'Step 8', dependencies: ['step_07'] },
+          { id: 'step_09', name: 'Step 9' },
+        ])
       ).toEqual([
-        '  1. Step 8 (step_08) | deps: step_07',
-        '  2. Step 9 (step_09)',
+        '  1. Step 7 (step_07)',
+        '  2. Step 8 (step_08) | deps: step_07',
+        '  3. Step 9 (step_09)',
       ]);
     });
   });

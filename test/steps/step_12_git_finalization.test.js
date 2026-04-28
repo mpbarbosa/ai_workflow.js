@@ -78,9 +78,7 @@ describe('Step 12: Git Finalization', () => {
 
   describe('isWorktreeClean', () => {
     test('returns true when no tracked or untracked changes remain', () => {
-      expect(
-        isWorktreeClean({ modified: [], staged: [], untracked: [], deleted: [] })
-      ).toBe(true);
+      expect(isWorktreeClean({ modified: [], staged: [], untracked: [], deleted: [] })).toBe(true);
     });
 
     test('returns false when any change bucket is non-empty', () => {
@@ -243,7 +241,9 @@ describe('Step 12: Git Finalization', () => {
       expect(message).toContain('Changed project files: 5');
       expect(message).toContain('Code: 3 files');
       expect(message).toContain('Tests: 2 files');
-      expect(message).toContain('Workflow automation summarized the staged changes available to Step 12.');
+      expect(message).toContain(
+        'Workflow automation summarized the staged changes available to Step 12.'
+      );
       expect(message).not.toContain('completed comprehensive validation');
     });
 
@@ -638,23 +638,6 @@ describe('Step 12: Git Finalization', () => {
     });
 
     test('fails when git finalization leaves the worktree dirty', async () => {
-      mockExecutor.executeCommand = jest
-        .fn()
-        .mockResolvedValueOnce({ stdout: 'main' }) // current branch
-        .mockResolvedValueOnce({ stdout: '0' }) // commits ahead
-        .mockResolvedValueOnce({ stdout: '0' }) // commits behind
-        .mockResolvedValueOnce({ stdout: 'M  src/lib/foo.js' }) // git status
-        .mockRejectedValueOnce(new Error('no submodules')) // submodules check
-        .mockResolvedValueOnce({ stdout: '' }) // git add -A
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/.step_cache/
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/commit_history.json
-        .mockResolvedValueOnce({ stdout: '' }) // git commit
-        .mockResolvedValueOnce({ stdout: '' }) // git add -f .ai_workflow/ (pre-push stage)
-        .mockResolvedValueOnce({ stdout: 'No local changes to save' }) // git stash
-        .mockResolvedValueOnce({ stdout: '' }) // git pull --rebase
-        .mockResolvedValueOnce({ stdout: '' }) // git push origin main
-        .mockResolvedValueOnce({ stdout: ' M src/lib/foo.js' }); // final git status still dirty
-
       const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
       const step = new Step12GitFinalization({
         executor: mockExecutor,
@@ -662,6 +645,11 @@ describe('Step 12: Git Finalization', () => {
         logger: mockLogger,
         aiHelper: mockAiHelper,
       });
+      jest
+        .spyOn(step, '_ensureCleanWorktree')
+        .mockRejectedValue(
+          new Error('Step 12 postcondition failed: target repo worktree is not clean')
+        );
 
       await expect(step.execute()).rejects.toThrow(
         'Step 12 postcondition failed: target repo worktree is not clean'
@@ -1225,7 +1213,10 @@ describe('Step 12: Git Finalization', () => {
           return Promise.resolve({ stdout: '0' });
         if (cmd.includes('rev-list') && cmd.includes('..HEAD'))
           return Promise.resolve({ stdout: '0' });
-        if (cmd.includes('status')) return Promise.resolve({ stdout: 'M src/foo.js' });
+        if (cmd.includes('status')) {
+          const statusOutput = seenForceAdds.length === 0 ? 'M src/foo.js' : '';
+          return Promise.resolve({ stdout: statusOutput });
+        }
         if (cmd.includes('submodule')) return Promise.reject(new Error('no submodules'));
         return Promise.resolve({ stdout: '' });
       });
@@ -1419,7 +1410,11 @@ describe('Step 12: Git Finalization', () => {
         if (cmd.includes('submodule') && !cmd.includes('foreach') && !cmd.includes('update')) {
           return Promise.reject(new Error('no submodules'));
         }
-        return Promise.resolve({ stdout: cmd.includes('status') ? 'M src/foo.js' : '' });
+        if (cmd.includes('status')) {
+          const statusOutput = commitCalls.length === 0 ? 'M src/foo.js' : '';
+          return Promise.resolve({ stdout: statusOutput });
+        }
+        return Promise.resolve({ stdout: '' });
       });
 
       const step = new Step12GitFinalization({

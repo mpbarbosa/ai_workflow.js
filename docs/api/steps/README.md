@@ -1,6 +1,6 @@
 # Steps API Documentation Index
 
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Last Updated:** 2026-02-11
 
 This directory contains API documentation for all workflow step implementations (Phase 9).

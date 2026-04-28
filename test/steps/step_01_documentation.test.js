@@ -15,6 +15,7 @@ import {
   consolidateStep1DocAnalysis,
   isLowSignalStep1Evidence,
   rankStep1EvidenceFile,
+  selectStep1FinalAnalysisContent,
   selectStep1EvidenceFiles,
   shouldRunAiAnalysis,
   selectStep1DocumentationModel,
@@ -358,6 +359,22 @@ describe('Step 1: Documentation Validation', () => {
       );
     });
 
+    test('treats mixed "no updates required" and "inconclusive" sections as inconclusive', () => {
+      const content = [
+        '#### Partition 1 of 2',
+        '',
+        'README.md\n\nVerdict: No updates required',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'README.md\n\nVerdict: Inconclusive',
+      ].join('\n');
+
+      expect(consolidateStep1DocAnalysis(content, ['README.md'])).toBe(
+        'Inconclusive — consolidated across 2 prompt partition(s) for README.md. At least one partition had incomplete, tangential, or support-only evidence, so Step 1 cannot safely collapse the full result to "No updates required".'
+      );
+    });
+
     test('buildStep1SynthesisPrompt includes guardrails for planned items and guessed metadata', () => {
       const prompt = buildStep1SynthesisPrompt({
         changedFiles: ['ROADMAP.md', 'package.json'],
@@ -400,6 +417,31 @@ describe('Step 1: Documentation Validation', () => {
       });
 
       expect(prompt).not.toContain('**Project Context**');
+    });
+
+    test('selectStep1FinalAnalysisContent keeps partition findings when synthesis overstates certainty on omitted docs', () => {
+      const combined = [
+        '#### Partition 1 of 2',
+        '',
+        'README.md\n\nVerdict: Inconclusive',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'README.md\n\nVerdict: No updates required',
+      ].join('\n');
+      const synthesis = 'README.md\n\nVerdict: No updates required';
+      const scopedDocEntries = [
+        {
+          relativePath: 'README.md',
+          content: [
+            '# Title',
+            ...Array.from({ length: 800 }, (_, i) => `line ${i}`),
+            'footer',
+          ].join('\n'),
+        },
+      ];
+
+      expect(selectStep1FinalAnalysisContent(combined, synthesis, scopedDocEntries)).toBe(combined);
     });
   });
 
@@ -575,7 +617,9 @@ describe('Step 1: Documentation Validation', () => {
           success: false,
         });
 
-      await expect(analyzer.execute('/project', { enableParallel: true })).rejects.toThrow('Timeout');
+      await expect(analyzer.execute('/project', { enableParallel: true })).rejects.toThrow(
+        'Timeout'
+      );
     });
 
     test('handles errors gracefully', async () => {
@@ -809,6 +853,11 @@ doc_analysis_prompt:
         expect(capturedPrompts.some((prompt) => prompt.includes('README.md (part 1/'))).toBe(true);
         expect(capturedPrompts.some((prompt) => prompt.includes('README.md (part 2/'))).toBe(true);
         expect(
+          capturedPrompts.some((prompt) =>
+            prompt.includes('This request covers 1 of 1 scoped documentation target(s)')
+          )
+        ).toBe(true);
+        expect(
           capturedPrompts.some((prompt) => prompt.includes('...(truncated — remainder omitted)'))
         ).toBe(false);
         expect(
@@ -818,9 +867,9 @@ doc_analysis_prompt:
               prompt.includes('## Direct Documentation Target Excerpts')
           )
         ).toBe(true);
-        expect(capturedPrompts.some((prompt) => prompt.includes('whole-scope synthesis review'))).toBe(
-          true
-        );
+        expect(
+          capturedPrompts.some((prompt) => prompt.includes('whole-scope synthesis review'))
+        ).toBe(true);
       });
 
       test('gracefully continues when a file cannot be read', async () => {
@@ -863,8 +912,12 @@ doc_analysis_prompt:
     });
 
     test('buildStep1ScopedDocContextBlock preserves both head and tail context for oversized docs', () => {
-      const content = ['# Title', 'intro', ...Array.from({ length: 600 }, (_, i) => `line ${i}`), 'footer']
-        .join('\n');
+      const content = [
+        '# Title',
+        'intro',
+        ...Array.from({ length: 600 }, (_, i) => `line ${i}`),
+        'footer',
+      ].join('\n');
 
       const block = buildStep1ScopedDocContextBlock([{ relativePath: 'README.md', content }], 120);
 

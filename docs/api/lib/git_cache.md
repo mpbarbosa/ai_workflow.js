@@ -7,7 +7,7 @@
 The Git Cache module provides intelligent caching for Git operations to reduce repeated command execution. It uses TTL-based expiration, automatic invalidation on state changes, and memory-efficient storage with LRU eviction.
 
 **Module:** `lib/git_cache`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -40,12 +40,14 @@ This module follows the v2.0.0 architecture pattern:
 Generate deterministic cache key from operation and arguments.
 
 **Parameters:**
+
 - `operation` (string): Git operation name
 - `args` (Array<string>): Operation arguments
 
 **Returns:** String cache key (e.g., 'git_status_abc123')
 
 **Example:**
+
 ```javascript
 const key = generateCacheKey('status', ['--short']);
 // Returns: 'git_status_a1b2c3d4' (deterministic hash)
@@ -60,6 +62,7 @@ assert(key === key2); // true
 Check if cache entry is still valid based on TTL.
 
 **Parameters:**
+
 - `entry` (Object): Cache entry with timestamp
 - `ttl` (number): Time to live in milliseconds
 - `currentTime` (number): Current timestamp (injected)
@@ -67,6 +70,7 @@ Check if cache entry is still valid based on TTL.
 **Returns:** Boolean indicating validity
 
 **Example:**
+
 ```javascript
 const entry = { timestamp: 1000, result: { files: [] } };
 const ttl = 5000; // 5 seconds
@@ -80,18 +84,21 @@ isCacheValid(entry, ttl, 7000); // false (expired)
 Determine if cache should be invalidated for given reason.
 
 **Parameters:**
+
 - `reason` (string): Operation that triggered check
 
 **Returns:** Boolean (true for state-changing operations)
 
 **Example:**
+
 ```javascript
 shouldInvalidateCache('commit'); // true (modifies repo)
 shouldInvalidateCache('status'); // false (read-only)
-shouldInvalidateCache('add');    // true (stages files)
+shouldInvalidateCache('add'); // true (stages files)
 ```
 
 **State-Changing Operations:**
+
 - commit, add, reset, checkout
 - merge, rebase, pull, fetch
 - stash
@@ -101,9 +108,11 @@ shouldInvalidateCache('add');    // true (stages files)
 Calculate cache statistics from metrics object.
 
 **Parameters:**
+
 - `metrics` (Object): Metrics with hits/misses
 
 **Returns:** Object with calculated stats
+
 ```javascript
 {
   hits: 80,
@@ -114,6 +123,7 @@ Calculate cache statistics from metrics object.
 ```
 
 **Example:**
+
 ```javascript
 const stats = calculateCacheStats({ hits: 80, misses: 20 });
 console.log(`Hit rate: ${stats.hitRate}%`);
@@ -124,6 +134,7 @@ console.log(`Hit rate: ${stats.hitRate}%`);
 Filter out expired entries from cache Map.
 
 **Parameters:**
+
 - `entries` (Map): Cache entries
 - `currentTime` (number): Current timestamp
 - `ttl` (number): Time to live
@@ -131,10 +142,11 @@ Filter out expired entries from cache Map.
 **Returns:** Array of expired keys
 
 **Example:**
+
 ```javascript
 const cache = new Map([
   ['key1', { timestamp: 1000 }],
-  ['key2', { timestamp: 5000 }]
+  ['key2', { timestamp: 5000 }],
 ]);
 
 const expired = filterExpiredEntries(cache, 8000, 5000);
@@ -146,12 +158,14 @@ const expired = filterExpiredEntries(cache, 8000, 5000);
 Merge two cache metrics objects.
 
 **Parameters:**
+
 - `metrics1` (Object): First metrics object
 - `metrics2` (Object): Second metrics object
 
 **Returns:** Merged metrics object
 
 **Example:**
+
 ```javascript
 const m1 = { hits: 10, misses: 5 };
 const m2 = { hits: 20, misses: 3 };
@@ -164,11 +178,13 @@ const merged = mergeCacheMetrics(m1, m2);
 Create cache entry with metadata.
 
 **Parameters:**
+
 - `key` (string): Cache key
-- `result` (*): Operation result to cache
+- `result` (\*): Operation result to cache
 - `timestamp` (number): Entry timestamp
 
 **Returns:** Cache entry object
+
 ```javascript
 {
   key: 'git_status_abc',
@@ -183,9 +199,11 @@ Create cache entry with metadata.
 Validate cache configuration object.
 
 **Parameters:**
+
 - `config` (Object): Configuration to validate
 
 **Returns:** Validation result
+
 ```javascript
 {
   valid: true,
@@ -194,11 +212,12 @@ Validate cache configuration object.
 ```
 
 **Example:**
+
 ```javascript
 const result = validateCacheConfig({
   ttl: 5000,
   maxSize: 100,
-  enabled: true
+  enabled: true,
 });
 
 if (!result.valid) {
@@ -213,10 +232,11 @@ Wrapper class for managing Git operation cache with TTL-based expiration.
 ### Constructor
 
 ```javascript
-new GitCache(options)
+new GitCache(options);
 ```
 
 **Parameters:**
+
 - `options.ttl` (Object): TTL per operation type (ms)
   - `status`: 300000 (5 minutes)
   - `diff`: 60000 (1 minute)
@@ -228,15 +248,16 @@ new GitCache(options)
 - `options.enabled` (boolean): Enable/disable caching (default: true)
 
 **Example:**
+
 ```javascript
 const cache = new GitCache({
   ttl: {
-    status: 300000,  // 5 min for status
-    diff: 60000,     // 1 min for diffs
-    log: 600000      // 10 min for logs
+    status: 300000, // 5 min for status
+    diff: 60000, // 1 min for diffs
+    log: 600000, // 10 min for logs
   },
   maxSize: 50,
-  enabled: true
+  enabled: true,
 });
 ```
 
@@ -247,13 +268,15 @@ const cache = new GitCache({
 Get cached result or execute operation if cache miss.
 
 **Parameters:**
+
 - `operation` (string): Git operation name
 - `args` (Array<string>): Operation arguments
 - `executor` (Function): Async function to execute on cache miss
 
-**Returns:** Promise<*> Operation result (cached or fresh)
+**Returns:** Promise<\*> Operation result (cached or fresh)
 
 **Example:**
+
 ```javascript
 const cache = new GitCache();
 const gitAutomation = new GitAutomation();
@@ -275,13 +298,15 @@ const result2 = await cache.get('status', [], async () => {
 Store result in cache.
 
 **Parameters:**
+
 - `operation` (string): Git operation name
 - `args` (Array<string>): Operation arguments
-- `result` (*): Result to cache
+- `result` (\*): Result to cache
 
 **Returns:** Promise<void>
 
 **Example:**
+
 ```javascript
 await cache.set('status', ['--short'], { files: [] });
 ```
@@ -291,11 +316,13 @@ await cache.set('status', ['--short'], { files: [] });
 Invalidate cache entries matching pattern.
 
 **Parameters:**
+
 - `pattern` (string|RegExp): Pattern to match keys
 
 **Returns:** Promise<number> Number of invalidated entries
 
 **Example:**
+
 ```javascript
 // Invalidate all status caches
 await cache.invalidate('status');
@@ -309,11 +336,13 @@ await cache.invalidate(/^git_(status|diff)/);
 Automatically invalidate cache after state-changing operation.
 
 **Parameters:**
+
 - `reason` (string): Operation that changed state
 
 **Returns:** Promise<number> Number of invalidated entries
 
 **Example:**
+
 ```javascript
 // After committing changes
 await cache.invalidateAfterOperation('commit');
@@ -327,6 +356,7 @@ Clear all cache entries.
 **Returns:** Promise<number> Number of cleared entries
 
 **Example:**
+
 ```javascript
 const count = await cache.clear();
 console.log(`Cleared ${count} cache entries`);
@@ -337,6 +367,7 @@ console.log(`Cleared ${count} cache entries`);
 Get cache statistics.
 
 **Returns:** Object with metrics
+
 ```javascript
 {
   hits: 80,
@@ -349,6 +380,7 @@ Get cache statistics.
 ```
 
 **Example:**
+
 ```javascript
 const metrics = cache.getMetrics();
 console.log(`Hit rate: ${metrics.hitRate}%`);
@@ -362,6 +394,7 @@ Remove expired entries from cache.
 **Returns:** Promise<number> Number of removed entries
 
 **Example:**
+
 ```javascript
 // Periodic cleanup
 setInterval(async () => {
@@ -401,12 +434,12 @@ const status2 = await getStatus(); // Cache hit (fast!)
 ```javascript
 const cache = new GitCache({
   ttl: {
-    status: 120000,   // 2 minutes (frequent changes)
-    diff: 30000,      // 30 seconds (very frequent)
-    log: 900000,      // 15 minutes (rarely changes)
-    branch: 600000,   // 10 minutes
-    remote: 3600000   // 1 hour (stable)
-  }
+    status: 120000, // 2 minutes (frequent changes)
+    diff: 30000, // 30 seconds (very frequent)
+    log: 900000, // 15 minutes (rarely changes)
+    branch: 600000, // 10 minutes
+    remote: 3600000, // 1 hour (stable)
+  },
 });
 ```
 
@@ -479,13 +512,13 @@ console.log(metrics.size); // 10 (not 11)
 
 ### Recommended TTL Values
 
-| Operation | TTL | Rationale |
-|-----------|-----|-----------|
-| status | 5 min | Changes frequently during development |
-| diff | 1 min | Very dynamic, shows current changes |
-| log | 10 min | History rarely changes between commits |
-| branch | 10 min | Branch list stable during work |
-| remote | 1 hour | Remote config very stable |
+| Operation | TTL    | Rationale                              |
+| --------- | ------ | -------------------------------------- |
+| status    | 5 min  | Changes frequently during development  |
+| diff      | 1 min  | Very dynamic, shows current changes    |
+| log       | 10 min | History rarely changes between commits |
+| branch    | 10 min | Branch list stable during work         |
+| remote    | 1 hour | Remote config very stable              |
 
 ### Cache Hit Rate Targets
 
@@ -532,12 +565,12 @@ try {
 
 Based on typical repository with 1000 files:
 
-| Operation | Uncached | Cached | Speedup |
-|-----------|----------|--------|---------|
-| git status | 80-120ms | <5ms | 20x |
-| git diff | 150-250ms | <5ms | 40x |
-| git log (10) | 100-150ms | <5ms | 25x |
-| git branch | 50-80ms | <5ms | 15x |
+| Operation    | Uncached  | Cached | Speedup |
+| ------------ | --------- | ------ | ------- |
+| git status   | 80-120ms  | <5ms   | 20x     |
+| git diff     | 150-250ms | <5ms   | 40x     |
+| git log (10) | 100-150ms | <5ms   | 25x     |
+| git branch   | 50-80ms   | <5ms   | 15x     |
 
 ## Version History
 

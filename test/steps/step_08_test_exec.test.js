@@ -658,6 +658,27 @@ describe('Step 8: Test Execution', () => {
       expect(result.testResults.passed).toBe(10);
     });
 
+    test('[BUG FIX] accepts callable executor dependencies from the orchestrator', async () => {
+      const callableExecutor = jest.fn(async () => ({
+        exitCode: 0,
+        stdout: 'Tests: 4 passed, 4 total',
+        stderr: '',
+      }));
+      const callableStepExecutor = new Step8TestExecutor({
+        executor: callableExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: { initialize: () => Promise.resolve(false) },
+      });
+
+      const result = await callableStepExecutor.execute('/project');
+
+      expect(callableExecutor).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.testResults.passed).toBe(4);
+    });
+
     test('handles test failures', async () => {
       mockExecutor.execute = async () => {
         throw {
@@ -1261,6 +1282,20 @@ describe('Step 8: Test Execution', () => {
       const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
       const buggyMessage = warnCalls.find((m) => m === 'Step 8 completed - 0 test(s) failed');
       expect(buggyMessage).toBeUndefined();
+    });
+
+    test('surfaces execution setup errors instead of calling them silent runner crashes', async () => {
+      mockExecutor.execute = async () => {
+        throw new TypeError('this.executor.execute is not a function');
+      };
+
+      const result = await makeExecutor().execute('/project');
+
+      expect(result.success).toBe(false);
+      const warnCalls = warnSpy.mock.calls.map((c) => c[0]);
+      const relevantWarn = warnCalls.find((m) => m.includes('Step 8 blocked'));
+      expect(relevantWarn).toContain('this.executor.execute is not a function');
+      expect(relevantWarn).not.toContain('produced no output on either attempt');
     });
   });
 

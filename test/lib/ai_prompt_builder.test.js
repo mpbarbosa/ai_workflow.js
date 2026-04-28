@@ -896,6 +896,7 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
 
       expect(result).toContain('`npm test`');
       expect(result).toContain('`npm run test:coverage`');
+      expect(result).toContain('Repository-default test command');
     });
 
     test('omits command line when testCommand is empty', () => {
@@ -936,8 +937,19 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       });
 
       expect(result).toContain('test-related artifacts');
-      expect(result).toContain('Primary executable test command: `npm test`');
+      expect(result).toContain('Repository-default test command: `npm test`');
       expect(result).toContain('declarative YAML/JSON/HCL');
+    });
+
+    test('treats named test commands as context and requires unverified wording when compatibility is unclear', () => {
+      const result = buildTestReviewPrompt({
+        testFiles: ['__tests__/data/LogradouroChangeTrigger.test.ts'],
+        testFramework: 'jest',
+        testCommand: 'npm test',
+      });
+
+      expect(result).toContain('context, not proof that every listed file runs under that command');
+      expect(result).toContain('command compatibility is unverified');
     });
 
     test('requires inconclusive wording when evidence is missing or truncated', () => {
@@ -945,6 +957,9 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
 
       expect(result).toContain('unavailable or inconclusive');
       expect(result).toContain('Do not claim CI stability, performance health');
+      expect(result).toContain(
+        'do not convert missing execution-risk, CI, or mock-hygiene evidence into positive pass statements'
+      );
     });
 
     test('forbids unsupported positive summaries about mocks or performance', () => {
@@ -953,6 +968,14 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('all mocks are restored');
       expect(result).toContain('no performance issues');
       expect(result).toContain('no major anti-patterns');
+    });
+
+    test('allows before/after snippets only when grounded in visible code', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain(
+        'before/after example only when both snippets come from visible code'
+      );
     });
   });
 

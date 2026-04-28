@@ -1,7 +1,7 @@
 # Project Kind Configuration API
 
 **Module:** `lib/project_kind_config`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview

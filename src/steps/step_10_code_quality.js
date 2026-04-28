@@ -10,7 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
-import * as executor from '../core/executor.js';
+import executor, { normalizeExecutor } from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
@@ -557,7 +557,7 @@ export class Step10CodeQualityAnalyzer {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.executor = options.executor || executor;
+    this.executor = normalizeExecutor(options.executor || executor);
     this.fileOps = options.fileOps || new FileOperations();
     this.backlog = options.backlog || new Backlog();
     this.techStack = options.techStack || new TechStackDetector();

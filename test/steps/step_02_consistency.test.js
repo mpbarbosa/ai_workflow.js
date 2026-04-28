@@ -199,6 +199,24 @@ describe('Step 2: Consistency Analysis', () => {
       const content = 'No links in this content';
       expect(extractLinks(content)).toHaveLength(0);
     });
+
+    test('ignores markdown-looking links inside fenced code blocks', () => {
+      const content = ['Real [link](guide.md)', '```md', '[example](placeholder.md)', '```'].join(
+        '\n'
+      );
+
+      expect(extractLinks(content)).toEqual([
+        { text: 'link', url: 'guide.md', type: 'markdown', line: 1 },
+      ]);
+    });
+
+    test('ignores markdown-looking links inside inline code spans', () => {
+      const content = 'Use `[example](placeholder.md)` but keep [real](guide.md).';
+
+      expect(extractLinks(content)).toEqual([
+        { text: 'real', url: 'guide.md', type: 'markdown', line: 1 },
+      ]);
+    });
   });
 
   describe('isFileReference', () => {
@@ -411,9 +429,7 @@ describe('Step 2: Consistency Analysis', () => {
     });
 
     test('normalizes prompt-only repo-path hints before matching references', () => {
-      const flaggedItems = [
-        'docs/api/steps/step_02_consistency.md:396 → docs/README.md',
-      ];
+      const flaggedItems = ['docs/api/steps/step_02_consistency.md:396 → docs/README.md'];
       const aiResponse = [
         '#### Reference: docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)',
         '- **Status:** Confirmed Broken',
@@ -424,6 +440,22 @@ describe('Step 2: Consistency Analysis', () => {
         confirmed: 1,
         falsePositive: 0,
         unverified: 0,
+      });
+    });
+
+    test('downgrades confirmed statuses that rely only on visible-file-list absence', () => {
+      const flaggedItems = ['docs/README.md:155 → ./E2E_TEST_SCENARIO_MUNICIPIO_BAIRRO.md'];
+      const aiResponse = [
+        '#### Reference: docs/README.md:155 → ./E2E_TEST_SCENARIO_MUNICIPIO_BAIRRO.md',
+        '- **Status:** Confirmed Broken',
+        '- **Root Cause:** The target is not present in the visible file list for this partition.',
+      ].join('\n');
+
+      expect(summarizeBrokenLinkAssessments(flaggedItems, aiResponse)).toEqual({
+        totalCandidates: 1,
+        confirmed: 0,
+        falsePositive: 0,
+        unverified: 1,
       });
     });
   });
@@ -1113,6 +1145,26 @@ Fix: Create the file or update the link.
       const result = validateAiResponseQuality(response, flaggedItems);
       expect(result.adequate).toBe(true);
       expect(result.coverage).toBeGreaterThanOrEqual(MIN_COVERAGE_RATIO);
+    });
+
+    test('returns adequate=false for confirmed statuses justified only by partition visibility', () => {
+      const response = `
+#### Reference: docs/testing/TESTING.md:49 → ./.github/TDD_GUIDE.md
+- **Status**: Confirmed Broken
+- **Root Cause**: The target is not present in the visible file list for this partition.
+- **Recommended Fix**: Create the file or update the link.
+
+#### Reference: docs/ux/VISUAL_HIERARCHY.md:216 → ./UX_IMPROVEMENTS.md
+- **Status**: Unverified From Visible Context
+- **Root Cause**: The target does not appear in the provided context.
+      `.repeat(4);
+
+      const result = validateAiResponseQuality(response, flaggedItems, {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('ungrounded_confirmed_status');
     });
 
     test('coverage reflects partial addressing', () => {

@@ -17,6 +17,8 @@ import {
   buildUxAnalysisPrompt,
   calculateSeverityScore,
   parseUxAnalysisResult,
+  validateUxAnalysisEvidenceHandling,
+  normalizeUxAnalysisResponseForEvidence,
   formatUxAnalysisReport,
   FRAMEWORK_EXTENSIONS,
   EXCLUDED_DIRECTORIES,
@@ -490,6 +492,44 @@ describe('Step 15: UX Analysis', () => {
     });
   });
 
+  describe('validateUxAnalysisEvidenceHandling', () => {
+    test('flags filename-only fallback when visible snippets were provided', () => {
+      const response =
+        'UI/UX-related files are listed for project `guia_js`, but no UI source content is visible in the provided context. A reliable UI/UX review is unavailable from filenames alone. Review inconclusive.';
+      const result = validateUxAnalysisEvidenceHandling(response, [
+        { file: 'examples/address-converter.html', content: '<html>visible snippet</html>' },
+      ]);
+
+      expect(result.adequate).toBe(false);
+      expect(result.hasVisibleSnippetEvidence).toBe(true);
+      expect(result.reason).toContain('filename-only');
+    });
+
+    test('accepts inconclusive wording when no snippets were provided', () => {
+      const response =
+        'UI/UX-related files are listed, but no UI source content is visible in the provided context. Review inconclusive.';
+      const result = validateUxAnalysisEvidenceHandling(response, []);
+
+      expect(result.adequate).toBe(true);
+      expect(result.hasVisibleSnippetEvidence).toBe(false);
+    });
+  });
+
+  describe('normalizeUxAnalysisResponseForEvidence', () => {
+    test('rewrites contradictory filename-only fallback when snippets are visible', () => {
+      const response =
+        'UI/UX-related files are listed for project `guia_js`, but no UI source content is visible in the provided context. A reliable UI/UX review is unavailable from filenames alone. Review inconclusive.';
+      const normalized = normalizeUxAnalysisResponseForEvidence(response, {
+        adequate: false,
+        hasVisibleSnippetEvidence: true,
+      });
+
+      expect(normalized).toMatch(/Visible UI source snippets were provided/i);
+      expect(normalized).not.toContain('no UI source content is visible');
+      expect(normalized).not.toContain('filenames alone');
+    });
+  });
+
   describe('formatUxAnalysisReport', () => {
     test('formats complete report', () => {
       const data = {
@@ -794,6 +834,49 @@ describe('Step 15: UX Analysis', () => {
       expect(prompts[0]).toContain('Sample File Contents');
       expect(prompts[0]).toContain('// src/App.tsx');
       expect(prompts[0]).toContain('export function App()');
+    });
+
+    test('normalizes contradictory filename-only AI output when snippets are visible', async () => {
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        fileOps: {
+          readFile: jest
+            .fn()
+            .mockImplementation((filePath) =>
+              filePath.endsWith('package.json')
+                ? Promise.resolve(JSON.stringify({ dependencies: { express: '^4.0.0' } }))
+                : Promise.resolve('<main>visible snippet</main>')
+            ),
+        },
+        aiHelper: { initialize: () => Promise.resolve(true) },
+      });
+
+      step.discoverFiles = jest.fn().mockResolvedValue(['examples/address-converter.html']);
+      step.performAnalysis = jest
+        .fn()
+        .mockResolvedValue(
+          'UI/UX-related files are listed for project `guia_js`, but no UI source content is visible in the provided context. A reliable UI/UX review is unavailable from filenames alone. Review inconclusive.'
+        );
+
+      const result = await step.execute({ projectType: 'react_spa' });
+
+      expect(result.success).toBe(true);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('UX analysis response normalized')
+      );
+      expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
+        '15',
+        'UX_Analysis',
+        expect.stringMatching(/Visible UI source snippets were provided/i),
+        '✅'
+      );
+      expect(mockBacklog.saveStepSummary).toHaveBeenCalledWith(
+        '15',
+        'UX_Analysis',
+        expect.not.stringContaining('no UI source content is visible'),
+        '✅'
+      );
     });
 
     test('handles errors gracefully', async () => {

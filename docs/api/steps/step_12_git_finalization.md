@@ -1,7 +1,7 @@
 # step_12_git_finalization.js API Documentation
 
 **Module:** `steps/step_12_git_finalization`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview
@@ -83,10 +83,10 @@ File change categorization by extension with priority weights:
 ```javascript
 export const CHANGE_CATEGORIES = {
   documentation: { pattern: /\.(md|txt|rst|adoc)$/i, weight: 1 },
-  tests:         { pattern: /\.(test|spec|tests)\.(js|ts|py|go|java|rb|php)$/i, weight: 3 },
-  scripts:       { pattern: /\.(sh|bash|zsh|ps1|cmd|bat)$/i, weight: 2 },
-  code:          { pattern: /\.(js|ts|py|go|java|rb|php|c|cpp|rs|swift|kt)$/i, weight: 5 },
-  config:        { pattern: /\.(json|yaml|yml|toml|ini|xml|conf|config)$/i, weight: 1 },
+  tests: { pattern: /\.(test|spec|tests)\.(js|ts|py|go|java|rb|php)$/i, weight: 3 },
+  scripts: { pattern: /\.(sh|bash|zsh|ps1|cmd|bat)$/i, weight: 2 },
+  code: { pattern: /\.(js|ts|py|go|java|rb|php|c|cpp|rs|swift|kt)$/i, weight: 5 },
+  config: { pattern: /\.(json|yaml|yml|toml|ini|xml|conf|config)$/i, weight: 1 },
 };
 ```
 
@@ -96,16 +96,16 @@ Standard git commands used internally:
 
 ```javascript
 export const GIT_OPERATIONS = {
-  status:         'git status --porcelain',
-  statusShort:    'git status --short',
-  diff:           'git diff --stat',
-  diffSummary:    'git diff --shortstat',
-  log:            'git log --oneline -n 10',
-  commitsAhead:   'git rev-list --count @{u}..HEAD',
-  commitsBehind:  'git rev-list --count HEAD..@{u}',
-  currentBranch:  'git branch --show-current',
-  hasSubmodules:  'git config --file .gitmodules --list',
-  submoduleStatus:'git submodule status',
+  status: 'git status --porcelain',
+  statusShort: 'git status --short',
+  diff: 'git diff --stat',
+  diffSummary: 'git diff --shortstat',
+  log: 'git log --oneline -n 10',
+  commitsAhead: 'git rev-list --count @{u}..HEAD',
+  commitsBehind: 'git rev-list --count HEAD..@{u}',
+  currentBranch: 'git branch --show-current',
+  hasSubmodules: 'git config --file .gitmodules --list',
+  submoduleStatus: 'git submodule status',
 };
 ```
 
@@ -186,7 +186,11 @@ Build a conventional commit message string.
 **Example:**
 
 ```javascript
-const msg = generateCommitMessage('feat', 'add version update step', 'Implements SemVer bump logic');
+const msg = generateCommitMessage(
+  'feat',
+  'add version update step',
+  'Implements SemVer bump logic'
+);
 // 'feat: add version update step\n\nImplements SemVer bump logic'
 ```
 
@@ -199,7 +203,7 @@ Impure wrapper class that coordinates git finalization with I/O, AI, and git ope
 **Constructor:**
 
 ```javascript
-constructor(options = {});
+constructor((options = {}));
 ```
 
 **Options:**

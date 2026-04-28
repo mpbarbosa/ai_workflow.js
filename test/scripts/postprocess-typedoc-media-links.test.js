@@ -50,6 +50,15 @@ describe('postprocess-typedoc-media-links.js', () => {
       filePath: '/mock/dirname/../docs/api/html/media/PREPARE_RELEASE.md',
       replacements: [['(../../CHANGELOG.md)', '(../../../../CHANGELOG.md)']],
     },
+    {
+      filePath: '/mock/dirname/../docs/api/html/media/MIGRATION_PLAN.md',
+      replacements: [
+        ['(../../guides/MIGRATION_GUIDE.md)', '(../../../guides/MIGRATION_GUIDE.md)'],
+        ['(../../WORKFLOW_ENGINE_REQUIREMENTS.md)', '(../../../WORKFLOW_ENGINE_REQUIREMENTS.md)'],
+        ['(../../ARCHITECTURE.md)', '(../../../ARCHITECTURE.md)'],
+        ['(../../README.md)', '(../../../README.md)'],
+      ],
+    },
   ];
 
   let logSpy;
@@ -70,12 +79,20 @@ describe('postprocess-typedoc-media-links.js', () => {
         return 'Some text (docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text';
       if (filePath === rewrites[1].filePath) return 'Link: (../../.ai_workflow/)';
       if (filePath === rewrites[2].filePath) return 'See (../../CHANGELOG.md)';
+      if (filePath === rewrites[3].filePath) {
+        return [
+          '(../../guides/MIGRATION_GUIDE.md)',
+          '(../../WORKFLOW_ENGINE_REQUIREMENTS.md)',
+          '(../../ARCHITECTURE.md)',
+          '(../../README.md)',
+        ].join('\n');
+      }
       return '';
     });
 
     postprocessTypedocMediaLinks();
 
-    expect(mockWriteFileSync).toHaveBeenCalledTimes(3);
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(4);
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       rewrites[0].filePath,
       'Some text (../../../reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text',
@@ -91,8 +108,18 @@ describe('postprocess-typedoc-media-links.js', () => {
       'See (../../../../CHANGELOG.md)',
       'utf-8'
     );
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      rewrites[3].filePath,
+      [
+        '(../../../guides/MIGRATION_GUIDE.md)',
+        '(../../../WORKFLOW_ENGINE_REQUIREMENTS.md)',
+        '(../../../ARCHITECTURE.md)',
+        '(../../../README.md)',
+      ].join('\n'),
+      'utf-8'
+    );
     expect(logSpy).toHaveBeenCalledWith(
-      'TypeDoc media link post-processing complete (3 file(s) updated).'
+      'TypeDoc media link post-processing complete (4 file(s) updated).'
     );
   });
 
@@ -103,14 +130,15 @@ describe('postprocess-typedoc-media-links.js', () => {
         return 'Some text (docs/reports/bugfixes/BUGFIX_WORKFLOWDIR_RESOLUTION_2026_02_21.md) more text';
       }
       if (filePath === rewrites[2].filePath) return 'See (../../CHANGELOG.md)';
+      if (filePath === rewrites[3].filePath) return '(../../README.md)';
       return '';
     });
 
     postprocessTypedocMediaLinks();
 
-    expect(mockWriteFileSync).toHaveBeenCalledTimes(2);
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(3);
     expect(logSpy).toHaveBeenCalledWith(
-      'TypeDoc media link post-processing complete (2 file(s) updated).'
+      'TypeDoc media link post-processing complete (3 file(s) updated).'
     );
   });
 

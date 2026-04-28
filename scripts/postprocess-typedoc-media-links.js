@@ -44,6 +44,15 @@ const rewrites = [
       ['(../../scripts/README.md)', '(../../../../scripts/README.md)'],
     ],
   },
+  {
+    filePath: join(projectRoot, 'docs/api/html/media/MIGRATION_PLAN.md'),
+    replacements: [
+      ['(../../guides/MIGRATION_GUIDE.md)', '(../../../guides/MIGRATION_GUIDE.md)'],
+      ['(../../WORKFLOW_ENGINE_REQUIREMENTS.md)', '(../../../WORKFLOW_ENGINE_REQUIREMENTS.md)'],
+      ['(../../ARCHITECTURE.md)', '(../../../ARCHITECTURE.md)'],
+      ['(../../README.md)', '(../../../README.md)'],
+    ],
+  },
 ];
 
 export function postprocessTypedocMediaLinks() {

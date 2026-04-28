@@ -1,7 +1,7 @@
 # step1_incremental — Step 1 Incremental Processing
 
 **Module:** `src/lib/step1_incremental.js`
-**Version:** v2.0.0
+**Version:** v2.2.16
 **Phase:** 8 (Performance Optimization)
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
@@ -58,9 +58,9 @@ Default configuration for the incremental processor:
 
 ```javascript
 export const DEFAULT_CONFIG = {
-  cacheFile:      '.ai_workflow/.incremental_cache/step1_docs.json',
-  hashAlgorithm:  'sha256',
-  encoding:       'hex',
+  cacheFile: '.ai_workflow/.incremental_cache/step1_docs.json',
+  hashAlgorithm: 'sha256',
+  encoding: 'hex',
   ignorePatterns: [
     '**/node_modules/**',
     '**/.git/**',
@@ -77,14 +77,14 @@ Documentation file category identifiers:
 
 ```javascript
 export const DOC_CATEGORIES = {
-  README:       'readme',
-  API:          'api',
-  GUIDE:        'guide',
-  REFERENCE:    'reference',
-  CHANGELOG:    'changelog',
+  README: 'readme',
+  API: 'api',
+  GUIDE: 'guide',
+  REFERENCE: 'reference',
+  CHANGELOG: 'changelog',
   CONTRIBUTING: 'contributing',
-  LICENSE:      'license',
-  OTHER:        'other',
+  LICENSE: 'license',
+  OTHER: 'other',
 };
 ```
 
@@ -122,13 +122,13 @@ Classify a documentation file path into a `DOC_CATEGORIES` value.
 **Example:**
 
 ```javascript
-categorizeFile('README.md');             // 'readme'
-categorizeFile('docs/api/config.md');    // 'api'
-categorizeFile('docs/guides/setup.md');  // 'guide'
-categorizeFile('CHANGELOG.md');          // 'changelog'
-categorizeFile('CONTRIBUTING.md');       // 'contributing'
-categorizeFile('LICENSE');               // 'license'
-categorizeFile('docs/misc/notes.md');    // 'other'
+categorizeFile('README.md'); // 'readme'
+categorizeFile('docs/api/config.md'); // 'api'
+categorizeFile('docs/guides/setup.md'); // 'guide'
+categorizeFile('CHANGELOG.md'); // 'changelog'
+categorizeFile('CONTRIBUTING.md'); // 'contributing'
+categorizeFile('LICENSE'); // 'license'
+categorizeFile('docs/misc/notes.md'); // 'other'
 ```
 
 ### `filterChangedFiles(files, cachedHashes, currentHashes)`
@@ -187,7 +187,7 @@ Impure wrapper that reads/writes the hash cache and coordinates incremental vali
 **Constructor:**
 
 ```javascript
-constructor(options = {});
+constructor((options = {}));
 ```
 
 **Options:**
@@ -257,10 +257,7 @@ Persist the updated hash cache to disk.
 ```javascript
 const processor = new Step1IncrementalProcessor();
 
-const docFiles = [
-  'README.md', 'CONTRIBUTING.md',
-  'docs/api/config.md', 'docs/guides/setup.md'
-];
+const docFiles = ['README.md', 'CONTRIBUTING.md', 'docs/api/config.md', 'docs/guides/setup.md'];
 
 const result = await processor.process(docFiles, async (file) => {
   const content = await fs.readFile(file, 'utf8');
@@ -282,7 +279,7 @@ const result = await processor.process(docFiles, validateFn, { force: true });
 
 ```javascript
 const processor = new Step1IncrementalProcessor({
-  config: { cacheFile: '.my_cache/docs.json' }
+  config: { cacheFile: '.my_cache/docs.json' },
 });
 ```
 

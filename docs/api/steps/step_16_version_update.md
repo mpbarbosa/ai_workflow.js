@@ -1,7 +1,7 @@
 # step_16_version_update.js API Documentation
 
 **Module:** `steps/step_16_version_update`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview
@@ -105,9 +105,9 @@ Thresholds used to infer bump type from diff statistics:
 
 ```javascript
 export const HEURISTIC_THRESHOLDS = Object.freeze({
-  majorDeletions:    500,  // lines deleted → major bump
-  majorModifiedFiles: 20,  // files changed → major bump
-  minorInsertions:   100,  // lines inserted → minor bump
+  majorDeletions: 500, // lines deleted → major bump
+  majorModifiedFiles: 20, // files changed → major bump
+  minorInsertions: 100, // lines inserted → minor bump
 });
 ```
 
@@ -126,9 +126,9 @@ Extract the first semantic version string from any input string.
 **Example:**
 
 ```javascript
-extractVersion('version: "1.4.2"');  // '1.4.2'
-extractVersion('no version here');   // null
-extractVersion('v2.0.0-beta.1');     // '2.0.0-beta.1'
+extractVersion('version: "1.4.2"'); // '1.4.2'
+extractVersion('no version here'); // null
+extractVersion('v2.0.0-beta.1'); // '2.0.0-beta.1'
 ```
 
 #### `parseVersion(version)`
@@ -239,7 +239,7 @@ Impure wrapper class coordinating version detection, bump, file updates, and val
 **Constructor:**
 
 ```javascript
-constructor(options = {});
+constructor((options = {}));
 ```
 
 **Options:**

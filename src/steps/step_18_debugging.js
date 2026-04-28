@@ -73,6 +73,81 @@ export function detectDebugPersona(fileContents) {
 }
 
 /**
+ * Score a file path for Step 18 debugging analysis relevance.
+ *
+ * Higher scores indicate likely runtime/source files; lower scores indicate
+ * tests, examples, tooling, or generated content that should not dominate the
+ * limited prompt window.
+ *
+ * @param {string} filePath
+ * @returns {number}
+ */
+export function scoreDebugSourceFile(filePath) {
+  const normalized = typeof filePath === 'string' ? filePath.replace(/\\/g, '/').toLowerCase() : '';
+  let score = 0;
+
+  if (/^src\//.test(normalized)) score += 500;
+  else if (/^(app|lib|core|server|client|web|public)\//.test(normalized)) score += 350;
+  else if (/(^|\/)(src|app|lib|core|server|client|web|public)\//.test(normalized)) score += 250;
+
+  if (/(^|\/)(main|app|index|service-worker)\.(js|ts)$/.test(normalized)) score += 75;
+
+  if (
+    /(^|\/)(tests?|__tests__|__mocks__|fixtures?|examples?|demos?|docs?|coverage|dist|build|node_modules|venv|\.venv|site-packages)(\/|$)/.test(
+      normalized
+    )
+  ) {
+    score -= 500;
+  }
+
+  if (/(^|\/)(\.github|scripts?)(\/|$)/.test(normalized)) score -= 225;
+
+  if (
+    /(^|\/)(eslint|jest|vitest|vite|webpack|rollup|babel|postcss|tailwind|typedoc|tsconfig)(\.config)?(\.[^./]+)*\.(js|ts|cjs|mjs|json)$/.test(
+      normalized
+    )
+  ) {
+    score -= 200;
+  }
+
+  return score;
+}
+
+/**
+ * Determine whether a path is outside the intended runtime/source scope for
+ * Step 18 debugging analysis.
+ *
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+export function isExcludedDebugSourcePath(filePath) {
+  const normalized = typeof filePath === 'string' ? filePath.replace(/\\/g, '/').toLowerCase() : '';
+  return /(^|\/)(tests?|__tests__|__mocks__|fixtures?|examples?|demos?|docs?|coverage|dist|build|node_modules|venv|\.venv|site-packages)(\/|$)/.test(
+    normalized
+  );
+}
+
+/**
+ * Reorder discovered files so runtime source paths are sampled before tests,
+ * examples, and tooling files.
+ *
+ * @param {string[]} filePaths
+ * @returns {string[]}
+ */
+export function prioritizeDebugSourceFiles(filePaths) {
+  const files = Array.isArray(filePaths) ? filePaths : [];
+
+  return files
+    .map((filePath, index) => ({
+      filePath,
+      index,
+      score: scoreDebugSourceFile(filePath),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.filePath);
+}
+
+/**
  * Format the debugging analysis report in Markdown.
  *
  * @param {Object} params
@@ -372,7 +447,12 @@ export class Step18Debugging {
       'build',
       'coverage',
       'test',
+      'tests',
       '__tests__',
+      '__mocks__',
+      'examples',
+      'venv',
+      '.venv',
       'docs',
     ];
     const found = [];
@@ -387,6 +467,8 @@ export class Step18Debugging {
         // Pattern not supported — skip
       }
     }
-    return [...new Set(found)].slice(0, 100);
+    return prioritizeDebugSourceFiles(
+      [...new Set(found)].filter((filePath) => !isExcludedDebugSourcePath(filePath))
+    ).slice(0, 100);
   }
 }

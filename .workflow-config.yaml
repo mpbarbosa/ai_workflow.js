@@ -68,7 +68,7 @@ workflow:
       description: 'Validate and update documentation'
       enabled: true
       dependencies:
-        - step_00
+        - step_0b
 
     - id: step_01_5
       name: 'Copilot Instructions Validation'
@@ -243,6 +243,8 @@ workflow:
       description: 'Generate workflow summary report'
       enabled: true
       dependencies:
+        - step_03
+        - step_11_6
         - step_20
         - step_23
 

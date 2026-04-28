@@ -1,7 +1,7 @@
 # ai_helpers
 
 **Module:** `src/lib/ai_helpers.js`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Impure wrapper
 
 Core AI integration for GitHub Copilot SDK interaction, request orchestration, and response processing.
@@ -34,12 +34,7 @@ The `ai_helpers` module provides the primary interface for interacting with GitH
 ## Installation
 
 ```javascript
-import {
-  AiHelper,
-  parseAiResponse,
-  calculateRetryDelay,
-  shouldRetry
-} from './lib/ai_helpers.js';
+import { AiHelper, parseAiResponse, calculateRetryDelay, shouldRetry } from './lib/ai_helpers.js';
 ```
 
 ---
@@ -51,6 +46,7 @@ import {
 Parse raw AI response into structured data.
 
 **Signature:**
+
 ```javascript
 function parseAiResponse(rawResponse: string | Object): {
   content: string,
@@ -62,14 +58,17 @@ function parseAiResponse(rawResponse: string | Object): {
 ```
 
 **Parameters:**
+
 - `rawResponse` (string | Object): Raw response from AI (string or SDK response object)
 
 **Returns:**
+
 - (Object): Structured response with content, metadata, confidence, and success flag
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 // String response
 const parsed = parseAiResponse('Hello, world!');
@@ -85,7 +84,7 @@ const sdkResponse = {
   content: 'Detailed response...',
   model: 'gpt-4',
   tokens: 150,
-  finish_reason: 'stop'
+  finish_reason: 'stop',
 };
 
 const parsed2 = parseAiResponse(sdkResponse);
@@ -118,6 +117,7 @@ const empty = parseAiResponse('');
 Parse error response and categorize error type.
 
 **Signature:**
+
 ```javascript
 function parseErrorResponse(error: Error | Object): {
   message: string,
@@ -128,14 +128,17 @@ function parseErrorResponse(error: Error | Object): {
 ```
 
 **Parameters:**
+
 - `error` (Error | Object): Error object from AI SDK
 
 **Returns:**
+
 - (Object): Parsed error with message, type, retryability, and details
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const error = new Error('Rate limit exceeded');
 error.statusCode = 429;
@@ -167,6 +170,7 @@ const parsed2 = parseErrorResponse(authError);
 Format multiple requests for batch processing.
 
 **Signature:**
+
 ```javascript
 function formatBatchRequests(requests: Array<{
   prompt: string,
@@ -175,19 +179,22 @@ function formatBatchRequests(requests: Array<{
 ```
 
 **Parameters:**
+
 - `requests` (Array): Array of request objects with prompt and options
 
 **Returns:**
+
 - (Array): Formatted batch requests ready for SDK
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const requests = [
   { prompt: 'Analyze file1.js', options: { temperature: 0.5 } },
   { prompt: 'Analyze file2.js', options: { temperature: 0.5 } },
-  { prompt: 'Analyze file3.js', options: { temperature: 0.5 } }
+  { prompt: 'Analyze file3.js', options: { temperature: 0.5 } },
 ];
 
 const batch = formatBatchRequests(requests);
@@ -205,6 +212,7 @@ const batch = formatBatchRequests(requests);
 Calculate exponential backoff delay for retries.
 
 **Signature:**
+
 ```javascript
 function calculateRetryDelay(
   attempt: number,
@@ -214,26 +222,29 @@ function calculateRetryDelay(
 ```
 
 **Parameters:**
+
 - `attempt` (number): Retry attempt number (1-based)
 - `baseDelay` (number, optional): Base delay in ms (default: 1000)
 - `maxDelay` (number, optional): Maximum delay in ms (default: 30000)
 
 **Returns:**
+
 - (number): Delay in milliseconds (capped at maxDelay)
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
-calculateRetryDelay(1);  // 1000 ms (1 second)
-calculateRetryDelay(2);  // 2000 ms (2 seconds)
-calculateRetryDelay(3);  // 4000 ms (4 seconds)
-calculateRetryDelay(4);  // 8000 ms (8 seconds)
-calculateRetryDelay(5);  // 16000 ms (16 seconds)
+calculateRetryDelay(1); // 1000 ms (1 second)
+calculateRetryDelay(2); // 2000 ms (2 seconds)
+calculateRetryDelay(3); // 4000 ms (4 seconds)
+calculateRetryDelay(4); // 8000 ms (8 seconds)
+calculateRetryDelay(5); // 16000 ms (16 seconds)
 calculateRetryDelay(10); // 30000 ms (capped at maxDelay)
 
 // Custom base and max
-calculateRetryDelay(3, 500, 5000);  // 2000 ms
+calculateRetryDelay(3, 500, 5000); // 2000 ms
 calculateRetryDelay(10, 500, 5000); // 5000 ms (capped)
 ```
 
@@ -244,6 +255,7 @@ calculateRetryDelay(10, 500, 5000); // 5000 ms (capped)
 Determine if request should be retried based on error and attempt count.
 
 **Signature:**
+
 ```javascript
 function shouldRetry(
   errorInfo: {
@@ -256,24 +268,27 @@ function shouldRetry(
 ```
 
 **Parameters:**
+
 - `errorInfo` (Object): Parsed error from `parseErrorResponse`
 - `attemptCount` (number): Current attempt count
 - `maxAttempts` (number, optional): Maximum retry attempts (default: 3)
 
 **Returns:**
+
 - (boolean): True if should retry, false otherwise
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const rateLimitError = { type: 'rate_limit', retryable: true };
-shouldRetry(rateLimitError, 1, 3);  // true
-shouldRetry(rateLimitError, 3, 3);  // true
-shouldRetry(rateLimitError, 4, 3);  // false (max attempts exceeded)
+shouldRetry(rateLimitError, 1, 3); // true
+shouldRetry(rateLimitError, 3, 3); // true
+shouldRetry(rateLimitError, 4, 3); // false (max attempts exceeded)
 
 const authError = { type: 'auth', retryable: false };
-shouldRetry(authError, 1, 3);  // false (non-retryable)
+shouldRetry(authError, 1, 3); // false (non-retryable)
 ```
 
 ---
@@ -283,30 +298,34 @@ shouldRetry(authError, 1, 3);  // false (non-retryable)
 Merge user options with defaults.
 
 **Signature:**
+
 ```javascript
 function mergeRequestOptions(options?: Object, defaults?: Object): Object
 ```
 
 **Parameters:**
+
 - `options` (Object, optional): User-provided options (default: {})
 - `defaults` (Object, optional): Default options (default: {})
 
 **Returns:**
+
 - (Object): Merged options (user options override defaults)
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const defaults = {
   temperature: 0.7,
   maxTokens: 2000,
-  model: 'gpt-4'
+  model: 'gpt-4',
 };
 
 const userOptions = {
   temperature: 0.5,
-  topP: 0.9
+  topP: 0.9,
 };
 
 const merged = mergeRequestOptions(userOptions, defaults);
@@ -327,6 +346,7 @@ const merged = mergeRequestOptions(userOptions, defaults);
 High-level AI helper with SDK integration.
 
 **Constructor:**
+
 ```javascript
 new AiHelper(options?: {
   apiKey?: string,
@@ -340,6 +360,7 @@ new AiHelper(options?: {
 ```
 
 **Options:**
+
 - `apiKey` (string, optional): GitHub Copilot API key (or from env)
 - `model` (string, optional): AI model name (default: 'gpt-4')
 - `temperature` (number, optional): Temperature 0-1 (default: 0.7)
@@ -359,6 +380,7 @@ new AiHelper(options?: {
 Make AI request with automatic retries and caching.
 
 **Signature:**
+
 ```javascript
 async request(prompt: string, options?: {
   persona?: string,
@@ -375,22 +397,25 @@ async request(prompt: string, options?: {
 ```
 
 **Parameters:**
+
 - `prompt` (string): AI prompt text
 - `options` (Object, optional): Request options
 
 **Returns:**
+
 - (Promise): Parsed AI response with caching info
 
 **Side Effects:** Network request (if cache miss), cache write/read, logging
 
 **Example:**
+
 ```javascript
 const helper = new AiHelper({ apiKey: process.env.COPILOT_API_KEY });
 
 const response = await helper.request('Analyze this code...', {
   persona: 'code_reviewer',
   temperature: 0.5,
-  useCache: true
+  useCache: true,
 });
 
 console.log(`Response: ${response.content}`);
@@ -405,6 +430,7 @@ console.log(`From cache: ${response.cached}`);
 Make multiple AI requests in parallel.
 
 **Signature:**
+
 ```javascript
 async batchRequest(requests: Array<{
   prompt: string,
@@ -418,21 +444,24 @@ async batchRequest(requests: Array<{
 ```
 
 **Parameters:**
+
 - `requests` (Array): Array of request objects
 
 **Returns:**
+
 - (Promise<Array>): Array of responses (same order as requests)
 
 **Side Effects:** Multiple network requests, cache operations, logging
 
 **Example:**
+
 ```javascript
 const helper = new AiHelper();
 
 const requests = [
   { prompt: 'Analyze file1.js', options: { persona: 'code_reviewer' } },
   { prompt: 'Analyze file2.js', options: { persona: 'code_reviewer' } },
-  { prompt: 'Analyze file3.js', options: { persona: 'code_reviewer' } }
+  { prompt: 'Analyze file3.js', options: { persona: 'code_reviewer' } },
 ];
 
 const responses = await helper.batchRequest(requests);
@@ -449,6 +478,7 @@ responses.forEach((response, index) => {
 Validate AI response and determine if retry is needed.
 
 **Signature:**
+
 ```javascript
 validateResponse(response: Object): {
   valid: boolean,
@@ -458,14 +488,17 @@ validateResponse(response: Object): {
 ```
 
 **Parameters:**
+
 - `response` (Object): Parsed AI response
 
 **Returns:**
+
 - (Object): Validation result with retry recommendation
 
 **Side Effects:** None (uses validation module)
 
 **Example:**
+
 ```javascript
 const helper = new AiHelper();
 const response = await helper.request('prompt...');
@@ -494,7 +527,7 @@ import { AiHelper } from './lib/ai_helpers.js';
 const helper = new AiHelper({
   apiKey: process.env.COPILOT_API_KEY,
   model: 'gpt-4',
-  temperature: 0.7
+  temperature: 0.7,
 });
 
 const response = await helper.request('Write unit tests for this function...');
@@ -515,7 +548,7 @@ await cache.init();
 
 const helper = new AiHelper({
   cache,
-  apiKey: process.env.COPILOT_API_KEY
+  apiKey: process.env.COPILOT_API_KEY,
 });
 
 // First request (cache miss)
@@ -538,9 +571,9 @@ const helper = new AiHelper();
 
 const files = ['file1.js', 'file2.js', 'file3.js'];
 
-const requests = files.map(file => ({
+const requests = files.map((file) => ({
   prompt: `Analyze ${file} for code quality issues`,
-  options: { persona: 'code_reviewer' }
+  options: { persona: 'code_reviewer' },
 }));
 
 const responses = await helper.batchRequest(requests);
@@ -576,7 +609,7 @@ async function requestWithRetry(prompt, maxAttempts = 5) {
 
       const delay = calculateRetryDelay(attempt);
       console.log(`Retry ${attempt} after ${delay}ms: ${errorInfo.message}`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 }
@@ -596,19 +629,19 @@ const helper = new AiHelper();
 // Documentation expert persona
 const docResponse = await helper.request('Review API documentation', {
   persona: 'documentation_expert',
-  temperature: 0.5
+  temperature: 0.5,
 });
 
 // Test engineer persona
 const testResponse = await helper.request('Review test coverage', {
   persona: 'test_engineer',
-  temperature: 0.3
+  temperature: 0.3,
 });
 
 // Security expert persona
 const secResponse = await helper.request('Audit for vulnerabilities', {
   persona: 'security_expert',
-  temperature: 0.2
+  temperature: 0.2,
 });
 ```
 
@@ -644,12 +677,12 @@ import { AiHelper, mergeRequestOptions } from './lib/ai_helpers.js';
 const defaults = {
   temperature: 0.7,
   maxTokens: 2000,
-  model: 'gpt-4'
+  model: 'gpt-4',
 };
 
 const userOptions = {
   temperature: 0.5,
-  topP: 0.9
+  topP: 0.9,
 };
 
 const options = mergeRequestOptions(userOptions, defaults);
@@ -682,6 +715,7 @@ npm install @github/copilot-sdk
 ### API Key
 
 Set the API key via:
+
 1. Constructor option: `new AiHelper({ apiKey: 'key' })`
 2. Environment variable: `COPILOT_API_KEY`
 
@@ -694,6 +728,7 @@ Set the API key via:
 ### Confidence Scoring
 
 Confidence is calculated based on:
+
 - Response length (longer = higher confidence)
 - Content quality indicators
 - Absence of "I don't know" patterns

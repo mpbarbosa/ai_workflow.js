@@ -260,7 +260,7 @@ describe('Step 7: Test Generation', () => {
   // ========================================================================
 
   describe('formatTestGenerationReport', () => {
-    test('formats report with 100% coverage', () => {
+    test('formats report with complete test file inventory', () => {
       const results = {
         totalSourceFiles: 10,
         totalTestFiles: 10,
@@ -273,11 +273,12 @@ describe('Step 7: Test Generation', () => {
 
       expect(report).toContain('Test Generation Report');
       expect(report).toContain('**Total Source Files**: 10');
-      expect(report).toContain('**Test Coverage**: 100%');
-      expect(report).toContain('Excellent Coverage');
+      expect(report).toContain('**Matched Source Files**: 10/10');
+      expect(report).toContain('Inventory Type');
+      expect(report).toContain('Test File Inventory Complete');
     });
 
-    test('formats report with good coverage', () => {
+    test('formats report with inventory gaps when files are untested', () => {
       const results = {
         totalSourceFiles: 10,
         totalTestFiles: 9,
@@ -288,38 +289,8 @@ describe('Step 7: Test Generation', () => {
 
       const report = formatTestGenerationReport(results);
 
-      expect(report).toContain('Good Coverage');
-      expect(report).toContain('90%');
-    });
-
-    test('formats report with moderate coverage', () => {
-      const results = {
-        totalSourceFiles: 10,
-        totalTestFiles: 6,
-        untestedFiles: ['src/a.js', 'src/b.js', 'src/c.js', 'src/d.js'],
-        coveragePercentage: 60,
-        categories: {},
-      };
-
-      const report = formatTestGenerationReport(results);
-
-      expect(report).toContain('Moderate Coverage');
-      expect(report).toContain('60%');
-    });
-
-    test('formats report with low coverage', () => {
-      const results = {
-        totalSourceFiles: 10,
-        totalTestFiles: 2,
-        untestedFiles: Array(8).fill('src/file.js'),
-        coveragePercentage: 20,
-        categories: {},
-      };
-
-      const report = formatTestGenerationReport(results);
-
-      expect(report).toContain('Low Coverage');
-      expect(report).toContain('20%');
+      expect(report).toContain('Test File Inventory Gaps');
+      expect(report).toContain('1 of 10 discovered source file(s)');
     });
 
     test('includes recommendations for untested files', () => {
@@ -335,6 +306,9 @@ describe('Step 7: Test Generation', () => {
 
       expect(report).toContain('Recommendations');
       expect(report).toContain('Prioritize testing');
+      expect(report).toContain(
+        'Confirm measured coverage with the real test runner coverage report'
+      );
     });
 
     test('truncates long untested lists', () => {

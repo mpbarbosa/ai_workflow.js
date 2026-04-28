@@ -7,7 +7,7 @@
 The Change Detection module provides smart file categorization and impact analysis to optimize workflow execution. It determines which workflow steps to run based on what changed, enabling efficient CI/CD pipelines.
 
 **Module:** `lib/change_detection`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -39,21 +39,24 @@ This module follows the v2.0.0 architecture pattern:
 Categorize a single file based on path and extension.
 
 **Parameters:**
+
 - `filePath` (string): File path to categorize
 - `projectKind` (string): Project type context (default: 'generic')
 
 **Returns:** String category: 'code', 'test', 'docs', 'config', 'asset', 'unknown'
 
 **Example:**
+
 ```javascript
-categorizeFile('src/app.js');           // 'code'
-categorizeFile('test/app.test.js');     // 'test'
-categorizeFile('README.md');            // 'docs'
-categorizeFile('package.json');         // 'config'
-categorizeFile('logo.png');             // 'asset'
+categorizeFile('src/app.js'); // 'code'
+categorizeFile('test/app.test.js'); // 'test'
+categorizeFile('README.md'); // 'docs'
+categorizeFile('package.json'); // 'config'
+categorizeFile('logo.png'); // 'asset'
 ```
 
 **Category Rules:**
+
 - **test**: Contains `.test.`, `.spec.`, `__tests__`, or in `test/` directory
 - **docs**: `.md` extension or in `docs/` directory
 - **config**: `.yaml`, `.json`, `.toml`, or starts with `.`
@@ -65,9 +68,11 @@ categorizeFile('logo.png');             // 'asset'
 Analyze changes across multiple files.
 
 **Parameters:**
+
 - `files` (Array<Object>): File change objects with `file` and `status` properties
 
 **Returns:** Object with categories, impact, summary
+
 ```javascript
 {
   categories: {
@@ -84,15 +89,16 @@ Analyze changes across multiple files.
 ```
 
 **Example:**
+
 ```javascript
 const files = [
   { file: 'src/app.js', status: 'modified' },
   { file: 'test/app.test.js', status: 'added' },
-  { file: 'README.md', status: 'modified' }
+  { file: 'README.md', status: 'modified' },
 ];
 
 const analysis = analyzeChanges(files);
-console.log(analysis.impact);  // 'medium'
+console.log(analysis.impact); // 'medium'
 console.log(analysis.summary); // '1 code file, 1 test file, 1 doc changed'
 ```
 
@@ -101,20 +107,23 @@ console.log(analysis.summary); // '1 code file, 1 test file, 1 doc changed'
 Calculate overall impact level from categorized changes.
 
 **Parameters:**
+
 - `categories` (Object): Categorized file changes
 
 **Returns:** String impact level: 'high', 'medium', 'low', 'none'
 
 **Impact Rules:**
+
 - **high**: >5 code files or >3 config files
 - **medium**: Any code changes or >3 tests with config changes
 - **low**: Only tests, docs, or assets
 - **none**: No changes
 
 **Example:**
+
 ```javascript
 calculateChangeImpact({ code: ['a.js', 'b.js'] }); // 'medium'
-calculateChangeImpact({ docs: ['README.md'] });    // 'low'
+calculateChangeImpact({ docs: ['README.md'] }); // 'low'
 calculateChangeImpact({ code: Array(10).fill('x') }); // 'high'
 ```
 
@@ -123,21 +132,24 @@ calculateChangeImpact({ code: Array(10).fill('x') }); // 'high'
 Detect change type from diff content.
 
 **Parameters:**
+
 - `diff` (string): Git diff output
 
 **Returns:** String change type: 'feature', 'bugfix', 'refactor', 'chore'
 
 **Detection Rules:**
+
 - **refactor**: Contains 'refactor:' or function renames
 - **feature**: New functions/classes or 'feat:' prefix
 - **bugfix**: Contains 'fix:', 'bug', 'fixed'
 - **chore**: Default for unclear changes
 
 **Example:**
+
 ```javascript
-detectChangeType('feat: add new feature');      // 'feature'
-detectChangeType('fix: resolve null pointer');  // 'bugfix'
-detectChangeType('refactor: simplify logic');   // 'refactor'
+detectChangeType('feat: add new feature'); // 'feature'
+detectChangeType('fix: resolve null pointer'); // 'bugfix'
+detectChangeType('refactor: simplify logic'); // 'refactor'
 ```
 
 ### filterByCategory(files, category)
@@ -145,12 +157,14 @@ detectChangeType('refactor: simplify logic');   // 'refactor'
 Filter files by specific category.
 
 **Parameters:**
+
 - `files` (Array<string>): File paths
 - `category` (string): Category to filter by
 
 **Returns:** Array of matching files
 
 **Example:**
+
 ```javascript
 const files = ['src/app.js', 'test/app.test.js', 'README.md'];
 filterByCategory(files, 'code'); // ['src/app.js']
@@ -162,11 +176,13 @@ filterByCategory(files, 'test'); // ['test/app.test.js']
 Group files by parent directory.
 
 **Parameters:**
+
 - `files` (Array<string>): File paths
 
 **Returns:** Object with directory keys and file arrays
 
 **Example:**
+
 ```javascript
 const files = ['src/app.js', 'src/utils.js', 'test/app.test.js'];
 const grouped = groupByDirectory(files);
@@ -181,9 +197,11 @@ const grouped = groupByDirectory(files);
 Calculate test coverage impact from code changes.
 
 **Parameters:**
+
 - `changes` (Object): Categorized changes
 
 **Returns:** Object with affected files and confidence
+
 ```javascript
 {
   affected: ['src/app.js', 'src/utils.js'],
@@ -192,15 +210,17 @@ Calculate test coverage impact from code changes.
 ```
 
 **Confidence Calculation:**
+
 - Ratio of test files to code files
 - 1.0 = Equal or more tests than code
 - 0.0 = No tests for code changes
 
 **Example:**
+
 ```javascript
 calculateCoverageImpact({
   code: ['app.js', 'utils.js'],
-  test: ['app.test.js']
+  test: ['app.test.js'],
 });
 // Returns: { affected: ['app.js', 'utils.js'], confidence: 0.5 }
 ```
@@ -210,12 +230,14 @@ calculateCoverageImpact({
 Identify potential test files for a code file.
 
 **Parameters:**
+
 - `codeFile` (string): Code file path
 - `testPattern` (string): Test file pattern (default: '.test.js')
 
 **Returns:** Array of potential test file paths
 
 **Example:**
+
 ```javascript
 identifyRelatedTests('src/app.js', '.test.js');
 // Returns: [
@@ -231,16 +253,18 @@ identifyRelatedTests('src/app.js', '.test.js');
 Build human-readable change summary.
 
 **Parameters:**
+
 - `categories` (Object): Categorized changes
 
 **Returns:** String summary
 
 **Example:**
+
 ```javascript
 buildChangeSummary({
   code: ['a.js', 'b.js'],
   test: ['a.test.js'],
-  docs: ['README.md']
+  docs: ['README.md'],
 });
 // Returns: '2 code files, 1 test file, 1 doc changed'
 ```
@@ -250,6 +274,7 @@ buildChangeSummary({
 Determine if workflow step can be skipped.
 
 **Parameters:**
+
 - `stepId` (string): Workflow step identifier
 - `changes` (Object): Categorized changes
 
@@ -264,12 +289,13 @@ Determine if workflow step can be skipped.
 | update_docs | No code changes |
 
 **Example:**
+
 ```javascript
 const changes = { docs: ['README.md'], code: [], test: [] };
 
-shouldSkipStep('run_tests', changes);  // true (no code/test)
-shouldSkipStep('lint', changes);       // true (no code)
-shouldSkipStep('build', changes);      // true (no code)
+shouldSkipStep('run_tests', changes); // true (no code/test)
+shouldSkipStep('lint', changes); // true (no code)
+shouldSkipStep('build', changes); // true (no code)
 shouldSkipStep('update_docs', changes); // true (no code)
 ```
 
@@ -278,20 +304,22 @@ shouldSkipStep('update_docs', changes); // true (no code)
 Merge two change analysis objects.
 
 **Parameters:**
+
 - `analysis1` (Object): First analysis
 - `analysis2` (Object): Second analysis
 
 **Returns:** Merged analysis with combined categories and higher impact
 
 **Example:**
+
 ```javascript
 const a1 = {
   categories: { code: ['a.js'] },
-  impact: 'low'
+  impact: 'low',
 };
 const a2 = {
   categories: { code: ['b.js'], test: ['a.test.js'] },
-  impact: 'medium'
+  impact: 'medium',
 };
 
 const merged = mergeChangeAnalysis(a1, a2);
@@ -307,9 +335,11 @@ const merged = mergeChangeAnalysis(a1, a2);
 Validate change detection data structure.
 
 **Parameters:**
+
 - `data` (Object): Change data to validate
 
 **Returns:** Validation result
+
 ```javascript
 {
   valid: true,
@@ -318,10 +348,11 @@ Validate change detection data structure.
 ```
 
 **Example:**
+
 ```javascript
 const result = validateChangeData({
   categories: { code: ['a.js'], test: [] },
-  impact: 'medium'
+  impact: 'medium',
 });
 
 if (!result.valid) {
@@ -336,19 +367,21 @@ Wrapper class for detecting and analyzing file changes with Git integration.
 ### Constructor
 
 ```javascript
-new ChangeDetector(options)
+new ChangeDetector(options);
 ```
 
 **Parameters:**
+
 - `options.gitAutomation` (GitAutomation): Git automation instance
 - `options.projectKind` (string): Project type (default: 'generic')
 - `options.cache` (GitCache): Optional cache instance
 
 **Example:**
+
 ```javascript
 const detector = new ChangeDetector({
   gitAutomation: git,
-  projectKind: 'nodejs_api'
+  projectKind: 'nodejs_api',
 });
 ```
 
@@ -359,11 +392,13 @@ const detector = new ChangeDetector({
 Detect changes since specified commit or tag.
 
 **Parameters:**
+
 - `sinceCommit` (string): Commit hash or tag (default: 'HEAD')
 
 **Returns:** Promise<Object> Change analysis
 
 **Example:**
+
 ```javascript
 const changes = await detector.detectChanges();
 console.log(changes.summary);
@@ -375,6 +410,7 @@ console.log(`Impact: ${changes.impact}`);
 Analyze impact of current changes.
 
 **Returns:** Promise<Object> Impact analysis
+
 ```javascript
 {
   level: 'medium',
@@ -385,6 +421,7 @@ Analyze impact of current changes.
 ```
 
 **Example:**
+
 ```javascript
 const impact = await detector.analyzeImpact();
 if (impact.shouldRunTests) {
@@ -399,6 +436,7 @@ Get workflow steps that should execute based on changes.
 **Returns:** Promise<Array<string>> Step IDs to execute
 
 **Example:**
+
 ```javascript
 const steps = await detector.getAffectedSteps();
 // Returns: ['validate_config', 'lint', 'run_tests', 'build']
@@ -415,6 +453,7 @@ Categorize all changed files.
 **Returns:** Promise<Object> Categorized files
 
 **Example:**
+
 ```javascript
 const categories = await detector.categorizeChanges();
 console.log(`Code files: ${categories.code.length}`);
@@ -428,6 +467,7 @@ Get formatted change summary.
 **Returns:** Promise<string> Summary text
 
 **Example:**
+
 ```javascript
 const summary = await detector.getChangesSummary();
 console.log(summary); // '3 code files, 2 test files changed'
@@ -440,6 +480,7 @@ Determine if tests should run based on changes.
 **Returns:** Promise<boolean>
 
 **Example:**
+
 ```javascript
 if (await detector.shouldRunTests()) {
   await runTestSuite();
@@ -455,6 +496,7 @@ Determine if documentation should be updated.
 **Returns:** Promise<boolean>
 
 **Example:**
+
 ```javascript
 if (await detector.shouldUpdateDocs()) {
   await generateDocs();
@@ -516,7 +558,7 @@ const impact = await detector.analyzeImpact();
 if (impact.level === 'high') {
   await notifyTeam({
     message: 'High-impact changes detected',
-    details: await detector.getChangesSummary()
+    details: await detector.getChangesSummary(),
   });
 }
 ```

@@ -66,6 +66,8 @@ const NO_ISSUES_RE =
   /\b(no (?:actionable |concrete |major |critical |high-severity )?(issues?|findings)|nothing to fix|no changes needed)\b/i;
 const NO_IMPACT_SIGNAL_RE =
   /\b(no update is required|no updates required|do(?:es)? not affect|do(?:es)? not require (?:changes|updates)|remain(?:s)? accurate|already documented|already correct|functionally equivalent)\b/i;
+const NON_ACTIONABLE_OBSERVATION_RE =
+  /\b(no evidence of|appropriate use of|(?:the )?use of\b.*\bis appropriate|demonstrates good|already guarded|all imports are necessary|no unnecessary eager imports|no computational hot paths|benchmarking coverage is not applicable|no regex usage(?: is)? visible|all visible code is appropriate|all code is event-driven|all patterns are appropriate|this is (?:a|an) .*not a performance-critical path)\b/i;
 const SUMMARY_TABLE_HEADER_RE =
   /^\|\s*file\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
 const SUMMARY_TABLE_ROW_RE = /^\|.+\|.+\|.+\|.+\|?$/;
@@ -185,6 +187,7 @@ export function extractActionableIssueSignals(responseContent) {
     if (
       !line ||
       NO_IMPACT_SIGNAL_RE.test(line) ||
+      NON_ACTIONABLE_OBSERVATION_RE.test(line) ||
       NO_ISSUES_RE.test(line) ||
       SUMMARY_TABLE_NO_ISSUE_ROW_RE.test(line)
     ) {
@@ -279,8 +282,7 @@ export function extractActionableIssueSignals(responseContent) {
     }
 
     if (
-      (isBullet &&
-        (mentionsIssue || mentionsAction || mentionsMetadata || hasActionableVerdict)) ||
+      (isBullet && (mentionsIssue || mentionsAction || mentionsMetadata || hasActionableVerdict)) ||
       (inIssueSection && (mentionsIssue || mentionsAction || mentionsMetadata))
     ) {
       addCandidate(line);
@@ -295,7 +297,12 @@ export function extractActionableIssueSignals(responseContent) {
     return [];
   }
 
-  if (candidates.length === 0 && (NO_ISSUES_RE.test(text) || NO_IMPACT_SIGNAL_RE.test(text))) {
+  if (
+    candidates.length === 0 &&
+    (NO_ISSUES_RE.test(text) ||
+      NO_IMPACT_SIGNAL_RE.test(text) ||
+      NON_ACTIONABLE_OBSERVATION_RE.test(text))
+  ) {
     return [];
   }
 
@@ -804,6 +811,7 @@ export class AiHelper {
    * @param {Object[]} [config.tools] - SDK tools for Copilot to call; defaults to buildWorkflowTools()
    * @param {string|null} [config.workflowVersion=null] - Version of the ai_workflow.js tool itself
    * @param {string|null} [config.workflowCoreVersion=null] - Version of the .workflow_core submodule
+   * @param {string|null} [config.workingDirectory=null] - Target project directory for prompt-log metadata
    */
   constructor(config = {}) {
     const provider = config.provider || 'copilot';
@@ -908,7 +916,9 @@ export class AiHelper {
         // Log available models and warn if configured model is missing
         const modelIds = availableModels.map((m) => m.id);
         if (modelIds.length > 0) {
-          logger.info(`Available ${providerLabel} models (${modelIds.length}): ${modelIds.join(', ')}`);
+          logger.info(
+            `Available ${providerLabel} models (${modelIds.length}): ${modelIds.join(', ')}`
+          );
           if (!modelIds.includes(this.config.model)) {
             logger.warn(
               `Configured model "${this.config.model}" not in available models — using it anyway`
@@ -1252,6 +1262,41 @@ export class AiHelper {
   }
 
   /**
+   * Resolve the project version to stamp into prompt logs.
+   *
+   * Prefers the live version from the current target project's package.json when
+   * a working directory is configured, falling back to the injected version.
+   *
+   * @returns {Promise<string|null>} Effective project version for the prompt log header
+   * @private
+   */
+  async _resolveProjectVersionForLog() {
+    const configuredVersion =
+      typeof this.config.projectVersion === 'string' && this.config.projectVersion.trim()
+        ? this.config.projectVersion.trim()
+        : null;
+
+    if (!this.config.workingDirectory) {
+      return configuredVersion;
+    }
+
+    try {
+      const pkgRaw = await fs.readFile(
+        path.join(this.config.workingDirectory, 'package.json'),
+        'utf8'
+      );
+      const liveVersion = JSON.parse(pkgRaw).version;
+      if (typeof liveVersion === 'string' && liveVersion.trim()) {
+        return liveVersion.trim();
+      }
+    } catch {
+      // package.json absent or unreadable — fall back to injected version
+    }
+
+    return configuredVersion;
+  }
+
+  /**
    * Save prompt and response to the prompts log directory.
    * @param {string} prompt - The prompt sent
    * @param {Object} options - Request options (includes persona if set)
@@ -1271,15 +1316,14 @@ export class AiHelper {
       const issueSignals = extractActionableIssueSignals(responseContent);
       const snapshotLines = issueSignals.slice(0, ISSUE_SNAPSHOT.MAX_LINES);
       const omittedSignals = issueSignals.length - snapshotLines.length;
+      const projectVersion = await this._resolveProjectVersionForLog();
       const content = [
         `# Prompt Log`,
         ``,
         `**Timestamp:** ${new Date().toISOString()}`,
         `**Persona:** ${persona}`,
         `**Model:** ${options.model || this.config.model}`,
-        ...(this.config.projectVersion
-          ? [`**Project Version:** ${this.config.projectVersion}`]
-          : []),
+        ...(projectVersion ? [`**Project Version:** ${projectVersion}`] : []),
         ...(this.config.workflowVersion
           ? [`**Workflow Version:** ${this.config.workflowVersion}`]
           : []),

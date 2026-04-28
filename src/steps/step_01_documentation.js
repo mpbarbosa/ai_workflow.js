@@ -389,7 +389,17 @@ function getStep1ScopedDocEntries(fileEntries, docFiles = []) {
   );
 
   return (Array.isArray(fileEntries) ? fileEntries : []).filter((entry) =>
-    docFileSet.has(normalizeStep1EvidencePath(entry?.relativePath))
+    docFileSet.has(normalizeStep1EvidencePath(entry?.sourcePath ?? entry?.relativePath))
+  );
+}
+
+function getStep1SupportingEvidenceEntries(fileEntries, docFiles = []) {
+  const docFileSet = new Set(
+    (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
+  );
+
+  return (Array.isArray(fileEntries) ? fileEntries : []).filter(
+    (entry) => !docFileSet.has(normalizeStep1EvidencePath(entry?.sourcePath ?? entry?.relativePath))
   );
 }
 
@@ -429,6 +439,14 @@ function appendPromptSectionIfMissing(prompt, heading, content) {
   }
 
   return `${normalizedPrompt}\n\n${heading}\n\n${normalizedContent}`;
+}
+
+function hasStep1OmittedScopedDocContext(scopedDocEntries = []) {
+  return (Array.isArray(scopedDocEntries) ? scopedDocEntries : []).some(({ content }) =>
+    trimPromptContextContent(content, STEP1_SCOPED_DOC_CONTEXT_MAX_CHARS).includes(
+      '[middle omitted'
+    )
+  );
 }
 
 export function buildStep1SynthesisPrompt({
@@ -513,7 +531,49 @@ export function consolidateStep1DocAnalysis(content, docFiles = []) {
     return `Inconclusive — consolidated across ${sections.length} prompt partition(s) for ${docLabel}. The visible evidence was incomplete, tangential, or out of scope for a confident documentation verdict.`;
   }
 
+  if (
+    sections.every(
+      (section) =>
+        isNoUpdateDocAnalysisSection(section) || isInconclusiveDocAnalysisSection(section)
+    ) &&
+    sections.some(isInconclusiveDocAnalysisSection)
+  ) {
+    return `Inconclusive — consolidated across ${sections.length} prompt partition(s) for ${docLabel}. At least one partition had incomplete, tangential, or support-only evidence, so Step 1 cannot safely collapse the full result to "No updates required".`;
+  }
+
   return String(content ?? '').trim();
+}
+
+export function selectStep1FinalAnalysisContent(
+  combinedContent,
+  synthesisContent,
+  scopedDocEntries = []
+) {
+  const normalizedCombined = String(combinedContent ?? '').trim();
+  const normalizedSynthesis = String(synthesisContent ?? '').trim();
+
+  if (!normalizedSynthesis) {
+    return normalizedCombined;
+  }
+
+  const partitionSections = splitPartitionedDocAnalysisSections(normalizedCombined);
+  const allNoUpdate =
+    partitionSections.length > 1 && partitionSections.every(isNoUpdateDocAnalysisSection);
+  const allInconclusive =
+    partitionSections.length > 1 && partitionSections.every(isInconclusiveDocAnalysisSection);
+  const synthesisNoUpdate = isNoUpdateDocAnalysisSection(normalizedSynthesis);
+  const synthesisInconclusive = isInconclusiveDocAnalysisSection(normalizedSynthesis);
+  const scopedDocsIncomplete = hasStep1OmittedScopedDocContext(scopedDocEntries);
+
+  if (synthesisInconclusive && allNoUpdate) {
+    return normalizedCombined;
+  }
+
+  if (synthesisNoUpdate && (allInconclusive || scopedDocsIncomplete)) {
+    return normalizedCombined;
+  }
+
+  return normalizedSynthesis;
 }
 
 export const STEP1_DOCUMENTATION_PREFERRED_MODELS = [
@@ -780,7 +840,7 @@ export class Step1DocumentationAnalyzer {
 
       // Phase 6: Run parallel documentation analysis (if enabled)
       let analysisResult = null;
-      if (this.enableParallel && docsToProcess.length >= 1) {
+      if ((options.enableParallel ?? this.enableParallel) && docsToProcess.length >= 1) {
         logger.info('Running parallel documentation analysis...');
         const rawResult = await this.parallelProcessor.validate(
           docsToProcess,
@@ -818,7 +878,11 @@ export class Step1DocumentationAnalyzer {
             ensureActive();
             const scopedDocEntries = getStep1ScopedDocEntries(fileEntries, files);
             const scopedDocPathsContext = buildStep1ScopedDocPathsContext(files);
-            const scopedDocContents = buildStep1ScopedDocContextBlock(scopedDocEntries);
+            const totalScopedDocCount = new Set(
+              (Array.isArray(files) ? files : [])
+                .map((filePath) => normalizeStep1EvidencePath(filePath))
+                .filter(Boolean)
+            ).size;
             const fileHashEntries = fileEntries.map(
               ({ relativePath, content }) => `${relativePath}:${content}`
             );
@@ -869,7 +933,30 @@ export class Step1DocumentationAnalyzer {
               buildPrompt: (partition, { index: i, total }) => {
                 ensureActive();
                 const filePathsContext = buildPartitionFilePathsContext(partition.entries);
-                const fileContentsSection = buildReviewFileContentsBlock(partition.entries);
+                const partitionScopedDocEntries = getStep1ScopedDocEntries(
+                  partition.entries,
+                  files
+                );
+                const supportingEntries = getStep1SupportingEvidenceEntries(
+                  partition.entries,
+                  files
+                );
+                const partitionScopedDocContents =
+                  buildStep1ScopedDocContextBlock(partitionScopedDocEntries);
+                const fileContentsSection = buildReviewFileContentsBlock(supportingEntries);
+                const coveredScopedDocCount = new Set(
+                  partitionScopedDocEntries
+                    .map((entry) =>
+                      normalizeStep1EvidencePath(entry?.sourcePath ?? entry?.relativePath)
+                    )
+                    .filter(Boolean)
+                ).size;
+                const partitionScopeNote =
+                  total > 1
+                    ? coveredScopedDocCount > 0
+                      ? `This request covers ${coveredScopedDocCount} of ${totalScopedDocCount} scoped documentation target(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
+                      : `This request contains supporting evidence only for the current documentation-analysis category. No scoped documentation target text is included in this partition; use these files only to identify concrete documentation impact on the scoped targets, and do not treat this partition alone as a final verdict.`
+                    : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`;
                 let prompt = null;
 
                 if (parsedYaml) {
@@ -878,16 +965,14 @@ export class Step1DocumentationAnalyzer {
                       total > 1
                         ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
                         : '',
-                    partition_scope_note:
-                      total > 1
-                        ? `This request covers ${partition.scopePaths.length} of ${evidenceFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
-                        : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
+                    partition_scope_note: partitionScopeNote,
                     project_name: projectInfo.projectKind ?? projectRoot,
                     primary_language: projectInfo.language ?? 'unknown',
                     changed_files: evidenceFiles.join(', '),
                     doc_files: files.join(', '),
                     scoped_doc_paths: scopedDocPathsContext,
-                    scoped_doc_contents: scopedDocContents,
+                    scoped_doc_contents:
+                      partitionScopedDocEntries.length > 0 ? partitionScopedDocContents : '',
                     file_paths_in_request:
                       filePathsContext ||
                       '      - (no readable file paths were available in the current context)',
@@ -909,9 +994,7 @@ export class Step1DocumentationAnalyzer {
                     total > 1
                       ? `[Partition ${i + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
                       : '',
-                    total > 1
-                      ? `This request covers ${partition.scopePaths.length} of ${evidenceFiles.length} scoped file(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
-                      : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`,
+                    partitionScopeNote,
                   ]
                     .filter(Boolean)
                     .join('\n\n');
@@ -941,7 +1024,7 @@ export class Step1DocumentationAnalyzer {
                 prompt = appendPromptSectionIfMissing(
                   prompt,
                   '## Direct Documentation Target Excerpts',
-                  scopedDocContents
+                  partitionScopedDocEntries.length > 0 ? partitionScopedDocContents : ''
                 );
 
                 return prompt;
@@ -995,7 +1078,11 @@ export class Step1DocumentationAnalyzer {
 
               finalSuccess = finalSuccess && synthesisResult?.success !== false;
               if (typeof synthesisResult?.content === 'string' && synthesisResult.content.trim()) {
-                finalContent = synthesisResult.content.trim();
+                finalContent = selectStep1FinalAnalysisContent(
+                  combinedContent,
+                  synthesisResult.content,
+                  scopedDocEntries
+                );
               }
             }
 
@@ -1025,8 +1112,10 @@ export class Step1DocumentationAnalyzer {
 
         if (rawResult.success !== true || rawResult.validatedFiles < rawResult.totalFiles) {
           const failureReason =
-            rawResult.errors?.map((entry) => entry?.error).filter(Boolean).join('; ') ||
-            'Documentation analysis did not complete for every targeted file';
+            rawResult.errors
+              ?.map((entry) => entry?.error)
+              .filter(Boolean)
+              .join('; ') || 'Documentation analysis did not complete for every targeted file';
           throw new Error(failureReason);
         }
 

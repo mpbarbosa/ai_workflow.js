@@ -7,7 +7,7 @@
 The Auto Commit module provides intelligent automatic committing of workflow artifacts with conventional commit messages, [skip ci] flag management, and priority-based execution. It categorizes artifacts and generates appropriate commit messages following best practices.
 
 **Module:** `lib/auto_commit`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
@@ -39,12 +39,14 @@ This module follows the v2.0.0 architecture pattern:
 Generate conventional commit message from file categories.
 
 **Parameters:**
+
 - `fileCategories` (Object): Categorized files
 - `options` (Object): Optional commit options
 
 **Returns:** String formatted commit message
 
 **Example:**
+
 ```javascript
 generateCommitMessage({ docs: ['README.md'], metrics: [] });
 // Returns: 'docs(docs): update docs [skip ci]'
@@ -54,6 +56,7 @@ generateCommitMessage({ docs: ['a.md'], metrics: ['b.json'] });
 ```
 
 **Message Format:**
+
 ```
 type(scope): description [flags]
 ```
@@ -63,9 +66,11 @@ type(scope): description [flags]
 Categorize workflow artifact files.
 
 **Parameters:**
+
 - `files` (Array<string>): File paths to categorize
 
 **Returns:** Object with categorized files
+
 ```javascript
 {
   docs: [],
@@ -78,6 +83,7 @@ Categorize workflow artifact files.
 ```
 
 **Categorization Rules:**
+
 - **metrics**: Contains `/metrics/` or ends with `.metrics.json`
 - **logs**: Contains `/logs/` or ends with `.log`
 - **summaries**: Contains `/summaries/` or `/backlog/`
@@ -85,11 +91,12 @@ Categorize workflow artifact files.
 - **tests**: Contains `/test/`, `.test.`, `test-`, or `coverage`
 
 **Example:**
+
 ```javascript
 categorizeArtifacts([
   '.ai_workflow/metrics/step1.json',
   'docs/api.md',
-  '.ai_workflow/logs/workflow.log'
+  '.ai_workflow/logs/workflow.log',
 ]);
 // Returns: {
 //   metrics: ['.ai_workflow/metrics/step1.json'],
@@ -104,6 +111,7 @@ categorizeArtifacts([
 Determine if file should be auto-committed.
 
 **Parameters:**
+
 - `file` (string): File path to check
 - `config` (Object): Auto-commit configuration
   - `enabled` (boolean): Enable auto-commits
@@ -113,6 +121,7 @@ Determine if file should be auto-committed.
 **Returns:** Boolean
 
 **Example:**
+
 ```javascript
 shouldAutoCommit('.ai_workflow/metrics/m.json', { enabled: true });
 // Returns: true
@@ -122,7 +131,7 @@ shouldAutoCommit('src/app.js', { enabled: true });
 
 shouldAutoCommit('.ai_workflow/logs/debug.log', {
   enabled: true,
-  exclude: ['logs']
+  exclude: ['logs'],
 });
 // Returns: false (excluded)
 ```
@@ -132,17 +141,20 @@ shouldAutoCommit('.ai_workflow/logs/debug.log', {
 Build commit scope from file categories.
 
 **Parameters:**
+
 - `categories` (Object): Categorized files
 
 **Returns:** String scope: 'docs', 'tests', 'metrics', or 'workflow'
 
 **Scope Rules:**
+
 - **docs**: Only docs changed
 - **tests**: Only tests changed
 - **metrics**: Only metrics changed
 - **workflow**: Mixed changes (default)
 
 **Example:**
+
 ```javascript
 buildCommitScope({ docs: ['a.md'], metrics: [], tests: [] });
 // Returns: 'docs'
@@ -156,6 +168,7 @@ buildCommitScope({ docs: ['a.md'], metrics: ['b.json'] });
 Format detailed commit body with file list and metadata.
 
 **Parameters:**
+
 - `details` (Object): Commit details
   - `files` (Array): Files to list
   - `step` (number): Workflow step number
@@ -164,11 +177,12 @@ Format detailed commit body with file list and metadata.
 **Returns:** String formatted commit body
 
 **Example:**
+
 ```javascript
 formatCommitBody({
   files: ['metrics.json', 'summary.md'],
   step: 5,
-  timestamp: '2026-02-07T00:00:00Z'
+  timestamp: '2026-02-07T00:00:00Z',
 });
 // Returns multi-line string:
 //
@@ -185,16 +199,19 @@ formatCommitBody({
 Calculate commit priority based on file types.
 
 **Parameters:**
+
 - `files` (Array<string>): Files to commit
 
 **Returns:** String priority: 'high', 'medium', 'low'
 
 **Priority Rules:**
+
 - **high**: Test results, coverage data
 - **medium**: Metrics, summaries
 - **low**: Docs, logs
 
 **Example:**
+
 ```javascript
 calculateCommitPriority(['test-results.json']);
 // Returns: 'high'
@@ -211,11 +228,13 @@ calculateCommitPriority(['docs/api.md']);
 Validate if path is a workflow artifact.
 
 **Parameters:**
+
 - `filePath` (string): Path to validate
 
 **Returns:** Boolean
 
 **Valid Artifact Patterns:**
+
 - `.ai_workflow/`
 - `docs/`
 - `coverage/`
@@ -223,10 +242,11 @@ Validate if path is a workflow artifact.
 - `test-results/`
 
 **Example:**
+
 ```javascript
 validateArtifactPath('.ai_workflow/metrics/m.json'); // true
-validateArtifactPath('docs/api.md');                 // true
-validateArtifactPath('src/app.js');                  // false
+validateArtifactPath('docs/api.md'); // true
+validateArtifactPath('src/app.js'); // false
 ```
 
 ### mergeCommitOptions(userOptions, defaults)
@@ -234,17 +254,16 @@ validateArtifactPath('src/app.js');                  // false
 Merge user options with defaults.
 
 **Parameters:**
+
 - `userOptions` (Object): User-provided options
 - `defaults` (Object): Default options
 
 **Returns:** Merged options object
 
 **Example:**
+
 ```javascript
-mergeCommitOptions(
-  { message: 'custom', enabled: true },
-  { message: 'default', skipCI: true }
-);
+mergeCommitOptions({ message: 'custom', enabled: true }, { message: 'default', skipCI: true });
 // Returns: { message: 'custom', enabled: true, skipCI: true }
 ```
 
@@ -253,9 +272,11 @@ mergeCommitOptions(
 Extract metadata from files for commit message.
 
 **Parameters:**
+
 - `files` (Array<string>): Files to analyze
 
 **Returns:** Object with metadata
+
 ```javascript
 {
   stepNumber: 5,     // Extracted from filename
@@ -265,6 +286,7 @@ Extract metadata from files for commit message.
 ```
 
 **Example:**
+
 ```javascript
 extractCommitMetadata(['.ai_workflow/metrics/step5.json']);
 // Returns: { stepNumber: 5, timestamp: '...', fileCount: 1 }
@@ -278,15 +300,18 @@ extractCommitMetadata(['step_3.json', 'step-7.json']);
 Determine if [skip ci] flag should be added.
 
 **Parameters:**
+
 - `categories` (Object): File categories
 
 **Returns:** Boolean (true if CI should be skipped)
 
 **Skip Rules:**
+
 - Skip CI if only docs/metrics/logs/summaries changed
 - Run CI if tests or code changed
 
 **Example:**
+
 ```javascript
 shouldSkipCI({ docs: ['a.md'], metrics: ['b.json'] });
 // Returns: true
@@ -302,10 +327,11 @@ Wrapper class for automatic workflow artifact commits.
 ### Constructor
 
 ```javascript
-new AutoCommit(options)
+new AutoCommit(options);
 ```
 
 **Parameters:**
+
 - `options.gitAutomation` (GitAutomation): Git automation instance
 - `options.enabled` (boolean): Enable auto-commits (default: true)
 - `options.dryRun` (boolean): Dry run mode (default: false)
@@ -313,12 +339,13 @@ new AutoCommit(options)
 - `options.include` (Array<string>): File patterns to include
 
 **Example:**
+
 ```javascript
 const autoCommit = new AutoCommit({
   gitAutomation: git,
   enabled: true,
   dryRun: false,
-  exclude: ['logs'] // Don't commit log files
+  exclude: ['logs'], // Don't commit log files
 });
 ```
 
@@ -329,11 +356,13 @@ const autoCommit = new AutoCommit({
 Commit workflow artifact files.
 
 **Parameters:**
+
 - `files` (Array<string>): Files to commit
 - `options` (Object): Optional commit options
   - `message` (string): Custom commit message
 
 **Returns:** Promise<Object> Commit result
+
 ```javascript
 {
   committed: true,
@@ -344,11 +373,9 @@ Commit workflow artifact files.
 ```
 
 **Example:**
+
 ```javascript
-const result = await autoCommit.commitArtifacts([
-  '.ai_workflow/metrics/step1.json',
-  'docs/api.md'
-]);
+const result = await autoCommit.commitArtifacts(['.ai_workflow/metrics/step1.json', 'docs/api.md']);
 
 if (result.committed) {
   console.log(`Committed: ${result.message}`);
@@ -362,6 +389,7 @@ Commit documentation updates only.
 **Returns:** Promise<Object> Commit result
 
 **Example:**
+
 ```javascript
 const result = await autoCommit.commitDocs();
 if (result.committed) {
@@ -376,6 +404,7 @@ Commit metrics files only.
 **Returns:** Promise<Object> Commit result
 
 **Example:**
+
 ```javascript
 await autoCommit.commitMetrics();
 ```
@@ -387,6 +416,7 @@ Commit workflow summaries only.
 **Returns:** Promise<Object> Commit result
 
 **Example:**
+
 ```javascript
 await autoCommit.commitSummaries();
 ```
@@ -398,6 +428,7 @@ Commit all pending workflow artifacts.
 **Returns:** Promise<Object> Commit result
 
 **Example:**
+
 ```javascript
 // Commit everything in one go
 const result = await autoCommit.commitAll();
@@ -409,11 +440,13 @@ console.log(`Committed ${result.files?.length || 0} files`);
 Schedule a delayed commit.
 
 **Parameters:**
+
 - `delay` (number): Delay in milliseconds (default: 5000)
 
 **Returns:** Promise<Object> Commit result after delay
 
 **Example:**
+
 ```javascript
 // Commit after 10 seconds
 await autoCommit.scheduleCommit(10000);
@@ -424,6 +457,7 @@ await autoCommit.scheduleCommit(10000);
 Get auto-commit history.
 
 **Returns:** Array of commit history entries
+
 ```javascript
 [
   {
@@ -436,6 +470,7 @@ Get auto-commit history.
 ```
 
 **Example:**
+
 ```javascript
 const history = autoCommit.getCommitHistory();
 console.log(`Made ${history.length} auto-commits`);
@@ -455,7 +490,7 @@ const autoCommit = new AutoCommit({ gitAutomation: git });
 // Commit workflow artifacts
 await autoCommit.commitArtifacts([
   '.ai_workflow/metrics/step1.json',
-  '.ai_workflow/summaries/workflow.md'
+  '.ai_workflow/summaries/workflow.md',
 ]);
 ```
 
@@ -480,12 +515,10 @@ await autoCommit.commitAll();
 ```javascript
 const autoCommit = new AutoCommit({
   gitAutomation: git,
-  dryRun: true
+  dryRun: true,
 });
 
-const result = await autoCommit.commitArtifacts([
-  '.ai_workflow/metrics/m.json'
-]);
+const result = await autoCommit.commitArtifacts(['.ai_workflow/metrics/m.json']);
 
 console.log(`[DRY RUN] Would commit: ${result.message}`);
 // No actual commit made
@@ -494,10 +527,9 @@ console.log(`[DRY RUN] Would commit: ${result.message}`);
 ### Custom Commit Messages
 
 ```javascript
-await autoCommit.commitArtifacts(
-  ['.ai_workflow/metrics/important.json'],
-  { message: 'chore: critical metrics update' }
-);
+await autoCommit.commitArtifacts(['.ai_workflow/metrics/important.json'], {
+  message: 'chore: critical metrics update',
+});
 ```
 
 ### Exclude Patterns
@@ -505,7 +537,7 @@ await autoCommit.commitArtifacts(
 ```javascript
 const autoCommit = new AutoCommit({
   gitAutomation: git,
-  exclude: ['logs', 'temp'] // Skip logs and temp files
+  exclude: ['logs', 'temp'], // Skip logs and temp files
 });
 
 await autoCommit.commitAll();
@@ -517,7 +549,7 @@ await autoCommit.commitAll();
 ```javascript
 const autoCommit = new AutoCommit({
   gitAutomation: git,
-  include: ['metrics', 'summaries'] // Only commit these
+  include: ['metrics', 'summaries'], // Only commit these
 });
 
 await autoCommit.commitAll();
@@ -615,7 +647,7 @@ steps:
 // auto-commit-artifacts.js
 const autoCommit = new AutoCommit({
   gitAutomation: git,
-  enabled: process.env.CI === 'true'
+  enabled: process.env.CI === 'true',
 });
 
 await autoCommit.commitAll();

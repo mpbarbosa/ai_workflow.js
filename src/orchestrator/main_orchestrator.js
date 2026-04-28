@@ -33,7 +33,7 @@ import { TechStackDetector } from '../lib/tech_stack.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { PerformanceTracker } from '../lib/performance.js';
 import { PerformanceMonitor, DEFAULT_THRESHOLDS } from '../lib/performance_monitoring.js';
-import { WorkflowProfileManager } from '../lib/workflow_profiles.js';
+import { WorkflowProfileManager, categorizeChanges } from '../lib/workflow_profiles.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { DocsOnlyOptimizer } from '../lib/docs_only_optimization.js';
 import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
@@ -418,6 +418,18 @@ export function buildWorkflowConfigStepIndex(workflowConfig) {
   return index;
 }
 
+export function getDisabledWorkflowConfigStepIds(workflowConfig) {
+  const configuredSteps = workflowConfig?.workflow?.steps;
+  if (!Array.isArray(configuredSteps)) {
+    return [];
+  }
+
+  return configuredSteps
+    .filter((step) => step?.enabled === false)
+    .map((step) => normalizeWorkflowConfigStepId(step?.id))
+    .filter(Boolean);
+}
+
 export function getConfiguredStepsForStage(stage, workflowConfig) {
   const configuredSteps = workflowConfig?.workflow?.steps;
   const defaultStageSteps = getStepsForStage(stage);
@@ -452,12 +464,12 @@ export function getConfiguredStepsForStage(stage, workflowConfig) {
     (stepId) => !disabledStepIds.has(stepId) && configuredStepIds.has(stepId)
   );
 
-  return enforceTerminalStepOrder(
-    [
-      ...(configuredDefaultStageSteps.length > 0 ? configuredDefaultStageSteps : enabledConfiguredStepIds),
-      ...mandatoryStageSteps,
-    ]
-  );
+  return enforceTerminalStepOrder([
+    ...(configuredDefaultStageSteps.length > 0
+      ? configuredDefaultStageSteps
+      : enabledConfiguredStepIds),
+    ...mandatoryStageSteps,
+  ]);
 }
 
 export const TERMINAL_FINALIZATION_STEP_ORDER = Object.freeze(['step_17', 'step_0f', 'step_12']);
@@ -497,7 +509,9 @@ export function sanitizeWorkflowConfigDependencies(
     return undefined;
   }
 
-  const deduped = [...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string'))];
+  const deduped = [
+    ...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string')),
+  ];
   const requiredDependencies = [
     ...(TERMINAL_REQUIRED_DEPENDENCIES[stepId] || []),
     ...(ORDER_LOCKED_CANONICAL_DEPENDENCIES[stepId] || []),
@@ -515,14 +529,32 @@ export function sanitizeWorkflowConfigDependencies(
   return deduped.filter((dependencyId) => !TERMINAL_FINALIZATION_STEP_SET.has(dependencyId));
 }
 
+function normalizeDependencyList(dependencies = []) {
+  if (!Array.isArray(dependencies)) {
+    return [];
+  }
+
+  return [...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string'))];
+}
+
+function haveSameDependencySet(left = [], right = []) {
+  const normalizedLeft = normalizeDependencyList(left);
+  const normalizedRight = normalizeDependencyList(right);
+
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false;
+  }
+
+  const rightSet = new Set(normalizedRight);
+  return normalizedLeft.every((dependencyId) => rightSet.has(dependencyId));
+}
+
 function formatRuntimeStepName(step = {}) {
   const canonicalName = step.canonicalName || step.metadata?.canonicalName || step.name || step.id;
   const aliasName =
     step.aliasName ||
     (step.name && step.name !== canonicalName ? step.name : null) ||
-    (step.metadata?.canonicalName &&
-    step.name &&
-    step.name !== step.metadata.canonicalName
+    (step.metadata?.canonicalName && step.name && step.name !== step.metadata.canonicalName
       ? step.name
       : null);
 
@@ -574,16 +606,99 @@ function buildWorkflowConfigDependencyOverrideError({
   stepId,
   stepName,
   canonicalDependencies = [],
-  configuredDependencies = [],
+  rawConfiguredDependencies = [],
+  effectiveDependencies = [],
+  removedDependencies = [],
 }) {
   const stepLabel =
     typeof stepName === 'string' && stepName.trim().length > 0 ? `${stepId} (${stepName})` : stepId;
+  const restoreSnippet =
+    canonicalDependencies.length > 0
+      ? [
+          'dependencies:',
+          ...canonicalDependencies.map((dependencyId) => `  - ${dependencyId}`),
+        ].join('\n')
+      : 'dependencies: []';
+  const overrideSnippetDependencies =
+    effectiveDependencies.length > 0 ? effectiveDependencies : rawConfiguredDependencies;
+  const overrideSnippet = [
+    'dependencies:',
+    ...overrideSnippetDependencies.map((dependencyId) => `  - ${dependencyId}`),
+    'dependency_comment: "Explain why this dependency override is required for this project."',
+  ].join('\n');
+  const effectiveDependencyDetail = !haveSameDependencySet(
+    rawConfiguredDependencies,
+    effectiveDependencies
+  )
+    ? ` Effective dependencies after canonical enforcement: ${formatDependencyList(effectiveDependencies)}.`
+    : '';
+  const removedDependencyDetail =
+    removedDependencies.length > 0
+      ? ` Ignored unsafe dependency override(s): ${formatDependencyList(removedDependencies)}.`
+      : '';
   return (
     `[WorkflowConfig] Step ${stepLabel} in ${configPath} overrides canonical dependencies ` +
     `without dependency_comment. Canonical dependencies: ${formatDependencyList(canonicalDependencies)}. ` +
-    `Configured dependencies: ${formatDependencyList(configuredDependencies)}. ` +
-    'Restore the canonical dependencies or add dependency_comment explaining the override.'
+    `Raw configured dependencies: ${formatDependencyList(rawConfiguredDependencies)}.` +
+    effectiveDependencyDetail +
+    removedDependencyDetail +
+    `Restore the canonical dependencies, for example:\n${restoreSnippet}\n` +
+    `Or, if the override is intentional, keep the effective dependencies and add dependency_comment, for example:\n${overrideSnippet}`
   );
+}
+
+export function validatePlannedStepDependencies(
+  stepIds = [],
+  dependencyIndex = {},
+  availableStepIds = stepIds,
+  options = {}
+) {
+  const plannedStepIds = Array.isArray(stepIds)
+    ? stepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
+    : [];
+  const plannedSet = new Set(plannedStepIds);
+  const availableSet = new Set(
+    Array.isArray(availableStepIds)
+      ? availableStepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
+      : []
+  );
+  const disabledSet = new Set(
+    Array.isArray(options?.disabledStepIds)
+      ? options.disabledStepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
+      : []
+  );
+  const errors = [];
+
+  for (const stepId of plannedStepIds) {
+    const dependencies = Array.isArray(dependencyIndex?.[stepId]) ? dependencyIndex[stepId] : [];
+    const missingDependencies = dependencies.filter(
+      (dependencyId) =>
+        typeof dependencyId === 'string' &&
+        dependencyId.length > 0 &&
+        availableSet.has(dependencyId) &&
+        !plannedSet.has(dependencyId) &&
+        !disabledSet.has(dependencyId)
+    );
+
+    if (missingDependencies.length > 0) {
+      const disabledDependencies = missingDependencies.filter((dependencyId) =>
+        disabledSet.has(dependencyId)
+      );
+      const disabledDetail =
+        disabledDependencies.length > 0
+          ? `Disabled in .workflow-config.yaml: ${disabledDependencies.join(', ')}. `
+          : '';
+      errors.push(
+        `[WorkflowConfig] Selected step ${stepId} depends on step(s) excluded from the execution plan: ${missingDependencies.join(', ')}. ` +
+          `${disabledDetail}Re-enable the prerequisite step(s), disable ${stepId}, or override its dependencies with dependency_comment.`
+      );
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 function logEffectiveExecutionPlan(steps = []) {
@@ -591,12 +706,12 @@ function logEffectiveExecutionPlan(steps = []) {
     return;
   }
 
+  const planIds = new Set(steps.map((s) => s.id));
+
   logger.info('Configured workflow step set (pre-sort):');
   steps.forEach((step, index) => {
-    const dependencyList =
-      Array.isArray(step.dependencies) && step.dependencies.length > 0
-        ? step.dependencies.join(', ')
-        : '(none)';
+    const effectiveDeps = (step.dependencies || []).filter((d) => planIds.has(d));
+    const dependencyList = effectiveDeps.length > 0 ? effectiveDeps.join(', ') : '(none)';
     const dependencyOverride = describeDependencyOverride(step);
     const detailSuffix = dependencyOverride ? ` | dependency override: ${dependencyOverride}` : '';
     logger.info(
@@ -711,7 +826,9 @@ export function filterStepIdsByProfile(
     requiredForFocus.size > 0 || requiredForPreserved.size > 0
       ? new Set([...requiredForFocus, ...requiredForPreserved])
       : null;
-  const protectedStepIds = new Set(focusAll ? preservedIds : [...requiredForPreserved, ...preservedIds]);
+  const protectedStepIds = new Set(
+    focusAll ? preservedIds : [...requiredForPreserved, ...preservedIds]
+  );
   const skippedStepIds = new Set(
     (Array.isArray(skippedStepNumbers) ? skippedStepNumbers : [])
       .map(normalizeProfileSkipStepId)
@@ -745,7 +862,7 @@ export function filterStepIdsByProfile(
         (dependencyId) => originalSet.has(dependencyId) && !keptStepIds.has(dependencyId)
       );
 
-      if (hasMissingPlannedDependency) {
+      if (hasMissingPlannedDependency && !protectedStepIds.has(stepId)) {
         keptStepIds.delete(stepId);
         changed = true;
       }
@@ -869,6 +986,25 @@ export function buildGeneratedWorkflowConfig({
 export function calculateProgress(completed, total) {
   if (total === 0) return 0;
   return Math.round((completed / total) * 100);
+}
+
+export function buildMlChangeStats(changedFiles = []) {
+  const normalizedFiles = Array.isArray(changedFiles)
+    ? changedFiles.filter((filePath) => typeof filePath === 'string' && filePath.length > 0)
+    : [];
+  const counts = categorizeChanges(normalizedFiles);
+  const nonDocsFiles = counts.code + counts.tests + counts.infrastructure + counts.other;
+
+  return {
+    changed: counts.total,
+    added: 0,
+    modified: counts.total,
+    deleted: 0,
+    codeFiles: nonDocsFiles,
+    docsFiles: counts.docs,
+    testFiles: counts.tests,
+    changePercentage: counts.total > 0 ? 100 : 0,
+  };
 }
 
 /**
@@ -1006,7 +1142,9 @@ export class MainOrchestrator {
     this.profileManager = new WorkflowProfileManager({
       gitAutomation: this.gitOps,
     });
-    this.mlOptimizer = new MLOptimizer({ modelFile: path.join(this.workflowDir, '.ml_model.json') });
+    this.mlOptimizer = new MLOptimizer({
+      modelFile: path.join(this.workflowDir, '.ml_model.json'),
+    });
 
     // State
     this.currentStep = null;
@@ -1313,6 +1451,8 @@ export class MainOrchestrator {
   _applyProjectWorkflowOverrides(projectWorkflowConfig = null) {
     const overrides = buildWorkflowConfigStepIndex(projectWorkflowConfig);
     const configPath = path.join(this.projectRoot, '.workflow-config.yaml');
+    const pendingUpdates = [];
+    const pendingErrors = [];
 
     for (const [stepId, override] of Object.entries(overrides)) {
       if (!this.stepRegistry.has(stepId)) {
@@ -1326,43 +1466,50 @@ export class MainOrchestrator {
 
       if (override.dependencies) {
         const existingStep = this.stepRegistry.get(stepId);
+        const canonicalDependencies = Array.isArray(existingStep?.metadata?.canonicalDependencies)
+          ? existingStep.metadata.canonicalDependencies
+          : existingStep?.dependencies || [];
+        const rawConfiguredDependencies = normalizeDependencyList(override.dependencies);
         const sanitizedDependencies = sanitizeWorkflowConfigDependencies(
           stepId,
-          override.dependencies,
+          rawConfiguredDependencies,
           existingStep?.dependencies || []
         );
-        const removedDependencies = override.dependencies.filter(
+        const removedDependencies = rawConfiguredDependencies.filter(
           (dependencyId) => !sanitizedDependencies.includes(dependencyId)
+        );
+        const semanticallyOverridesCanonical = !haveSameDependencySet(
+          rawConfiguredDependencies,
+          canonicalDependencies
         );
         if (removedDependencies.length > 0) {
           logger.warn(
             `[WorkflowConfig] Removed unsafe dependency override(s) from ${stepId}: ${removedDependencies.join(', ')}`
           );
         }
-        updates.dependencies = sanitizedDependencies;
-        if (
-          !existingStep ||
-          JSON.stringify(existingStep.dependencies || []) !== JSON.stringify(sanitizedDependencies)
-        ) {
+        updates.dependencies = semanticallyOverridesCanonical
+          ? sanitizedDependencies
+          : normalizeDependencyList(canonicalDependencies);
+        if (semanticallyOverridesCanonical) {
           if (!override.dependencyComment) {
-            const canonicalDependencies = Array.isArray(existingStep?.metadata?.canonicalDependencies)
-              ? existingStep.metadata.canonicalDependencies
-              : existingStep?.dependencies || [];
-            throw new Error(
+            pendingErrors.push(
               buildWorkflowConfigDependencyOverrideError({
                 configPath,
                 stepId,
                 stepName: existingStep?.name,
                 canonicalDependencies,
-                configuredDependencies: sanitizedDependencies,
+                rawConfiguredDependencies,
+                effectiveDependencies: sanitizedDependencies,
+                removedDependencies,
               })
             );
-          } else {
-            updates.metadata = {
-              ...(existingStep?.metadata || {}),
-              dependencyComment: override.dependencyComment,
-            };
+            continue;
           }
+
+          updates.metadata = {
+            ...(existingStep?.metadata || {}),
+            dependencyComment: override.dependencyComment,
+          };
         }
       }
       if (override.phase) {
@@ -1384,6 +1531,14 @@ export class MainOrchestrator {
         updates.description = override.description;
       }
 
+      pendingUpdates.push([stepId, updates]);
+    }
+
+    if (pendingErrors.length > 0) {
+      throw new Error(pendingErrors.join('\n\n'));
+    }
+
+    for (const [stepId, updates] of pendingUpdates) {
       this.stepRegistry.update(stepId, updates);
     }
   }
@@ -1597,15 +1752,37 @@ export class MainOrchestrator {
       logger.info(`Mode: ${this.auto ? 'auto' : 'interactive'}`);
 
       this.projectWorkflowConfig = await this._ensureProjectWorkflowConfig();
+      const disabledConfiguredStepIds = getDisabledWorkflowConfigStepIds(
+        this.projectWorkflowConfig
+      );
+
+      // Register all steps and apply repo-local workflow overrides before
+      // any profile work or pre-flight suites so deterministic config errors
+      // fail before the run appears to have started executing.
+      logger.info(
+        'Validating .workflow-config.yaml step overrides against canonical workflow order...'
+      );
+      this.registerAllSteps(this.projectWorkflowConfig);
+      const configuredDependencyIndex = Object.fromEntries(
+        this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
+      );
+      const stageConfiguredSteps = getConfiguredStepsForStage(
+        this.stage,
+        this.projectWorkflowConfig
+      );
+      const configuredPlanValidation = validatePlannedStepDependencies(
+        stageConfiguredSteps,
+        configuredDependencyIndex,
+        getStepsForStage(this.stage),
+        { disabledStepIds: disabledConfiguredStepIds }
+      );
+      if (!configuredPlanValidation.valid) {
+        throw new Error(configuredPlanValidation.errors.join('\n'));
+      }
 
       // Detect workflow profile
       let detectedProfile = await this.profileManager.detectProfile();
       logger.info(`Profile: ${detectedProfile}`);
-
-      // Register all steps and apply repo-local workflow overrides before
-      // running expensive pre-flight suites so deterministic config errors
-      // fail fast.
-      this.registerAllSteps(this.projectWorkflowConfig);
 
       // Health checks
       const healthResults = await this.healthCheck();
@@ -1789,6 +1966,15 @@ export class MainOrchestrator {
           `[Profile] Filtered execution plan for '${detectedProfile}': ${configuredStepsForStage.length} → ${stepsToExecute.length} step(s)`
         );
       }
+      const selectedPlanValidation = validatePlannedStepDependencies(
+        stepsToExecute,
+        dependencyIndex,
+        getStepsForStage(this.stage),
+        { disabledStepIds: disabledConfiguredStepIds }
+      );
+      if (!selectedPlanValidation.valid) {
+        throw new Error(selectedPlanValidation.errors.join('\n'));
+      }
       logger.info(`Executing ${stepsToExecute.length} steps for stage: ${this.stage}`);
 
       // Create workflow definition with step handlers
@@ -1799,7 +1985,8 @@ export class MainOrchestrator {
         steps: stepsToExecute.map((stepId) => {
           const stepDef = this.stepRegistry.get(stepId);
           const canonicalName = stepDef.metadata?.canonicalName || stepDef.name;
-          const canonicalDescription = stepDef.metadata?.canonicalDescription || stepDef.description;
+          const canonicalDescription =
+            stepDef.metadata?.canonicalDescription || stepDef.description;
           const canonicalDependencies = Array.isArray(stepDef.metadata?.canonicalDependencies)
             ? stepDef.metadata.canonicalDependencies
             : stepDef.dependencies || [];
@@ -1824,6 +2011,11 @@ export class MainOrchestrator {
       // Execute workflow
       logger.info(`\n${colors.blue}Starting workflow execution...${colors.reset}\n`);
 
+      const mlContextBase = {
+        profile: this.profileManager.currentProfile,
+        changeStats: buildMlChangeStats(allChangedFiles),
+      };
+
       const executionContext = {
         ...context,
         workflowDir: this.workflowDir,
@@ -1844,6 +2036,9 @@ export class MainOrchestrator {
           this.configManager?.getConfig?.()?.project?.description ||
           path.basename(this.projectRoot),
         alternatives: this.alternatives,
+        preflightCheck: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] || null,
+        resumeCommandHint: 'ai-workflow resume --latest',
+        changeStats: mlContextBase.changeStats,
       };
 
       // Setup event listeners for progress tracking
@@ -1856,7 +2051,7 @@ export class MainOrchestrator {
         try {
           if (this.mlOptimizer.initialized) {
             const pred = this.mlOptimizer.predict(step.id, {
-              profile: this.profileManager.currentProfile,
+              ...mlContextBase,
             });
             mlPredictions.set(step.id, pred);
             if (pred.prediction === 'skip') {
@@ -1880,7 +2075,14 @@ export class MainOrchestrator {
           if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
             this.mlOptimizer.recordOutcome(
               step.id,
-              { profile: this.profileManager.currentProfile },
+              {
+                ...mlContextBase,
+                previousResults: this.workflowEngine.results[
+                  this.workflowEngine.results.length - 1
+                ] || {
+                  success: true,
+                },
+              },
               mlPredictions.get(step.id),
               result.success ? 'success' : 'failure'
             );
@@ -1924,7 +2126,14 @@ export class MainOrchestrator {
           if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
             this.mlOptimizer.recordOutcome(
               step.id,
-              { profile: this.profileManager.currentProfile },
+              {
+                ...mlContextBase,
+                previousResults: this.workflowEngine.results[
+                  this.workflowEngine.results.length - 1
+                ] || {
+                  success: true,
+                },
+              },
               mlPredictions.get(step.id),
               'failure'
             );
@@ -1968,7 +2177,7 @@ export class MainOrchestrator {
       };
 
       // Save checkpoint
-      await this.checkpointManager.save(workflow, {
+      const checkpointId = await this.checkpointManager.save(workflow, {
         stage: this.stage,
         results: this.results.steps,
         context: executionContext,
@@ -1983,6 +2192,11 @@ export class MainOrchestrator {
         ),
         timestamp: Date.now(),
       });
+      if (!engineResult.success) {
+        logger.warn(
+          `Checkpoint saved. After fixing the issue, resume with: ai-workflow resume ${checkpointId}`
+        );
+      }
 
       const executedStepIds = new Set((engineResult.results || []).map((result) => result.stepId));
       const step17Result = (engineResult.results || []).find(
@@ -2074,7 +2288,9 @@ export class MainOrchestrator {
 
         // Build common dependencies for all steps
         const commonDeps = {
-          executor: executorModule,
+          executor: {
+            execute: executorModule,
+          },
           gitOps: this.gitOps,
           projectDetection: this.projectDetection,
           projectKindConfig: this.projectKindConfig,
@@ -2134,6 +2350,7 @@ export class MainOrchestrator {
           const streamStart = Date.now();
           commonDeps.aiHelper = new AiHelper({
             promptsDir: commonDeps.promptsDir,
+            workingDirectory: this.projectRoot,
             projectVersion,
             workflowVersion,
             workflowCoreVersion,
@@ -2170,6 +2387,7 @@ export class MainOrchestrator {
           // all versions are stamped into prompt log headers.
           commonDeps.aiHelper = new AiHelper({
             promptsDir: commonDeps.promptsDir,
+            workingDirectory: this.projectRoot,
             projectVersion,
             workflowVersion,
             workflowCoreVersion,
@@ -2267,6 +2485,21 @@ export class MainOrchestrator {
 
       // Register all steps (only if we have remaining work)
       this.registerAllSteps(this.projectWorkflowConfig);
+      const disabledConfiguredStepIds = getDisabledWorkflowConfigStepIds(
+        this.projectWorkflowConfig
+      );
+      const dependencyIndex = Object.fromEntries(
+        this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
+      );
+      const selectedPlanValidation = validatePlannedStepDependencies(
+        allSteps,
+        dependencyIndex,
+        getStepsForStage(this.stage),
+        { disabledStepIds: disabledConfiguredStepIds }
+      );
+      if (!selectedPlanValidation.valid) {
+        throw new Error(selectedPlanValidation.errors.join('\n'));
+      }
 
       logger.info(`Resuming with ${remainingSteps.length} remaining steps`);
 

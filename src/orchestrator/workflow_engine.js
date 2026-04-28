@@ -248,11 +248,11 @@ export function formatExecutionPlanLines(steps = []) {
     return [];
   }
 
+  const planIds = new Set(steps.map((s) => s.id));
+
   return steps.map((step, index) => {
-    const dependencySuffix =
-      Array.isArray(step?.dependencies) && step.dependencies.length > 0
-        ? ` | deps: ${step.dependencies.join(', ')}`
-        : '';
+    const effectiveDeps = (step?.dependencies || []).filter((d) => planIds.has(d));
+    const dependencySuffix = effectiveDeps.length > 0 ? ` | deps: ${effectiveDeps.join(', ')}` : '';
     return `  ${index + 1}. ${formatExecutionStepName(step)} (${step.id})${dependencySuffix}`;
   });
 }
@@ -299,7 +299,10 @@ function getStepPriority(step, dependencyMap = new Map(), memo = new Map()) {
     0
   );
   const priority =
-    explicitPriority + (step.critical !== false ? 10_000 : 0) + downstream.length * 100 + downstreamWeight;
+    explicitPriority +
+    (step.critical !== false ? 10_000 : 0) +
+    downstream.length * 100 +
+    downstreamWeight;
 
   memo.set(step.id, priority);
   return priority;
@@ -331,6 +334,38 @@ function collectDependentCone(stepId, dependencyMap = new Map()) {
   }
 
   return blocked;
+}
+
+function findDependencyPath(rootStepId, targetStepId, reverseDependencyMap = new Map()) {
+  if (!rootStepId || !targetStepId) {
+    return null;
+  }
+  if (rootStepId === targetStepId) {
+    return [rootStepId];
+  }
+
+  const dependencies = reverseDependencyMap.get(targetStepId) || [];
+  for (const dependencyId of dependencies) {
+    const upstreamPath = findDependencyPath(rootStepId, dependencyId, reverseDependencyMap);
+    if (upstreamPath) {
+      return [...upstreamPath, targetStepId];
+    }
+  }
+
+  return null;
+}
+
+export function formatBlockedDependencyReason(blockedBy) {
+  if (Array.isArray(blockedBy?.path) && blockedBy.path.length > 1) {
+    return `Blocked by failed dependency chain: ${blockedBy.path.join(' -> ')}`;
+  }
+
+  const rootStepId =
+    typeof blockedBy === 'string'
+      ? blockedBy
+      : blockedBy?.root || blockedBy?.path?.[0] || blockedBy?.stepId || 'unknown';
+
+  return `Blocked by failed dependency: ${rootStepId}`;
 }
 
 /**
@@ -749,8 +784,9 @@ export class WorkflowEngine extends EventEmitter {
             stepName: step.name,
             success: true,
             skipped: true,
-            reason: `Blocked by failed critical dependency: ${blockedBy}`,
-            blockedBy,
+            reason: formatBlockedDependencyReason(blockedBy),
+            blockedBy: typeof blockedBy === 'string' ? blockedBy : blockedBy?.root,
+            blockedByPath: Array.isArray(blockedBy?.path) ? blockedBy.path : undefined,
             duration: 0,
           };
           this.results.push(result);
@@ -763,13 +799,18 @@ export class WorkflowEngine extends EventEmitter {
           this.results.some((result) => result.stepId === dependencyId && result.success === false)
         );
         if (failedDependency) {
+          const blockedBy = {
+            root: failedDependency,
+            path: [failedDependency, step.id],
+          };
           const result = {
             stepId: step.id,
             stepName: step.name,
             success: true,
             skipped: true,
-            reason: `Blocked by failed dependency: ${failedDependency}`,
+            reason: formatBlockedDependencyReason(blockedBy),
             blockedBy: failedDependency,
+            blockedByPath: blockedBy.path,
             duration: 0,
           };
           this.results.push(result);
@@ -807,7 +848,12 @@ export class WorkflowEngine extends EventEmitter {
           const dependencyCone = collectDependentCone(step.id, dependencyMap);
           dependencyCone.forEach((dependentStepId) => {
             if (!blockedSteps.has(dependentStepId)) {
-              blockedSteps.set(dependentStepId, step.id);
+              blockedSteps.set(dependentStepId, {
+                root: step.id,
+                path: findDependencyPath(step.id, dependentStepId, reverseDependencyMap) || [
+                  step.id,
+                ],
+              });
             }
           });
 

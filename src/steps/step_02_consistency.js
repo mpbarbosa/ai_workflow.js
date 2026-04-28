@@ -168,12 +168,27 @@ export function checkVersionConsistency(fileVersions, expectedVersion) {
 export function extractLinks(content) {
   const links = [];
   const lines = content.split('\n');
+  let activeFence = null;
+
+  const stripInlineCodeSpans = (line) => line.replace(/`[^`]*`/g, '');
+  const fenceMatch = (line) => line.match(/^\s*(```+|~~~+)/u);
 
   // Extract markdown links [text](url)
   lines.forEach((line, index) => {
+    const fence = fenceMatch(line);
+    if (fence) {
+      const marker = fence[1][0];
+      activeFence = activeFence === marker ? null : marker;
+      return;
+    }
+    if (activeFence) {
+      return;
+    }
+
     const pattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const scannableLine = stripInlineCodeSpans(line);
     let match;
-    while ((match = pattern.exec(line)) !== null) {
+    while ((match = pattern.exec(scannableLine)) !== null) {
       links.push({
         text: match[1],
         url: match[2],
@@ -185,9 +200,20 @@ export function extractLinks(content) {
 
   // Extract autolinks <url>
   lines.forEach((line, index) => {
+    const fence = fenceMatch(line);
+    if (fence) {
+      const marker = fence[1][0];
+      activeFence = activeFence === marker ? null : marker;
+      return;
+    }
+    if (activeFence) {
+      return;
+    }
+
     const pattern = /<(https?:\/\/[^>]+)>/g;
+    const scannableLine = stripInlineCodeSpans(line);
     let match;
-    while ((match = pattern.exec(line)) !== null) {
+    while ((match = pattern.exec(scannableLine)) !== null) {
       links.push({
         text: match[1],
         url: match[1],
@@ -600,6 +626,40 @@ const AI_REFERENCE_STATUS_PATTERNS = {
   falsePositive: /false positive/i,
   unverified: /unverified from visible context/i,
 };
+const AI_REFERENCE_BLOCK_RE =
+  /(?:^|\n)#{3,4}\s+Reference:\s*(.+?)\n([\s\S]*?)(?=\n#{3,4}\s+Reference:|$)/g;
+const UNGROUNDED_CONFIRMED_RE =
+  /\b(?:not present in|does not appear in|absent from|missing from)\b[\s\S]{0,80}\b(?:visible|provided)\b[\s\S]{0,40}\b(?:file list|context)\b/i;
+
+function extractReferenceAssessmentBlocks(aiResponse = '') {
+  const blocks = [];
+  const response = String(aiResponse ?? '');
+  let match;
+
+  while ((match = AI_REFERENCE_BLOCK_RE.exec(response)) !== null) {
+    const rawReference = match[1].trim();
+    const body = match[2].trim();
+    const statusMatch = body.match(/-\s+\*\*Status:?\*{0,2}\s*:?\s*(.+?)(?=\n|$)/i);
+    blocks.push({
+      rawReference,
+      reference: normalizeBrokenLinkReference(rawReference),
+      body,
+      statusText: statusMatch?.[1]?.trim() || '',
+    });
+  }
+
+  return blocks;
+}
+
+function isUngroundedConfirmedAssessment(block) {
+  if (!AI_REFERENCE_STATUS_PATTERNS.confirmed.test(block?.statusText ?? '')) {
+    return false;
+  }
+  if (/\(existing repo path: [^)]+\)$/iu.test(block?.rawReference ?? '')) {
+    return false;
+  }
+  return UNGROUNDED_CONFIRMED_RE.test(block?.body ?? '');
+}
 
 /**
  * Validate that an AI response meaningfully addresses the flagged broken references.
@@ -666,6 +726,17 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
     return { adequate: true, reason: 'no_items_to_cover', coverage: 1 };
   }
 
+  const normalizedFlaggedItems = new Set(
+    flaggedItems.map((item) => normalizeBrokenLinkReference(item))
+  );
+  const hasUngroundedConfirmedAssessment = extractReferenceAssessmentBlocks(aiResponse).some(
+    (block) => normalizedFlaggedItems.has(block.reference) && isUngroundedConfirmedAssessment(block)
+  );
+
+  if (hasUngroundedConfirmedAssessment) {
+    return { adequate: false, reason: 'ungrounded_confirmed_status', coverage: 0 };
+  }
+
   // Check how many flagged items have a corresponding entry in the response.
   // An item is "addressed" if its broken target (the part after →) appears in the response.
   const addressed = flaggedItems.filter((item) => {
@@ -702,20 +773,17 @@ export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
     ),
   ];
   const assessmentMap = new Map();
-  const response = String(aiResponse ?? '');
-  const referencePattern =
-    /(?:^|\n)#{3,4}\s+Reference:\s*(.+?)\n-\s+\*\*Status:\*\*\s*(.+?)(?=\n|$)/g;
-  let match;
 
-  while ((match = referencePattern.exec(response)) !== null) {
-    const reference = normalizeBrokenLinkReference(match[1]);
-    const statusText = match[2].trim();
-    if (AI_REFERENCE_STATUS_PATTERNS.confirmed.test(statusText)) {
+  for (const block of extractReferenceAssessmentBlocks(aiResponse)) {
+    if (isUngroundedConfirmedAssessment(block)) {
+      assessmentMap.set(block.reference, 'unverified');
+    } else if (AI_REFERENCE_STATUS_PATTERNS.confirmed.test(block.statusText)) {
+      const reference = normalizeBrokenLinkReference(block.reference);
       assessmentMap.set(reference, 'confirmed');
-    } else if (AI_REFERENCE_STATUS_PATTERNS.falsePositive.test(statusText)) {
-      assessmentMap.set(reference, 'false_positive');
-    } else if (AI_REFERENCE_STATUS_PATTERNS.unverified.test(statusText)) {
-      assessmentMap.set(reference, 'unverified');
+    } else if (AI_REFERENCE_STATUS_PATTERNS.falsePositive.test(block.statusText)) {
+      assessmentMap.set(block.reference, 'false_positive');
+    } else if (AI_REFERENCE_STATUS_PATTERNS.unverified.test(block.statusText)) {
+      assessmentMap.set(block.reference, 'unverified');
     }
   }
 
@@ -1044,7 +1112,9 @@ export class Step2ConsistencyAnalyzer {
               `[step_02] Partition ${i + 1}: invalidated cached AI response` +
                 ` (reason=${quality.reason}, coverage=0%). Re-running partition analysis.`
             );
-            aiResult = await this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' });
+            aiResult = await this.aiHelper.executeRequest(prompt, {
+              persona: 'documentation_expert',
+            });
             aiContent = aiResult?.content ?? '';
             quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
               requireGroundedNoIssueResponse: true,

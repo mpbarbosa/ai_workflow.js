@@ -1,7 +1,7 @@
 # step_01_documentation.js API Documentation
 
 **Module:** `steps/step_01_documentation`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

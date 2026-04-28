@@ -1,7 +1,7 @@
 # ai_personas
 
 **Module:** `src/lib/ai_personas.js`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions only
 
 AI persona definitions and management for workflow automation.
@@ -47,7 +47,7 @@ import {
   getAllPersonas,
   getPersonaById,
   getPersonasByTask,
-  validatePersona
+  validatePersona,
 } from './lib/ai_personas.js';
 ```
 
@@ -79,16 +79,19 @@ Each persona object has the following structure:
 Get all available personas.
 
 **Signature:**
+
 ```javascript
 function getAllPersonas(): Persona[]
 ```
 
 **Returns:**
+
 - (Persona[]): Array of all 14 personas
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const personas = getAllPersonas();
 console.log(personas.length);
@@ -105,19 +108,23 @@ console.log(personas[0].name);
 Get persona by ID.
 
 **Signature:**
+
 ```javascript
 function getPersonaById(id: string): Persona | null
 ```
 
 **Parameters:**
+
 - `id` (string): Persona ID (e.g., 'documentation_expert')
 
 **Returns:**
+
 - (Persona | null): Persona object or null if not found
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const persona = getPersonaById('documentation_expert');
 console.log(persona.name);
@@ -137,19 +144,23 @@ const notFound = getPersonaById('invalid_id');
 Get persona by display name (case-insensitive).
 
 **Signature:**
+
 ```javascript
 function getPersonaByName(name: string): Persona | null
 ```
 
 **Parameters:**
+
 - `name` (string): Persona display name (case-insensitive)
 
 **Returns:**
+
 - (Persona | null): Persona object or null if not found
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const persona = getPersonaByName('Test Engineer');
 console.log(persona.id);
@@ -170,33 +181,37 @@ const notFound = getPersonaByName('Unknown Name');
 Get personas suitable for a specific task or workflow step.
 
 **Signature:**
+
 ```javascript
 function getPersonasByTask(task: string): Persona[]
 ```
 
 **Parameters:**
+
 - `task` (string): Task description or workflow step (case-insensitive)
 
 **Returns:**
+
 - (Persona[]): Array of matching personas (may be empty)
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 // Find personas for documentation tasks
 const docPersonas = getPersonasByTask('documentation');
-console.log(docPersonas.map(p => p.name));
+console.log(docPersonas.map((p) => p.name));
 // ['Documentation Expert', 'Technical Writer', 'Markdown Linter']
 
 // Find personas for testing
 const testPersonas = getPersonasByTask('test');
-console.log(testPersonas.map(p => p.name));
+console.log(testPersonas.map((p) => p.name));
 // ['Test Engineer']
 
 // Find personas for Step 3
 const step3Personas = getPersonasByTask('Step 3');
-console.log(step3Personas.map(p => p.name));
+console.log(step3Personas.map((p) => p.name));
 // ['Test Engineer']
 ```
 
@@ -207,33 +222,37 @@ console.log(step3Personas.map(p => p.name));
 Get personas with specific expertise.
 
 **Signature:**
+
 ```javascript
 function getPersonasByExpertise(expertise: string): Persona[]
 ```
 
 **Parameters:**
+
 - `expertise` (string): Expertise area (case-insensitive, partial match)
 
 **Returns:**
+
 - (Persona[]): Array of matching personas (may be empty)
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 // Find security experts
 const securityPersonas = getPersonasByExpertise('security');
-console.log(securityPersonas.map(p => p.name));
+console.log(securityPersonas.map((p) => p.name));
 // ['Dependency Manager', 'Security Expert', 'CI/CD Engineer']
 
 // Find testing experts
 const testingPersonas = getPersonasByExpertise('testing');
-console.log(testingPersonas.map(p => p.name));
+console.log(testingPersonas.map((p) => p.name));
 // ['Test Engineer']
 
 // Find code quality experts
 const qualityPersonas = getPersonasByExpertise('code quality');
-console.log(qualityPersonas.map(p => p.name));
+console.log(qualityPersonas.map((p) => p.name));
 // ['Code Reviewer']
 ```
 
@@ -244,6 +263,7 @@ console.log(qualityPersonas.map(p => p.name));
 Validate persona object structure.
 
 **Signature:**
+
 ```javascript
 function validatePersona(persona: any): {
   valid: boolean,
@@ -252,14 +272,17 @@ function validatePersona(persona: any): {
 ```
 
 **Parameters:**
+
 - `persona` (any): Persona object to validate
 
 **Returns:**
+
 - (Object): Validation result with `valid` boolean and `errors` array
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const validPersona = {
   id: 'custom_expert',
@@ -269,7 +292,7 @@ const validPersona = {
   tone: 'Professional',
   focus: ['Custom focus'],
   description: 'Custom description',
-  useCases: ['Custom use case']
+  useCases: ['Custom use case'],
 };
 
 const result = validatePersona(validPersona);
@@ -278,7 +301,7 @@ console.log(result);
 
 const invalidPersona = {
   id: 'missing_fields',
-  name: 'Incomplete'
+  name: 'Incomplete',
 };
 
 const result2 = validatePersona(invalidPersona);
@@ -303,16 +326,19 @@ console.log(result2);
 Get count of available personas.
 
 **Signature:**
+
 ```javascript
 function getPersonaCount(): number
 ```
 
 **Returns:**
+
 - (number): Total number of personas (currently 14)
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const count = getPersonaCount();
 console.log(count);
@@ -326,16 +352,19 @@ console.log(count);
 Get all persona IDs.
 
 **Signature:**
+
 ```javascript
 function getPersonaIds(): string[]
 ```
 
 **Returns:**
+
 - (string[]): Array of all persona IDs
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 const ids = getPersonaIds();
 console.log(ids);
@@ -355,19 +384,23 @@ console.log(ids);
 Check if persona exists by ID.
 
 **Signature:**
+
 ```javascript
 function personaExists(id: string): boolean
 ```
 
 **Parameters:**
+
 - `id` (string): Persona ID to check
 
 **Returns:**
+
 - (boolean): True if persona exists, false otherwise
 
 **Pure:** ✅ Yes
 
 **Example:**
+
 ```javascript
 personaExists('documentation_expert');
 // true
@@ -426,7 +459,7 @@ import { getPersonasByExpertise } from './lib/ai_personas.js';
 const securityExperts = getPersonasByExpertise('security');
 
 console.log('Security experts:');
-securityExperts.forEach(persona => {
+securityExperts.forEach((persona) => {
   console.log(`- ${persona.name}: ${persona.role}`);
 });
 
@@ -451,7 +484,7 @@ const customPersona = {
   tone: 'Technical and precise',
   focus: ['API consistency', 'REST best practices'],
   description: 'Specializes in REST API design and documentation',
-  useCases: ['API design reviews', 'OpenAPI spec validation']
+  useCases: ['API design reviews', 'OpenAPI spec validation'],
 };
 
 const result = validatePersona(customPersona);
@@ -513,15 +546,14 @@ const persona2 = getPersonaSafely('nonexistent_persona');
 import { getAllPersonas } from './lib/ai_personas.js';
 
 // Find personas that focus on code quality OR security
-const qualityAndSecurityPersonas = getAllPersonas().filter(persona =>
-  persona.focus.some(f =>
-    f.toLowerCase().includes('code quality') ||
-    f.toLowerCase().includes('security')
+const qualityAndSecurityPersonas = getAllPersonas().filter((persona) =>
+  persona.focus.some(
+    (f) => f.toLowerCase().includes('code quality') || f.toLowerCase().includes('security')
   )
 );
 
 console.log('Quality & Security Personas:');
-qualityAndSecurityPersonas.forEach(persona => {
+qualityAndSecurityPersonas.forEach((persona) => {
   console.log(`- ${persona.name}`);
 });
 
@@ -547,6 +579,7 @@ qualityAndSecurityPersonas.forEach(persona => {
 ### Persona Design
 
 Each persona is carefully designed with:
+
 - **Specific expertise**: Narrow focus for optimal results
 - **Appropriate tone**: Matches the task domain (technical, user-friendly, security-focused)
 - **Clear use cases**: Maps to specific workflow steps
@@ -555,6 +588,7 @@ Each persona is carefully designed with:
 ### Adding Custom Personas
 
 While personas are immutable at runtime, you can:
+
 1. Extend the PERSONAS array in source code
 2. Use `validatePersona()` to ensure schema compliance
 3. Follow naming conventions (lowercase_underscore for IDs)
@@ -568,6 +602,7 @@ While personas are immutable at runtime, you can:
 ### Migration Notes
 
 Migrated from `src/workflow/lib/ai_personas.sh` + `.workflow_core/config/ai_helpers.yaml` with:
+
 - Converted YAML definitions to JavaScript objects
 - Added validation and lookup functions
 - Maintained all original 14 personas with exact specifications

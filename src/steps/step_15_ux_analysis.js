@@ -125,6 +125,11 @@ export const TUI_DEPENDENCY_PATTERNS = Object.freeze([
   'cliffy',
 ]);
 
+const NO_VISIBLE_UI_SOURCE_RE = /\bno ui(?:\/ux)? source content is visible\b/i;
+const FILENAME_ONLY_UX_REVIEW_RE = /\bfilenames alone\b/i;
+const UNAVAILABLE_OR_INCONCLUSIVE_REVIEW_RE =
+  /\b(?:reliable ui\/ux review is unavailable|review(?: is)? (?:unavailable|inconclusive))\b/i;
+
 // ============================================================================
 // PURE FUNCTIONS - UI Detection
 // ============================================================================
@@ -500,6 +505,93 @@ export function parseUxAnalysisResult(analysisText) {
 }
 
 /**
+ * Validate whether an AI UX response contradicts visible snippet evidence.
+ *
+ * @pure
+ * @param {string} aiResponse - AI response text
+ * @param {Array<{file: string, content: string}>} fileContents - UI snippets injected into the prompt
+ * @returns {{adequate: boolean, reason: string, hasVisibleSnippetEvidence: boolean}}
+ */
+export function validateUxAnalysisEvidenceHandling(aiResponse, fileContents = []) {
+  const hasVisibleSnippetEvidence = Array.isArray(fileContents) && fileContents.length > 0;
+  if (!hasVisibleSnippetEvidence) {
+    return {
+      adequate: true,
+      reason: 'no visible UI snippets were provided',
+      hasVisibleSnippetEvidence: false,
+    };
+  }
+
+  const response = String(aiResponse ?? '');
+  const claimsNoVisibleUiSource = NO_VISIBLE_UI_SOURCE_RE.test(response);
+  const claimsFilenameOnlyReview =
+    FILENAME_ONLY_UX_REVIEW_RE.test(response) &&
+    UNAVAILABLE_OR_INCONCLUSIVE_REVIEW_RE.test(response);
+
+  if (!claimsNoVisibleUiSource && !claimsFilenameOnlyReview) {
+    return {
+      adequate: true,
+      reason: 'response is compatible with visible UI snippet evidence',
+      hasVisibleSnippetEvidence: true,
+    };
+  }
+
+  return {
+    adequate: false,
+    reason:
+      'response contradicts visible UI snippet evidence by treating the prompt as filename-only',
+    hasVisibleSnippetEvidence: true,
+  };
+}
+
+/**
+ * Rewrite contradictory filename-only UX conclusions when visible snippets were provided.
+ *
+ * @pure
+ * @param {string} aiResponse - AI response text
+ * @param {{adequate: boolean, hasVisibleSnippetEvidence: boolean}} evidence - Evidence validation result
+ * @returns {string} Normalized response text
+ */
+export function normalizeUxAnalysisResponseForEvidence(aiResponse, evidence) {
+  const response = String(aiResponse ?? '').trim();
+  if (!evidence?.hasVisibleSnippetEvidence || evidence.adequate || response.length === 0) {
+    return response;
+  }
+
+  const normalized = response
+    .replace(
+      /UI\/UX-related files are listed[\s\S]*?no UI source content is visible in the provided context\.\s*/gi,
+      'Visible UI source snippets were provided in the prompt. '
+    )
+    .replace(
+      /A reliable UI\/UX review is unavailable from filenames alone\.\s*/gi,
+      'Any remaining unavailable checks must be limited to missing or truncated snippets instead of a missing-source fallback. '
+    )
+    .trim();
+
+  if (
+    !normalized ||
+    normalized === response ||
+    /^Review inconclusive\.?$/i.test(normalized) ||
+    /^Visible UI source snippets were provided in the prompt\.?$/i.test(normalized)
+  ) {
+    return (
+      'Inconclusive — visible UI source snippets were provided in the prompt, but the AI ' +
+      'response incorrectly treated the review as if only filenames were available. ' +
+      'Re-run the analysis or review the visible snippets manually; any unsupported checks ' +
+      'must remain unavailable or inconclusive.'
+    );
+  }
+
+  return (
+    '> Workflow note: Visible UI source snippets were provided in the prompt. The AI ' +
+    'response incorrectly treated the review as if only filenames were available, so ' +
+    'the unsupported filename-only conclusion was not preserved.\n\n' +
+    normalized
+  );
+}
+
+/**
  * Format UX analysis report
  * @param {Object} data - Analysis data
  * @param {string} data.projectType - Project type
@@ -819,7 +911,18 @@ export class Step15UxAnalysis {
           fileCount: uiFiles.length,
         };
       }
-      const analysisResult = await this.performAnalysis(prompt);
+      const rawAnalysisResult = await this.performAnalysis(prompt);
+      const evidenceValidation = validateUxAnalysisEvidenceHandling(
+        rawAnalysisResult,
+        fileContents
+      );
+      if (!evidenceValidation.adequate) {
+        this.logger.warn(`Step 15: UX analysis response normalized — ${evidenceValidation.reason}`);
+      }
+      const analysisResult = normalizeUxAnalysisResponseForEvidence(
+        rawAnalysisResult,
+        evidenceValidation
+      );
 
       // Phase 5: Parse results
       const issueCounts = parseUxAnalysisResult(analysisResult);

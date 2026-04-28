@@ -192,7 +192,13 @@ describe('E2E: detectChangedDocs fix regression', () => {
         },
         aiHelper: { initialize: () => Promise.resolve(false) },
         parallelProcessor: {
-          validate: () => Promise.resolve({ validatedFiles: 0, totalFiles: 0, errors: [] }),
+          validate: (_files) =>
+            Promise.resolve({
+              validatedFiles: _files.length,
+              totalFiles: _files.length,
+              errors: [],
+              success: true,
+            }),
           getStatistics: () => ({ totalDuration: 0, speedup: null }),
         },
         incrementalProcessor: processor,

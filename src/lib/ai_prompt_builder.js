@@ -818,6 +818,10 @@ ${fileList}${fileContentsSection}`;
 - Cite only files from the list provided above
 - Describe the specific inconsistency without fabricating line numbers
 - Provide a concrete fix
+- Classify a broken-reference candidate as "Unverified From Visible Context" when the target
+  is absent from the provided file list and there is no explicit repo-path hint or visible
+  target excerpt proving what happened; do not mark those items as "Confirmed Broken" based
+  only on partition-local visibility
 
 If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly.
 - Do not claim that no version numbers or badges are present unless the relevant in-scope files or excerpts needed to support that absence are actually visible in the prompt or already established by the programmatic scan.
@@ -873,21 +877,23 @@ export function buildTestReviewPrompt(options) {
 - If the project includes CONTRIBUTING.md or documented testing conventions, align recommendations with those conventions
 - Review only the listed files and any explicit file contents provided for them
 - If a listed file is truncated, unavailable, or declarative rather than executable test code, say so explicitly and limit conclusions to the visible evidence
+- Treat any named test command as repository-level context unless the visible prompt evidence proves it executes the scoped files; if compatibility is not shown, say that command compatibility is unverified
 - Do not claim CI stability, performance health, repository-wide test quality, or cross-file mock hygiene unless that evidence is shown directly in the prompt
-- Do not write unsupported positive summaries such as "all mocks are restored", "no performance issues", or "no major anti-patterns" unless the exact supporting file sections are visible and cited`;
+- Do not write unsupported positive summaries such as "all mocks are restored", "no performance issues", or "no major anti-patterns" unless the exact supporting file sections are visible and cited
+- When recommending a concrete rewrite, include a short before/after example only when both snippets are grounded in visible code; otherwise describe the change without fabricating code`;
 
   const testList = buildFileListContext(testFiles);
 
   const taskFrameworkLabel = runner ? (lang ? `${runner} (${lang})` : runner) : lang;
   const taskFrameworkContext = taskFrameworkLabel ? ` using ${taskFrameworkLabel}` : '';
   const commandsNote = testCmd
-    ? `\nPrimary executable test command: \`${testCmd}\`${covCmd ? `; coverage command: \`${covCmd}\`` : ''}`
+    ? `\nRepository-default test command: \`${testCmd}\`${covCmd ? `; coverage command: \`${covCmd}\`` : ''}. Treat this as context, not proof that every listed file runs under that command. If compatibility is not visible, state that it is unverified.`
     : '';
 
   const task = `Review test quality and coverage — including assertion quality, edge cases, error handling, and test isolation — for these discovered test files and test-related artifacts${taskFrameworkContext}:
 ${testList}${commandsNote}
 
-If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact rather than executable test code, treat it as supporting context instead of pretending it runs under the primary test command.`;
+If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact rather than executable test code, treat it as supporting context instead of pretending it runs under the named test command.`;
 
   const approach = `**Review Methodology**:
 1. **Coverage Analysis**: Identify untested code paths, edge cases, and error handling gaps
@@ -896,6 +902,11 @@ If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact 
 4. **Evidence Handling**: Mark missing or truncated evidence as unavailable or inconclusive instead of inferring success
 5. **Execution Risk**: Only comment on slow, flaky, CI-sensitive, or non-deterministic behavior when the visible code shows it directly; otherwise mark that area inconclusive
 6. **Recommendations**: Prioritize improvements by impact and effort
+
+**Output Requirements**:
+- Cite \`file:line\` whenever the relevant line is visible
+- If you suggest rewriting code, include a short before/after example only when both snippets come from visible code or a directly grounded edit of that code
+- If evidence is truncated, do not convert missing execution-risk, CI, or mock-hygiene evidence into positive pass statements
 
 **Focus**: Assertion quality, edge cases, error handling, test isolation, and maintainability`;
 

@@ -335,31 +335,50 @@ Use `workflow.steps` to override the generated canonical step set, not to invent
 
 - Every step entry must declare an `id`.
 - Preserve the canonical dependencies by default.
-- If you intentionally change `dependencies`, add `dependency_comment` explaining why.
+- Reordering the same dependency set is normalized back to canonical order and does not require `dependency_comment`.
+- If you intentionally change the dependency set, add `dependency_comment` explaining why.
+- If you disable a step, disable or rewire every enabled dependent step too; selected steps cannot depend on excluded prerequisites.
+- Leave project-kind-gated steps enabled unless you are intentionally removing the whole branch. Most of them self-skip safely when the project kind does not match.
 - Safe customizations that do **not** require dependency overrides include `enabled`, `name`, `description`, and `ai_persona`.
 
 ```yaml
 workflow:
   steps:
     - id: step_01_5
-      name: "Copilot Instructions Validation"
+      name: 'Copilot Instructions Validation'
       enabled: true
       dependencies:
         - step_01
 
     - id: step_02
-      name: "Consistency Analysis"
+      name: 'Consistency Analysis'
       enabled: true
       dependencies:
         - step_01_5
 
     - id: step_21
-      name: "Architecture Review"
-      description: "Project-specific alias for architecture checks"
+      name: 'Architecture Review'
+      description: 'Project-specific alias for architecture checks'
       dependencies:
         - step_02_5
-      dependency_comment: "Project routes architecture review through the canonical doc-consolidation slot."
+      dependency_comment: 'Project routes architecture review through the canonical doc-consolidation slot.'
 ```
+
+Invalid target-project example:
+
+```yaml
+workflow:
+  steps:
+    - id: step_14
+      enabled: false
+
+    - id: step_15
+      enabled: true
+      dependencies:
+        - step_14
+```
+
+That configuration still fails fast because `step_15` depends on an excluded prerequisite. Re-enable `step_14`, disable `step_15`, or rewrite the dependency with `dependency_comment`.
 
 ### Logging Configuration
 

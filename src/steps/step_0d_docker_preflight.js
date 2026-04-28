@@ -28,7 +28,7 @@ import fs from 'fs';
 
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
-import * as executor from '../core/executor.js';
+import executor, { normalizeExecutor } from '../core/executor.js';
 import { Backlog } from '../lib/backlog.js';
 import { validateLockfileStructure } from './step_09_dependencies.js';
 
@@ -231,7 +231,7 @@ export class Step0dDockerPreflight {
   static stepKind = STEP_KIND.PROJECT;
 
   constructor(options = {}) {
-    this.executor = options.executor || executor;
+    this.executor = normalizeExecutor(options.executor || executor);
     this.backlog = options.backlog || new Backlog();
     this._validateLockfileStructure =
       options.validateLockfileStructure ?? validateLockfileStructure;

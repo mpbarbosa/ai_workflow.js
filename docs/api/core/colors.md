@@ -1,7 +1,7 @@
 # colors - ANSI Color Codes Module
 
 **Module:** `core/colors`
-**Version:** 1.9.11
+**Version:** 2.2.16
 **Type:** Pure Functional
 
 ## Overview

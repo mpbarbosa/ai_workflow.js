@@ -18,6 +18,7 @@
 
 import path from 'path';
 import { STEP_KIND } from './step_contract.js';
+import { normalizeExecutor } from '../core/executor.js';
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
@@ -433,7 +434,7 @@ export class Step13MarkdownLint {
   static stepKind = STEP_KIND.CONTEXT;
 
   constructor(options = {}) {
-    this.executor = options.executor || null;
+    this.executor = normalizeExecutor(options.executor);
     this.fileOps = options.fileOps || null;
     this.backlogManager = options.backlogManager || null;
     this.logger = options.logger || console;

@@ -8,7 +8,7 @@ AI-Powered Workflow Automation for Software Development
 [![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
-**Version:** 2.2.17 🎉 **STABLE RELEASE**
+**Version:** 2.2.16 🎉 **STABLE RELEASE**
 **Status:** Production Ready ✅
 **Last Updated:** April 25, 2026
 

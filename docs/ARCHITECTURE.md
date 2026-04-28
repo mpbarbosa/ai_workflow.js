@@ -1,50 +1,63 @@
-# Architecture Overview: ai_workflow.js
+# Architecture Overview
 
-`ai_workflow.js` is a Node.js automation project for AI-assisted software
-workflow execution. The repository is organized around a layered CLI and
-orchestration architecture, with supporting documentation, scripts, and
-workflow artifacts kept alongside the source.
+**Version:** 2.2.16
+**Last Updated:** April 27, 2026
+
+This document gives the high-level architecture for `ai_workflow.js`. The
+current repository is organized around stable source layers rather than the old
+phase-based module map.
 
 ## Main layers
 
-- **CLI** - command entry points, help output, prompts, and the Ink-based TUI
-- **Orchestrator** - workflow engine, dependency resolution, execution flow, and checkpoints
-- **Library modules** - config, git, AI integration, analysis, caching, and helpers
-- **Core and utils** - low-level logging, colors, execution, versioning, and shared errors
+| Layer        | Path                | Responsibility                                                                                               |
+| ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| CLI          | `src/cli/`          | Command entry points, prompts, help output, and Ink-based TUI code                                           |
+| Orchestrator | `src/orchestrator/` | Workflow engine, dependency resolution, step scheduling, and checkpoints                                     |
+| Steps        | `src/steps/`        | Executable workflow-step implementations invoked by the orchestrator                                         |
+| Library      | `src/lib/`          | Reusable domain logic such as config loading, git automation, AI integration, caching, parsing, and analysis |
+| Core         | `src/core/`         | Foundational runtime helpers such as logging, execution, colors, system detection, and version helpers       |
+| Utils        | `src/utils/`        | Shared low-level helpers and error types                                                                     |
 
-## Repository structure
+## Data flow
 
-| Path | Purpose |
-| --- | --- |
-| `src/core/` | Foundational runtime helpers such as logging, colors, system, executor, and version utilities. |
-| `src/utils/` | Small shared helpers and error types. |
-| `src/lib/` | Main business logic: config, AI helpers, caching, git automation, parsing, and analysis. |
-| `src/orchestrator/` | Workflow engine and orchestration primitives. |
-| `src/steps/` | Individual workflow-step implementations. |
-| `src/cli/` | CLI commands, prompt handling, output helpers, and TUI components. |
-| `scripts/` | Developer automation scripts for setup, validation, testing, release preparation, and maintenance. |
-| `test/` | Unit, integration, fixture, and step-level coverage that mirrors the source layout. |
-| `docs/architecture/` | Detailed architecture references, including design principles and dependency graphs. |
-| `docs/misc/` | Overflow documentation and uncategorized notes that do not fit the primary guides, reports, or reference sections. |
-| `.workflow_core/` | Shared workflow templates and helper configuration maintained as a submodule. |
-| `.workflow_fspec/` | Functional specification submodule. |
-| `.ai_workflow/` | Runtime artifacts such as logs, checkpoints, metrics, cache, and summaries. |
+```text
+CLI commands / TUI
+        |
+        v
+WorkflowEngine + orchestrator helpers
+        |
+        v
+Step execution (src/steps/)
+        |
+        v
+Library modules (config, git, AI, cache, parsing, analysis)
+        |
+        v
+Core + utils + Node.js platform APIs
+```
 
-## Local tooling and runtime artifact directories
+## Repository surfaces around the source tree
 
-The repository also contains local tooling configuration and creates several
-gitignored working directories during local development and test runs:
+| Path                    | Purpose                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `bin/ai-workflow.js`    | Published CLI executable                                                   |
+| `src/index.js`          | Public API barrel                                                          |
+| `.workflow-config.yaml` | Project-local workflow configuration                                       |
+| `.workflow_core/`       | Shared workflow templates and helper assets                                |
+| `.workflow_fspec/`      | Functional specification submodule                                         |
+| `.ai_workflow/`         | Runtime artifacts such as logs, checkpoints, metrics, cache, and summaries |
+| `docs/`                 | User-facing guides, architecture references, API docs, and reports         |
 
-- `.claude/` - local assistant tooling settings, including repo-specific command permission overrides
-- `.ai_workflow/` - workflow outputs, logs, summaries, metrics, and cache
-- `.test-cache/` - Jest transform and module cache
-- `.test-e2e/` - temporary end-to-end test work directories
-- `.test-step-11-5/` - isolated fixtures for step 11.5 tests
-- `coverage/` - generated Jest coverage output
+## Design rules
 
-## Detailed references
+- Keep business logic in pure functions where practical.
+- Keep filesystem, process, network, and environment access at layer boundaries.
+- Prefer reusing helpers inside the owning layer over reaching across layers.
+- Keep user-facing docs aligned with real behavior and exported entry points.
 
-- [Architecture Overview](./architecture/OVERVIEW.md)
-- [Design Principles](./architecture/DESIGN_PRINCIPLES.md)
-- [Dependency Graph](./architecture/DEPENDENCY_GRAPH.md)
-- [Workflow Engine Requirements](./WORKFLOW_ENGINE_REQUIREMENTS.md)
+## Related documents
+
+- [Detailed repository overview](./architecture/OVERVIEW.md)
+- [Dependency graph and dependency rules](./architecture/DEPENDENCY_GRAPH.md)
+- [CLI usage guide](./CLI_USAGE_GUIDE.md)
+- [Migration guide](./guides/MIGRATION_GUIDE.md)

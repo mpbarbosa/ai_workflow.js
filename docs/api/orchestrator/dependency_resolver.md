@@ -1,7 +1,7 @@
 # Dependency Resolver API
 
 **Module:** `orchestrator/dependency_resolver`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -492,7 +492,11 @@ console.log(`Estimated completion: ${critical.duration} seconds`);
 ### Using Pure Functions Directly
 
 ```javascript
-import { buildDependencyGraph, topologicalSort, groupParallelSteps } from 'ai_workflow.js/orchestrator/dependency_resolver';
+import {
+  buildDependencyGraph,
+  topologicalSort,
+  groupParallelSteps,
+} from 'ai_workflow.js/orchestrator/dependency_resolver';
 
 const graph = buildDependencyGraph(steps);
 const order = topologicalSort(graph);

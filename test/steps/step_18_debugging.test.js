@@ -4,7 +4,9 @@ import { jest } from '@jest/globals';
 import {
   detectDebugPersona,
   formatDebuggingReport,
+  prioritizeDebugSourceFiles,
   readProjectContextFile,
+  scoreDebugSourceFile,
   Step18Debugging,
   STEP_DEFINITION,
 } from '../../src/steps/step_18_debugging.js';
@@ -133,6 +135,40 @@ describe('formatDebuggingReport', () => {
     });
     expect(report).toContain('- (none)');
     expect(report).toContain('some content');
+  });
+});
+
+describe('debug source prioritization', () => {
+  it('scores runtime source files above tests, examples, and tooling', () => {
+    expect(scoreDebugSourceFile('src/app.ts')).toBeGreaterThan(
+      scoreDebugSourceFile('tests/e2e/app.test.js')
+    );
+    expect(scoreDebugSourceFile('src/app.ts')).toBeGreaterThan(
+      scoreDebugSourceFile('examples/demo.js')
+    );
+    expect(scoreDebugSourceFile('src/app.ts')).toBeGreaterThan(
+      scoreDebugSourceFile('eslint.config.js')
+    );
+  });
+
+  it('prioritizes runtime source files while preserving order within the same tier', () => {
+    const prioritized = prioritizeDebugSourceFiles([
+      'eslint.config.js',
+      'examples/demo.js',
+      'src/app.ts',
+      'public/service-worker.js',
+      'tests/e2e/app.test.js',
+      'src/guia.ts',
+    ]);
+
+    expect(prioritized).toEqual([
+      'src/app.ts',
+      'src/guia.ts',
+      'public/service-worker.js',
+      'eslint.config.js',
+      'examples/demo.js',
+      'tests/e2e/app.test.js',
+    ]);
   });
 });
 
@@ -395,11 +431,63 @@ describe('Step18Debugging', () => {
 
   it('limits discovered files to 100 unique', async () => {
     const files = Array.from({ length: 120 }, (_, i) => `file${i}.js`);
-    mockFileOps.glob.mockResolvedValue(files);
+    mockFileOps.glob
+      .mockResolvedValueOnce(files)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
     mockAiHelper.initialize.mockResolvedValue(false);
 
     const result = await step.execute('/project/root');
     expect(result.totalSourceFiles).toBe(100);
+  });
+
+  it('excludes tests and examples from discovered source files', async () => {
+    mockFileOps.glob
+      .mockResolvedValueOnce([
+        'src/app.ts',
+        'tests/e2e/app.test.js',
+        '__mocks__/fileMock.js',
+        'examples/demo.js',
+        'public/service-worker.js',
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const discoveredFiles = await step._discoverSourceFiles('/project/root');
+
+    expect(discoveredFiles).toEqual(['src/app.ts', 'public/service-worker.js']);
+  });
+
+  it('samples discovered runtime source files before tooling files', async () => {
+    mockFileOps.glob
+      .mockResolvedValueOnce([
+        'eslint.config.js',
+        'src/app.ts',
+        'scripts/check.js',
+        'public/service-worker.js',
+        'src/guia.ts',
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockFileOps.readFile.mockImplementation(async (targetPath) => {
+      if (targetPath.endsWith('PROJECT_CONTEXT.md')) throw new Error('ENOENT');
+      return 'async function run() { await fetch(); }';
+    });
+    mockAiHelper.initialize.mockResolvedValue(false);
+
+    const result = await step.execute('/project/root');
+
+    expect(result.filesAnalyzed.slice(0, 3)).toEqual([
+      'src/app.ts',
+      'src/guia.ts',
+      'public/service-worker.js',
+    ]);
   });
 
   it('handles missing options.sourceFiles and uses _discoverSourceFiles', async () => {

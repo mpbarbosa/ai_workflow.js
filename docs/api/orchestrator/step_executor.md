@@ -1,7 +1,7 @@
 # Step Executor API
 
 **Module:** `orchestrator/step_executor`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
@@ -510,7 +510,9 @@ const parallelSteps = [
 const results = await executor.executeInParallel(parallelSteps, context);
 
 const allSucceeded = results.every((r) => r.success);
-console.log(`Parallel execution: ${results.filter((r) => r.success).length}/${results.length} succeeded`);
+console.log(
+  `Parallel execution: ${results.filter((r) => r.success).length}/${results.length} succeeded`
+);
 ```
 
 ---
@@ -656,7 +658,11 @@ const unreliableStep = {
   },
 };
 
-const result = await executor.executeWithRetry(unreliableStep, { apiUrl: 'https://api.example.com' }, 5);
+const result = await executor.executeWithRetry(
+  unreliableStep,
+  { apiUrl: 'https://api.example.com' },
+  5
+);
 // Automatically retries with delays: 1s, 2s, 4s, 8s, 16s
 ```
 

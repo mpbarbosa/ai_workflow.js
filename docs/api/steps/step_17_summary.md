@@ -1,7 +1,7 @@
 # step_17_summary.js API Documentation
 
 **Module:** `steps/step_17_summary`
-**Version:** 2.0.0
+**Version:** 2.2.16
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview
@@ -84,10 +84,10 @@ Thresholds for bottleneck and cache analysis:
 
 ```javascript
 export const PERFORMANCE_THRESHOLDS = Object.freeze({
-  bottleneckSeconds:      300,  // 5 minutes → bottleneck flag
-  slowStepSeconds:        120,  // 2 minutes → slow step warning
-  acceptableCacheHitRate: 0.6,  // 60% cache hits → acceptable
-  goodCacheHitRate:       0.8,  // 80% cache hits → good
+  bottleneckSeconds: 300, // 5 minutes → bottleneck flag
+  slowStepSeconds: 120, // 2 minutes → slow step warning
+  acceptableCacheHitRate: 0.6, // 60% cache hits → acceptable
+  goodCacheHitRate: 0.8, // 80% cache hits → good
 });
 ```
 
@@ -97,11 +97,11 @@ Recommendation category identifiers:
 
 ```javascript
 export const RECOMMENDATION_TYPES = Object.freeze({
-  PERFORMANCE:     'performance',
-  CACHING:         'caching',
-  SKIPPING:        'skipping',
+  PERFORMANCE: 'performance',
+  CACHING: 'caching',
+  SKIPPING: 'skipping',
   PARALLELIZATION: 'parallelization',
-  OPTIMIZATION:    'optimization',
+  OPTIMIZATION: 'optimization',
 });
 ```
 
@@ -219,7 +219,7 @@ Impure wrapper that reads workflow artifacts and writes the final summary report
 **Constructor:**
 
 ```javascript
-constructor(options = {});
+constructor((options = {}));
 ```
 
 **Options:**
@@ -270,7 +270,9 @@ const result = await step.execute('/path/to/project');
 
 if (result.success) {
   console.log(`Workflow complete in ${result.metrics.totalDuration}s`);
-  console.log(`Success rate: ${result.metrics.successCount}/${result.metrics.successCount + result.metrics.failureCount}`);
+  console.log(
+    `Success rate: ${result.metrics.successCount}/${result.metrics.successCount + result.metrics.failureCount}`
+  );
 
   for (const rec of result.recommendations) {
     console.log(`[${rec.priority.toUpperCase()}] ${rec.message}`);
