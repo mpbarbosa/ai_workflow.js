@@ -19,17 +19,13 @@ export function normalizeExecutor(executorLike = execute) {
   }
 
   if (executorLike && typeof executorLike.execute === 'function') {
-    return {
-      execute: (...args) => executorLike.execute(...args),
-      executeStream:
-        typeof executorLike.executeStream === 'function'
-          ? (...args) => executorLike.executeStream(...args)
-          : executeStream,
-      executeSudo:
-        typeof executorLike.executeSudo === 'function'
-          ? (...args) => executorLike.executeSudo(...args)
-          : executeSudo,
-    };
+    if (typeof executorLike.executeStream !== 'function') {
+      executorLike.executeStream = executeStream;
+    }
+    if (typeof executorLike.executeSudo !== 'function') {
+      executorLike.executeSudo = executeSudo;
+    }
+    return executorLike;
   }
 
   return {
