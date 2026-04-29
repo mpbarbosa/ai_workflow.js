@@ -6,7 +6,7 @@ project:
   type: 'nodejs-application'
   description: 'AI-powered workflow automation for software development projects with GitHub Copilot integration'
   kind: 'nodejs_automation'
-  version: '2.2.16'
+  version: '2.2.17'
 
 tech_stack:
   primary_language: 'javascript'

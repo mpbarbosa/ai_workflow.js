@@ -6,7 +6,7 @@
 
 ## Purpose
 
-This file provides concise, project-specific guidance to help Copilot make high-quality, context-aware edits for `ai-workflow`, an AI-powered workflow automation package for software development with GitHub Copilot integration.
+This file provides concise, project-specific guidance to help Copilot make high-quality, context-aware edits for `ai-workflow`, an AI-powered workflow automation package for software development projects with GitHub Copilot integration.
 
 ---
 
@@ -64,10 +64,10 @@ Use narrower scripts from `package.json` only for intentionally scoped tasks.
 
 Consult these documents for details:
 
-- [README.md](../README.md)
-- [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)
-- [docs/CLI_USAGE_GUIDE.md](../docs/CLI_USAGE_GUIDE.md)
-- [docs/guides/MIGRATION_GUIDE.md](../docs/guides/MIGRATION_GUIDE.md)
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/CLI_USAGE_GUIDE.md`
+- `docs/guides/MIGRATION_GUIDE.md`
 - `CHANGELOG.md`, `CONTRIBUTING.md`, `ROADMAP.md`
 - `package.json`
 

@@ -1,0 +1,685 @@
+{
+  "version": 1,
+  "entries": {
+    "bin/ai-workflow.js": {
+      "mtimeMs": 1777212574966,
+      "hasAsyncPatterns": false
+    },
+    "docs/api/html/assets/hierarchy.js": {
+      "mtimeMs": 1776167688941,
+      "hasAsyncPatterns": false
+    },
+    "docs/api/html/assets/icons.js": {
+      "mtimeMs": 1776167689119,
+      "hasAsyncPatterns": true
+    },
+    "docs/api/html/assets/main.js": {
+      "mtimeMs": 1776167689122,
+      "hasAsyncPatterns": true
+    },
+    "docs/api/html/assets/navigation.js": {
+      "mtimeMs": 1776167688941,
+      "hasAsyncPatterns": false
+    },
+    "docs/api/html/assets/search.js": {
+      "mtimeMs": 1776167688941,
+      "hasAsyncPatterns": false
+    },
+    "scripts/analyze-change-impact.js": {
+      "mtimeMs": 1775315965360,
+      "hasAsyncPatterns": false
+    },
+    "scripts/analyze-jsdoc-coverage.js": {
+      "mtimeMs": 1772658881308,
+      "hasAsyncPatterns": true
+    },
+    "scripts/analyze-readability.js": {
+      "mtimeMs": 1772658881308,
+      "hasAsyncPatterns": false
+    },
+    "scripts/check-version-consistency.js": {
+      "mtimeMs": 1775315965404,
+      "hasAsyncPatterns": false
+    },
+    "scripts/fix-markdown.js": {
+      "mtimeMs": 1772746544085,
+      "hasAsyncPatterns": false
+    },
+    "scripts/jest-typescript-transformer.cjs": {
+      "mtimeMs": 1777218253754,
+      "hasAsyncPatterns": false
+    },
+    "scripts/postinstall.js": {
+      "mtimeMs": 1776991049310,
+      "hasAsyncPatterns": false
+    },
+    "scripts/postprocess-typedoc-media-links.js": {
+      "mtimeMs": 1777334474780,
+      "hasAsyncPatterns": false
+    },
+    "scripts/security-audit.js": {
+      "mtimeMs": 1773326285431,
+      "hasAsyncPatterns": true
+    },
+    "scripts/smoke-test-copilot-sdk.js": {
+      "mtimeMs": 1777030911395,
+      "hasAsyncPatterns": true
+    },
+    "scripts/validate-exports.js": {
+      "mtimeMs": 1772746873256,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/clean.js": {
+      "mtimeMs": 1777424354595,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/clean.ts": {
+      "mtimeMs": 1777211995952,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/config.js": {
+      "mtimeMs": 1777424354600,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/config.ts": {
+      "mtimeMs": 1777212487896,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/deploy.js": {
+      "mtimeMs": 1777424354606,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/deploy.ts": {
+      "mtimeMs": 1777212950758,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/fix_log_issues.js": {
+      "mtimeMs": 1777424354611,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/fix_log_issues.ts": {
+      "mtimeMs": 1777213531245,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/init.js": {
+      "mtimeMs": 1777424354615,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/init.ts": {
+      "mtimeMs": 1777214449165,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/resume.js": {
+      "mtimeMs": 1777424354621,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/resume.ts": {
+      "mtimeMs": 1777214930429,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/run.js": {
+      "mtimeMs": 1777424354618,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/run.ts": {
+      "mtimeMs": 1777217266142,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/status.js": {
+      "mtimeMs": 1777424354624,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/commands/status.ts": {
+      "mtimeMs": 1777217836757,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/help.js": {
+      "mtimeMs": 1776222250519,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/index.js": {
+      "mtimeMs": 1777026235008,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/output.js": {
+      "mtimeMs": 1770772249685,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/progress.js": {
+      "mtimeMs": 1770776637729,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/prompts.js": {
+      "mtimeMs": 1770776637742,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/tui/App.js": {
+      "mtimeMs": 1775533856023,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/tui/components/ErrorDetailPanel.js": {
+      "mtimeMs": 1777424354591,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/ErrorDetailPanel.ts": {
+      "mtimeMs": 1776222250519,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/Header.js": {
+      "mtimeMs": 1777424354592,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/Header.ts": {
+      "mtimeMs": 1777317009483,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/HelpOverlay.js": {
+      "mtimeMs": 1777424354593,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/HelpOverlay.ts": {
+      "mtimeMs": 1777399277897,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/LogPanel.js": {
+      "mtimeMs": 1772928141439,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/LogSearchBar.js": {
+      "mtimeMs": 1772928141449,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/ProgressBar.js": {
+      "mtimeMs": 1772912924964,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/StatusBar.js": {
+      "mtimeMs": 1775534664433,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/StepDetailOverlay.js": {
+      "mtimeMs": 1772928141460,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/StepsPanel.js": {
+      "mtimeMs": 1775533802974,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/components/StreamViewer.js": {
+      "mtimeMs": 1775261712560,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/helpers.js": {
+      "mtimeMs": 1773269874183,
+      "hasAsyncPatterns": false
+    },
+    "src/cli/tui/hooks/useOrchestrator.js": {
+      "mtimeMs": 1777030911395,
+      "hasAsyncPatterns": true
+    },
+    "src/cli/tui/index.js": {
+      "mtimeMs": 1773270504511,
+      "hasAsyncPatterns": true
+    },
+    "src/core/colors.js": {
+      "mtimeMs": 1776144609314,
+      "hasAsyncPatterns": false
+    },
+    "src/core/executor.js": {
+      "mtimeMs": 1777419770997,
+      "hasAsyncPatterns": false
+    },
+    "src/core/index.js": {
+      "mtimeMs": 1776250515956,
+      "hasAsyncPatterns": false
+    },
+    "src/core/logger.js": {
+      "mtimeMs": 1772552472636,
+      "hasAsyncPatterns": false
+    },
+    "src/core/system.js": {
+      "mtimeMs": 1772552472636,
+      "hasAsyncPatterns": false
+    },
+    "src/core/version.js": {
+      "mtimeMs": 1772552472636,
+      "hasAsyncPatterns": false
+    },
+    "src/index.js": {
+      "mtimeMs": 1776690441155,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/ai_cache.js": {
+      "mtimeMs": 1777424354583,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_cache.ts": {
+      "mtimeMs": 1777086423648,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_helpers.js": {
+      "mtimeMs": 1777419739113,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_personas.js": {
+      "mtimeMs": 1777424354589,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_personas.ts": {
+      "mtimeMs": 1776144609314,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_prompt_builder.js": {
+      "mtimeMs": 1777342510195,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ai_provider.js": {
+      "mtimeMs": 1777424354574,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/ai_provider.ts": {
+      "mtimeMs": 1777026235009,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/ai_script_generator.js": {
+      "mtimeMs": 1773269945296,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/ai_validation.js": {
+      "mtimeMs": 1770299648954,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/analysis_cache.js": {
+      "mtimeMs": 1770473676556,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/argument_parser.js": {
+      "mtimeMs": 1770165548425,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/auto_commit.js": {
+      "mtimeMs": 1773337550403,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/backlog.js": {
+      "mtimeMs": 1772130759483,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/change_detection.js": {
+      "mtimeMs": 1775260891444,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/claude_sdk_wrapper.js": {
+      "mtimeMs": 1777424354570,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/claude_sdk_wrapper.ts": {
+      "mtimeMs": 1777212258642,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/cleanup_handlers.js": {
+      "mtimeMs": 1770469588827,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/code_changes_optimization.js": {
+      "mtimeMs": 1775260891444,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/commit_history.js": {
+      "mtimeMs": 1772130797281,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/config.js": {
+      "mtimeMs": 1769735568014,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/copilot_sdk_wrapper.js": {
+      "mtimeMs": 1777424354563,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/copilot_sdk_wrapper.ts": {
+      "mtimeMs": 1777030911396,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/dependency_cache.js": {
+      "mtimeMs": 1772917094518,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/docs_only_optimization.js": {
+      "mtimeMs": 1773359026408,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/edit_operations.js": {
+      "mtimeMs": 1773269945296,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/file_operations.js": {
+      "mtimeMs": 1773269945296,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/full_changes_optimization.js": {
+      "mtimeMs": 1772552472637,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/git_automation.js": {
+      "mtimeMs": 1775006278804,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/git_cache.js": {
+      "mtimeMs": 1770466781739,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/git_submodules.js": {
+      "mtimeMs": 1771638295229,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/incremental_analysis.js": {
+      "mtimeMs": 1770473976483,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/index.js": {
+      "mtimeMs": 1776270845361,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/log_parser.js": {
+      "mtimeMs": 1776275803888,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/metrics.js": {
+      "mtimeMs": 1770165548425,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/ml_optimization.js": {
+      "mtimeMs": 1777086382786,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/multi_stage_pipeline.js": {
+      "mtimeMs": 1770475607855,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/performance.js": {
+      "mtimeMs": 1770473040740,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/performance_monitoring.js": {
+      "mtimeMs": 1770473269031,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/project_kind_config.js": {
+      "mtimeMs": 1777416388874,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/project_kind_detection.js": {
+      "mtimeMs": 1772130797282,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/review_prompt_scope.js": {
+      "mtimeMs": 1776276500037,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/review_step_base.js": {
+      "mtimeMs": 1776690441155,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/review_step_helpers.js": {
+      "mtimeMs": 1777331828648,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/sdk_smoke_test.js": {
+      "mtimeMs": 1771612420143,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/session_manager.js": {
+      "mtimeMs": 1770469016940,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/startup_resume_evaluator.js": {
+      "mtimeMs": 1776721132077,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/step0b_state_cache.js": {
+      "mtimeMs": 1771620796115,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/step10_partition_cache.js": {
+      "mtimeMs": 1777156961030,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/step1_incremental.js": {
+      "mtimeMs": 1772130796822,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/step1_parallel.js": {
+      "mtimeMs": 1777331828647,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/tech_stack.js": {
+      "mtimeMs": 1777331828654,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/third_party_exclusion.js": {
+      "mtimeMs": 1772497371159,
+      "hasAsyncPatterns": true
+    },
+    "src/lib/utils.js": {
+      "mtimeMs": 1773269945296,
+      "hasAsyncPatterns": false
+    },
+    "src/lib/workflow_profiles.js": {
+      "mtimeMs": 1772552472637,
+      "hasAsyncPatterns": true
+    },
+    "src/orchestrator/checkpoint_manager.js": {
+      "mtimeMs": 1770347571804,
+      "hasAsyncPatterns": true
+    },
+    "src/orchestrator/conditional_executor.js": {
+      "mtimeMs": 1770347348178,
+      "hasAsyncPatterns": false
+    },
+    "src/orchestrator/dependency_resolver.js": {
+      "mtimeMs": 1770346493791,
+      "hasAsyncPatterns": false
+    },
+    "src/orchestrator/index.js": {
+      "mtimeMs": 1776250515959,
+      "hasAsyncPatterns": false
+    },
+    "src/orchestrator/main_orchestrator.js": {
+      "mtimeMs": 1777419739266,
+      "hasAsyncPatterns": true
+    },
+    "src/orchestrator/step_executor.js": {
+      "mtimeMs": 1773337550403,
+      "hasAsyncPatterns": true
+    },
+    "src/orchestrator/step_registry.js": {
+      "mtimeMs": 1770346230514,
+      "hasAsyncPatterns": false
+    },
+    "src/orchestrator/workflow_engine.js": {
+      "mtimeMs": 1777419739294,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/index.js": {
+      "mtimeMs": 1776690441156,
+      "hasAsyncPatterns": false
+    },
+    "src/steps/step_00_analyze.js": {
+      "mtimeMs": 1774894733581,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_01_5_copilot_instructions.js": {
+      "mtimeMs": 1777210239871,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_01_documentation.js": {
+      "mtimeMs": 1777419739327,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_doc_optimize.js": {
+      "mtimeMs": 1777416463009,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/ai_analyzer.js": {
+      "mtimeMs": 1770559295992,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/consolidation.js": {
+      "mtimeMs": 1770558648385,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/git_analysis.js": {
+      "mtimeMs": 1772130759508,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/heuristics.js": {
+      "mtimeMs": 1771641443287,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/reporting.js": {
+      "mtimeMs": 1770558983537,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_5_lib/version_analysis.js": {
+      "mtimeMs": 1771641459693,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_02_consistency.js": {
+      "mtimeMs": 1777419739381,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_03_script_refs.js": {
+      "mtimeMs": 1777310877858,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_04_config_validation.js": {
+      "mtimeMs": 1777310877860,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_05_directory.js": {
+      "mtimeMs": 1777310877861,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_06_test_review.js": {
+      "mtimeMs": 1777307570391,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_07_test_gen.js": {
+      "mtimeMs": 1777419739400,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_08_test_exec.js": {
+      "mtimeMs": 1777419739437,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_09_dependencies.js": {
+      "mtimeMs": 1777419335760,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_0b_bootstrap_docs.js": {
+      "mtimeMs": 1776690760585,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_0d_docker_preflight.js": {
+      "mtimeMs": 1777419335753,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_0f_commit_artifacts.js": {
+      "mtimeMs": 1771628837906,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_10_ai_review.js": {
+      "mtimeMs": 1777212287806,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_10_code_quality.js": {
+      "mtimeMs": 1777419335761,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_11_5_aws_lbs_validation.js": {
+      "mtimeMs": 1777307570399,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_11_6_aws_serverless_review.js": {
+      "mtimeMs": 1772130797282,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_11_context.js": {
+      "mtimeMs": 1777156932237,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_12_git_finalization.js": {
+      "mtimeMs": 1777419806947,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_13_markdown_lint.js": {
+      "mtimeMs": 1777419806948,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_14_prompt_engineer.js": {
+      "mtimeMs": 1777310914416,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_15_ux_analysis.js": {
+      "mtimeMs": 1777419739562,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_16_version_update.js": {
+      "mtimeMs": 1776275804007,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_17_summary.js": {
+      "mtimeMs": 1776690760602,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_18_debugging.js": {
+      "mtimeMs": 1777419739572,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_19_typescript_review.js": {
+      "mtimeMs": 1777307570402,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_20_async_perf_review.js": {
+      "mtimeMs": 1777307570403,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_21_doc_consolidation.js": {
+      "mtimeMs": 1775584344376,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_22_accessibility_review.js": {
+      "mtimeMs": 1777307570403,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_23_perf_review.js": {
+      "mtimeMs": 1777307570403,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_analysis_helpers.js": {
+      "mtimeMs": 1776651740840,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_contract.js": {
+      "mtimeMs": 1771557620541,
+      "hasAsyncPatterns": true
+    },
+    "src/steps/step_execution_helpers.js": {
+      "mtimeMs": 1777315557625,
+      "hasAsyncPatterns": true
+    },
+    "src/utils/errors.js": {
+      "mtimeMs": 1769740937631,
+      "hasAsyncPatterns": false
+    },
+    "src/utils/index.js": {
+      "mtimeMs": 1776250515957,
+      "hasAsyncPatterns": false
+    },
+    "src/utils/retry.js": {
+      "mtimeMs": 1773337550404,
+      "hasAsyncPatterns": true
+    }
+  }
+}
