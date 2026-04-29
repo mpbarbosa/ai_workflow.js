@@ -7,7 +7,7 @@
 The Change Detection module provides smart file categorization and impact analysis to optimize workflow execution. It determines which workflow steps to run based on what changed, enabling efficient CI/CD pipelines.
 
 **Module:** `lib/change_detection`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

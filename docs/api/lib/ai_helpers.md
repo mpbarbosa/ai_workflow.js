@@ -1,7 +1,7 @@
 # ai_helpers
 
 **Module:** `src/lib/ai_helpers.js`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Pure functions + Impure wrapper
 
 Core AI integration for GitHub Copilot SDK interaction, request orchestration, and response processing.

@@ -1,6 +1,6 @@
 # Performance Module
 
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Module:** `lib/performance`
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 

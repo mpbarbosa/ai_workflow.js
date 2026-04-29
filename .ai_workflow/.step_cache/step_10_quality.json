@@ -439,7 +439,7 @@
     "src/steps/step_12_git_finalization.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-04-07T18:29:59.745Z"
+      "lastAnalyzed": "2026-04-29T01:04:04.045Z"
     },
     "src/steps/step_14_prompt_engineer.js": {
       "score": 100,
@@ -700,6 +700,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-24T19:50:57.643Z"
+    },
+    "src/steps/step_13_markdown_lint.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-29T01:04:04.045Z"
+    },
+    "src/steps/step_11_6_aws_serverless_review.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-29T01:04:04.045Z"
+    },
+    "src/steps/step_11_context.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-29T01:04:04.045Z"
+    },
+    "src/steps/step_17_summary.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-04-29T01:04:04.045Z"
     }
   }
 }

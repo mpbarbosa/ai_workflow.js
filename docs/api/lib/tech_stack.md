@@ -1,7 +1,7 @@
 # Tech Stack Detection API
 
 **Module:** `lib/tech_stack`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview

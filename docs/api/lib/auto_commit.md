@@ -7,7 +7,7 @@
 The Auto Commit module provides intelligent automatic committing of workflow artifacts with conventional commit messages, [skip ci] flag management, and priority-based execution. It categorizes artifacts and generates appropriate commit messages following best practices.
 
 **Module:** `lib/auto_commit`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

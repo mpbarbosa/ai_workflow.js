@@ -7,7 +7,7 @@
 The File Operations module provides comprehensive file system operations with pure function validation and filtering combined with async I/O operations. It implements safe path validation, file metadata handling, and directory traversal with a clean separation between pure functions and side effects.
 
 **Module:** `lib/file_operations`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

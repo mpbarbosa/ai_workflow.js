@@ -1,6 +1,6 @@
 # Installation Guide
 
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Last Updated:** April 26, 2026
 
 Complete installation instructions for ai_workflow.js across different platforms and use cases.

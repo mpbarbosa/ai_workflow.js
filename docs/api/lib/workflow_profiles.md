@@ -1,7 +1,7 @@
 # workflow_profiles — Workflow Profile Management
 
 **Module:** `src/lib/workflow_profiles.js`
-**Version:** v2.2.16
+**Version:** v2.2.17
 **Phase:** 8 (Performance Optimization)
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 

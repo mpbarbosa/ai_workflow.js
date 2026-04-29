@@ -1,7 +1,7 @@
 # Workflow Engine API
 
 **Module:** `orchestrator/workflow_engine`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview

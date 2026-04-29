@@ -1,7 +1,7 @@
 # jq_wrapper
 
 **Module:** `src/lib/jq_wrapper.js`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Pure functions + Impure wrapper
 
 Safe JSON operations with jq command-line tool integration.

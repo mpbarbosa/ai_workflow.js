@@ -1,7 +1,7 @@
 # Session Manager Module API Documentation
 
 **Module:** `lib/session_manager`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Pure Functions + Impure Wrapper (Referential Transparency)
 
 ## Overview

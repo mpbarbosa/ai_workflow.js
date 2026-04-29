@@ -1,7 +1,7 @@
 # version - Version Comparison Module
 
 **Module:** `core/version`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Type:** Pure Functional
 
 ## Overview

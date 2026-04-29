@@ -1,7 +1,7 @@
 # Utils Module API Documentation
 
 **Module:** `lib/utils`
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Architecture:** Pure Functions Only
 
 ## Overview

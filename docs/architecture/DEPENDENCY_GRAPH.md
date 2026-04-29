@@ -1,6 +1,6 @@
 # Dependency Graph
 
-**Version:** 2.2.16
+**Version:** 2.2.17
 **Last Updated:** 2026-04-27
 **Audience:** Architects, Developers
 
