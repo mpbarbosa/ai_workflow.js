@@ -42,10 +42,11 @@ jobs:
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
+      # Submodules are not used by this workflow; omitting them avoids failures
+      # caused by stale submodule commit pointers in the parent repo.
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          submodules: recursive
           fetch-depth: 0
 
       # ── 2. Node.js setup ─────────────────────────────────────────────────────
