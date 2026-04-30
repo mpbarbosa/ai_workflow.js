@@ -294,6 +294,25 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(validation.errors[0]).toContain('does not control execution order');
       expect(validation.errors[0]).toContain('workflow.steps');
     });
+
+    test('rejects non-canonical workflow.stages step lists', () => {
+      const validation = validateWorkflowStageStepDefinitions({
+        workflow: {
+          stages: {
+            full: {
+              enabled: true,
+              steps: ['step_00', 'step_0b', 'step_01', 'step_12'],
+            },
+          },
+        },
+      });
+
+      expect(validation.valid).toBe(false);
+      expect(validation.errors).toHaveLength(1);
+      expect(validation.errors[0]).toContain('workflow.stages.full.steps');
+      expect(validation.errors[0]).toContain('does not control execution order');
+      expect(validation.errors[0]).toContain('workflow.steps');
+    });
   });
 
   describe('filterStepIdsByProfile', () => {
@@ -603,6 +622,46 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(result.errors[0]).toContain('step_17');
       expect(result.errors[0]).toContain('cannot be removed via dependency_comment');
     });
+
+    test('flags terminal summary steps when dep index still contains disabled branch deps', () => {
+      // Tests validatePlannedStepDependencies in isolation with a manually-constructed index
+      // that still has step_11_6/step_23 (i.e. before sanitize removes them).
+      // The error message should suggest dependency_comment since these are not ORDER_LOCKED.
+      const result = validatePlannedStepDependencies(
+        ['step_03', 'step_20', 'step_17', 'step_0f', 'step_12'],
+        {
+          step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        { disabledStepIds: ['step_11_6', 'step_23'] }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain(
+        'Selected step step_17 depends on step(s) excluded from the execution plan: step_11_6, step_23.'
+      );
+      expect(result.errors[0]).toContain('dependency_comment');
+      expect(result.errors[0]).not.toContain('cannot be removed via dependency_comment');
+    });
+
+    test('flags ORDER_LOCKED_TERMINAL dep violations with locked-dep hint', () => {
+      // step_0f always requires step_17 (ORDER_LOCKED); the error must NOT suggest
+      // dependency_comment as a fix because it won't work.
+      const result = validatePlannedStepDependencies(
+        ['step_03', 'step_0f', 'step_12'],
+        {
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        { disabledStepIds: ['step_17'] }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('step_0f');
+      expect(result.errors[0]).toContain('step_17');
+      expect(result.errors[0]).toContain('cannot be removed via dependency_comment');
+    });
   });
 
   describe('terminal finalization helpers', () => {
@@ -634,6 +693,28 @@ describe('Main Orchestrator - Pure Functions', () => {
         'step_10',
         'step_17',
       ]);
+    });
+
+    test('sanitizeWorkflowConfigDependencies removes disabled DEFAULT_TERMINAL_BRANCH deps', () => {
+      // Mirrors the pajussara_tui_comp scenario: step_11_6 and step_23 are disabled;
+      // step_17 should only depend on the active branch endpoints.
+      expect(
+        sanitizeWorkflowConfigDependencies(
+          'step_17',
+          ['step_03', 'step_20', 'step_11', 'step_16'],
+          ['step_03', 'step_11_6', 'step_20', 'step_23'],
+          { disabledStepIds: ['step_11_6', 'step_23'] }
+        )
+      ).toEqual(['step_03', 'step_20', 'step_11', 'step_16']);
+    });
+
+    test('sanitizeWorkflowConfigDependencies retains ORDER_LOCKED_TERMINAL deps even when disabled', () => {
+      // step_0f always requires step_17 regardless of disabled list
+      expect(
+        sanitizeWorkflowConfigDependencies('step_0f', ['step_10'], ['step_17'], {
+          disabledStepIds: ['step_17'],
+        })
+      ).toContain('step_17');
     });
 
     test('sanitizeWorkflowConfigDependencies removes disabled DEFAULT_TERMINAL_BRANCH deps', () => {
@@ -1970,6 +2051,35 @@ describe('Main Orchestrator - Integration Tests', () => {
           'step_20',
           'step_23',
         ]);
+      });
+
+      test('dependency_comment with disabled DEFAULT_TERMINAL_BRANCH deps removes them from step_17', () => {
+        // P4 round-trip: pajussara_tui_comp scenario.
+        // step_11_6 and step_23 are disabled for a non-AWS TUI project; step_17 overrides
+        // dependencies via dependency_comment. After registerAllSteps, step_17 must NOT
+        // include step_11_6 or step_23 in its effective dependency list.
+        orchestrator.registerAllSteps({
+          workflow: {
+            steps: [
+              { id: 'step_11_6', enabled: false },
+              { id: 'step_23', enabled: false },
+              {
+                id: 'step_17',
+                dependencies: ['step_03', 'step_20', 'step_11', 'step_16'],
+                dependency_comment:
+                  'step_11_6 and step_23 disabled for non-AWS project; summary waits on active chain endpoints',
+              },
+            ],
+          },
+        });
+
+        const step17Deps = orchestrator.stepRegistry.get('step_17').dependencies;
+        expect(step17Deps).not.toContain('step_11_6');
+        expect(step17Deps).not.toContain('step_23');
+        expect(step17Deps).toContain('step_03');
+        expect(step17Deps).toContain('step_20');
+        expect(step17Deps).toContain('step_11');
+        expect(step17Deps).toContain('step_16');
       });
 
       test('dependency_comment with disabled DEFAULT_TERMINAL_BRANCH deps removes them from step_17', () => {
