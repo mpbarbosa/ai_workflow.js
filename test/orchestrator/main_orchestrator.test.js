@@ -826,7 +826,7 @@ describe('Main Orchestrator - Pure Functions', () => {
       ]);
     });
 
-    test('builds preflight commands with pnpm package manager (test uses pnpm test)', () => {
+    test('builds preflight commands with pnpm package manager', () => {
       const pkg = { scripts: { lint: 'eslint .', test: 'jest', build: 'tsc' } };
       expect(getPreflightQualityCommands(pkg, 'pnpm')).toEqual([
         { name: 'lint', command: 'pnpm run lint' },
