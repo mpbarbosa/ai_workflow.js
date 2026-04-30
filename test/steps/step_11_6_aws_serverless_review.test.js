@@ -22,6 +22,7 @@ import {
   formatAiReviewReport,
 } from '../../src/steps/step_11_6_aws_serverless_review.js';
 import { STEP_KIND } from '../../src/steps/step_contract.js';
+import { logger } from '../../src/core/logger.js';
 
 // ============================================================================
 // Pure Functions — shouldRunAwsServerlessReview
@@ -353,6 +354,7 @@ describe('Step11_6AwsServerlessReviewer.execute() — AI available', () => {
 
 describe('Step11_6AwsServerlessReviewer.execute() — error handling', () => {
   test('returns success:false when backlog throws', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const mockBacklog = { saveStepSummary: jest.fn().mockRejectedValue(new Error('disk full')) };
     const mockAiHelper = { initialize: jest.fn().mockResolvedValue(false) };
     const mockAiCache = { init: jest.fn(), withCache: jest.fn() };
@@ -367,5 +369,7 @@ describe('Step11_6AwsServerlessReviewer.execute() — error handling', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/disk full/);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

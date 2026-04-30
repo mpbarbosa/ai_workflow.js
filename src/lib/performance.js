@@ -298,10 +298,11 @@ export function calculateOpsPerSecond(operations, durationMs) {
  * console.log(metrics); // { duration: 1500, durationFormatted: "1.5s", ... }
  */
 export class PerformanceTracker {
-  constructor() {
+  constructor(options = {}) {
     this.timers = new Map();
     this.metrics = new Map();
     this.samples = new Map();
+    this._silent = options.silent === true;
   }
 
   /**
@@ -312,7 +313,9 @@ export class PerformanceTracker {
    */
   startTimer(operationId) {
     if (!operationId || typeof operationId !== 'string') {
-      logger.warn('[Performance] Invalid operation ID');
+      if (!this._silent) {
+        logger.warn('[Performance] Invalid operation ID');
+      }
       return;
     }
 
@@ -330,13 +333,17 @@ export class PerformanceTracker {
    */
   endTimer(operationId) {
     if (!operationId || typeof operationId !== 'string') {
-      logger.warn('[Performance] Invalid operation ID');
+      if (!this._silent) {
+        logger.warn('[Performance] Invalid operation ID');
+      }
       return null;
     }
 
     const timer = this.timers.get(operationId);
     if (!timer) {
-      logger.warn(`[Performance] Timer not found: ${operationId}`);
+      if (!this._silent) {
+        logger.warn(`[Performance] Timer not found: ${operationId}`);
+      }
       return null;
     }
 
@@ -417,7 +424,9 @@ export class PerformanceTracker {
   async exportToFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
       const error = new Error('[Performance] Invalid file path');
-      logger.error(error.message);
+      if (!this._silent) {
+        logger.error(error.message);
+      }
       throw error;
     }
 
@@ -432,7 +441,9 @@ export class PerformanceTracker {
       await fs.writeFile(filePath, JSON.stringify(data, null, 2));
       logger.info(`[Performance] Metrics exported to ${filePath}`);
     } catch (error) {
-      logger.error(`[Performance] Failed to export metrics: ${error.message}`);
+      if (!this._silent) {
+        logger.error(`[Performance] Failed to export metrics: ${error.message}`);
+      }
       throw error;
     }
   }
@@ -445,7 +456,9 @@ export class PerformanceTracker {
    */
   async importFromFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      logger.error('[Performance] Invalid file path');
+      if (!this._silent) {
+        logger.error('[Performance] Invalid file path');
+      }
       return;
     }
 
@@ -458,7 +471,9 @@ export class PerformanceTracker {
 
       logger.info(`[Performance] Metrics imported from ${filePath}`);
     } catch (error) {
-      logger.error(`[Performance] Failed to import metrics: ${error.message}`);
+      if (!this._silent) {
+        logger.error(`[Performance] Failed to import metrics: ${error.message}`);
+      }
       throw error;
     }
   }
