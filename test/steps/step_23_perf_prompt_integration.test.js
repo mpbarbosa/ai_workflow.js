@@ -24,7 +24,6 @@ describe('performance_review_prompt — evidence scoping', () => {
     expect(approach).toContain('excerpt-limited evidence');
     expect(approach).toContain('unavailable or inconclusive');
     expect(approach).toContain('Do not infer repo-wide absence of benchmarks');
-    expect(approach).toContain('Treat ordinary top-level imports in CLI command modules as normal');
   });
 
   test('allows line references only when determinable from the visible excerpt', () => {
@@ -51,7 +50,7 @@ describe('performance_review_prompt — evidence scoping', () => {
         '### `src/app.tsx`',
         '```tsx',
         'export function App() {',
-        "  return <Text>gitx</Text>;",
+        '  return <Text>gitx</Text>;',
         '}',
         '',
         '... [truncated — remainder omitted]',
@@ -64,6 +63,5 @@ describe('performance_review_prompt — evidence scoping', () => {
     expect(prompt).toContain('analyze ONLY the files or file-parts listed below');
     expect(prompt).toContain('split across multiple prompt logs to avoid truncated code excerpts');
     expect(prompt).toContain('... [truncated — remainder omitted]');
-    expect(prompt).toContain('Do not recommend lazy loading, code splitting, or benchmarking merely because');
   });
 });

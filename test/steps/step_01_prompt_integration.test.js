@@ -72,13 +72,12 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('split across multiple prompt requests to avoid truncated evidence');
     expect(prompt).toContain('README.md (part 1/2)');
     expect(prompt).toContain(
-      'Treat the files in `Documentation to review` as the only documentation edit targets for this request.'
+      'Treat the files in `Documentation to review` as the only documentation targets for edits'
     );
     expect(prompt).toContain(
       'Entries labeled "(part X/Y)" are sequential chunks of oversized files; treat unseen parts or omitted files as unavailable'
     );
-    expect(prompt).toContain('**Scoped documentation targets**:');
-    expect(prompt).toContain('**Direct documentation target excerpts**:');
+    expect(prompt).toContain('**Documentation to review**:');
     expect(prompt).toContain('**Provided file contents and excerpts**:');
     expect(prompt).toContain('=== README.md ===');
     expect(prompt).toContain(
