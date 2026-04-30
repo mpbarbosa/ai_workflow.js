@@ -55,8 +55,15 @@ const setup = (mockStatus = { status: 'running', progress: 0 }) => {
     workflowEngine,
     getStatus: jest.fn(() => mockStatus),
   };
-  const { unmount, rerender } = render(React.createElement(Harness, { orchestrator }));
-  return { orchestrator, workflowEngine, unmount, rerender };
+
+  // ink-testing-library triggers async updates; wrap initial render in act() to
+  // avoid React 18 warnings being treated as failures in CI.
+  let rendered;
+  act(() => {
+    rendered = render(React.createElement(Harness, { orchestrator }));
+  });
+
+  return { orchestrator, workflowEngine, unmount: rendered.unmount, rerender: rendered.rerender };
 };
 
 // ---------------------------------------------------------------------------
@@ -65,7 +72,11 @@ const setup = (mockStatus = { status: 'running', progress: 0 }) => {
 
 describe('useOrchestrator', () => {
   afterEach(() => {
-    cleanup();
+    // Ensure Ink unmount/cleanup happens within act() to avoid:
+    // "An update to Root inside a test was not wrapped in act(...)".
+    act(() => {
+      cleanup();
+    });
     jest.clearAllTimers();
     jest.clearAllMocks();
     state.current = null;
@@ -248,7 +259,9 @@ describe('useOrchestrator', () => {
   });
 
   it('should handle missing orchestrator gracefully', () => {
-    render(React.createElement(Harness, { orchestrator: null }));
+    act(() => {
+      render(React.createElement(Harness, { orchestrator: null }));
+    });
     expect(state.current.steps).toEqual({});
     expect(state.current.logs).toEqual([]);
     expect(state.current.progress).toBe(0);
@@ -268,7 +281,9 @@ describe('useOrchestrator', () => {
 
   it('should handle missing workflowEngine gracefully', () => {
     const orchestrator = {};
-    render(React.createElement(Harness, { orchestrator }));
+    act(() => {
+      render(React.createElement(Harness, { orchestrator }));
+    });
     expect(state.current.steps).toEqual({});
     expect(state.current.logs).toEqual([]);
   });
@@ -290,7 +305,9 @@ describe('useOrchestrator', () => {
 
   it('should not throw if orchestrator.getStatus throws', () => {
     const { orchestrator, workflowEngine } = setup();
-    orchestrator.getStatus = jest.fn(() => { throw new Error('fail'); });
+    orchestrator.getStatus = jest.fn(() => {
+      throw new Error('fail');
+    });
     const step = { id: 's7', name: 'Step 7' };
 
     act(() => {
