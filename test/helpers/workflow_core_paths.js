@@ -7,7 +7,7 @@
  * message when the submodule has not been initialised.
  *
  * Usage:
- *   import { AI_HELPERS_YAML_PATH, PROMPT_ROLES_YAML_PATH } from '../../helpers/workflow_core_paths.js';
+ *   import { AI_HELPERS_YAML_PATH, PROMPT_ROLES_YAML_PATH } from '../helpers/workflow_core_paths.js';
  *
  * If the .workflow_core submodule is absent, tests will fail with an actionable
  * message: run `git submodule update --init --recursive` to populate it.
