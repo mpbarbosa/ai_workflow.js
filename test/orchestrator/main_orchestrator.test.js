@@ -9,6 +9,7 @@ import {
   normalizeWorkflowConfigStepId,
   buildWorkflowConfigStepIndex,
   getConfiguredStepsForStage,
+  getDisabledWorkflowConfigStepIds,
   filterStepIdsByProfile,
   enforceTerminalStepOrder,
   sanitizeWorkflowConfigDependencies,
@@ -20,6 +21,7 @@ import {
   performHealthChecks,
   detectPreflightPackageManager,
   getPreflightQualityCommands,
+  buildMlChangeStats,
   MainOrchestrator,
   WORKFLOW_STAGES,
   HEALTH_CHECK_CATEGORIES,
@@ -526,6 +528,10 @@ describe('Main Orchestrator - Pure Functions', () => {
       ).toEqual(['step_00', 'step_16', 'step_17', 'step_0f', 'step_12']);
     });
 
+    test('enforceTerminalStepOrder returns empty array when called with no arguments', () => {
+      expect(enforceTerminalStepOrder()).toEqual([]);
+    });
+
     test('sanitizeWorkflowConfigDependencies removes terminal dependencies from non-terminal steps', () => {
       expect(
         sanitizeWorkflowConfigDependencies('step_16', ['step_08', 'step_12', 'step_17'])
@@ -783,6 +789,286 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(WORKFLOW_STAGES.QUICK).toBe('quick');
       expect(WORKFLOW_STAGES.MEDIUM).toBe('medium');
       expect(WORKFLOW_STAGES.FULL).toBe('full');
+    });
+  });
+
+  describe('pre-flight package manager — additional branches', () => {
+    test('detects bun from bun.lockb', () => {
+      expect(detectPreflightPackageManager({}, ['bun.lockb'])).toBe('bun');
+    });
+
+    test('detects bun from bun.lock', () => {
+      expect(detectPreflightPackageManager({}, ['bun.lock'])).toBe('bun');
+    });
+
+    test('handles packageManager field without version separator', () => {
+      expect(detectPreflightPackageManager({ packageManager: 'yarn' }, [])).toBe('yarn');
+    });
+
+    test('falls back to npm when packageManager field is whitespace-only', () => {
+      expect(detectPreflightPackageManager({ packageManager: '   ' }, [])).toBe('npm');
+    });
+
+    test('falls back to npm when packageJson is null', () => {
+      expect(detectPreflightPackageManager(null, [])).toBe('npm');
+    });
+
+    test('falls back to npm when called with no arguments (default args)', () => {
+      expect(detectPreflightPackageManager()).toBe('npm');
+    });
+
+    test('builds preflight commands with yarn package manager', () => {
+      const pkg = { scripts: { lint: 'eslint .', test: 'jest', build: 'tsc' } };
+      expect(getPreflightQualityCommands(pkg, 'yarn')).toEqual([
+        { name: 'lint', command: 'yarn lint' },
+        { name: 'test', command: 'yarn test' },
+        { name: 'build', command: 'yarn build' },
+      ]);
+    });
+
+    test('builds preflight commands with pnpm package manager (test uses pnpm test)', () => {
+      const pkg = { scripts: { lint: 'eslint .', test: 'jest', build: 'tsc' } };
+      expect(getPreflightQualityCommands(pkg, 'pnpm')).toEqual([
+        { name: 'lint', command: 'pnpm run lint' },
+        { name: 'test', command: 'pnpm test' },
+        { name: 'build', command: 'pnpm run build' },
+      ]);
+    });
+
+    test('builds preflight commands with bun package manager', () => {
+      const pkg = { scripts: { lint: 'eslint .', test: 'jest', build: 'tsc' } };
+      expect(getPreflightQualityCommands(pkg, 'bun')).toEqual([
+        { name: 'lint', command: 'bun run lint' },
+        { name: 'test', command: 'bun run test' },
+        { name: 'build', command: 'bun run build' },
+      ]);
+    });
+
+    test('returns empty array when packageJson is null', () => {
+      expect(getPreflightQualityCommands(null, 'npm')).toEqual([]);
+    });
+
+    test('returns empty array when called with no arguments (default args)', () => {
+      expect(getPreflightQualityCommands()).toEqual([]);
+    });
+  });
+
+  describe('normalizeWorkflowConfigStepId — additional branches', () => {
+    test('returns null for empty string', () => {
+      expect(normalizeWorkflowConfigStepId('')).toBeNull();
+    });
+
+    test('returns null for whitespace-only string', () => {
+      expect(normalizeWorkflowConfigStepId('   ')).toBeNull();
+    });
+
+    test('returns null for non-string', () => {
+      expect(normalizeWorkflowConfigStepId(42)).toBeNull();
+      expect(normalizeWorkflowConfigStepId(null)).toBeNull();
+    });
+  });
+
+  describe('buildWorkflowConfigStepIndex — additional branches', () => {
+    test('skips step with invalid id', () => {
+      const config = {
+        workflow: { steps: [{ id: '!invalid', enabled: true }] },
+      };
+      expect(buildWorkflowConfigStepIndex(config)).toEqual({});
+    });
+
+    test('sets critical=true for required steps', () => {
+      const config = {
+        workflow: { steps: [{ id: 'step_01', required: true }] },
+      };
+      expect(buildWorkflowConfigStepIndex(config).step_01.critical).toBe(true);
+    });
+
+    test('sets critical=false for optional steps', () => {
+      const config = {
+        workflow: { steps: [{ id: 'step_01', optional: true }] },
+      };
+      expect(buildWorkflowConfigStepIndex(config).step_01.critical).toBe(false);
+    });
+
+    test('sets critical=undefined when neither required nor optional', () => {
+      const config = {
+        workflow: { steps: [{ id: 'step_01' }] },
+      };
+      expect(buildWorkflowConfigStepIndex(config).step_01.critical).toBeUndefined();
+    });
+
+    test('includes priority and maxStepWallTime when valid', () => {
+      const config = {
+        workflow: { steps: [{ id: 'step_01', priority: 5, max_step_wall_time: 120 }] },
+      };
+      const index = buildWorkflowConfigStepIndex(config);
+      expect(index.step_01.priority).toBe(5);
+      expect(index.step_01.maxStepWallTime).toBe(120);
+    });
+
+    test('excludes maxStepWallTime when not positive', () => {
+      const config = {
+        workflow: { steps: [{ id: 'step_01', max_step_wall_time: 0 }] },
+      };
+      expect(buildWorkflowConfigStepIndex(config).step_01.maxStepWallTime).toBeUndefined();
+    });
+
+    test('sets phase only when valid', () => {
+      const config = {
+        workflow: {
+          steps: [
+            { id: 'step_01', phase: 'analysis' },
+            { id: 'step_02', phase: 'unknown_phase' },
+          ],
+        },
+      };
+      const index = buildWorkflowConfigStepIndex(config);
+      expect(index.step_01.phase).toBe('analysis');
+      expect(index.step_02.phase).toBeUndefined();
+    });
+
+    test('returns empty object when workflowConfig has no steps array', () => {
+      expect(buildWorkflowConfigStepIndex(null)).toEqual({});
+      expect(buildWorkflowConfigStepIndex({})).toEqual({});
+    });
+  });
+
+  describe('getDisabledWorkflowConfigStepIds', () => {
+    test('returns empty array when workflowConfig has no steps', () => {
+      expect(getDisabledWorkflowConfigStepIds(null)).toEqual([]);
+      expect(getDisabledWorkflowConfigStepIds({})).toEqual([]);
+    });
+
+    test('returns only disabled step ids', () => {
+      const config = {
+        workflow: {
+          steps: [
+            { id: 'step_01', enabled: true },
+            { id: 'step_02', enabled: false },
+            { id: 'step_03', enabled: false },
+          ],
+        },
+      };
+      expect(getDisabledWorkflowConfigStepIds(config)).toEqual(['step_02', 'step_03']);
+    });
+  });
+
+  describe('getConfiguredStepsForStage — additional branches', () => {
+    test('falls back to default steps when configuredSteps is empty', () => {
+      const config = { workflow: { steps: [] } };
+      const defaults = getStepsForStage(WORKFLOW_STAGES.QUICK);
+      expect(getConfiguredStepsForStage(WORKFLOW_STAGES.QUICK, config)).toEqual(defaults);
+    });
+
+    test('uses enabledConfiguredStepIds when no default stage steps intersect config', () => {
+      // Use 'quick' stage but only configure steps not in quick stage defaults
+      const config = {
+        workflow: {
+          steps: [
+            { id: 'step_10', enabled: true },
+            { id: 'step_11', enabled: true },
+          ],
+        },
+      };
+      const result = getConfiguredStepsForStage(WORKFLOW_STAGES.QUICK, config);
+      expect(result).toContain('step_10');
+    });
+  });
+
+  describe('enforceTerminalStepOrder — additional branches', () => {
+    test('returns empty array for empty input', () => {
+      expect(enforceTerminalStepOrder([])).toEqual([]);
+    });
+
+    test('returns empty array for non-array input', () => {
+      expect(enforceTerminalStepOrder(null)).toEqual([]);
+    });
+  });
+
+  describe('sanitizeWorkflowConfigDependencies — additional branches', () => {
+    test('returns undefined for non-array dependencies', () => {
+      expect(sanitizeWorkflowConfigDependencies('step_01', 'not-array')).toBeUndefined();
+    });
+  });
+
+  describe('validatePlannedStepDependencies — additional branches', () => {
+    test('handles non-array stepIds gracefully', () => {
+      const result = validatePlannedStepDependencies(null, {});
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    test('handles non-array disabledStepIds in options', () => {
+      // When disabledStepIds is not an array, it is treated as empty (no disabled steps).
+      // step_01 depends on step_00 which is in available but not in planned → missing dependency.
+      const result = validatePlannedStepDependencies(
+        ['step_01'],
+        { step_01: ['step_00'] },
+        ['step_00', 'step_01'],
+        { disabledStepIds: 'not-array' }
+      );
+      // step_00 is available but not planned and not disabled → flagged as missing
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('step_01');
+    });
+  });
+
+  describe('buildGeneratedWorkflowConfig — additional branches', () => {
+    test('uses techStack.primaryLanguage when primary_language is absent', () => {
+      const result = buildGeneratedWorkflowConfig({
+        projectRoot: '/tmp/myproject',
+        projectKind: 'generic',
+        techStack: { primaryLanguage: 'python', build_system: 'make' },
+        structure: { source_dirs: ['src'], test_dirs: ['test'], docs_dirs: ['docs'] },
+      });
+      expect(result.project.primary_language).toBe('python');
+    });
+
+    test('omits lint_command when not set in techStack', () => {
+      const result = buildGeneratedWorkflowConfig({
+        projectRoot: '/tmp/myproject',
+        projectKind: 'generic',
+        techStack: {},
+        structure: { source_dirs: ['src'], test_dirs: ['test'], docs_dirs: ['docs'] },
+      });
+      expect(result.tech_stack.lint_command).toBeUndefined();
+    });
+
+    test('includes lint_command when set in techStack', () => {
+      const result = buildGeneratedWorkflowConfig({
+        projectRoot: '/tmp/myproject',
+        projectKind: 'generic',
+        techStack: { lint_command: 'eslint .' },
+        structure: { source_dirs: ['src'], test_dirs: ['test'], docs_dirs: ['docs'] },
+      });
+      expect(result.tech_stack.lint_command).toBe('eslint .');
+    });
+
+    test('auto-detects structure when structure is not provided', () => {
+      const result = buildGeneratedWorkflowConfig({
+        projectRoot: '/tmp/myproject',
+        projectKind: 'generic',
+        techStack: {},
+      });
+      expect(result.structure).toBeDefined();
+      expect(result.structure.source_dirs).toBeDefined();
+    });
+  });
+
+  describe('buildMlChangeStats', () => {
+    test('returns zero stats for empty input', () => {
+      const stats = buildMlChangeStats([]);
+      expect(stats.changed).toBe(0);
+    });
+
+    test('returns zero stats for non-array input', () => {
+      const stats = buildMlChangeStats(null);
+      expect(stats.changed).toBe(0);
+    });
+
+    test('counts changed files correctly', () => {
+      const stats = buildMlChangeStats(['src/foo.js', 'test/bar.test.js', 'README.md']);
+      expect(stats.changed).toBe(3);
     });
   });
 });
