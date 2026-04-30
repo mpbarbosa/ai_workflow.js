@@ -369,6 +369,7 @@ describe('Step11_6AwsServerlessReviewer.execute() — error handling', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/disk full/);
+    expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 });
