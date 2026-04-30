@@ -320,14 +320,17 @@ export function validateThresholds(thresholds) {
  * // Logs warning if duration exceeds threshold
  */
 export class PerformanceMonitor {
-  constructor(thresholds = {}) {
+  constructor(thresholds = {}, options = {}) {
     this.thresholds = { ...DEFAULT_THRESHOLDS, ...thresholds };
     this.history = new Map(); // operationId -> array of durations
     this.alerts = [];
     this.enabled = true;
+    this._silent = options.silent === true;
 
     if (!validateThresholds(this.thresholds)) {
-      logger.warn('[PerformanceMonitor] Invalid thresholds provided, using defaults');
+      if (!this._silent) {
+        logger.warn('[PerformanceMonitor] Invalid thresholds provided, using defaults');
+      }
       this.thresholds = { ...DEFAULT_THRESHOLDS };
     }
   }
@@ -365,7 +368,9 @@ export class PerformanceMonitor {
     }
 
     if (!operationId || !metrics) {
-      logger.warn('[PerformanceMonitor] Invalid operationId or metrics');
+      if (!this._silent) {
+        logger.warn('[PerformanceMonitor] Invalid operationId or metrics');
+      }
       return null;
     }
 
@@ -414,10 +419,12 @@ export class PerformanceMonitor {
     this.alerts.push(alert);
 
     // Log based on severity
-    if (severity === ALERT_SEVERITY.CRITICAL) {
-      logger.error(alert.message);
-    } else {
-      logger.warn(alert.message);
+    if (!this._silent) {
+      if (severity === ALERT_SEVERITY.CRITICAL) {
+        logger.error(alert.message);
+      } else {
+        logger.warn(alert.message);
+      }
     }
 
     return alert;
@@ -506,19 +513,25 @@ export class PerformanceMonitor {
    */
   updateThresholds(newThresholds) {
     if (!newThresholds || typeof newThresholds !== 'object') {
-      logger.error('[PerformanceMonitor] Invalid thresholds');
+      if (!this._silent) {
+        logger.error('[PerformanceMonitor] Invalid thresholds');
+      }
       return false;
     }
 
     const updatedThresholds = { ...this.thresholds, ...newThresholds };
 
     if (!validateThresholds(updatedThresholds)) {
-      logger.error('[PerformanceMonitor] Invalid threshold configuration');
+      if (!this._silent) {
+        logger.error('[PerformanceMonitor] Invalid threshold configuration');
+      }
       return false;
     }
 
     this.thresholds = updatedThresholds;
-    logger.info('[PerformanceMonitor] Thresholds updated');
+    if (!this._silent) {
+      logger.info('[PerformanceMonitor] Thresholds updated');
+    }
     return true;
   }
 

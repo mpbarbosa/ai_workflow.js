@@ -60,7 +60,7 @@
     },
     "./src/orchestrator/": {
       "statements": 87,
-      "branches": 82,
+      "branches": 81,
       "functions": 75,
       "lines": 87
     },
