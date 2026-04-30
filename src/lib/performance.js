@@ -416,9 +416,7 @@ export class PerformanceTracker {
    */
   async exportToFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      const error = new Error('[Performance] Invalid file path');
-      logger.error(error.message);
-      throw error;
+      throw new Error('[Performance] Invalid file path');
     }
 
     const data = {
@@ -445,8 +443,7 @@ export class PerformanceTracker {
    */
   async importFromFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      logger.error('[Performance] Invalid file path');
-      return;
+      throw new Error('[Performance] Invalid file path');
     }
 
     try {
@@ -458,7 +455,7 @@ export class PerformanceTracker {
 
       logger.info(`[Performance] Metrics imported from ${filePath}`);
     } catch (error) {
-      logger.error(`[Performance] Failed to import metrics: ${error.message}`);
+      logger.warn(`[Performance] Failed to import metrics: ${error.message}`);
       throw error;
     }
   }

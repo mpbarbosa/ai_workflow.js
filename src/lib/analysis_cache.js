@@ -495,9 +495,7 @@ export class AnalysisCache {
    */
   async exportToFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      const error = new Error('[AnalysisCache] Invalid file path');
-      logger.error(error.message);
-      throw error;
+      throw new Error('[AnalysisCache] Invalid file path');
     }
 
     const data = {
@@ -511,7 +509,7 @@ export class AnalysisCache {
       await fs.writeFile(filePath, JSON.stringify(data, null, 2));
       logger.info(`[AnalysisCache] Exported to ${filePath}`);
     } catch (error) {
-      logger.error(`[AnalysisCache] Failed to export: ${error.message}`);
+      logger.warn(`[AnalysisCache] Failed to export: ${error.message}`);
       throw error;
     }
   }
@@ -524,9 +522,7 @@ export class AnalysisCache {
    */
   async importFromFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
-      const error = new Error('[AnalysisCache] Invalid file path');
-      logger.error(error.message);
-      throw error;
+      throw new Error('[AnalysisCache] Invalid file path');
     }
 
     try {
@@ -537,7 +533,7 @@ export class AnalysisCache {
 
       logger.info(`[AnalysisCache] Imported ${this.cache.size} entries from ${filePath}`);
     } catch (error) {
-      logger.error(`[AnalysisCache] Failed to import: ${error.message}`);
+      logger.warn(`[AnalysisCache] Failed to import: ${error.message}`);
       throw error;
     }
   }
