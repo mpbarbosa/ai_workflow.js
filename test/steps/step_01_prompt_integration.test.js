@@ -8,17 +8,16 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import yaml from 'js-yaml';
 import {
   buildDocAnalysisPrompt,
   buildYamlStepPrompt,
   resolveAllRoleRefs,
 } from '../../src/lib/ai_prompt_builder.js';
-
-const PROJECT_ROOT = process.cwd();
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
-const PROMPT_ROLES_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'prompt_roles.yaml');
+import {
+  AI_HELPERS_YAML_PATH,
+  PROMPT_ROLES_YAML_PATH as PROMPT_ROLES_PATH,
+} from '../helpers/workflow_core_paths.js';
 
 async function loadRealAiHelpersYaml() {
   const content = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');

@@ -39,13 +39,7 @@ import {
   buildTechnicalWriterPrompt,
 } from '../../src/steps/step_0b_bootstrap_docs.js';
 import { resolveAllRoleRefs } from '../../src/lib/ai_prompt_builder.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const PROJECT_ROOT = process.cwd(); // ai_workflow.js repo root
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
+import { AI_HELPERS_YAML_PATH, PROMPT_ROLES_YAML_PATH } from '../helpers/workflow_core_paths.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -149,15 +143,9 @@ function buildAiHelperStub(responseContent = '') {
 
 /** Load, parse, and resolve role refs in the real ai_helpers.yaml. */
 async function loadRealAiHelpersYaml() {
-  const PROMPT_ROLES_PATH = path.join(
-    PROJECT_ROOT,
-    '.workflow_core',
-    'config',
-    'prompt_roles.yaml'
-  );
   const content = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');
   const raw = yaml.load(content);
-  const rolesContent = await fs.readFile(PROMPT_ROLES_PATH, 'utf8');
+  const rolesContent = await fs.readFile(PROMPT_ROLES_YAML_PATH, 'utf8');
   const roles = yaml.load(rolesContent);
   return { content, parsed: resolveAllRoleRefs(raw, roles) };
 }
@@ -171,7 +159,7 @@ describe('Integration: Step 0b — Prompt sent to Copilot SDK API', () => {
 
   beforeEach(async () => {
     tempDir = path.join(
-      PROJECT_ROOT,
+      process.cwd(),
       '.test-e2e',
       `step-0b-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );

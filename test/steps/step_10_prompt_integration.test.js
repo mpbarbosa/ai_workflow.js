@@ -13,22 +13,9 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import yaml from 'js-yaml';
 import { resolveAllRoleRefs } from '../../src/lib/ai_prompt_builder.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const PROJECT_ROOT = process.cwd();
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
-const PROMPT_ROLES_YAML_PATH = path.join(
-  PROJECT_ROOT,
-  '.workflow_core',
-  'config',
-  'prompt_roles.yaml'
-);
+import { AI_HELPERS_YAML_PATH, PROMPT_ROLES_YAML_PATH } from '../helpers/workflow_core_paths.js';
 
 // ---------------------------------------------------------------------------
 // Layer 1 — Config correctness

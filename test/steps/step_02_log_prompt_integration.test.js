@@ -46,13 +46,10 @@ import {
   resolveAllRoleRefs,
 } from '../../src/lib/ai_prompt_builder.js';
 import logger from '../../src/core/logger.js';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const REPO_ROOT = process.cwd(); // ai_workflow.js repo root
-const AI_HELPERS_YAML = path.join(REPO_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
+import {
+  AI_HELPERS_YAML_PATH as AI_HELPERS_YAML,
+  PROMPT_ROLES_YAML_PATH,
+} from '../helpers/workflow_core_paths.js';
 
 // Required placeholders in the step2_consistency_prompt task_template
 const REQUIRED_PLACEHOLDERS = [
@@ -113,10 +110,9 @@ function buildBacklogStub(reportOutputPath = null) {
 
 /** Load, parse, and resolve role refs in ai_helpers.yaml from the real repo. */
 async function loadAiHelpersYaml() {
-  const PROMPT_ROLES_PATH = path.join(REPO_ROOT, '.workflow_core', 'config', 'prompt_roles.yaml');
   const raw = await fs.readFile(AI_HELPERS_YAML, 'utf8');
   const parsed = yaml.load(raw);
-  const rolesContent = await fs.readFile(PROMPT_ROLES_PATH, 'utf8');
+  const rolesContent = await fs.readFile(PROMPT_ROLES_YAML_PATH, 'utf8');
   const roles = yaml.load(rolesContent);
   return resolveAllRoleRefs(parsed, roles);
 }
@@ -130,7 +126,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
 
   beforeEach(async () => {
     tempDir = path.join(
-      REPO_ROOT,
+      process.cwd(),
       '.test-e2e',
       `step-02-artefacts-${Date.now()}-${Math.random().toString(36).slice(2)}`
     );

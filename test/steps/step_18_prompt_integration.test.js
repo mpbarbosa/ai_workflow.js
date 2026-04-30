@@ -3,11 +3,8 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import yaml from 'js-yaml';
-
-const PROJECT_ROOT = process.cwd();
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
+import { AI_HELPERS_YAML_PATH } from '../helpers/workflow_core_paths.js';
 
 describe('async_flow_debugger_prompt — evidence scoping', () => {
   let aiHelpers;
