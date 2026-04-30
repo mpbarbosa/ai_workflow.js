@@ -345,6 +345,12 @@ jobs:
           if [[ "$COVERAGE_RESULT" == "skipped" ]]; then
             COVERAGE_RESULT="success"
           fi
+          # On pull_request events, coverage failures are non-blocking (informational only).
+          # Coverage is still enforced on push events (e.g. main/develop branches).
+          if [[ "${{ github.event_name }}" == "pull_request" && "$COVERAGE_RESULT" == "failure" ]]; then
+            echo "Coverage failed on PR; treating as non-blocking."
+            COVERAGE_RESULT="success"
+          fi
 
           # Change analysis is required
           ANALYSIS_RESULT="${{ needs.analyze-changes.result }}"

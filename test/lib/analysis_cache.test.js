@@ -474,16 +474,19 @@ describe('Analysis Cache Module - AnalysisCache Class', () => {
     });
 
     test('handles invalid file path on export', async () => {
-      await expect(cache.exportToFile('')).rejects.toThrow();
+      const silentCache = new AnalysisCache({}, { silent: true });
+      await expect(silentCache.exportToFile('')).rejects.toThrow();
     });
 
     test('handles invalid file path on import', async () => {
-      await expect(cache.importFromFile('/nonexistent/file.json')).rejects.toThrow();
+      const silentCache = new AnalysisCache({}, { silent: true });
+      await expect(silentCache.importFromFile('/nonexistent/file.json')).rejects.toThrow();
     });
 
     test('handles invalid JSON on import', async () => {
+      const silentCache = new AnalysisCache({}, { silent: true });
       await fs.writeFile(testFile, 'invalid json');
-      await expect(cache.importFromFile(testFile)).rejects.toThrow();
+      await expect(silentCache.importFromFile(testFile)).rejects.toThrow();
     });
   });
 });

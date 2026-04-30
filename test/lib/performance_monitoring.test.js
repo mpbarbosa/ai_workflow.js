@@ -270,7 +270,7 @@ describe('Performance Monitoring Module - PerformanceMonitor Class', () => {
   let monitor;
 
   beforeEach(() => {
-    monitor = new PerformanceMonitor();
+    monitor = new PerformanceMonitor({}, { silent: true });
   });
 
   afterEach(() => {
@@ -296,10 +296,13 @@ describe('Performance Monitoring Module - PerformanceMonitor Class', () => {
     });
 
     test('rejects invalid thresholds', () => {
-      const invalidMonitor = new PerformanceMonitor({
-        DURATION_WARNING: 30000,
-        DURATION_CRITICAL: 5000, // invalid: warning >= critical
-      });
+      const invalidMonitor = new PerformanceMonitor(
+        {
+          DURATION_WARNING: 30000,
+          DURATION_CRITICAL: 5000, // invalid: warning >= critical
+        },
+        { silent: true }
+      );
 
       const thresholds = invalidMonitor.getThresholds();
       expect(thresholds).toEqual(DEFAULT_THRESHOLDS);
