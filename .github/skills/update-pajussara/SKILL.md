@@ -45,7 +45,7 @@ update process end-to-end.
 ## How to trigger manually
 
 ```shell
-gh workflow run update-pajussara.yml --field version=v1.2.0
+gh workflow run update-pajussara.yml --field version=v1.4.0
 ```
 
 Leave `version` blank to use the latest published release.
