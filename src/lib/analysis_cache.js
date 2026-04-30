@@ -304,10 +304,11 @@ export function updateCacheEntry(entry, currentTime, isHit) {
  * const cached = cache.get('docs_validation', inputs);
  */
 export class AnalysisCache {
-  constructor(config = {}) {
+  constructor(config = {}, options = {}) {
     this.config = { ...DEFAULT_CACHE_CONFIG, ...config };
     this.cache = new Map();
     this.enabled = true;
+    this._silent = options.silent === true;
   }
 
   /**
@@ -496,7 +497,9 @@ export class AnalysisCache {
   async exportToFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
       const error = new Error('[AnalysisCache] Invalid file path');
-      logger.error(error.message);
+      if (!this._silent) {
+        logger.error(error.message);
+      }
       throw error;
     }
 
@@ -511,7 +514,9 @@ export class AnalysisCache {
       await fs.writeFile(filePath, JSON.stringify(data, null, 2));
       logger.info(`[AnalysisCache] Exported to ${filePath}`);
     } catch (error) {
-      logger.error(`[AnalysisCache] Failed to export: ${error.message}`);
+      if (!this._silent) {
+        logger.error(`[AnalysisCache] Failed to export: ${error.message}`);
+      }
       throw error;
     }
   }
@@ -525,7 +530,9 @@ export class AnalysisCache {
   async importFromFile(filePath) {
     if (!filePath || typeof filePath !== 'string') {
       const error = new Error('[AnalysisCache] Invalid file path');
-      logger.error(error.message);
+      if (!this._silent) {
+        logger.error(error.message);
+      }
       throw error;
     }
 
@@ -537,7 +544,9 @@ export class AnalysisCache {
 
       logger.info(`[AnalysisCache] Imported ${this.cache.size} entries from ${filePath}`);
     } catch (error) {
-      logger.error(`[AnalysisCache] Failed to import: ${error.message}`);
+      if (!this._silent) {
+        logger.error(`[AnalysisCache] Failed to import: ${error.message}`);
+      }
       throw error;
     }
   }

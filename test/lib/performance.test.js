@@ -280,7 +280,7 @@ describe('Performance Module - PerformanceTracker Class', () => {
   let tracker;
 
   beforeEach(() => {
-    tracker = new PerformanceTracker();
+    tracker = new PerformanceTracker({ silent: true });
   });
 
   afterEach(() => {
@@ -449,16 +449,19 @@ describe('Performance Module - PerformanceTracker Class', () => {
     });
 
     test('handles invalid file path on export', async () => {
-      await expect(tracker.exportToFile('')).rejects.toThrow();
+      const silentTracker = new PerformanceTracker({ silent: true });
+      await expect(silentTracker.exportToFile('')).rejects.toThrow();
     });
 
     test('handles invalid file path on import', async () => {
-      await expect(tracker.importFromFile('/nonexistent/file.json')).rejects.toThrow();
+      const silentTracker = new PerformanceTracker({ silent: true });
+      await expect(silentTracker.importFromFile('/nonexistent/file.json')).rejects.toThrow();
     });
 
     test('handles invalid JSON on import', async () => {
+      const silentTracker = new PerformanceTracker({ silent: true });
       await fs.writeFile(testFile, 'invalid json');
-      await expect(tracker.importFromFile(testFile)).rejects.toThrow();
+      await expect(silentTracker.importFromFile(testFile)).rejects.toThrow();
     });
   });
 });

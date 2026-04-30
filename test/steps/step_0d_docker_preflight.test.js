@@ -11,6 +11,7 @@ import {
   formatPreflightReport,
   Step0dDockerPreflight,
 } from '../../src/steps/step_0d_docker_preflight.js';
+import { logger } from '../../src/core/logger.js';
 
 describe('step_0d_docker_preflight pure functions', () => {
   describe('detectDockerFiles', () => {
@@ -159,6 +160,8 @@ describe('Step0dDockerPreflight class', () => {
       backlog: mockBacklog,
       validateLockfileStructure: jest.fn().mockReturnValue({ issues: [] }),
     });
+    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
     jest.spyOn(fs, 'accessSync').mockImplementation((p) => {
       if (p.endsWith('Dockerfile')) return true;
       throw new Error('not found');
