@@ -447,6 +447,26 @@ describe('Main Orchestrator - Pure Functions', () => {
 
       expect(result).toEqual(['step_00', 'step_04', 'step_08', 'step_17', 'step_0f', 'step_12']);
     });
+
+    test('returns empty array when stepIds is empty', () => {
+      expect(filterStepIdsByProfile([], [1], {})).toEqual([]);
+    });
+
+    test('returns empty array when stepIds is not an array', () => {
+      expect(filterStepIdsByProfile(null, [1], {})).toEqual([]);
+    });
+
+    test('ignores non-finite number skip step (NaN maps to null)', () => {
+      const plannedSteps = ['step_00', 'step_01'];
+      // NaN satisfies !Number.isFinite → normalizeProfileSkipStepId returns null → ignored
+      expect(filterStepIdsByProfile(plannedSteps, [NaN], {})).toEqual(plannedSteps);
+    });
+
+    test('ignores skip step whose stringified major part fails digit validation (-1.5)', () => {
+      const plannedSteps = ['step_00', 'step_01'];
+      // -1.5 → '-1_5' → major '-1' fails /^\d+$/ → normalizeProfileSkipStepId returns null → ignored
+      expect(filterStepIdsByProfile(plannedSteps, [-1.5], {})).toEqual(plannedSteps);
+    });
   });
 
   describe('validatePlannedStepDependencies', () => {
@@ -1888,6 +1908,51 @@ describe('Main Orchestrator - Integration Tests', () => {
         expect(step.metadata.canonicalName).toBe('Doc Consolidation');
         expect(step.metadata.canonicalDescription).toContain('Find similar markdown docs');
         expect(step.metadata.canonicalDependencies).toEqual(['step_02_5']);
+      });
+
+      test('applies phase, critical, priority, and maxStepWallTime from workflow config step overrides', () => {
+        // Spy on stepRegistry.update to capture the updates argument before createStepDefinition
+        // strips fields not in its schema (priority, max_step_wall_time are not in createStepDefinition).
+        const updateSpy = jest.spyOn(orchestrator.stepRegistry, 'update');
+
+        orchestrator.registerAllSteps({
+          workflow: {
+            steps: [
+              {
+                id: 'step_00',
+                phase: 'analysis',
+                required: true,
+                priority: 3,
+                max_step_wall_time: 60,
+              },
+            ],
+          },
+        });
+
+        const step = orchestrator.stepRegistry.get('step_00');
+        // phase and critical are preserved by createStepDefinition
+        expect(step.phase).toBe('analysis');
+        expect(step.critical).toBe(true);
+
+        // Verify update was called with priority and max_step_wall_time (covering those branches
+        // in _applyProjectWorkflowOverrides even though createStepDefinition does not forward them)
+        const updatesArg = updateSpy.mock.calls.find(([id]) => id === 'step_00')?.[1];
+        expect(updatesArg).toBeDefined();
+        expect(updatesArg.priority).toBe(3);
+        expect(updatesArg.max_step_wall_time).toBe(60);
+      });
+
+      test('warns and skips unknown configured steps', () => {
+        // step_99 does not exist in the registry — _applyProjectWorkflowOverrides should warn and skip it
+        expect(() =>
+          orchestrator.registerAllSteps({
+            workflow: {
+              steps: [{ id: 'step_99', enabled: false }],
+            },
+          })
+        ).not.toThrow();
+        // The registry should not contain step_99
+        expect(orchestrator.stepRegistry.has('step_99')).toBe(false);
       });
     });
 
