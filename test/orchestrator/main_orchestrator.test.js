@@ -1911,6 +1911,10 @@ describe('Main Orchestrator - Integration Tests', () => {
       });
 
       test('applies phase, critical, priority, and maxStepWallTime from workflow config step overrides', () => {
+        // Spy on stepRegistry.update to capture the updates argument before createStepDefinition
+        // strips fields not in its schema (priority, max_step_wall_time are not in createStepDefinition).
+        const updateSpy = jest.spyOn(orchestrator.stepRegistry, 'update');
+
         orchestrator.registerAllSteps({
           workflow: {
             steps: [
@@ -1929,9 +1933,13 @@ describe('Main Orchestrator - Integration Tests', () => {
         // phase and critical are preserved by createStepDefinition
         expect(step.phase).toBe('analysis');
         expect(step.critical).toBe(true);
-        // priority and max_step_wall_time are set in updates (covering those branches)
-        // even though createStepDefinition doesn't carry them forward
-        expect(step).toBeDefined();
+
+        // Verify update was called with priority and max_step_wall_time (covering those branches
+        // in _applyProjectWorkflowOverrides even though createStepDefinition does not forward them)
+        const updatesArg = updateSpy.mock.calls.find(([id]) => id === 'step_00')?.[1];
+        expect(updatesArg).toBeDefined();
+        expect(updatesArg.priority).toBe(3);
+        expect(updatesArg.max_step_wall_time).toBe(60);
       });
 
       test('warns and skips unknown configured steps', () => {
