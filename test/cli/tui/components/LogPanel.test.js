@@ -105,12 +105,13 @@ describe('LogPanel Component', () => {
     expect(lastFrame()).toContain('No time');
   });
 
-  it('j key scrolls up (same as up arrow)', async () => {
+  it('k key scrolls up (same as up arrow)', async () => {
     const logs = Array.from({ length: 10 }, (_, i) => makeLog(`Log ${i + 1}`, `12:0${i}:00`));
     const { stdin, lastFrame } = render(
       React.createElement(LogPanel, { logs, width: 40, height: 5 })
     );
     stdin.write('k'); // k scrolls up in LogPanel
+    await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
     expect(lastFrame()).toContain('↑');
   });
