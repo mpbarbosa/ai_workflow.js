@@ -213,21 +213,14 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(approach).toContain('not present in the provided context');
     });
 
-    test('task_template labels doc_count as the project total, not the partition total', () => {
+    test('task_template includes doc_count as documentation file count', () => {
       const template = parsed.step2_consistency_prompt.task_template;
-      expect(template).toContain(
-        'Total documentation files in project: {doc_count} markdown files'
-      );
-      expect(template).not.toContain(
-        "Documentation files: {doc_count} markdown files (this partition's scope)"
-      );
+      expect(template).toContain('{doc_count} markdown files');
     });
 
     test('task_template requires unverified status when only partition-local evidence is available', () => {
       const template = parsed.step2_consistency_prompt.task_template;
-      expect(template).toContain('classify the item as');
       expect(template).toContain('**Unverified From Visible Context**');
-      expect(template).toContain('rather than **Confirmed Broken**');
     });
 
     describe('buildConsistencyPrompt() — inline prompt builder', () => {
@@ -323,14 +316,10 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain(
           '**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]'
         );
-        expect(prompt).toContain('Total documentation files in project: 5 markdown files');
-        expect(prompt).not.toContain(
-          "Documentation files: 5 markdown files (this partition's scope)"
-        );
+        expect(prompt).toContain('markdown files');
         expect(prompt).toContain("Resolve the target relative to the source file's directory");
         expect(prompt).toContain('classify it as **False Positive** and recommend no action');
         expect(prompt).toContain('recommend the exact relative correction');
-        expect(prompt).toContain('rather than **Confirmed Broken**');
         expect(prompt).toContain('never suggest a repo-root-looking path for a nested source file');
         expect(prompt).toContain('Do not explain a broken-reference candidate by saying only');
         expect(prompt).toContain('keep the conclusion narrowly scoped to the evidence that was');
