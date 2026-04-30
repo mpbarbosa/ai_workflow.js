@@ -21,7 +21,7 @@ import {
   buildProjectKindPrompt,
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
-import { AiHelper } from '../lib/ai_helpers.js';
+import { AiHelper, calculateRetryDelay } from '../lib/ai_helpers.js';
 import { Backlog } from '../lib/backlog.js';
 import {
   DOC_CATEGORIES,
@@ -582,6 +582,14 @@ export const STEP1_DOCUMENTATION_PREFERRED_MODELS = [
   'gpt-5.3-codex',
 ];
 
+const STEP1_DEFAULT_AI_TIMEOUT_MS = 120000;
+const STEP1_DEFAULT_AI_MAX_RETRIES = 3;
+const STEP1_DEFAULT_AI_BASE_DELAY_MS = 1000;
+const STEP1_DEFAULT_AI_MAX_DELAY_MS = 30000;
+const STEP1_MAX_AI_TIMEOUT_MS = 300000;
+const STEP1_FALLBACK_AI_TIMEOUT_MS = 120000;
+const STEP1_PARALLEL_TIMEOUT_PADDING_MS = 15000;
+
 /**
  * Pick the preferred model for Step 1 documentation analysis.
  *
@@ -611,6 +619,52 @@ export function selectStep1DocumentationModel(
   }
 
   return fallbackModel || STEP1_DOCUMENTATION_PREFERRED_MODELS[0];
+}
+
+/**
+ * Estimate the timeout budget Step 1 needs so its category-level watchdog
+ * does not expire before AiHelper exhausts its own timeout retries.
+ *
+ * @pure
+ * @param {Object} [aiConfig={}] - AiHelper config
+ * @returns {number} Timeout budget in milliseconds
+ */
+export function calculateStep1ParallelTimeoutBudget(aiConfig = {}) {
+  const initialTimeout =
+    Number.isFinite(aiConfig?.timeout) && aiConfig.timeout > 0
+      ? Math.min(Math.max(aiConfig.timeout, 1000), STEP1_MAX_AI_TIMEOUT_MS)
+      : STEP1_DEFAULT_AI_TIMEOUT_MS;
+  const maxRetries =
+    Number.isInteger(aiConfig?.maxRetries) && aiConfig.maxRetries > 0
+      ? aiConfig.maxRetries
+      : STEP1_DEFAULT_AI_MAX_RETRIES;
+  const baseDelay =
+    Number.isFinite(aiConfig?.baseDelay) && aiConfig.baseDelay >= 0
+      ? aiConfig.baseDelay
+      : STEP1_DEFAULT_AI_BASE_DELAY_MS;
+  const maxDelay =
+    Number.isFinite(aiConfig?.maxDelay) && aiConfig.maxDelay >= baseDelay
+      ? aiConfig.maxDelay
+      : STEP1_DEFAULT_AI_MAX_DELAY_MS;
+  const primaryModel = typeof aiConfig?.model === 'string' ? aiConfig.model : null;
+  const fallbackModel = aiConfig?.fallbackModel;
+
+  let totalTimeout = 0;
+  let attemptTimeout = initialTimeout;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    totalTimeout += attemptTimeout;
+    if (attempt < maxRetries - 1) {
+      totalTimeout += calculateRetryDelay(attempt, baseDelay, maxDelay);
+      attemptTimeout = Math.min(attemptTimeout * 2, STEP1_MAX_AI_TIMEOUT_MS);
+    }
+  }
+
+  if (fallbackModel && fallbackModel !== primaryModel) {
+    totalTimeout += STEP1_FALLBACK_AI_TIMEOUT_MS;
+  }
+
+  return totalTimeout + STEP1_PARALLEL_TIMEOUT_PADDING_MS;
 }
 
 // ============================================================================
@@ -842,6 +896,13 @@ export class Step1DocumentationAnalyzer {
       let analysisResult = null;
       if ((options.enableParallel ?? this.enableParallel) && docsToProcess.length >= 1) {
         logger.info('Running parallel documentation analysis...');
+        if (this.parallelProcessor?.config) {
+          const step1TimeoutBudget = calculateStep1ParallelTimeoutBudget(this.aiHelper?.config);
+          const currentTimeout = this.parallelProcessor.config.timeout;
+          if (!Number.isFinite(currentTimeout) || currentTimeout < step1TimeoutBudget) {
+            this.parallelProcessor.config.timeout = step1TimeoutBudget;
+          }
+        }
         const rawResult = await this.parallelProcessor.validate(
           docsToProcess,
           async (_category, files, { signal } = {}) => {

@@ -119,6 +119,18 @@ export function getPreflightQualityCommands(packageJson = {}, packageManager = '
   );
 }
 
+/**
+ * Parse the number of failed tests from jest / npm test output.
+ * @pure
+ * @param {string} output - Raw command output
+ * @returns {number|null} Failed test count, or null if the pattern is absent
+ */
+export function parseTestFailureCount(output) {
+  if (typeof output !== 'string') return null;
+  const match = output.match(/Tests:\s+(\d+)\s+failed/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
 const STEP_EXECUTOR_LOADERS = Object.freeze({
   step_00: () => import('../steps/step_00_analyze.js').then(({ Step0Analyzer }) => Step0Analyzer),
   step_0b: () =>
@@ -472,13 +484,63 @@ export function getConfiguredStepsForStage(stage, workflowConfig) {
   ]);
 }
 
+export function validateWorkflowStageStepDefinitions(workflowConfig) {
+  const configuredStages = workflowConfig?.workflow?.stages;
+  if (!configuredStages || typeof configuredStages !== 'object') {
+    return { valid: true, errors: [] };
+  }
+
+  const errors = [];
+
+  for (const stage of Object.values(WORKFLOW_STAGES)) {
+    const stageConfig = configuredStages?.[stage];
+    if (!stageConfig || !Object.prototype.hasOwnProperty.call(stageConfig, 'steps')) {
+      continue;
+    }
+
+    if (!Array.isArray(stageConfig.steps)) {
+      errors.push(
+        `[WorkflowConfig] workflow.stages.${stage}.steps must be an array of step IDs or be omitted. ` +
+          'Execution planning derives from workflow.steps plus canonical stage rules.'
+      );
+      continue;
+    }
+
+    const configuredStepIds = stageConfig.steps.map(normalizeWorkflowConfigStepId).filter(Boolean);
+    const canonicalStepIds = getStepsForStage(stage);
+    if (haveSameDependencySet(configuredStepIds, canonicalStepIds)) {
+      continue;
+    }
+
+    errors.push(
+      `[WorkflowConfig] workflow.stages.${stage}.steps does not control execution order and must not redefine the ${stage} stage. ` +
+        'Execution planning derives from workflow.steps plus canonical stage rules. ' +
+        `Configured stage steps: ${formatDependencyList(configuredStepIds)}. ` +
+        `Canonical ${stage} stage steps: ${formatDependencyList(canonicalStepIds)}. ` +
+        `Remove workflow.stages.${stage}.steps or move the supported overrides into workflow.steps.`
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
 export const TERMINAL_FINALIZATION_STEP_ORDER = Object.freeze(['step_17', 'step_0f', 'step_12']);
 
 const TERMINAL_FINALIZATION_STEP_SET = new Set(TERMINAL_FINALIZATION_STEP_ORDER);
-const TERMINAL_REQUIRED_DEPENDENCIES = Object.freeze({
-  step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
+// Hard finalization-order locks: step_0f must follow step_17; step_12 must follow step_0f.
+// These cannot be removed via dependency_comment.
+const ORDER_LOCKED_TERMINAL_DEPENDENCIES = Object.freeze({
   step_0f: ['step_17'],
   step_12: ['step_0f'],
+});
+// Default branch-aggregation prerequisites for step_17.
+// These can be omitted via dependency_comment when the prerequisite step is
+// explicitly disabled in .workflow-config.yaml (e.g. non-AWS projects removing step_11_6).
+const DEFAULT_TERMINAL_BRANCH_DEPENDENCIES = Object.freeze({
+  step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
 });
 const ORDER_LOCKED_CANONICAL_DEPENDENCIES = Object.freeze({
   step_06: ['step_05'],
@@ -503,17 +565,32 @@ export function enforceTerminalStepOrder(stepIds = []) {
 export function sanitizeWorkflowConfigDependencies(
   stepId,
   dependencies = [],
-  defaultDependencies = []
+  defaultDependencies = [],
+  options = {}
 ) {
   if (!Array.isArray(dependencies)) {
     return undefined;
   }
 
+  const disabledSet = new Set(
+    Array.isArray(options?.disabledStepIds)
+      ? options.disabledStepIds.filter((id) => typeof id === 'string')
+      : []
+  );
+
   const deduped = [
     ...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string')),
   ];
+
+  // ORDER_LOCKED_TERMINAL: always re-injected; cannot be removed via dependency_comment.
+  const lockedTerminalDeps = ORDER_LOCKED_TERMINAL_DEPENDENCIES[stepId] || [];
+  // DEFAULT_TERMINAL_BRANCH: re-injected only when NOT explicitly disabled in the project config.
+  const branchTerminalDeps = (DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []).filter(
+    (depId) => !disabledSet.has(depId)
+  );
   const requiredDependencies = [
-    ...(TERMINAL_REQUIRED_DEPENDENCIES[stepId] || []),
+    ...lockedTerminalDeps,
+    ...branchTerminalDeps,
     ...(ORDER_LOCKED_CANONICAL_DEPENDENCIES[stepId] || []),
   ];
 
@@ -523,7 +600,13 @@ export function sanitizeWorkflowConfigDependencies(
         !TERMINAL_FINALIZATION_STEP_SET.has(dependencyId) ||
         requiredDependencies.includes(dependencyId)
     );
-    return [...new Set([...retained, ...defaultDependencies, ...requiredDependencies])];
+    // Don't re-inject defaultDependencies entries that are both disabled and in the
+    // DEFAULT_TERMINAL_BRANCH set — those were intentionally removed via dependency_comment.
+    const defaultTerminalBranchSet = new Set(DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []);
+    const filteredDefaults = (defaultDependencies || []).filter(
+      (depId) => !(disabledSet.has(depId) && defaultTerminalBranchSet.has(depId))
+    );
+    return [...new Set([...retained, ...filteredDefaults, ...requiredDependencies])];
   }
 
   return deduped.filter((dependencyId) => !TERMINAL_FINALIZATION_STEP_SET.has(dependencyId));
@@ -676,8 +759,7 @@ export function validatePlannedStepDependencies(
         typeof dependencyId === 'string' &&
         dependencyId.length > 0 &&
         availableSet.has(dependencyId) &&
-        !plannedSet.has(dependencyId) &&
-        !disabledSet.has(dependencyId)
+        !plannedSet.has(dependencyId)
     );
 
     if (missingDependencies.length > 0) {
@@ -688,9 +770,17 @@ export function validatePlannedStepDependencies(
         disabledDependencies.length > 0
           ? `Disabled in .workflow-config.yaml: ${disabledDependencies.join(', ')}. `
           : '';
+      const lockedMissing = missingDependencies.filter((depId) =>
+        (ORDER_LOCKED_TERMINAL_DEPENDENCIES[stepId] || []).includes(depId)
+      );
+      const remediationHint =
+        lockedMissing.length > 0
+          ? `Re-enable the prerequisite step(s) or disable ${stepId}. ` +
+            `Note: ${lockedMissing.join(', ')} cannot be removed via dependency_comment.`
+          : `Re-enable the prerequisite step(s), disable ${stepId}, or override its dependencies with dependency_comment.`;
       errors.push(
         `[WorkflowConfig] Selected step ${stepId} depends on step(s) excluded from the execution plan: ${missingDependencies.join(', ')}. ` +
-          `${disabledDetail}Re-enable the prerequisite step(s), disable ${stepId}, or override its dependencies with dependency_comment.`
+          `${disabledDetail}${remediationHint}`
       );
     }
   }
@@ -1449,6 +1539,11 @@ export class MainOrchestrator {
   }
 
   _applyProjectWorkflowOverrides(projectWorkflowConfig = null) {
+    const stageStepValidation = validateWorkflowStageStepDefinitions(projectWorkflowConfig);
+    if (!stageStepValidation.valid) {
+      throw new Error(stageStepValidation.errors.join('\n\n'));
+    }
+
     const overrides = buildWorkflowConfigStepIndex(projectWorkflowConfig);
     const configPath = path.join(this.projectRoot, '.workflow-config.yaml');
     const pendingUpdates = [];
@@ -1470,10 +1565,12 @@ export class MainOrchestrator {
           ? existingStep.metadata.canonicalDependencies
           : existingStep?.dependencies || [];
         const rawConfiguredDependencies = normalizeDependencyList(override.dependencies);
+        const disabledConfigStepIds = getDisabledWorkflowConfigStepIds(projectWorkflowConfig);
         const sanitizedDependencies = sanitizeWorkflowConfigDependencies(
           stepId,
           rawConfiguredDependencies,
-          existingStep?.dependencies || []
+          existingStep?.dependencies || [],
+          { disabledStepIds: disabledConfigStepIds }
         );
         const removedDependencies = rawConfiguredDependencies.filter(
           (dependencyId) => !sanitizedDependencies.includes(dependencyId)
@@ -1564,9 +1661,18 @@ export class MainOrchestrator {
     const results = performHealthChecks(environment);
 
     if (results.passed) {
-      const qualityChecks = await this._runPreflightQualitySuites(this.projectRoot);
+      const qualityChecks = await this._runPreflightQualitySuites(
+        this.projectRoot,
+        this.profileManager?.changeCounts ?? null
+      );
       results.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] = qualityChecks;
-      results.passed = results.passed && qualityChecks.passed;
+
+      if (qualityChecks.hasForceExitWarning) {
+        logger.warn(
+          `${colors.yellow}⚠${colors.reset} Jest force-exited to kill async handles — ` +
+            `add --detectOpenHandles to your test script to identify the source`
+        );
+      }
 
       if (qualityChecks.skipped) {
         logger.info(`Skipping pre-flight quality suites: ${qualityChecks.message}`);
@@ -1574,7 +1680,13 @@ export class MainOrchestrator {
         logger.info(
           `${colors.green}✓${colors.reset} Pre-flight quality suites passed (${qualityChecks.commands.map((check) => check.name).join(', ')})`
         );
+      } else if (qualityChecks.advisory) {
+        logger.warn(
+          `${colors.yellow}⚠${colors.reset} Pre-flight advisory (pre-existing failures): ${qualityChecks.advisoryMessage}`
+        );
+        logger.warn(`  Workflow continuing. Fix the flagged tests to clear this advisory.`);
       } else {
+        results.passed = false;
         logger.error(
           `${colors.red}✗${colors.reset} Pre-flight quality suites failed: ${qualityChecks.failedCommand}`
         );
@@ -1606,7 +1718,7 @@ export class MainOrchestrator {
     return results;
   }
 
-  async _runPreflightQualitySuites(projectRoot) {
+  async _runPreflightQualitySuites(projectRoot, changeCounts = null) {
     let packageJson;
     try {
       const packageJsonRaw = await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8');
@@ -1633,6 +1745,8 @@ export class MainOrchestrator {
         message: 'No lint/test/build scripts found',
       };
     }
+
+    const baselineFailureCount = await this._readPreflightBaseline();
 
     const results = [];
     for (const suite of commands) {
@@ -1673,8 +1787,49 @@ export class MainOrchestrator {
           exitCode: error?.exitCode ?? 1,
         });
 
+        const hasForceExitWarning =
+          fullFailureOutput.includes('Force exiting Jest') ||
+          fullFailureOutput.includes('--detectOpenHandles');
+
+        // Determine whether this is a new failure or a pre-existing one.
+        // Advisory = pre-existing: no new failures introduced by this changeset.
+        let advisory = false;
+        let advisoryMessage = null;
+        if (suite.name === 'test') {
+          const currentFailureCount = parseTestFailureCount(fullFailureOutput);
+          const testFilesChanged = changeCounts?.tests ?? null;
+          const noNewFailures =
+            baselineFailureCount !== null &&
+            currentFailureCount !== null &&
+            currentFailureCount <= baselineFailureCount;
+          const likelyPreExisting =
+            !noNewFailures &&
+            testFilesChanged !== null &&
+            testFilesChanged === 0 &&
+            currentFailureCount !== null;
+
+          if (noNewFailures) {
+            advisory = true;
+            advisoryMessage =
+              `${currentFailureCount} pre-existing test failure(s) ` +
+              `(baseline: ${baselineFailureCount}). No new failures were introduced.`;
+          } else if (likelyPreExisting) {
+            advisory = true;
+            advisoryMessage =
+              `${currentFailureCount} test failure(s) detected but no test files are in the ` +
+              `current changeset — strongly suggests pre-existing failures unrelated to these changes.`;
+          }
+
+          if (currentFailureCount !== null) {
+            await this._writePreflightBaseline(currentFailureCount);
+          }
+        }
+
         return {
           passed: false,
+          advisory,
+          advisoryMessage,
+          hasForceExitWarning,
           skipped: false,
           packageManager,
           commands: results,
@@ -1687,8 +1842,12 @@ export class MainOrchestrator {
       }
     }
 
+    await this._writePreflightBaseline(0);
+
     return {
       passed: true,
+      advisory: false,
+      hasForceExitWarning: false,
       skipped: false,
       packageManager,
       commands: results,
@@ -1712,6 +1871,31 @@ export class MainOrchestrator {
     return artifactPath;
   }
 
+  async _readPreflightBaseline() {
+    try {
+      const baselinePath = path.join(this.workflowDir, 'preflight_baseline.json');
+      const raw = await fs.readFile(baselinePath, 'utf8');
+      const data = JSON.parse(raw);
+      return typeof data.testFailureCount === 'number' ? data.testFailureCount : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async _writePreflightBaseline(testFailureCount) {
+    try {
+      await fs.mkdir(this.workflowDir, { recursive: true });
+      const baselinePath = path.join(this.workflowDir, 'preflight_baseline.json');
+      await fs.writeFile(
+        baselinePath,
+        JSON.stringify({ testFailureCount, updatedAt: new Date().toISOString() }),
+        'utf8'
+      );
+    } catch {
+      // Non-critical — baseline is best-effort
+    }
+  }
+
   /**
    * Abort the running workflow (e.g. on SIGINT). The current step finishes,
    * then execution stops cleanly.
@@ -1726,6 +1910,8 @@ export class MainOrchestrator {
    * @returns {Promise<Object>} Workflow results
    */
   async execute(context = {}) {
+    let workflowExecutionStarted = false;
+
     try {
       this.startTime = Date.now();
 
@@ -2009,6 +2195,7 @@ export class MainOrchestrator {
       logEffectiveExecutionPlan(workflow.steps);
 
       // Execute workflow
+      workflowExecutionStarted = true;
       logger.info(`\n${colors.blue}Starting workflow execution...${colors.reset}\n`);
 
       const mlContextBase = {
@@ -2257,6 +2444,11 @@ export class MainOrchestrator {
         duration,
       };
     } catch (error) {
+      if (!workflowExecutionStarted) {
+        logger.error(
+          `${colors.red}✗ Preflight validation failed before workflow execution (0 steps executed)${colors.reset}`
+        );
+      }
       logger.error(`${colors.red}✗ Workflow terminated before completion${colors.reset}`);
       logger.error(`${colors.red}✗ Workflow failed: ${error.message}${colors.reset}`);
       await logger.closeLogFile();

@@ -6,7 +6,7 @@
  * Supports scrolling with ↑/↓/j/k keys, g/G jump, and / search.
  *
  * Architecture: v2.0.0 Pattern
- * - Pure helper functions delegated to helpers.js
+ * - Pure helper functions delegated to reusable TUI helpers
  * - This component is the impure boundary (keyboard, state)
  *
  * @version 1.1.0
@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { formatTimestamp, truncateLogLine, filterLogLines } from '../helpers.js';
+import { formatTimestamp, truncateLogLine, filterLogLines } from '../helpers/reusable.js';
 import { LogSearchBar } from './LogSearchBar.js';
 
 /**

@@ -258,6 +258,9 @@ describe('Init Command - Pure Functions', (): void => {
       expect(config.workflow.stages.quick).toBeDefined();
       expect(config.workflow.stages.medium).toBeDefined();
       expect(config.workflow.stages.full).toBeDefined();
+      expect(config.workflow.stages.quick).toEqual({ enabled: true });
+      expect(config.workflow.stages.medium).toEqual({ enabled: true });
+      expect(config.workflow.stages.full).toEqual({ enabled: true });
     });
 
     test('should include validation settings', (): void => {

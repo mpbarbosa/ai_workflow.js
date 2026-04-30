@@ -86,7 +86,6 @@ export interface StructureConfigSection {
 
 export interface WorkflowStageDefinition {
   enabled: boolean;
-  steps: string[];
 }
 
 export interface WorkflowConfig {
@@ -377,26 +376,12 @@ export function generateConfigTemplate(answers: InitAnswers): WorkflowConfig {
       stages: {
         quick: {
           enabled: true,
-          steps: ['step_00', 'step_01', 'step_02'],
         },
         medium: {
           enabled: true,
-          steps: ['step_00', 'step_01', 'step_02', 'step_03', 'step_04', 'step_05'],
         },
         full: {
           enabled: true,
-          steps: [
-            'step_00',
-            'step_01',
-            'step_02',
-            'step_03',
-            'step_04',
-            'step_05',
-            'step_06',
-            'step_07',
-            'step_08',
-            'step_0f',
-          ],
         },
       },
     },

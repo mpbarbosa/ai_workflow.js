@@ -7,7 +7,7 @@
  * panel focus management, and overlay rendering.
  *
  * Architecture: v2.0.0 Pattern
- * - Pure layout/size logic delegated to helpers.js
+ * - Pure layout/size logic delegated to reusable TUI helpers
  * - This component is the impure UI boundary (keyboard, terminal, state)
  *
  * @version 1.1.0
@@ -28,7 +28,7 @@ import { HelpOverlay } from './components/HelpOverlay.js';
 import { StepDetailOverlay } from './components/StepDetailOverlay.js';
 import { ErrorDetailPanel } from './components/ErrorDetailPanel.js';
 import { StreamViewer } from './components/StreamViewer.js';
-import { terminalIsSufficient, stepsPanelWidth } from './helpers.js';
+import { terminalIsSufficient, stepsPanelWidth } from './helpers/reusable.js';
 
 /**
  * Root TUI application component.

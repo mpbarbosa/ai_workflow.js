@@ -15,7 +15,7 @@ const mockKeepLast = jest.fn((arr, n) => arr.slice(-n));
 const mockFilterLogLines = jest.fn(() => ({ matchCount: 0, matchIndices: [] }));
 const mockHighlightSearchMatch = jest.fn((line) => [{ text: line, isMatch: false }]);
 
-jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
+jest.unstable_mockModule('../../../../src/cli/tui/helpers/reusable.js', () => ({
   formatTimestamp: mockFormatTimestamp,
   truncateLogLine: mockTruncateLogLine,
   keepLast: mockKeepLast,

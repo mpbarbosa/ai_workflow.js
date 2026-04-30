@@ -64,7 +64,6 @@ export interface StructureConfigSection {
 }
 export interface WorkflowStageDefinition {
     enabled: boolean;
-    steps: string[];
 }
 export interface WorkflowConfig {
     project: ProjectConfigSection;

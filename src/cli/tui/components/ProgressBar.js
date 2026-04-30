@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { Box, Text, useStdout } from 'ink';
-import { formatProgressLine } from '../helpers.js';
+import { formatProgressLine } from '../helpers/reusable.js';
 
 /**
  * @param {{ pct: number, startTime: number|null }} props

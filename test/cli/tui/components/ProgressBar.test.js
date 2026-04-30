@@ -15,7 +15,7 @@ const mockFormatProgressLine = jest.fn((pct, elapsedMs, barWidth) => {
   return bar + stats;
 });
 
-jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
+jest.unstable_mockModule('../../../../src/cli/tui/helpers/reusable.js', () => ({
   formatProgressLine: mockFormatProgressLine,
 }));
 

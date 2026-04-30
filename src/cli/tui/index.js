@@ -19,7 +19,7 @@
 import React from 'react';
 import { render } from 'ink';
 import { App } from './App.js';
-import { terminalIsSufficient } from './helpers.js';
+import { terminalIsSufficient } from './helpers/reusable.js';
 
 /**
  * Start the TUI dashboard for a given orchestrator.

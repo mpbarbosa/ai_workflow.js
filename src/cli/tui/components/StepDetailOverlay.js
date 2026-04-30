@@ -6,7 +6,7 @@
  * status, duration, retry count, exit code/error, and step-specific logs.
  * Press Escape to dismiss.
  *
- * Architecture: v2.0.0 Pattern (impure UI boundary, pure formatting via helpers.js)
+ * Architecture: v2.0.0 Pattern (impure UI boundary, pure formatting via project helpers)
  *
  * @version 1.0.0
  * @since 2026-03-07
@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { Box, Text, useInput } from 'ink';
-import { formatStepDetail } from '../helpers.js';
+import { formatStepDetail } from '../helpers/project.js';
 
 /**
  * @param {{

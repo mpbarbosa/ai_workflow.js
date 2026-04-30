@@ -19,6 +19,7 @@ import {
   selectStep1EvidenceFiles,
   shouldRunAiAnalysis,
   selectStep1DocumentationModel,
+  calculateStep1ParallelTimeoutBudget,
   readProjectConventions,
 } from '../../src/steps/step_01_documentation.js';
 
@@ -121,6 +122,34 @@ describe('Step 1: Documentation Validation', () => {
 
       expect(result.found).toHaveLength(0);
       expect(result.hasMismatches).toBe(false);
+    });
+  });
+
+  describe('calculateStep1ParallelTimeoutBudget', () => {
+    test('covers AiHelper timeout retries plus fallback slack', () => {
+      const budget = calculateStep1ParallelTimeoutBudget({
+        model: 'gpt-4.1',
+        timeout: 120000,
+        maxRetries: 3,
+        baseDelay: 1000,
+        maxDelay: 30000,
+        fallbackModel: 'claude-haiku-4.5',
+      });
+
+      expect(budget).toBe(798000);
+    });
+
+    test('skips fallback allowance when fallback model is disabled', () => {
+      const budget = calculateStep1ParallelTimeoutBudget({
+        model: 'gpt-4.1',
+        timeout: 120000,
+        maxRetries: 2,
+        baseDelay: 1000,
+        maxDelay: 30000,
+        fallbackModel: null,
+      });
+
+      expect(budget).toBe(376000);
     });
   });
 
@@ -603,6 +632,49 @@ describe('Step 1: Documentation Validation', () => {
       expect(result.success).toBe(true);
       expect(result.analysis).toBeDefined();
       expect(result.analysis.stats.processed).toBe(2);
+    });
+
+    test('widens the parallel timeout budget to match AiHelper retry policy', async () => {
+      const validateCalls = [];
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['README.md']);
+      mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+      mockParallelProcessor.config = { timeout: 300000 };
+      mockParallelProcessor.validate = () => {
+        validateCalls.push(mockParallelProcessor.config.timeout);
+        return Promise.resolve({
+          validatedFiles: 1,
+          totalFiles: 1,
+          categories: {},
+          errors: [],
+          success: true,
+        });
+      };
+      analyzer = new Step1DocumentationAnalyzer({
+        gitOps: mockGitOps,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        incrementalProcessor: mockIncrementalProcessor,
+        parallelProcessor: mockParallelProcessor,
+        aiHelper: {
+          config: {
+            model: 'gpt-4.1',
+            timeout: 120000,
+            maxRetries: 3,
+            baseDelay: 1000,
+            maxDelay: 30000,
+            fallbackModel: 'claude-haiku-4.5',
+          },
+          initialize: () => Promise.resolve(true),
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_key, _files, fn) => fn(),
+        },
+      });
+
+      await analyzer.execute('/project', { enableParallel: true });
+
+      expect(validateCalls).toEqual([798000]);
     });
 
     test('fails when parallel processing returns incomplete analysis', async () => {

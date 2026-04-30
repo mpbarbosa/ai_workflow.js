@@ -333,6 +333,8 @@ workflow:
 
 Use `workflow.steps` to override the generated canonical step set, not to invent a new pipeline from scratch.
 
+- `workflow.stages.<stage>.enabled` is supported for stage toggles.
+- Do **not** use `workflow.stages.<stage>.steps` to redefine a stage. Execution planning ignores stage-scoped step lists and derives the plan from `workflow.steps` plus the canonical stage rules.
 - Every step entry must declare an `id`.
 - Preserve the canonical dependencies by default.
 - Reordering the same dependency set is normalized back to canonical order and does not require `dependency_comment`.

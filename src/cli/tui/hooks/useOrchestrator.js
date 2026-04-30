@@ -6,7 +6,7 @@
  * translates them into React state for Ink components to render.
  *
  * Architecture: v2.0.0 Pattern
- * - Pure logic in helpers.js
+ * - Pure logic in reusable TUI helpers
  * - This hook is the impure boundary (event subscription, state mutation)
  *
  * @version 1.0.0
@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { keepLast } from '../helpers.js';
+import { keepLast } from '../helpers/reusable.js';
 
 /** Maximum log lines kept in memory for the log panel. */
 const MAX_LOG_LINES = 200;

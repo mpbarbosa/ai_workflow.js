@@ -40,7 +40,7 @@ jest.unstable_mockModule('../../../src/cli/tui/components/ErrorDetailPanel.js', 
 }));
 
 // Mock helpers
-jest.unstable_mockModule('../../../src/cli/tui/helpers.js', () => ({
+jest.unstable_mockModule('../../../src/cli/tui/helpers/reusable.js', () => ({
   terminalIsSufficient: mockTerminalIsSufficient,
   stepsPanelWidth: mockStepsPanelWidth,
 }));
