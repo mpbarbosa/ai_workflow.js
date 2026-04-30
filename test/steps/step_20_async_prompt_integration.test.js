@@ -3,12 +3,9 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import yaml from 'js-yaml';
 import { buildYamlStepPrompt } from '../../src/lib/ai_prompt_builder.js';
-
-const PROJECT_ROOT = process.cwd();
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
+import { AI_HELPERS_YAML_PATH } from '../helpers/workflow_core_paths.js';
 
 describe('async_perf_engineer_prompt — evidence scoping', () => {
   let aiHelpers;
@@ -29,7 +26,9 @@ describe('async_perf_engineer_prompt — evidence scoping', () => {
   test('approach requires no-production-findings output for test/config-only evidence', () => {
     const approach = aiHelpers.async_perf_engineer_prompt.approach;
 
-    expect(approach).toContain('every provided file is either a test file or a tooling/config file');
+    expect(approach).toContain(
+      'every provided file is either a test file or a tooling/config file'
+    );
     expect(approach).toContain('no production async-performance findings are supported');
   });
 
@@ -52,7 +51,9 @@ describe('async_perf_engineer_prompt — evidence scoping', () => {
       test_framework: 'jest',
       source_file_count: '3 total (3 covered in this request)',
       modified_count: '0',
-      file_paths: ['test/foo.test.js', 'jest.config.ts', '.workflow_core/config/tooling.js'].join('\n'),
+      file_paths: ['test/foo.test.js', 'jest.config.ts', '.workflow_core/config/tooling.js'].join(
+        '\n'
+      ),
       partition_scope_note: 'This request only contains tests and tooling excerpts.',
       file_content_block: [
         '### `test/foo.test.js`',

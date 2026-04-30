@@ -42,12 +42,13 @@ jobs:
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
-      # Submodules are not used by this workflow; omitting them avoids failures
-      # caused by stale submodule commit pointers in the parent repo.
+      # Submodules (e.g. .workflow_core) are needed for prompt-integration tests
+      # that load .workflow_core/config/ai_helpers.yaml and prompt_roles.yaml.
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          submodules: recursive
 
       # ── 2. Node.js setup ─────────────────────────────────────────────────────
       - name: Set up Node.js 20

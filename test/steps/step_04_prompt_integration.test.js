@@ -4,12 +4,9 @@
  */
 
 import fs from 'fs/promises';
-import path from 'path';
 import yaml from 'js-yaml';
 import { buildYamlStepPrompt } from '../../src/lib/ai_prompt_builder.js';
-
-const PROJECT_ROOT = process.cwd();
-const AI_HELPERS_YAML_PATH = path.join(PROJECT_ROOT, '.workflow_core', 'config', 'ai_helpers.yaml');
+import { AI_HELPERS_YAML_PATH } from '../helpers/workflow_core_paths.js';
 
 describe('configuration_specialist_prompt — partition handling', () => {
   let aiHelpers;
