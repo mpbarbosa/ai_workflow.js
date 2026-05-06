@@ -1,7 +1,7 @@
 # step_17_summary.js API Documentation
 
 **Module:** `steps/step_17_summary`
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

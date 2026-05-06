@@ -12,6 +12,10 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
 import { AutoCommit, validateArtifactPath } from '../lib/auto_commit.js';
+import {
+  formatBlockingCriticalFailures,
+  getBlockingCriticalFailures,
+} from './step_execution_helpers.js';
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -80,12 +84,26 @@ export class Step0fCommitArtifacts {
    * @param {string} projectRoot - Absolute path to the project root
    * @returns {Promise<Object>} Step result
    */
-  async execute(projectRoot) {
+  async execute(projectRoot, context = {}) {
     logger.info('════════════════════════════════════════════════════════════');
     logger.info('🔷  Step 0f: Commit Workflow Artifacts');
     logger.info('════════════════════════════════════════════════════════════');
 
     try {
+      const blockingFailures = getBlockingCriticalFailures(context);
+      if (blockingFailures.length > 0) {
+        const reason =
+          `Skipping artifact commit because earlier critical step(s) failed: ` +
+          `${formatBlockingCriticalFailures(blockingFailures)}`;
+        logger.warn(reason);
+        return {
+          success: true,
+          skipped: true,
+          reason,
+          blockedByFailures: blockingFailures.map((failure) => failure.stepId),
+        };
+      }
+
       // Get current git status to find changed artifact files
       const status = await this.gitOps.status(projectRoot);
       const changedFiles = [

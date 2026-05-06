@@ -101,7 +101,7 @@ Complete API reference for all modules in the ai_workflow.js project (Phase 1-7)
 
 # API Reference
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Last Updated:** February 7, 2026
 
 Complete API documentation for ai_workflow.js modules (Phase 1-8).
@@ -191,7 +191,7 @@ Workflow orchestration and execution management:
 
 # API Reference
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Last Updated:** February 7, 2026
 
 Complete API documentation for ai_workflow.js modules (Phase 1-8).

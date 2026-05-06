@@ -570,6 +570,28 @@ describe('Step 12: Git Finalization', () => {
       expect(mockBacklog.saveStepSummary).toHaveBeenCalled();
     });
 
+    test('skips git finalization after earlier critical failures by default', async () => {
+      const step = new Step12GitFinalization({
+        executor: mockExecutor,
+        backlogManager: mockBacklog,
+        logger: mockLogger,
+      });
+
+      const result = await step.execute({
+        criticalStepIds: ['step_08'],
+        results: [{ stepId: 'step_08', stepName: 'Test Execution', success: false }],
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: true,
+          skipped: true,
+          blockedByFailures: ['step_08'],
+        })
+      );
+      expect(mockExecutor.executeCommand).not.toHaveBeenCalled();
+    });
+
     test('handles no changes scenario', async () => {
       mockExecutor.executeCommand = jest
         .fn()

@@ -123,7 +123,7 @@ describe('Step 17: Workflow Summary - Pure Functions', () => {
           stepId: 'step_08',
           name: 'Test Execution',
           status: 'success',
-          duration: 20,
+          duration: 0.02,
         }),
       ]);
     });

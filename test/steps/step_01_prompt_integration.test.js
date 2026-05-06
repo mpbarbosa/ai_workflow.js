@@ -1,8 +1,8 @@
 /**
  * @fileoverview Regression test: doc_analysis_prompt in ai_helpers.yaml
  *
- * Verifies that the generated Step 01 documentation prompt remains repository-agnostic
- * and does not hardcode docs/ or CONTRIBUTING-only assumptions into every target project.
+ * Verifies that the generated Step 01 documentation prompt stays repository-agnostic
+ * about specific doc filenames while enforcing the root-doc placement rule.
  *
  * @group integration
  */
@@ -33,10 +33,13 @@ describe('doc_analysis_prompt — config correctness', () => {
     expect(parsed).toHaveProperty('doc_analysis_prompt');
   });
 
-  test('task_template no longer hardcodes CONTRIBUTING quick-link docs scope', async () => {
+  test('task_template keeps generic scope while enforcing the root-doc placement rule', async () => {
     const { parsed } = await loadRealAiHelpersYaml();
     const template = parsed.doc_analysis_prompt.task_template;
 
+    expect(template).toContain(
+      'Treat markdown documentation outside `docs/` as misplaced unless the file is `README.md` or `CHANGELOG.md`'
+    );
     expect(template).not.toContain('Quick links table of `CONTRIBUTING.md`');
     expect(template).not.toContain('docs/GETTING_STARTED.md');
     expect(template).not.toContain('docs/ARCHITECTURE.md');
@@ -74,6 +77,9 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
       'Treat the files in `Documentation to review` as the only documentation targets for edits'
     );
     expect(prompt).toContain(
+      'Treat markdown documentation outside `docs/` as misplaced unless the file is `README.md` or `CHANGELOG.md`'
+    );
+    expect(prompt).toContain(
       'Entries labeled "(part X/Y)" are sequential chunks of oversized files; treat unseen parts or omitted files as unavailable'
     );
     expect(prompt).toContain('**Documentation to review**:');
@@ -81,6 +87,9 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('=== README.md ===');
     expect(prompt).toContain(
       'Use the provided file contents and changed-file excerpts to examine what was modified in each changed file'
+    );
+    expect(prompt).toContain(
+      'If the visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list'
     );
     expect(prompt).toContain(
       'Avoid verbosity, creative expansion, and speculative rewrites beyond the visible change set'
@@ -103,9 +112,15 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain(
       'Treat the files in "Documentation to review" as the only documentation edit targets.'
     );
+    expect(prompt).toContain(
+      'Treat markdown documentation outside docs/ as misplaced unless the file is README.md or CHANGELOG.md.'
+    );
     expect(prompt).toContain('Choose exactly one verdict per scoped documentation file');
     expect(prompt).toContain('Unavailable" or "Inconclusive"');
     expect(prompt).toContain('visible file contents support that conclusion');
+    expect(prompt).toContain(
+      'A changed file that should appear in that visible inventory but is missing or no longer described is a documentation issue'
+    );
     expect(prompt).not.toContain('Default to "no changes"');
   });
 });

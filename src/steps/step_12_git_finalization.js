@@ -27,7 +27,11 @@ import GitSubmodules, {
 import { AiHelper } from '../lib/ai_helpers.js';
 import { AiCache } from '../lib/ai_cache.js';
 import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_builder.js';
-import { buildStepPromptWithFallback } from './step_execution_helpers.js';
+import {
+  buildStepPromptWithFallback,
+  formatBlockingCriticalFailures,
+  getBlockingCriticalFailures,
+} from './step_execution_helpers.js';
 
 // ============================================================================
 // CONSTANTS
@@ -493,6 +497,20 @@ export class Step12GitFinalization {
     }
 
     try {
+      const blockingFailures = getBlockingCriticalFailures(context);
+      if (blockingFailures.length > 0) {
+        const detail = formatBlockingCriticalFailures(blockingFailures);
+        this.logger.warn(
+          `Skipping git finalization because earlier critical step(s) failed: ${detail}`
+        );
+        return {
+          success: true,
+          skipped: true,
+          blockedByFailures: blockingFailures.map((failure) => failure.stepId),
+          message: `Git finalization skipped after critical failure(s): ${detail}`,
+        };
+      }
+
       // Phase 1: Analyze git state
       const gitState = await this._analyzeGitState(context);
 

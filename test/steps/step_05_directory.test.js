@@ -34,8 +34,8 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(shouldStayInRoot('CHANGELOG.md')).toBe(true);
     });
 
-    test('allows CONTRIBUTING.md in root', () => {
-      expect(shouldStayInRoot('CONTRIBUTING.md')).toBe(true);
+    test('rejects CONTRIBUTING.md in root', () => {
+      expect(shouldStayInRoot('CONTRIBUTING.md')).toBe(false);
     });
 
     test('rejects other markdown files', () => {
@@ -73,6 +73,7 @@ describe('Step 5: Directory Structure Validation', () => {
     test('categorizes guide files', () => {
       expect(categorizeMisplacedDoc('GUIDE.md')).toBe(DIR_CATEGORIES.GUIDE);
       expect(categorizeMisplacedDoc('TUTORIAL.md')).toBe(DIR_CATEGORIES.GUIDE);
+      expect(categorizeMisplacedDoc('CONTRIBUTING.md')).toBe(DIR_CATEGORIES.GUIDE);
     });
 
     test('categorizes architecture files', () => {

@@ -61,8 +61,9 @@ export const ISSUE_TYPE = {
 /**
  * Maximum documentation files per AI call partition.
  * Keeps individual prompts well under model context limits.
+ * 25 files keeps prompt_chars below ~30k, improving per-file coverage scores.
  */
-export const PARTITION_SIZE = 50;
+export const PARTITION_SIZE = 25;
 
 /**
  * Maximum unique broken-link source files shown per partition prompt.
@@ -115,6 +116,12 @@ export function extractVersions(content) {
   const versionPattern = /v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[a-zA-Z0-9.-]+)?/g;
   const matches = content.match(versionPattern) || [];
   return [...new Set(matches)]; // Remove duplicates
+}
+
+function stripUrlsForVersionCheck(content) {
+  return content
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$1')
+    .replace(/https?:\/\/\S+/gi, '');
 }
 
 /**
@@ -677,6 +684,7 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
   }
 
   const normalized = aiResponse.toLowerCase();
+  const normalizedCollapsed = normalized.replace(/\s+/g, ' ').trim();
 
   // Generic catch-all responses (< 200 chars) that contain no per-item analysis
   if (aiResponse.trim().length < 200 && flaggedItems.length > 0) {
@@ -686,6 +694,9 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
   const usesExplicitSafeForm = normalized.includes(
     'no additional issues found beyond the programmatic scan'
   );
+  const usesStandaloneSafeForm =
+    normalizedCollapsed === 'no additional issues found beyond the programmatic scan.' ||
+    normalizedCollapsed === 'no additional issues found beyond the programmatic scan';
   const usesUncertaintyLanguage =
     normalized.includes('limited or inconclusive') ||
     normalized.includes('limited') ||
@@ -715,9 +726,9 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
 
   if (
     options.requireGroundedNoIssueResponse &&
-    !usesExplicitSafeForm &&
     !usesUncertaintyLanguage &&
-    (makesBroadSuccessClaim || makesUnsupportedScopedPassClaim)
+    (makesBroadSuccessClaim || makesUnsupportedScopedPassClaim) &&
+    (!usesExplicitSafeForm || !usesStandaloneSafeForm)
   ) {
     return { adequate: false, reason: 'unsupported_global_claim', coverage: 0 };
   }
@@ -1106,11 +1117,11 @@ export class Step2ConsistencyAnalyzer {
           let quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
             requireGroundedNoIssueResponse: true,
           });
-          if (!quality.adequate && quality.coverage === 0) {
+          if (!quality.adequate && quality.coverage < 0.3) {
             await this.aiCache.invalidateFileChangeGuard(cacheStepId);
             logger.warn(
               `[step_02] Partition ${i + 1}: invalidated cached AI response` +
-                ` (reason=${quality.reason}, coverage=0%). Re-running partition analysis.`
+                ` (reason=${quality.reason}, coverage=${(quality.coverage * 100).toFixed(0)}%). Re-running partition analysis.`
             );
             aiResult = await this.aiHelper.executeRequest(prompt, {
               persona: 'documentation_expert',
@@ -1309,7 +1320,7 @@ export class Step2ConsistencyAnalyzer {
     for (const file of docFiles) {
       try {
         const content = await this.fileOps.readFile(file);
-        const versions = extractVersions(content);
+        const versions = extractVersions(stripUrlsForVersionCheck(content));
 
         if (versions.length > 0) {
           fileVersions.push({ file, versions });

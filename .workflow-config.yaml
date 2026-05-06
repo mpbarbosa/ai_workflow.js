@@ -6,7 +6,7 @@ project:
   type: 'nodejs-application'
   description: 'AI-powered workflow automation for software development projects with GitHub Copilot integration'
   kind: 'nodejs_automation'
-  version: '2.2.17'
+  version: '2.3.0'
 
 tech_stack:
   primary_language: 'javascript'
@@ -201,7 +201,7 @@ workflow:
       description: 'Update semantic versions'
       enabled: true
       dependencies:
-        - step_15
+        - step_03
 
     - id: step_18
       name: 'Debugging Analysis'

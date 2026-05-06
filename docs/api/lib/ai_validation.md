@@ -1,7 +1,7 @@
 # ai_validation
 
 **Module:** `src/lib/ai_validation.js`
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Architecture:** Pure functions only
 
 AI response validation with confidence scoring and fallback strategies.

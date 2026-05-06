@@ -149,6 +149,21 @@ describe('Step 11: Context Analysis', () => {
       expect(summary.passed).toBe(1);
       expect(summary.total).toBe(2);
     });
+
+    test('counts issue-bearing successful steps from prior analysis stages', () => {
+      const results = [
+        { success: true, totalIssues: 2 },
+        { success: true, stats: { totalIssues: 3 } },
+        { success: true, issues: ['missing test'] },
+      ];
+
+      const summary = aggregateIssues(results);
+
+      expect(summary.critical).toBe(0);
+      expect(summary.warnings).toBe(6);
+      expect(summary.total).toBe(6);
+      expect(summary.passed).toBe(0);
+    });
   });
 
   describe('calculateDuration', () => {

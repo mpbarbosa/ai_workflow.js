@@ -16,7 +16,7 @@ checks for a specific version.
 ## Usage
 
 ```bash
-bash scripts/prepare-release.sh 2.3.0
+bash scripts/prepare-release.sh 2.3.1
 ```
 
 ## Notes

@@ -72,6 +72,56 @@ export async function initializeStepAiContext({
 }
 
 /**
+ * Return prior failed steps that should block side-effecting finalization work.
+ *
+ * Terminal steps like step_0f and step_12 should not commit or push once the
+ * workflow already contains a confirmed critical failure unless the caller
+ * explicitly opts in via context.allowFinalizeOnFailure.
+ *
+ * @param {object} [context={}] - Workflow execution context
+ * @param {string[]} [options.ignoreStepIds=[]] - Failed step ids to ignore
+ * @returns {Array<{stepId: string, stepName?: string}>} Blocking failures
+ */
+export function getBlockingCriticalFailures(context = {}, { ignoreStepIds = [] } = {}) {
+  if (context?.allowFinalizeOnFailure) {
+    return [];
+  }
+
+  const ignoreSet = new Set(Array.isArray(ignoreStepIds) ? ignoreStepIds : []);
+  const criticalStepIds = Array.isArray(context?.criticalStepIds) ? context.criticalStepIds : [];
+  const criticalSet = criticalStepIds.length > 0 ? new Set(criticalStepIds) : null;
+  const previousResults = Array.isArray(context?.results) ? context.results : [];
+
+  return previousResults.filter(
+    (result) =>
+      result?.success === false &&
+      typeof result.stepId === 'string' &&
+      !ignoreSet.has(result.stepId) &&
+      (criticalSet ? criticalSet.has(result.stepId) : true)
+  );
+}
+
+/**
+ * Format blocking critical failures for terminal-step logging.
+ *
+ * @param {Array<{stepId: string, stepName?: string}>} failures - Blocking failures
+ * @returns {string} Human-readable summary
+ */
+export function formatBlockingCriticalFailures(failures = []) {
+  if (!Array.isArray(failures) || failures.length === 0) {
+    return 'none';
+  }
+
+  return failures
+    .map((failure) => {
+      const stepId = failure?.stepId || 'unknown_step';
+      const stepName = typeof failure?.stepName === 'string' ? failure.stepName.trim() : '';
+      return stepName ? `${stepId} (${stepName})` : stepId;
+    })
+    .join(', ');
+}
+
+/**
  * Initialize optional AI analysis for a step and persist any enriched summary
  * content that the caller produces.
  *

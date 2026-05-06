@@ -482,6 +482,7 @@ ${findingsContext}`;
 - Treat current-state docs (status summaries, implementation tables, released step lists, "current version" blocks) as describing shipped behavior unless the visible scoped document already labels that section as planned/future work.
 - Do not promote roadmap-only or planned items into released/current-state docs unless the visible implementation evidence in this prompt shows the feature already exists.
 - When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines), reconcile them as a linked set. Update only the values explicitly supported by visible evidence, and keep any unsupported line Unavailable or Inconclusive rather than guessing.
+- If a visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list, cross-check changed files against that visible inventory. A changed file that should appear there but is missing or no longer described is documentation drift and should not be cleared as "No updates required".
 - Never invent or infer release dates or "Last updated" dates from prompt timestamps, roadmap phases, or general recency.`;
 
   return injectProjectContext(buildStructuredPrompt({ role, task, approach }), projectInfo);
@@ -557,10 +558,15 @@ export function selectStep1FinalAnalysisContent(
   }
 
   const partitionSections = splitPartitionedDocAnalysisSections(normalizedCombined);
+  const consolidatedCombined =
+    partitionSections.length > 1
+      ? consolidateStep1DocAnalysis(normalizedCombined)
+      : normalizedCombined;
   const allNoUpdate =
     partitionSections.length > 1 && partitionSections.every(isNoUpdateDocAnalysisSection);
   const allInconclusive =
     partitionSections.length > 1 && partitionSections.every(isInconclusiveDocAnalysisSection);
+  const combinedInconclusive = isInconclusiveDocAnalysisSection(consolidatedCombined);
   const synthesisNoUpdate = isNoUpdateDocAnalysisSection(normalizedSynthesis);
   const synthesisInconclusive = isInconclusiveDocAnalysisSection(normalizedSynthesis);
   const scopedDocsIncomplete = hasStep1OmittedScopedDocContext(scopedDocEntries);
@@ -570,6 +576,10 @@ export function selectStep1FinalAnalysisContent(
   }
 
   if (synthesisNoUpdate && (allInconclusive || scopedDocsIncomplete)) {
+    return normalizedCombined;
+  }
+
+  if (synthesisNoUpdate && combinedInconclusive) {
     return normalizedCombined;
   }
 

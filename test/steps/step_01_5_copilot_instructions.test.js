@@ -76,7 +76,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('accepts findings that match the supported schema and surfaced repo facts', () => {
       const repoFacts = buildCopilotInstructionsRepoFactsContext({
         packageName: 'ai-workflow',
-        packageVersion: '2.2.17',
+        packageVersion: '2.3.0',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -158,6 +158,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
           '### Finding 3 - Design Principles: Repo-fact evidence cites unsupported snippet "Design Principles".',
           '### Finding 7 - Redundant or Duplicative Content uses unsupported action "keep (as a final reminder)".',
           '### Finding 7 - Redundant or Duplicative Content: Repo-fact evidence cites unsupported snippet "Do NOT duplicate implementation status, inventories, installation, or migration details-link to the above docs instead.".',
+          '### Finding 8 - Absence of Unsupported or Stale Claims is a meta or absent-topic finding; reserve that pattern for the single no-issue finding or a concretely required omission.',
           '### Finding 8 - Absence of Unsupported or Stale Claims uses unsupported classification "no issue".',
           '### Finding 8 - Absence of Unsupported or Stale Claims uses unsupported action "no action".',
         ])
@@ -170,7 +171,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.2.17',
+        packageVersion: '2.3.0',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -185,24 +186,27 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
           { path: '.workflow_core/', purpose: 'Shared workflow templates and helper assets' },
         ],
         referenceDocSignals: [
-          'README.md: # ai-workflow Workflow automation toolkit',
-          'docs/ARCHITECTURE.md: # Architecture Layered runtime overview',
+          'README.md: Workflow automation toolkit for GitHub Copilot-assisted development.',
+          'CLAUDE.md: This repository uses a docs-first workflow model.',
         ],
-        referenceDocs: ['README.md', 'docs/ARCHITECTURE.md'],
+        referenceDocs: ['README.md', 'CLAUDE.md', 'docs/ARCHITECTURE.md'],
         packageExports: ['main -> dist/index.js', 'exports ./core -> ./src/core/index.js'],
       };
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
       expect(context).toContain('package.json present: yes');
-      expect(context).toContain('Package version: `2.2.17`');
+      expect(context).toContain('Package version: `2.3.0`');
       expect(context).toContain('Prefer links to authoritative docs over duplicated inventories');
       expect(context).toContain('- Lint: `npm run lint`');
       expect(context).toContain('`src/lib/`');
       expect(context).toContain('`.workflow_core/`');
       expect(context).toContain('`README.md`');
+      expect(context).toContain('`CLAUDE.md`');
+      expect(context).toContain('### Reference Doc Signals');
+      expect(context).toContain(
+        'README.md: Workflow automation toolkit for GitHub Copilot-assisted development.'
+      );
       expect(context).toContain('`main -> dist/index.js`');
-      expect(context).not.toContain('### Reference Doc Signals');
-      expect(context).not.toContain('README.md: # ai-workflow Workflow automation toolkit');
       expect(context).not.toContain('Step file count');
     });
   });
@@ -272,7 +276,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.2.17',
+            version: '2.3.0',
             description: 'Workflow automation',
             main: 'dist/index.js',
             types: 'dist/index.d.ts',
@@ -592,16 +596,14 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
       expect(result.facts.packageExports).toEqual([]);
       expect(result.facts.referenceDocs).toEqual(['INDEX.md', 'README.md', 'ROADMAP.md']);
       expect(result.facts.referenceDocSignals).toEqual([
-        'INDEX.md: ## INDEX # ai_workflow_fspec — Document Index',
         'README.md: # ai_workflow_fspec AI Workflow Programming Language Independent Functional Specification',
-        'ROADMAP.md: # Roadmap: Progress Quality-Evaluation Prompts ## Problem Statement',
       ]);
       expect(readFile).not.toHaveBeenCalledWith('/repo/package.json');
       expect(aiHelper.executeRequest).toHaveBeenCalledWith(
         expect.stringContaining('package.json present: no'),
         expect.any(Object)
       );
-      expect(aiHelper.executeRequest).not.toHaveBeenCalledWith(
+      expect(aiHelper.executeRequest).toHaveBeenCalledWith(
         expect.stringContaining('### Reference Doc Signals'),
         expect.any(Object)
       );

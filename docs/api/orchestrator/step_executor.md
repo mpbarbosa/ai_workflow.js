@@ -1,7 +1,7 @@
 # Step Executor API
 
 **Module:** `orchestrator/step_executor`
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview

@@ -324,6 +324,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
           'Do not claim heading, list, or code-fence consistency across files'
         );
         expect(prompt).toContain('Do not write negative pass findings such as');
+        expect(prompt).toContain('Do **not** treat a documented command as mismatched');
+        expect(prompt).toContain('external CLIs, package-manager binaries');
+        expect(prompt).toContain('do not append unsupported pass claims after it');
       });
 
       test('execute() injects markdown contents and uses documentation-specialist overlay', async () => {

@@ -677,6 +677,23 @@ describe('Step 2: Consistency Analysis', () => {
       expect(result.versionIssues.length).toBeGreaterThan(0);
     });
 
+    test('ignores semantic versions that only appear inside external spec URLs', async () => {
+      mockFileOps.glob = () => Promise.resolve(['/project/CHANGELOG.md']);
+      mockFileOps.readFile = (path) => {
+        if (path.endsWith('package.json')) {
+          return Promise.resolve(JSON.stringify({ version: '1.0.0' }));
+        }
+        return Promise.resolve(
+          'The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).'
+        );
+      };
+
+      const result = await analyzer.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.versionIssues).toHaveLength(0);
+    });
+
     test('handles missing package.json', async () => {
       mockFileOps.glob = () => Promise.resolve(['/project/README.md']);
       mockFileOps.readFile = (path) => {
@@ -1087,6 +1104,22 @@ describe('Step 2: Consistency Analysis', () => {
       expect(result.reason).toBe('no_items_to_cover');
     });
 
+    test('returns adequate=false when the safe no-issue sentence is mixed with unsupported pass claims', () => {
+      const response = `
+No additional issues found beyond the programmatic scan.
+
+- No visible inconsistencies across the partition.
+- No missing cross-references detected.
+      `.repeat(3);
+
+      const result = validateAiResponseQuality(response, [], {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('unsupported_global_claim');
+    });
+
     test('returns adequate=false for scoped pass claims about versions and formatting without uncertainty', () => {
       const response = `
 **Documentation Consistency Analysis — Example**
@@ -1365,6 +1398,35 @@ Fix: Create the file or update the link.
 
       expect(invalidateCount).toBe(1);
       expect(aiCallCount).toBe(2);
+    });
+
+    test('invalidates cached low-coverage (13%) AI responses and re-analyzes', async () => {
+      let invalidateCount = 0;
+      mockAiCache.invalidateFileChangeGuard = async () => {
+        invalidateCount += 1;
+      };
+      mockAiCache.withFileChangeGuard = async (_stepId, _fileContents, fn) => fn();
+      mockFileOps.glob = () => Promise.resolve([DOC_FILE]);
+      mockFileOps.readFile = (file) =>
+        Promise.resolve(
+          file === DOC_FILE ? '# Project\n\nSee [API guide](docs/api.md)\n' : ''
+        );
+      // First call returns a response that mentions only 1 out of many flagged refs
+      // (simulating 13% coverage); second call returns a fully grounded response.
+      mockAiHelper.executeRequest = () => {
+        aiCallCount += 1;
+        return Promise.resolve({
+          content:
+            aiCallCount === 1
+              ? 'Only vaguely mentions docs.'
+              : 'README.md:3 → docs/api.md is broken and should be fixed.',
+        });
+      };
+
+      await analyzer.execute('/project');
+
+      // Low-coverage cached response (below 30% threshold) must be invalidated
+      expect(invalidateCount).toBeGreaterThanOrEqual(1);
     });
   });
 });

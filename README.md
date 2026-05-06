@@ -8,7 +8,7 @@ AI-Powered Workflow Automation for Software Development
 [![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
-**Version:** 2.2.17 🎉 **STABLE RELEASE**
+**Version:** 2.3.0 🎉 **STABLE RELEASE**
 **Status:** Production Ready ✅
 **Last Updated:** April 25, 2026
 
@@ -85,7 +85,7 @@ import { Step0Analyzer } from 'ai-workflow/steps';
 
 ## Current Implementation Status
 
-**Version:** 2.2.17 (Stable Release)
+**Version:** 2.3.0 (Stable Release)
 **Tests:** 7,330 passing (3 failing)
 **Coverage:** 86.68% overall, 88.65% orchestrator
 **Security:** 0 vulnerabilities
@@ -161,7 +161,7 @@ ai_workflow.js/
 │   ├── lib/              # Core libraries (config, session, metrics, file ops, git, AI)
 │   ├── steps/            # Workflow step implementations (step_00–step_23 plus extras)
 │   │   └── step_02_5_lib/ # Helper modules for step_02_5 (doc optimization)
-│   ├── orchestrator/     # Workflow orchestration engine
+│   ├── orchestrator/     # Workflow orchestration engine, step catalog, execution planning, and preflight coordination
 │   ├── cli/              # Command-line interface
 │   │   ├── commands/     # CLI command implementations (run, init, status, etc.)
 │   │   └── tui/          # Terminal UI components (Ink/React)

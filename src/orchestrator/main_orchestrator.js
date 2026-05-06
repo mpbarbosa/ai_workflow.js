@@ -42,207 +42,144 @@ import { MLOptimizer } from '../lib/ml_optimization.js';
 import { CommitHistory, isValidCommitHash } from '../lib/commit_history.js';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
+import {
+  DEFAULT_TERMINAL_BRANCH_DEPENDENCIES,
+  WORKFLOW_STAGES,
+  TERMINAL_FINALIZATION_STEP_ORDER,
+  enforceTerminalStepOrder,
+  getCanonicalWorkflowSteps,
+  getStepsForStage,
+} from './workflow_step_catalog.js';
+import {
+  HEALTH_CHECK_CATEGORIES,
+  detectPreflightPackageManager,
+  getPreflightQualityCommands,
+  parseTestFailureCount,
+  performHealthChecks,
+  readPreflightBaseline,
+  runPreflightQualitySuites,
+  writePreflightBaseline,
+  writePreflightFailureArtifact,
+} from './preflight_quality_runner.js';
+import {
+  buildExecutionPlanPreview,
+  buildGeneratedWorkflowConfig,
+  buildWorkflowConfigDependencyOverrideDiagnostic,
+  buildWorkflowConfigDependencyOverrideError,
+  buildWorkflowConfigStepIndex,
+  detectWorkflowConfigStructure,
+  filterProfileFocusStepIdsForContext,
+  filterStepIdsByProfile,
+  formatExecutionPlanDependencies,
+  formatDependencyList,
+  formatRuntimeStepName,
+  getConfiguredStepsForStage,
+  getDisabledWorkflowConfigStepIds,
+  getMandatoryStepIdsForStage,
+  haveSameDependencySet,
+  logEffectiveExecutionPlan,
+  normalizeDependencyList,
+  normalizeProfileFocusStepIds,
+  normalizeWorkflowConfigStepId,
+  sanitizeWorkflowConfigDependencies,
+  validatePlannedStepDependencies,
+  validateWorkflowStageStepDefinitions,
+} from './workflow_execution_plan.js';
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-export const WORKFLOW_STAGES = Object.freeze({
-  QUICK: 'quick', // Fast validation (docs, config, basic checks)
-  MEDIUM: 'medium', // Add tests and quality checks
-  FULL: 'full', // Complete workflow with all steps
-});
-
-export const HEALTH_CHECK_CATEGORIES = Object.freeze({
-  ENVIRONMENT: 'environment',
-  CONFIGURATION: 'configuration',
-  PREFLIGHT: 'preflight',
-  FILESYSTEM: 'filesystem',
-});
-
-const PRE_FLIGHT_QUALITY_SCRIPT_ORDER = Object.freeze(['lint', 'test', 'build']);
-const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
-const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
-
-function buildPackageScriptCommand(packageManager, scriptName) {
-  switch (packageManager) {
-    case 'yarn':
-      return `yarn ${scriptName}`;
-    case 'pnpm':
-      return scriptName === 'test' ? 'pnpm test' : `pnpm run ${scriptName}`;
-    case 'bun':
-      return `bun run ${scriptName}`;
-    case 'npm':
-    default:
-      return scriptName === 'test' ? 'npm test' : `npm run ${scriptName}`;
-  }
-}
-
-/**
- * Detect the package manager to use for Node.js quality scripts.
- * @pure
- * @param {Object} [packageJson={}] - Parsed package.json
- * @param {string[]} [availableFiles=[]] - Files present in the project root
- * @returns {string} Package manager name
- */
-export function detectPreflightPackageManager(packageJson = {}, availableFiles = []) {
-  const packageManagerField = packageJson?.packageManager;
-  if (typeof packageManagerField === 'string' && packageManagerField.trim()) {
-    const [name] = packageManagerField.split('@');
-    if (name) {
-      return name;
-    }
-  }
-
-  const files = new Set(availableFiles);
-  if (files.has('pnpm-lock.yaml')) return 'pnpm';
-  if (files.has('yarn.lock')) return 'yarn';
-  if (files.has('bun.lockb') || files.has('bun.lock')) return 'bun';
-  return 'npm';
-}
-
-/**
- * Build the ordered list of pre-flight quality commands from package scripts.
- * @pure
- * @param {Object} [packageJson={}] - Parsed package.json
- * @param {string} [packageManager='npm'] - Package manager command prefix
- * @returns {{name: string, command: string}[]} Ordered commands to run
- */
-export function getPreflightQualityCommands(packageJson = {}, packageManager = 'npm') {
-  const scripts = packageJson?.scripts ?? {};
-
-  return PRE_FLIGHT_QUALITY_SCRIPT_ORDER.filter((scriptName) => Boolean(scripts[scriptName])).map(
-    (scriptName) => ({
-      name: scriptName,
-      command: buildPackageScriptCommand(packageManager, scriptName),
-    })
-  );
-}
-
-/**
- * Parse the number of failed tests from jest / npm test output.
- * @pure
- * @param {string} output - Raw command output
- * @returns {number|null} Failed test count, or null if the pattern is absent
- */
-export function parseTestFailureCount(output) {
-  if (typeof output !== 'string') return null;
-  const match = output.match(/Tests:\s+(\d+)\s+failed/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-const STEP_EXECUTOR_LOADERS = Object.freeze({
-  step_00: () => import('../steps/step_00_analyze.js').then(({ Step0Analyzer }) => Step0Analyzer),
-  step_0b: () =>
-    import('../steps/step_0b_bootstrap_docs.js').then(
-      ({ Step0bBootstrapDocs }) => Step0bBootstrapDocs
-    ),
-  step_01: () =>
-    import('../steps/step_01_documentation.js').then(
-      ({ Step1DocumentationAnalyzer }) => Step1DocumentationAnalyzer
-    ),
-  step_01_5: () =>
-    import('../steps/step_01_5_copilot_instructions.js').then(
-      ({ Step1_5CopilotInstructionsValidator }) => Step1_5CopilotInstructionsValidator
-    ),
-  step_02: () =>
-    import('../steps/step_02_consistency.js').then(
-      ({ Step2ConsistencyAnalyzer }) => Step2ConsistencyAnalyzer
-    ),
-  step_02_5: () =>
-    import('../steps/step_02_5_doc_optimize.js').then(
-      ({ DocumentationOptimizer }) => DocumentationOptimizer
-    ),
-  step_03: () =>
-    import('../steps/step_03_script_refs.js').then(
-      ({ Step3ScriptAnalyzer }) => Step3ScriptAnalyzer
-    ),
-  step_04: () =>
-    import('../steps/step_04_config_validation.js').then(
-      ({ Step4ConfigAnalyzer }) => Step4ConfigAnalyzer
-    ),
-  step_05: () =>
-    import('../steps/step_05_directory.js').then(
-      ({ Step5DirectoryAnalyzer }) => Step5DirectoryAnalyzer
-    ),
-  step_06: () =>
-    import('../steps/step_06_test_review.js').then(({ Step6TestReviewer }) => Step6TestReviewer),
-  step_07: () =>
-    import('../steps/step_07_test_gen.js').then(({ Step7TestGenerator }) => Step7TestGenerator),
-  step_08: () =>
-    import('../steps/step_08_test_exec.js').then(({ Step8TestExecutor }) => Step8TestExecutor),
-  step_09: () =>
-    import('../steps/step_09_dependencies.js').then(
-      ({ Step9DependencyValidator }) => Step9DependencyValidator
-    ),
-  step_10: () =>
-    import('../steps/step_10_code_quality.js').then(
-      ({ Step10CodeQualityAnalyzer }) => Step10CodeQualityAnalyzer
-    ),
-  step_11: () =>
-    import('../steps/step_11_context.js').then(
-      ({ Step11ContextAnalyzer }) => Step11ContextAnalyzer
-    ),
-  step_11_5: () =>
-    import('../steps/step_11_5_aws_lbs_validation.js').then(
-      ({ Step11_5AwsLbsValidator }) => Step11_5AwsLbsValidator
-    ),
-  step_11_6: () =>
-    import('../steps/step_11_6_aws_serverless_review.js').then(
-      ({ Step11_6AwsServerlessReviewer }) => Step11_6AwsServerlessReviewer
-    ),
-  step_12: () =>
-    import('../steps/step_12_git_finalization.js').then(
-      ({ Step12GitFinalization }) => Step12GitFinalization
-    ),
-  step_13: () =>
-    import('../steps/step_13_markdown_lint.js').then(
-      ({ Step13MarkdownLint }) => Step13MarkdownLint
-    ),
-  step_14: () =>
-    import('../steps/step_14_prompt_engineer.js').then(
-      ({ Step14PromptEngineer }) => Step14PromptEngineer
-    ),
-  step_15: () =>
-    import('../steps/step_15_ux_analysis.js').then(({ Step15UxAnalysis }) => Step15UxAnalysis),
-  step_16: () =>
-    import('../steps/step_16_version_update.js').then(
-      ({ Step16VersionUpdate }) => Step16VersionUpdate
-    ),
-  step_17: () =>
-    import('../steps/step_17_summary.js').then(({ WorkflowSummary }) => WorkflowSummary),
-  step_18: () =>
-    import('../steps/step_18_debugging.js').then(({ Step18Debugging }) => Step18Debugging),
-  step_19: () =>
-    import('../steps/step_19_typescript_review.js').then(
-      ({ Step19TypescriptReview }) => Step19TypescriptReview
-    ),
-  step_20: () =>
-    import('../steps/step_20_async_perf_review.js').then(
-      ({ Step20AsyncPerfReview }) => Step20AsyncPerfReview
-    ),
-  step_21: () =>
-    import('../steps/step_21_doc_consolidation.js').then(
-      ({ DocConsolidationStep }) => DocConsolidationStep
-    ),
-  step_22: () =>
-    import('../steps/step_22_accessibility_review.js').then(
-      ({ Step22AccessibilityReview }) => Step22AccessibilityReview
-    ),
-  step_23: () =>
-    import('../steps/step_23_perf_review.js').then(({ Step23PerfReview }) => Step23PerfReview),
-  step_0f: () =>
-    import('../steps/step_0f_commit_artifacts.js').then(
-      ({ Step0fCommitArtifacts }) => Step0fCommitArtifacts
-    ),
-});
+export {
+  WORKFLOW_STAGES,
+  HEALTH_CHECK_CATEGORIES,
+  TERMINAL_FINALIZATION_STEP_ORDER,
+  detectPreflightPackageManager,
+  getPreflightQualityCommands,
+  parseTestFailureCount,
+  getStepsForStage,
+  normalizeWorkflowConfigStepId,
+  buildWorkflowConfigStepIndex,
+  getConfiguredStepsForStage,
+  getDisabledWorkflowConfigStepIds,
+  validateWorkflowStageStepDefinitions,
+  filterStepIdsByProfile,
+  enforceTerminalStepOrder,
+  sanitizeWorkflowConfigDependencies,
+  validatePlannedStepDependencies,
+  formatExecutionPlanDependencies,
+  detectWorkflowConfigStructure,
+  buildGeneratedWorkflowConfig,
+  performHealthChecks,
+};
 
 function isClassConstructor(value) {
   return typeof value === 'function' && /^class\s/.test(Function.prototype.toString.call(value));
 }
 
+function attachWorkflowFailureContext(error, context = {}) {
+  if (!error || typeof error !== 'object') {
+    return error;
+  }
+
+  error.workflowFailureContext = {
+    failedPhase: context.failedPhase || 'unknown',
+    workflowStepsStarted: !!context.workflowStepsStarted,
+    executedSteps: Array.isArray(context.executedSteps) ? context.executedSteps : [],
+    executionPlanBuilt: !!context.executionPlanBuilt,
+    failedCommand: context.failedCommand || null,
+  };
+
+  return error;
+}
+
+function buildWorkflowFailureRunState(error, fallbackContext = {}) {
+  const context = error?.workflowFailureContext || fallbackContext;
+  return {
+    failed_phase: context.failedPhase || 'unknown',
+    workflow_steps_started: !!context.workflowStepsStarted,
+    executed_steps: Array.isArray(context.executedSteps) ? context.executedSteps : [],
+    execution_plan_built: !!context.executionPlanBuilt,
+    failed_command: context.failedCommand || null,
+  };
+}
+
+function logPreflightFailure(qualityChecks) {
+  if (qualityChecks.failureKind === 'test-parser-anomaly') {
+    logger.error(
+      `${colors.red}✗${colors.reset} Pre-flight anomaly: parsed test-failure summary conflicts with process exit code: ${qualityChecks.failedCommand}`
+    );
+    if (typeof qualityChecks.parsedFailureCount === 'number') {
+      logger.error(`Parsed test failures: ${qualityChecks.parsedFailureCount} (exit code: 0)`);
+    }
+    if (qualityChecks.failureEvidence?.matchedLine) {
+      const lineSuffix = qualityChecks.failureEvidence.matchedLineNumber
+        ? ` [line ${qualityChecks.failureEvidence.matchedLineNumber}]`
+        : '';
+      logger.error(
+        `Matched summary line${lineSuffix}: ${qualityChecks.failureEvidence.matchedLine}`
+      );
+    }
+    if (qualityChecks.failureEvidence?.summaryExcerpt) {
+      logger.error(`Final Jest summary excerpt:\n${qualityChecks.failureEvidence.summaryExcerpt}`);
+    }
+  } else {
+    logger.error(
+      `${colors.red}✗${colors.reset} Pre-flight quality suites failed: ${qualityChecks.failedCommand}`
+    );
+  }
+
+  if (qualityChecks.failureOutput && qualityChecks.failureKind !== 'test-parser-anomaly') {
+    logger.error(qualityChecks.failureOutput);
+  }
+  if (qualityChecks.failureArtifact) {
+    logger.error(`Full pre-flight failure output saved to: ${qualityChecks.failureArtifact}`);
+  }
+  if (qualityChecks.failureArtifactError) {
+    logger.warn(
+      `Failed to persist full pre-flight failure output: ${qualityChecks.failureArtifactError}`
+    );
+  }
+}
+
 // ============================================================================
-// PURE FUNCTIONS - Configuration and Planning
+// PURE FUNCTIONS - Configuration and State
 // ============================================================================
 
 /**
@@ -283,786 +220,6 @@ export function validateOrchestratorConfig(config) {
   return {
     isValid: errors.length === 0,
     errors,
-  };
-}
-
-/**
- * Determine which steps to execute based on stage
- * @pure
- * @param {string} stage - Workflow stage (quick/medium/full)
- * @returns {Array<string>} Array of step IDs to execute
- */
-export function getStepsForStage(stage) {
-  const stages = {
-    [WORKFLOW_STAGES.QUICK]: [
-      'step_00', // Pre-analysis
-      'step_0b', // Bootstrap docs
-      'step_01', // Documentation
-      'step_01_5', // Copilot instructions validation
-      'step_02', // Consistency
-      'step_04', // Config validation
-      'step_05', // Directory structure
-      'step_17', // Summary
-      'step_0f', // Commit artifacts
-      'step_12', // Git finalization (must run last)
-    ],
-    [WORKFLOW_STAGES.MEDIUM]: [
-      'step_00',
-      'step_0b',
-      'step_01',
-      'step_01_5', // Copilot instructions validation
-      'step_02',
-      'step_02_5', // Doc optimization
-      'step_21', // Doc consolidation
-      'step_03', // Script refs
-      'step_04',
-      'step_05',
-      'step_06', // Test review
-      'step_07', // Test generation
-      'step_08', // Test execution
-      'step_10', // Code quality
-      'step_13', // Markdown lint
-      'step_17', // Summary
-      'step_0f', // Commit artifacts
-      'step_12', // Git finalization (must run last)
-    ],
-    [WORKFLOW_STAGES.FULL]: [
-      'step_00',
-      'step_0b', // Bootstrap docs
-      'step_01',
-      'step_01_5', // Copilot instructions validation
-      'step_02',
-      'step_02_5',
-      'step_21', // Doc consolidation
-      'step_03',
-      'step_04',
-      'step_05',
-      'step_06',
-      'step_07',
-      'step_08',
-      'step_09', // Dependencies
-      'step_10',
-      'step_13', // Markdown lint
-      'step_11', // Context
-      'step_11_5', // AWS LBS Validation
-      'step_11_6', // AWS Serverless AI Review
-      'step_14', // Prompt engineer
-      'step_15', // UX analysis
-      'step_16', // Version update
-      'step_18', // Debugging analysis
-      'step_19', // TypeScript review (Strider)
-      'step_20', // Async performance review
-      'step_22', // Accessibility review
-      'step_23', // Performance review
-      'step_17', // Summary
-      'step_0f', // Commit artifacts
-      'step_12', // Git finalization (must run last)
-    ],
-  };
-
-  return stages[stage] || stages[WORKFLOW_STAGES.FULL];
-}
-
-export function normalizeWorkflowConfigStepId(stepId) {
-  if (typeof stepId !== 'string') {
-    return null;
-  }
-
-  const trimmed = stepId.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (trimmed.startsWith('step_')) {
-    return trimmed;
-  }
-
-  const normalized = trimmed.replace(/\s+/g, '');
-  if (!/^[0-9a-z_]+$/i.test(normalized)) {
-    return null;
-  }
-
-  return `step_${normalized.toLowerCase()}`;
-}
-
-export function buildWorkflowConfigStepIndex(workflowConfig) {
-  const configuredSteps = workflowConfig?.workflow?.steps;
-  if (!Array.isArray(configuredSteps)) {
-    return {};
-  }
-
-  const validPhases = new Set(['analysis', 'validation', 'testing', 'quality', 'finalization']);
-  const index = {};
-
-  for (const step of configuredSteps) {
-    const stepId = normalizeWorkflowConfigStepId(step?.id);
-    if (!stepId) {
-      continue;
-    }
-
-    const dependencies = Array.isArray(step.dependencies)
-      ? step.dependencies.map(normalizeWorkflowConfigStepId).filter(Boolean)
-      : undefined;
-    const phase = validPhases.has(step.phase) ? step.phase : undefined;
-    const dependencyComment =
-      typeof step.dependency_comment === 'string' && step.dependency_comment.trim()
-        ? step.dependency_comment.trim()
-        : undefined;
-    const priority = Number.isFinite(step.priority) ? Number(step.priority) : undefined;
-    const maxStepWallTime =
-      Number.isFinite(step.max_step_wall_time) && Number(step.max_step_wall_time) > 0
-        ? Number(step.max_step_wall_time)
-        : undefined;
-
-    index[stepId] = {
-      enabled: step.enabled !== false,
-      dependencies,
-      phase,
-      critical: step.required === true ? true : step.optional === true ? false : undefined,
-      name: typeof step.name === 'string' ? step.name : undefined,
-      description: typeof step.description === 'string' ? step.description : undefined,
-      dependencyComment,
-      priority,
-      maxStepWallTime,
-    };
-  }
-
-  return index;
-}
-
-export function getDisabledWorkflowConfigStepIds(workflowConfig) {
-  const configuredSteps = workflowConfig?.workflow?.steps;
-  if (!Array.isArray(configuredSteps)) {
-    return [];
-  }
-
-  return configuredSteps
-    .filter((step) => step?.enabled === false)
-    .map((step) => normalizeWorkflowConfigStepId(step?.id))
-    .filter(Boolean);
-}
-
-export function getConfiguredStepsForStage(stage, workflowConfig) {
-  const configuredSteps = workflowConfig?.workflow?.steps;
-  const defaultStageSteps = getStepsForStage(stage);
-  const mandatoryStageSteps = getMandatoryStepIdsForStage(stage, defaultStageSteps);
-  if (!Array.isArray(configuredSteps) || configuredSteps.length === 0) {
-    return defaultStageSteps;
-  }
-
-  const enabledConfiguredStepIds = configuredSteps
-    .map((step) => ({
-      id: normalizeWorkflowConfigStepId(step?.id),
-      enabled: step?.enabled !== false,
-    }))
-    .filter((step) => step.id)
-    .filter((step) => step.enabled)
-    .map((step) => step.id);
-
-  if (stage === WORKFLOW_STAGES.FULL) {
-    return enforceTerminalStepOrder([...enabledConfiguredStepIds, ...mandatoryStageSteps]);
-  }
-
-  const configuredStepIds = new Set(
-    configuredSteps.map((step) => normalizeWorkflowConfigStepId(step?.id)).filter(Boolean)
-  );
-  const disabledStepIds = new Set(
-    configuredSteps
-      .filter((step) => step?.enabled === false)
-      .map((step) => normalizeWorkflowConfigStepId(step?.id))
-      .filter(Boolean)
-  );
-  const configuredDefaultStageSteps = defaultStageSteps.filter(
-    (stepId) => !disabledStepIds.has(stepId) && configuredStepIds.has(stepId)
-  );
-
-  return enforceTerminalStepOrder([
-    ...(configuredDefaultStageSteps.length > 0
-      ? configuredDefaultStageSteps
-      : enabledConfiguredStepIds),
-    ...mandatoryStageSteps,
-  ]);
-}
-
-export function validateWorkflowStageStepDefinitions(workflowConfig) {
-  const configuredStages = workflowConfig?.workflow?.stages;
-  if (!configuredStages || typeof configuredStages !== 'object') {
-    return { valid: true, errors: [] };
-  }
-
-  const errors = [];
-
-  for (const stage of Object.values(WORKFLOW_STAGES)) {
-    const stageConfig = configuredStages?.[stage];
-    if (!stageConfig || !Object.prototype.hasOwnProperty.call(stageConfig, 'steps')) {
-      continue;
-    }
-
-    if (!Array.isArray(stageConfig.steps)) {
-      errors.push(
-        `[WorkflowConfig] workflow.stages.${stage}.steps must be an array of step IDs or be omitted. ` +
-          'Execution planning derives from workflow.steps plus canonical stage rules.'
-      );
-      continue;
-    }
-
-    const configuredStepIds = stageConfig.steps.map(normalizeWorkflowConfigStepId).filter(Boolean);
-    const canonicalStepIds = getStepsForStage(stage);
-    if (haveSameDependencySet(configuredStepIds, canonicalStepIds)) {
-      continue;
-    }
-
-    errors.push(
-      `[WorkflowConfig] workflow.stages.${stage}.steps does not control execution order and must not redefine the ${stage} stage. ` +
-        'Execution planning derives from workflow.steps plus canonical stage rules. ' +
-        `Configured stage steps: ${formatDependencyList(configuredStepIds)}. ` +
-        `Canonical ${stage} stage steps: ${formatDependencyList(canonicalStepIds)}. ` +
-        `Remove workflow.stages.${stage}.steps or move the supported overrides into workflow.steps.`
-    );
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-export const TERMINAL_FINALIZATION_STEP_ORDER = Object.freeze(['step_17', 'step_0f', 'step_12']);
-
-const TERMINAL_FINALIZATION_STEP_SET = new Set(TERMINAL_FINALIZATION_STEP_ORDER);
-// Hard finalization-order locks: step_0f must follow step_17; step_12 must follow step_0f.
-// These cannot be removed via dependency_comment.
-const ORDER_LOCKED_TERMINAL_DEPENDENCIES = Object.freeze({
-  step_0f: ['step_17'],
-  step_12: ['step_0f'],
-});
-// Default branch-aggregation prerequisites for step_17.
-// These can be omitted via dependency_comment when the prerequisite step is
-// explicitly disabled in .workflow-config.yaml (e.g. non-AWS projects removing step_11_6).
-const DEFAULT_TERMINAL_BRANCH_DEPENDENCIES = Object.freeze({
-  step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
-});
-const ORDER_LOCKED_CANONICAL_DEPENDENCIES = Object.freeze({
-  step_06: ['step_05'],
-  step_07: ['step_06'],
-  step_08: ['step_07'],
-  step_09: ['step_08'],
-  step_10: ['step_09'],
-  step_11: ['step_13'],
-});
-
-export function enforceTerminalStepOrder(stepIds = []) {
-  if (!Array.isArray(stepIds) || stepIds.length === 0) {
-    return [];
-  }
-
-  const deduped = [...new Set(stepIds.filter((stepId) => typeof stepId === 'string' && stepId))];
-  const head = deduped.filter((stepId) => !TERMINAL_FINALIZATION_STEP_SET.has(stepId));
-  const tail = TERMINAL_FINALIZATION_STEP_ORDER.filter((stepId) => deduped.includes(stepId));
-  return [...head, ...tail];
-}
-
-export function sanitizeWorkflowConfigDependencies(
-  stepId,
-  dependencies = [],
-  defaultDependencies = [],
-  options = {}
-) {
-  if (!Array.isArray(dependencies)) {
-    return undefined;
-  }
-
-  const disabledSet = new Set(
-    Array.isArray(options?.disabledStepIds)
-      ? options.disabledStepIds.filter((id) => typeof id === 'string')
-      : []
-  );
-
-  const deduped = [
-    ...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string')),
-  ];
-
-  // ORDER_LOCKED_TERMINAL: always re-injected; cannot be removed via dependency_comment.
-  const lockedTerminalDeps = ORDER_LOCKED_TERMINAL_DEPENDENCIES[stepId] || [];
-  // DEFAULT_TERMINAL_BRANCH: re-injected only when NOT explicitly disabled in the project config.
-  const branchTerminalDeps = (DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []).filter(
-    (depId) => !disabledSet.has(depId)
-  );
-  const requiredDependencies = [
-    ...lockedTerminalDeps,
-    ...branchTerminalDeps,
-    ...(ORDER_LOCKED_CANONICAL_DEPENDENCIES[stepId] || []),
-  ];
-
-  if (requiredDependencies.length > 0) {
-    const retained = deduped.filter(
-      (dependencyId) =>
-        !TERMINAL_FINALIZATION_STEP_SET.has(dependencyId) ||
-        requiredDependencies.includes(dependencyId)
-    );
-    // Don't re-inject defaultDependencies entries that are both disabled and in the
-    // DEFAULT_TERMINAL_BRANCH set — those were intentionally removed via dependency_comment.
-    const defaultTerminalBranchSet = new Set(DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []);
-    const filteredDefaults = (defaultDependencies || []).filter(
-      (depId) => !(disabledSet.has(depId) && defaultTerminalBranchSet.has(depId))
-    );
-    return [...new Set([...retained, ...filteredDefaults, ...requiredDependencies])];
-  }
-
-  return deduped.filter((dependencyId) => !TERMINAL_FINALIZATION_STEP_SET.has(dependencyId));
-}
-
-function normalizeDependencyList(dependencies = []) {
-  if (!Array.isArray(dependencies)) {
-    return [];
-  }
-
-  return [...new Set(dependencies.filter((dependencyId) => typeof dependencyId === 'string'))];
-}
-
-function haveSameDependencySet(left = [], right = []) {
-  const normalizedLeft = normalizeDependencyList(left);
-  const normalizedRight = normalizeDependencyList(right);
-
-  if (normalizedLeft.length !== normalizedRight.length) {
-    return false;
-  }
-
-  const rightSet = new Set(normalizedRight);
-  return normalizedLeft.every((dependencyId) => rightSet.has(dependencyId));
-}
-
-function formatRuntimeStepName(step = {}) {
-  const canonicalName = step.canonicalName || step.metadata?.canonicalName || step.name || step.id;
-  const aliasName =
-    step.aliasName ||
-    (step.name && step.name !== canonicalName ? step.name : null) ||
-    (step.metadata?.canonicalName && step.name && step.name !== step.metadata.canonicalName
-      ? step.name
-      : null);
-
-  return aliasName ? `${aliasName} [canonical: ${canonicalName}]` : canonicalName;
-}
-
-function describeDependencyOverride(step = {}) {
-  const effectiveDependencies = Array.isArray(step.dependencies) ? step.dependencies : [];
-  const canonicalDependencies = Array.isArray(step.canonicalDependencies)
-    ? step.canonicalDependencies
-    : Array.isArray(step.metadata?.canonicalDependencies)
-      ? step.metadata.canonicalDependencies
-      : effectiveDependencies;
-
-  const addedDependencies = effectiveDependencies.filter(
-    (dependencyId) => !canonicalDependencies.includes(dependencyId)
-  );
-  const removedDependencies = canonicalDependencies.filter(
-    (dependencyId) => !effectiveDependencies.includes(dependencyId)
-  );
-
-  if (addedDependencies.length === 0 && removedDependencies.length === 0) {
-    return null;
-  }
-
-  const parts = [];
-  if (addedDependencies.length > 0) {
-    parts.push(`added ${addedDependencies.join(', ')}`);
-  }
-  if (removedDependencies.length > 0) {
-    parts.push(`removed ${removedDependencies.join(', ')}`);
-  }
-  if (step.metadata?.dependencyComment) {
-    parts.push(`reason: ${step.metadata.dependencyComment}`);
-  }
-  return parts.join('; ');
-}
-
-function formatDependencyList(dependencies = []) {
-  if (!Array.isArray(dependencies) || dependencies.length === 0) {
-    return '[]';
-  }
-
-  return `[${dependencies.join(', ')}]`;
-}
-
-function buildWorkflowConfigDependencyOverrideError({
-  configPath,
-  stepId,
-  stepName,
-  canonicalDependencies = [],
-  rawConfiguredDependencies = [],
-  effectiveDependencies = [],
-  removedDependencies = [],
-}) {
-  const stepLabel =
-    typeof stepName === 'string' && stepName.trim().length > 0 ? `${stepId} (${stepName})` : stepId;
-  const restoreSnippet =
-    canonicalDependencies.length > 0
-      ? [
-          'dependencies:',
-          ...canonicalDependencies.map((dependencyId) => `  - ${dependencyId}`),
-        ].join('\n')
-      : 'dependencies: []';
-  const overrideSnippetDependencies =
-    effectiveDependencies.length > 0 ? effectiveDependencies : rawConfiguredDependencies;
-  const overrideSnippet = [
-    'dependencies:',
-    ...overrideSnippetDependencies.map((dependencyId) => `  - ${dependencyId}`),
-    'dependency_comment: "Explain why this dependency override is required for this project."',
-  ].join('\n');
-  const effectiveDependencyDetail = !haveSameDependencySet(
-    rawConfiguredDependencies,
-    effectiveDependencies
-  )
-    ? ` Effective dependencies after canonical enforcement: ${formatDependencyList(effectiveDependencies)}.`
-    : '';
-  const removedDependencyDetail =
-    removedDependencies.length > 0
-      ? ` Ignored unsafe dependency override(s): ${formatDependencyList(removedDependencies)}.`
-      : '';
-  return (
-    `[WorkflowConfig] Step ${stepLabel} in ${configPath} overrides canonical dependencies ` +
-    `without dependency_comment. Canonical dependencies: ${formatDependencyList(canonicalDependencies)}. ` +
-    `Raw configured dependencies: ${formatDependencyList(rawConfiguredDependencies)}.` +
-    effectiveDependencyDetail +
-    removedDependencyDetail +
-    `Restore the canonical dependencies, for example:\n${restoreSnippet}\n` +
-    `Or, if the override is intentional, keep the effective dependencies and add dependency_comment, for example:\n${overrideSnippet}`
-  );
-}
-
-export function validatePlannedStepDependencies(
-  stepIds = [],
-  dependencyIndex = {},
-  availableStepIds = stepIds,
-  options = {}
-) {
-  const plannedStepIds = Array.isArray(stepIds)
-    ? stepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
-    : [];
-  const plannedSet = new Set(plannedStepIds);
-  const availableSet = new Set(
-    Array.isArray(availableStepIds)
-      ? availableStepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
-      : []
-  );
-  const disabledSet = new Set(
-    Array.isArray(options?.disabledStepIds)
-      ? options.disabledStepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
-      : []
-  );
-  const errors = [];
-
-  for (const stepId of plannedStepIds) {
-    const dependencies = Array.isArray(dependencyIndex?.[stepId]) ? dependencyIndex[stepId] : [];
-    const missingDependencies = dependencies.filter(
-      (dependencyId) =>
-        typeof dependencyId === 'string' &&
-        dependencyId.length > 0 &&
-        availableSet.has(dependencyId) &&
-        !plannedSet.has(dependencyId)
-    );
-
-    if (missingDependencies.length > 0) {
-      const disabledDependencies = missingDependencies.filter((dependencyId) =>
-        disabledSet.has(dependencyId)
-      );
-      const disabledDetail =
-        disabledDependencies.length > 0
-          ? `Disabled in .workflow-config.yaml: ${disabledDependencies.join(', ')}. `
-          : '';
-      const lockedMissing = missingDependencies.filter((depId) =>
-        (ORDER_LOCKED_TERMINAL_DEPENDENCIES[stepId] || []).includes(depId)
-      );
-      const remediationHint =
-        lockedMissing.length > 0
-          ? `Re-enable the prerequisite step(s) or disable ${stepId}. ` +
-            `Note: ${lockedMissing.join(', ')} cannot be removed via dependency_comment.`
-          : `Re-enable the prerequisite step(s), disable ${stepId}, or override its dependencies with dependency_comment.`;
-      errors.push(
-        `[WorkflowConfig] Selected step ${stepId} depends on step(s) excluded from the execution plan: ${missingDependencies.join(', ')}. ` +
-          `${disabledDetail}${remediationHint}`
-      );
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-function logEffectiveExecutionPlan(steps = []) {
-  if (!Array.isArray(steps) || steps.length === 0) {
-    return;
-  }
-
-  const planIds = new Set(steps.map((s) => s.id));
-
-  logger.info('Configured workflow step set (pre-sort):');
-  steps.forEach((step, index) => {
-    const effectiveDeps = (step.dependencies || []).filter((d) => planIds.has(d));
-    const dependencyList = effectiveDeps.length > 0 ? effectiveDeps.join(', ') : '(none)';
-    const dependencyOverride = describeDependencyOverride(step);
-    const detailSuffix = dependencyOverride ? ` | dependency override: ${dependencyOverride}` : '';
-    logger.info(
-      `  ${index + 1}. ${step.id} — ${formatRuntimeStepName(step)} | deps: ${dependencyList}${detailSuffix}`
-    );
-  });
-}
-
-function normalizeProfileSkipStepId(stepNumber) {
-  if (typeof stepNumber === 'string') {
-    const trimmed = stepNumber.trim();
-    if (trimmed.startsWith('step_')) {
-      return trimmed;
-    }
-  }
-
-  if (typeof stepNumber !== 'number' || !Number.isFinite(stepNumber)) {
-    return null;
-  }
-
-  if (Number.isInteger(stepNumber)) {
-    return `step_${String(stepNumber).padStart(2, '0')}`;
-  }
-
-  const normalized = String(stepNumber).replace('.', '_');
-  const [major, ...rest] = normalized.split('_');
-  if (!/^\d+$/.test(major) || rest.some((part) => !/^\d+$/.test(part))) {
-    return null;
-  }
-
-  return `step_${String(major).padStart(2, '0')}${rest.length > 0 ? `_${rest.join('_')}` : ''}`;
-}
-
-function normalizeProfileFocusStepIds(stepNumbers, availableStepIds = []) {
-  if (!Array.isArray(stepNumbers)) {
-    return [];
-  }
-
-  const availableSet = new Set(availableStepIds);
-  return stepNumbers
-    .map(normalizeProfileSkipStepId)
-    .filter((stepId) => stepId && (availableSet.size === 0 || availableSet.has(stepId)));
-}
-
-function filterProfileFocusStepIdsForContext(focusStepIds, workflowConfig) {
-  if (!Array.isArray(focusStepIds) || focusStepIds.length === 0) {
-    return [];
-  }
-
-  const projectKind = workflowConfig?.project?.kind || null;
-
-  return focusStepIds.filter((stepId) => {
-    if (stepId !== 'step_14') {
-      return true;
-    }
-
-    return ['workflow-automation', 'bash-automation-framework', 'configuration_library'].includes(
-      projectKind
-    );
-  });
-}
-
-function getMandatoryStepIdsForStage(stage, availableStepIds = []) {
-  const availableSet = new Set(availableStepIds);
-  return ['step_17', 'step_0f', 'step_12'].filter((stepId) => availableSet.has(stepId));
-}
-
-function collectDependencyClosure(rootStepIds, dependencyIndex = {}) {
-  const required = new Set();
-  const queue = Array.isArray(rootStepIds) ? [...rootStepIds] : [];
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current || required.has(current)) {
-      continue;
-    }
-
-    required.add(current);
-    const dependencies = Array.isArray(dependencyIndex?.[current]) ? dependencyIndex[current] : [];
-    queue.push(...dependencies);
-  }
-
-  return required;
-}
-
-export function filterStepIdsByProfile(
-  stepIds,
-  skippedStepNumbers = [],
-  dependencyIndex = {},
-  focusedStepNumbers = 'all',
-  preservedStepIds = []
-) {
-  const orderedStepIds = Array.isArray(stepIds)
-    ? stepIds.filter((stepId) => typeof stepId === 'string' && stepId.length > 0)
-    : [];
-
-  if (orderedStepIds.length === 0) {
-    return [];
-  }
-
-  const originalSet = new Set(orderedStepIds);
-  const focusAll = focusedStepNumbers === 'all';
-  const focusStepIds = normalizeProfileFocusStepIds(focusedStepNumbers, orderedStepIds);
-  const preservedIds = normalizeProfileFocusStepIds(preservedStepIds, orderedStepIds);
-  const requiredForFocus =
-    focusStepIds.length > 0 ? collectDependencyClosure(focusStepIds, dependencyIndex) : new Set();
-  const requiredForPreserved =
-    !focusAll && preservedIds.length > 0
-      ? collectDependencyClosure(preservedIds, dependencyIndex)
-      : new Set();
-  const requiredStepIds =
-    requiredForFocus.size > 0 || requiredForPreserved.size > 0
-      ? new Set([...requiredForFocus, ...requiredForPreserved])
-      : null;
-  const protectedStepIds = new Set(
-    focusAll ? preservedIds : [...requiredForPreserved, ...preservedIds]
-  );
-  const skippedStepIds = new Set(
-    (Array.isArray(skippedStepNumbers) ? skippedStepNumbers : [])
-      .map(normalizeProfileSkipStepId)
-      .filter((stepId) => stepId && originalSet.has(stepId))
-      .filter((stepId) => !protectedStepIds.has(stepId))
-      .filter((stepId) => !requiredStepIds?.has(stepId))
-  );
-
-  const baselineStepIds =
-    requiredStepIds && requiredStepIds.size > 0
-      ? orderedStepIds.filter((stepId) => requiredStepIds.has(stepId))
-      : orderedStepIds;
-
-  if (skippedStepIds.size === 0) {
-    return baselineStepIds;
-  }
-
-  const keptStepIds = new Set(baselineStepIds.filter((stepId) => !skippedStepIds.has(stepId)));
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-
-    for (const stepId of baselineStepIds) {
-      if (!keptStepIds.has(stepId)) {
-        continue;
-      }
-
-      const dependencies = Array.isArray(dependencyIndex?.[stepId]) ? dependencyIndex[stepId] : [];
-      const hasMissingPlannedDependency = dependencies.some(
-        (dependencyId) => originalSet.has(dependencyId) && !keptStepIds.has(dependencyId)
-      );
-
-      if (hasMissingPlannedDependency && !protectedStepIds.has(stepId)) {
-        keptStepIds.delete(stepId);
-        changed = true;
-      }
-    }
-  }
-
-  return enforceTerminalStepOrder(baselineStepIds.filter((stepId) => keptStepIds.has(stepId)));
-}
-
-export function detectWorkflowConfigStructure(
-  topLevelEntries = [],
-  fallbackLanguage = 'javascript'
-) {
-  const directoryNames = Array.isArray(topLevelEntries)
-    ? topLevelEntries
-        .filter((entry) => entry && typeof entry === 'object' && entry.isDirectory === true)
-        .map((entry) => entry.name)
-    : [];
-  const directorySet = new Set(directoryNames);
-
-  const byLanguage = {
-    javascript: {
-      source_dirs: ['src', 'lib', 'app', 'bin'],
-      test_dirs: ['test', 'tests', '__tests__'],
-      docs_dirs: ['docs'],
-    },
-    typescript: {
-      source_dirs: ['src', 'lib', 'app', 'bin'],
-      test_dirs: ['test', 'tests', '__tests__'],
-      docs_dirs: ['docs'],
-    },
-    python: {
-      source_dirs: ['src'],
-      test_dirs: ['tests', 'test'],
-      docs_dirs: ['docs'],
-    },
-    bash: {
-      source_dirs: ['bin', 'lib', 'scripts'],
-      test_dirs: ['tests', 'test'],
-      docs_dirs: ['docs'],
-    },
-    go: {
-      source_dirs: ['cmd', 'internal', 'pkg'],
-      test_dirs: ['tests', 'test'],
-      docs_dirs: ['docs'],
-    },
-    java: {
-      source_dirs: ['src'],
-      test_dirs: ['src/test/java', 'test'],
-      docs_dirs: ['docs'],
-    },
-    ruby: {
-      source_dirs: ['lib'],
-      test_dirs: ['spec', 'test'],
-      docs_dirs: ['docs'],
-    },
-    rust: {
-      source_dirs: ['src'],
-      test_dirs: ['tests', 'test'],
-      docs_dirs: ['docs'],
-    },
-    markdown: {
-      source_dirs: [],
-      test_dirs: [],
-      docs_dirs: ['docs'],
-    },
-  };
-
-  const defaults = byLanguage[fallbackLanguage] || byLanguage.javascript;
-  const selectDirs = (preferredDirs, fallbackDirs) => {
-    const found = preferredDirs.filter((dir) => directorySet.has(dir));
-    return found.length > 0 ? found : fallbackDirs;
-  };
-
-  return {
-    source_dirs: selectDirs(defaults.source_dirs, defaults.source_dirs.slice(0, 1)),
-    test_dirs: selectDirs(defaults.test_dirs, defaults.test_dirs.slice(0, 1)),
-    docs_dirs: selectDirs(defaults.docs_dirs, defaults.docs_dirs.slice(0, 1)),
-  };
-}
-
-export function buildGeneratedWorkflowConfig({
-  projectRoot,
-  projectKind = 'generic',
-  techStack = {},
-  structure,
-}) {
-  const projectName = path.basename(projectRoot || process.cwd());
-  const primaryLanguage = techStack.primary_language || techStack.primaryLanguage || 'javascript';
-  const configStructure = structure || detectWorkflowConfigStructure([], primaryLanguage);
-  const lintCommand =
-    typeof techStack.lint_command === 'string' && techStack.lint_command.trim().length > 0
-      ? techStack.lint_command.trim()
-      : null;
-
-  return {
-    project: {
-      name: projectName,
-      kind: projectKind,
-      primary_language: primaryLanguage,
-      description: `${projectName} project`,
-    },
-    tech_stack: {
-      primary_language: primaryLanguage,
-      build_system: techStack.build_system || 'none',
-      test_framework: techStack.test_framework || null,
-      test_command: techStack.test_command || '',
-      ...(lintCommand ? { lint_command: lintCommand } : {}),
-    },
-    structure: configStructure,
   };
 }
 
@@ -1117,43 +274,6 @@ export function determineWorkflowStatus(results) {
   return 'success';
 }
 
-/**
- * Perform health checks
- * @pure
- * @param {Object} environment - Environment data
- * @returns {Object} Health check results
- */
-export function performHealthChecks(environment) {
-  const checks = {};
-
-  // Environment checks
-  checks[HEALTH_CHECK_CATEGORIES.ENVIRONMENT] = {
-    nodeVersion: environment.nodeVersion || 'unknown',
-    platform: environment.platform || 'unknown',
-    passed: !!environment.nodeVersion,
-  };
-
-  // Configuration checks
-  checks[HEALTH_CHECK_CATEGORIES.CONFIGURATION] = {
-    configLoaded: !!environment.config,
-    workflowDirExists: !!environment.workflowDir,
-    passed: !!environment.config && !!environment.workflowDir,
-  };
-
-  // Filesystem checks
-  checks[HEALTH_CHECK_CATEGORIES.FILESYSTEM] = {
-    workflowDirWritable: environment.workflowDirWritable !== false,
-    passed: environment.workflowDirWritable !== false,
-  };
-
-  const allPassed = Object.values(checks).every((check) => check.passed);
-
-  return {
-    passed: allPassed,
-    checks,
-  };
-}
-
 // ============================================================================
 // IMPURE WRAPPER CLASS - MainOrchestrator
 // ============================================================================
@@ -1180,6 +300,7 @@ export class MainOrchestrator {
     this.stage = options.stage || WORKFLOW_STAGES.FULL;
     this.auto = options.auto || false;
     this.noParallel = options.noParallel || false;
+    this.allowFinalizeOnFailure = options.allowFinalizeOnFailure || false;
     this.resumeFromCheckpoint = options.resumeFromCheckpoint || null;
     this.sdkSmokeTest = options.sdkSmokeTest || false;
     this.alternatives = options.alternatives || false;
@@ -1207,9 +328,12 @@ export class MainOrchestrator {
     });
     this.summaryGenerator = {
       generateSummary: async (options = {}) => {
+        const summaryStepHandler = getCanonicalWorkflowSteps().find(
+          (step) => step.id === 'step_17'
+        )?.handler;
         const SummaryGenerator = await this._resolveStepExecutor(
           'step_17',
-          STEP_EXECUTOR_LOADERS.step_17
+          summaryStepHandler
         );
         const generator = new SummaryGenerator(this.workflowDir);
         return generator.generateSummary(options);
@@ -1247,227 +371,11 @@ export class MainOrchestrator {
    * Register all workflow steps
    */
   registerAllSteps(projectWorkflowConfig = null) {
-    logger.info('Registering workflow steps...');
+    logger.info(
+      'Loading canonical workflow step definitions for preflight validation (execution has not started)...'
+    );
 
-    const steps = [
-      {
-        id: 'step_00',
-        name: 'Pre-Analysis',
-        description: 'Analyze git state and project context',
-        handler: STEP_EXECUTOR_LOADERS.step_00,
-        dependencies: [],
-      },
-      {
-        id: 'step_0b',
-        name: 'Bootstrap Documentation',
-        description: 'Generate initial documentation',
-        handler: STEP_EXECUTOR_LOADERS.step_0b,
-        dependencies: ['step_00'],
-      },
-      {
-        id: 'step_01',
-        name: 'Documentation Updates',
-        description: 'Validate and update documentation',
-        handler: STEP_EXECUTOR_LOADERS.step_01,
-        dependencies: ['step_0b'],
-      },
-      {
-        id: 'step_01_5',
-        name: 'Copilot Instructions Validation',
-        description: 'Audit and refresh .github/copilot-instructions.md against live repo facts',
-        handler: STEP_EXECUTOR_LOADERS.step_01_5,
-        dependencies: ['step_01'],
-      },
-      {
-        id: 'step_02',
-        name: 'Consistency Analysis',
-        description: 'Check code and documentation consistency',
-        handler: STEP_EXECUTOR_LOADERS.step_02,
-        dependencies: ['step_01_5'],
-      },
-      {
-        id: 'step_02_5',
-        name: 'Documentation Optimization',
-        description: 'Optimize documentation size and quality',
-        handler: STEP_EXECUTOR_LOADERS.step_02_5,
-        dependencies: ['step_02'],
-      },
-      {
-        id: 'step_21',
-        name: 'Doc Consolidation',
-        description:
-          'Find similar markdown docs via Cosine Similarity/TF-IDF and AI-merge them into canonical documents',
-        handler: STEP_EXECUTOR_LOADERS.step_21,
-        dependencies: ['step_02_5'],
-      },
-      {
-        id: 'step_03',
-        name: 'Script References',
-        description: 'Validate script references',
-        handler: STEP_EXECUTOR_LOADERS.step_03,
-        dependencies: ['step_02'],
-      },
-      {
-        id: 'step_04',
-        name: 'Configuration Validation',
-        description: 'Validate project configuration',
-        handler: STEP_EXECUTOR_LOADERS.step_04,
-        dependencies: ['step_00'],
-      },
-      {
-        id: 'step_05',
-        name: 'Directory Structure',
-        description: 'Validate directory structure',
-        handler: STEP_EXECUTOR_LOADERS.step_05,
-        dependencies: ['step_04'],
-      },
-      {
-        id: 'step_06',
-        name: 'Test Review',
-        description: 'Review existing tests',
-        handler: STEP_EXECUTOR_LOADERS.step_06,
-        dependencies: ['step_05'],
-      },
-      {
-        id: 'step_07',
-        name: 'Test Generation',
-        description: 'Generate new tests',
-        handler: STEP_EXECUTOR_LOADERS.step_07,
-        dependencies: ['step_06'],
-      },
-      {
-        id: 'step_08',
-        name: 'Test Execution',
-        description: 'Execute test suite',
-        handler: STEP_EXECUTOR_LOADERS.step_08,
-        dependencies: ['step_07'],
-      },
-      {
-        id: 'step_09',
-        name: 'Dependency Analysis',
-        description: 'Analyze and validate dependencies',
-        handler: STEP_EXECUTOR_LOADERS.step_09,
-        dependencies: ['step_08'],
-      },
-      {
-        id: 'step_10',
-        name: 'Code Quality',
-        description: 'Analyze code quality',
-        handler: STEP_EXECUTOR_LOADERS.step_10,
-        dependencies: ['step_09'],
-      },
-      {
-        id: 'step_13',
-        name: 'Markdown Linting',
-        description: 'Lint markdown files',
-        handler: STEP_EXECUTOR_LOADERS.step_13,
-        dependencies: ['step_10'],
-      },
-      {
-        id: 'step_11',
-        name: 'Context Management',
-        description: 'Manage workflow context',
-        handler: STEP_EXECUTOR_LOADERS.step_11,
-        dependencies: ['step_13'],
-      },
-      {
-        id: 'step_11_5',
-        name: 'AWS LBS Validation',
-        description:
-          'Validate aws_lbs_backend_setup projects: shell scripts, Lambda structure, AWS config',
-        handler: STEP_EXECUTOR_LOADERS.step_11_5,
-        dependencies: ['step_11'],
-      },
-      {
-        id: 'step_11_6',
-        name: 'AWS Serverless AI Review',
-        description: 'AI-powered deployment readiness review for aws_lbs_backend_setup projects',
-        handler: STEP_EXECUTOR_LOADERS.step_11_6,
-        dependencies: ['step_11_5'],
-      },
-      {
-        id: 'step_14',
-        name: 'Prompt Engineering',
-        description: 'Analyze and optimize AI prompts',
-        handler: STEP_EXECUTOR_LOADERS.step_14,
-        dependencies: ['step_13'],
-      },
-      {
-        id: 'step_15',
-        name: 'UX Analysis',
-        description: 'Analyze UX and accessibility',
-        handler: STEP_EXECUTOR_LOADERS.step_15,
-        dependencies: ['step_14'],
-      },
-      {
-        id: 'step_16',
-        name: 'Version Update',
-        description: 'Update semantic versions',
-        handler: STEP_EXECUTOR_LOADERS.step_16,
-        dependencies: ['step_15'],
-      },
-      {
-        id: 'step_18',
-        name: 'Debugging Analysis',
-        description: 'AI-powered debugging analysis (observer, async, data-structure personas)',
-        handler: STEP_EXECUTOR_LOADERS.step_18,
-        dependencies: ['step_16'],
-      },
-      {
-        id: 'step_19',
-        name: 'TypeScript Review',
-        description:
-          'AI-powered TypeScript review using the "Strider" TypeScript Developer persona',
-        handler: STEP_EXECUTOR_LOADERS.step_19,
-        dependencies: ['step_18'],
-      },
-      {
-        id: 'step_20',
-        name: 'Async Performance Review',
-        description:
-          'AI-powered async performance review (overfetching, event loop, memory leaks, promise anti-patterns)',
-        handler: STEP_EXECUTOR_LOADERS.step_20,
-        dependencies: ['step_19'],
-      },
-      {
-        id: 'step_22',
-        name: 'Accessibility Review',
-        description:
-          'AI-powered WCAG 2.1 AA/AAA accessibility review (ARIA, keyboard navigation, colour contrast, reduced-motion)',
-        handler: STEP_EXECUTOR_LOADERS.step_22,
-        dependencies: ['step_21'],
-      },
-      {
-        id: 'step_23',
-        name: 'Performance Review',
-        description:
-          'AI-powered performance review (algorithmic complexity, sync I/O, memory hotspots, missing memoization)',
-        handler: STEP_EXECUTOR_LOADERS.step_23,
-        dependencies: ['step_22'],
-      },
-      {
-        id: 'step_17',
-        name: 'Workflow Summary',
-        description: 'Generate workflow summary report',
-        handler: STEP_EXECUTOR_LOADERS.step_17,
-        dependencies: ['step_03', 'step_11_6', 'step_20', 'step_23'],
-      },
-      {
-        id: 'step_0f',
-        name: 'Commit Artifacts',
-        description: 'Commit workflow artifacts generated during the run',
-        handler: STEP_EXECUTOR_LOADERS.step_0f,
-        dependencies: ['step_17'],
-      },
-      {
-        id: 'step_12',
-        name: 'Git Finalization',
-        description: 'Stage, commit and push all modifications',
-        handler: STEP_EXECUTOR_LOADERS.step_12,
-        dependencies: ['step_0f'],
-        critical: false,
-      },
-    ];
+    const steps = getCanonicalWorkflowSteps();
 
     for (const step of steps) {
       this.stepRegistry.register(step.id, {
@@ -1487,7 +395,9 @@ export class MainOrchestrator {
 
     this._applyProjectWorkflowOverrides(projectWorkflowConfig);
 
-    logger.info(`${colors.green}✓${colors.reset} Registered ${steps.length} workflow steps`);
+    logger.info(
+      `${colors.green}✓${colors.reset} Loaded ${steps.length} canonical workflow step definitions for validation and planning`
+    );
   }
 
   async _loadProjectWorkflowConfig() {
@@ -1534,6 +444,9 @@ export class MainOrchestrator {
     logger.info(
       '[WorkflowConfig] Generated missing .workflow-config.yaml from detected project facts'
     );
+    logger.info(
+      '[WorkflowConfig] Generated config starts from the canonical workflow graph. Override workflow.steps sparingly, preserve canonical dependencies by default, and use dependency_comment only for evidence-bound exceptions.'
+    );
 
     return generatedConfig;
   }
@@ -1548,6 +461,7 @@ export class MainOrchestrator {
     const configPath = path.join(this.projectRoot, '.workflow-config.yaml');
     const pendingUpdates = [];
     const pendingErrors = [];
+    const pendingDiagnostics = [];
 
     for (const [stepId, override] of Object.entries(overrides)) {
       if (!this.stepRegistry.has(stepId)) {
@@ -1575,6 +489,9 @@ export class MainOrchestrator {
         const removedDependencies = rawConfiguredDependencies.filter(
           (dependencyId) => !sanitizedDependencies.includes(dependencyId)
         );
+        const addedDependencies = sanitizedDependencies.filter(
+          (dependencyId) => !rawConfiguredDependencies.includes(dependencyId)
+        );
         const semanticallyOverridesCanonical = !haveSameDependencySet(
           rawConfiguredDependencies,
           canonicalDependencies
@@ -1584,16 +501,41 @@ export class MainOrchestrator {
             `[WorkflowConfig] Removed unsafe dependency override(s) from ${stepId}: ${removedDependencies.join(', ')}`
           );
         }
+        if (addedDependencies.length > 0) {
+          const defaultTerminalAbsent = (DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []).filter(
+            (depId) => addedDependencies.includes(depId) && !disabledConfigStepIds.includes(depId)
+          );
+          const absentHint =
+            defaultTerminalAbsent.length > 0
+              ? ` ${defaultTerminalAbsent.join(', ')} is a default terminal branch prerequisite absent from your config — add it with 'enabled: false' to suppress this re-injection.`
+              : '';
+          logger.warn(
+            `[WorkflowConfig] Canonical dependency enforcement adjusted ${stepId}: requested ${formatDependencyList(rawConfiguredDependencies)}; effective ${formatDependencyList(sanitizedDependencies)}. Added prerequisite(s): ${formatDependencyList(addedDependencies)}.${absentHint}`
+          );
+        }
         updates.dependencies = semanticallyOverridesCanonical
           ? sanitizedDependencies
           : normalizeDependencyList(canonicalDependencies);
         if (semanticallyOverridesCanonical) {
           if (!override.dependencyComment) {
+            pendingDiagnostics.push(
+              buildWorkflowConfigDependencyOverrideDiagnostic({
+                stepId,
+                stepName: existingStep?.name,
+                stepEnabled: override.enabled,
+                canonicalDependencies,
+                rawConfiguredDependencies,
+                effectiveDependencies: sanitizedDependencies,
+                removedDependencies,
+                addedDependencies,
+              })
+            );
             pendingErrors.push(
               buildWorkflowConfigDependencyOverrideError({
                 configPath,
                 stepId,
                 stepName: existingStep?.name,
+                stepEnabled: override.enabled,
                 canonicalDependencies,
                 rawConfiguredDependencies,
                 effectiveDependencies: sanitizedDependencies,
@@ -1632,6 +574,12 @@ export class MainOrchestrator {
     }
 
     if (pendingErrors.length > 0) {
+      if (pendingDiagnostics.length > 0) {
+        logger.error(
+          '[WorkflowConfig] Dependency override validation failed. Raw vs effective dependency diagnostics:'
+        );
+        pendingDiagnostics.forEach((diagnostic) => logger.error(diagnostic));
+      }
       throw new Error(pendingErrors.join('\n\n'));
     }
 
@@ -1687,20 +635,7 @@ export class MainOrchestrator {
         logger.warn(`  Workflow continuing. Fix the flagged tests to clear this advisory.`);
       } else {
         results.passed = false;
-        logger.error(
-          `${colors.red}✗${colors.reset} Pre-flight quality suites failed: ${qualityChecks.failedCommand}`
-        );
-        if (qualityChecks.failureOutput) {
-          logger.error(qualityChecks.failureOutput);
-        }
-        if (qualityChecks.failureArtifact) {
-          logger.error(`Full pre-flight failure output saved to: ${qualityChecks.failureArtifact}`);
-        }
-        if (qualityChecks.failureArtifactError) {
-          logger.warn(
-            `Failed to persist full pre-flight failure output: ${qualityChecks.failureArtifactError}`
-          );
-        }
+        logPreflightFailure(qualityChecks);
       }
     }
 
@@ -1719,181 +654,282 @@ export class MainOrchestrator {
   }
 
   async _runPreflightQualitySuites(projectRoot, changeCounts = null) {
-    let packageJson;
-    try {
-      const packageJsonRaw = await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8');
-      packageJson = JSON.parse(packageJsonRaw);
-    } catch {
-      return {
-        passed: true,
-        skipped: true,
-        commands: [],
-        message: 'No package.json found in project root',
-      };
-    }
-
-    const projectEntries = await fs.readdir(projectRoot).catch(() => []);
-    const packageManager = detectPreflightPackageManager(packageJson, projectEntries);
-    const commands = getPreflightQualityCommands(packageJson, packageManager);
-
-    if (commands.length === 0) {
-      return {
-        passed: true,
-        skipped: true,
-        commands: [],
-        packageManager,
-        message: 'No lint/test/build scripts found',
-      };
-    }
-
-    const baselineFailureCount = await this._readPreflightBaseline();
-
-    const results = [];
-    for (const suite of commands) {
-      logger.info(`Running pre-flight quality suite: ${suite.command} (cwd: ${projectRoot})`);
-      try {
-        await executorModule(suite.command, {
-          cwd: projectRoot,
-          shell: true,
-          timeout: PRE_FLIGHT_COMMAND_TIMEOUT_MS,
-        });
-        results.push({ ...suite, passed: true });
-      } catch (error) {
-        const fullFailureOutput = [error?.stdout, error?.stderr, error?.output]
-          .filter((value) => typeof value === 'string' && value.trim())
-          .join('\n')
-          .trim();
-        const failureOutput = fullFailureOutput
-          .split('\n')
-          .slice(-PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES)
-          .join('\n');
-        let failureArtifact = null;
-        let failureArtifactError = null;
-        if (fullFailureOutput) {
-          try {
-            failureArtifact = await this._writePreflightFailureArtifact(
-              suite.name,
-              suite.command,
-              fullFailureOutput
-            );
-          } catch (artifactError) {
-            failureArtifactError = artifactError.message;
-          }
-        }
-
-        results.push({
-          ...suite,
-          passed: false,
-          exitCode: error?.exitCode ?? 1,
-        });
-
-        const hasForceExitWarning =
-          fullFailureOutput.includes('Force exiting Jest') ||
-          fullFailureOutput.includes('--detectOpenHandles');
-
-        // Determine whether this is a new failure or a pre-existing one.
-        // Advisory = pre-existing: no new failures introduced by this changeset.
-        let advisory = false;
-        let advisoryMessage = null;
-        if (suite.name === 'test') {
-          const currentFailureCount = parseTestFailureCount(fullFailureOutput);
-          const testFilesChanged = changeCounts?.tests ?? null;
-          const noNewFailures =
-            baselineFailureCount !== null &&
-            currentFailureCount !== null &&
-            currentFailureCount <= baselineFailureCount;
-          const likelyPreExisting =
-            !noNewFailures &&
-            testFilesChanged !== null &&
-            testFilesChanged === 0 &&
-            currentFailureCount !== null;
-
-          if (noNewFailures) {
-            advisory = true;
-            advisoryMessage =
-              `${currentFailureCount} pre-existing test failure(s) ` +
-              `(baseline: ${baselineFailureCount}). No new failures were introduced.`;
-          } else if (likelyPreExisting) {
-            advisory = true;
-            advisoryMessage =
-              `${currentFailureCount} test failure(s) detected but no test files are in the ` +
-              `current changeset — strongly suggests pre-existing failures unrelated to these changes.`;
-          }
-
-          if (currentFailureCount !== null) {
-            await this._writePreflightBaseline(currentFailureCount);
-          }
-        }
-
-        return {
-          passed: false,
-          advisory,
-          advisoryMessage,
-          hasForceExitWarning,
-          skipped: false,
-          packageManager,
-          commands: results,
-          failedCommand: suite.command,
-          failureOutput,
-          failureArtifact,
-          failureArtifactError,
-          message: `Command failed: ${suite.command}`,
-        };
-      }
-    }
-
-    await this._writePreflightBaseline(0);
-
-    return {
-      passed: true,
-      advisory: false,
-      hasForceExitWarning: false,
-      skipped: false,
-      packageManager,
-      commands: results,
-      message: `Ran ${results.length} pre-flight quality suite(s)`,
-    };
+    return runPreflightQualitySuites({
+      projectRoot,
+      workflowDir: this.workflowDir,
+      logsRunDir: this.logsRunDir,
+      changeCounts,
+      logger,
+    });
   }
 
   async _writePreflightFailureArtifact(suiteName, command, output) {
-    if (!this.logsRunDir) {
-      return null;
-    }
-
-    const artifactDir = path.join(this.logsRunDir, 'preflight');
-    const safeSuiteName = suiteName.replace(/[^a-z0-9_-]+/gi, '_').toLowerCase();
-    const artifactPath = path.join(artifactDir, `${safeSuiteName || 'preflight'}.log`);
-    const artifactContent = [`Command: ${command}`, '', output].join('\n');
-
-    await fs.mkdir(artifactDir, { recursive: true });
-    await fs.writeFile(artifactPath, artifactContent, 'utf8');
-
-    return artifactPath;
+    return writePreflightFailureArtifact(this.logsRunDir, suiteName, command, output);
   }
 
   async _readPreflightBaseline() {
-    try {
-      const baselinePath = path.join(this.workflowDir, 'preflight_baseline.json');
-      const raw = await fs.readFile(baselinePath, 'utf8');
-      const data = JSON.parse(raw);
-      return typeof data.testFailureCount === 'number' ? data.testFailureCount : null;
-    } catch {
-      return null;
-    }
+    return readPreflightBaseline(this.workflowDir);
   }
 
   async _writePreflightBaseline(testFailureCount) {
-    try {
-      await fs.mkdir(this.workflowDir, { recursive: true });
-      const baselinePath = path.join(this.workflowDir, 'preflight_baseline.json');
-      await fs.writeFile(
-        baselinePath,
-        JSON.stringify({ testFailureCount, updatedAt: new Date().toISOString() }),
-        'utf8'
+    return writePreflightBaseline(this.workflowDir, testFailureCount);
+  }
+
+  _buildExecutableWorkflow(stepsToExecute = []) {
+    return {
+      id: `workflow_${Date.now()}`,
+      name: 'AI Workflow Automation',
+      version: '2.0.0',
+      steps: stepsToExecute.map((stepId) => {
+        const stepDef = this.stepRegistry.get(stepId);
+        const canonicalName = stepDef.metadata?.canonicalName || stepDef.name;
+        const canonicalDescription = stepDef.metadata?.canonicalDescription || stepDef.description;
+        const canonicalDependencies = Array.isArray(stepDef.metadata?.canonicalDependencies)
+          ? stepDef.metadata.canonicalDependencies
+          : stepDef.dependencies || [];
+        const aliasName = stepDef.name !== canonicalName ? stepDef.name : null;
+        return {
+          id: stepId,
+          name: stepDef.name,
+          aliasName,
+          canonicalName,
+          description: stepDef.description,
+          canonicalDescription,
+          dependencies: stepDef.dependencies || [],
+          canonicalDependencies,
+          handler: this._createStepHandler(stepId, stepDef),
+          critical: stepDef.critical !== false,
+        };
+      }),
+    };
+  }
+
+  async _buildWorkflowExecutionContext(
+    context,
+    detectedProfile,
+    allChangedFiles,
+    healthResults,
+    workflow
+  ) {
+    const changeStats = buildMlChangeStats(allChangedFiles);
+    return {
+      ...context,
+      workflowDir: this.workflowDir,
+      projectRoot: this.projectRoot,
+      auto: this.auto,
+      workflowRunId: this.configManager.workflowRunId,
+      modifiedFiles: allChangedFiles,
+      projectType:
+        this.projectWorkflowConfig?.project?.type ||
+        (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ||
+        null,
+      scope: context.scope || detectedProfile || '',
+      projectDescription:
+        context.projectDescription ||
+        this.projectWorkflowConfig?.project?.description ||
+        this.configManager?.getConfig?.()?.project_description ||
+        this.configManager?.getConfig?.()?.project?.description ||
+        path.basename(this.projectRoot),
+      alternatives: this.alternatives,
+      preflightCheck: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] || null,
+      resumeCommandHint: 'ai-workflow resume --latest',
+      changeStats,
+      criticalStepIds: workflow.steps
+        .filter((step) => step.critical !== false)
+        .map((step) => step.id),
+      allowFinalizeOnFailure: this.allowFinalizeOnFailure,
+    };
+  }
+
+  _attachWorkflowRunListeners(logsRunDir, mlContextBase) {
+    const stepsLogDir = path.join(logsRunDir, 'steps');
+    const mlPredictions = new Map();
+
+    this.workflowEngine.on('step:start', ({ step }) => {
+      this.currentStep = step.id;
+      this.performanceTracker.startTimer(step.id);
+      try {
+        if (this.mlOptimizer.initialized) {
+          const prediction = this.mlOptimizer.predict(step.id, {
+            ...mlContextBase,
+          });
+          mlPredictions.set(step.id, prediction);
+          if (prediction.prediction === 'skip') {
+            logger.debug(
+              `[MLOptimizer] ${step.id}: predicted skippable (confidence ${prediction.confidence.toFixed(2)})`
+            );
+          }
+        }
+      } catch {
+        /* ML optimizer advisory only */
+      }
+      logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
+      logger.info(`\n${colors.cyan}→ Starting: ${formatRuntimeStepName(step)}${colors.reset}`);
+    });
+
+    this.workflowEngine.on('step:complete', ({ step, result }) => {
+      const perfMetrics = this.performanceTracker.endTimer(step.id);
+      this.performanceMonitor.checkMetrics(step.id, perfMetrics || {});
+      try {
+        if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
+          this.mlOptimizer.recordOutcome(
+            step.id,
+            {
+              ...mlContextBase,
+              previousResults: this.workflowEngine.results[this.workflowEngine.results.length - 1] || {
+                success: true,
+              },
+            },
+            mlPredictions.get(step.id),
+            result.success ? 'success' : 'failure'
+          );
+        }
+      } catch {
+        /* ML optimizer advisory only */
+      }
+      const durationStr = result.duration ? `(${Math.round(result.duration / 1000)}s)` : '';
+      const degraded = result.output?.degraded === true;
+      if (result.skipped) {
+        logger.info(
+          `${colors.yellow}⊘ Skipped: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
+        );
+      } else if (!result.success) {
+        logger.info(
+          `${colors.red}✗ Completed with failure: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
+        );
+      } else if (degraded) {
+        logger.info(
+          `${colors.yellow}⚠ Completed with degradation: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
+        );
+      } else {
+        logger.info(
+          `${colors.green}✓ Completed: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
+        );
+      }
+      logger.closeStepLogFile();
+    });
+
+    this.workflowEngine.on('step:budget_exceeded', ({ step, budgetMs, durationMs }) => {
+      logger.warn(
+        `${colors.yellow}⚠ BUDGET_EXCEEDED: ${formatRuntimeStepName(step)} (${Math.round(
+          durationMs / 1000
+        )}s > ${Math.round(budgetMs / 1000)}s)${colors.reset}`
       );
-    } catch {
-      // Non-critical — baseline is best-effort
+    });
+
+    this.workflowEngine.on('step:error', ({ step, error }) => {
+      try {
+        if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
+          this.mlOptimizer.recordOutcome(
+            step.id,
+            {
+              ...mlContextBase,
+              previousResults: this.workflowEngine.results[this.workflowEngine.results.length - 1] || {
+                success: true,
+              },
+            },
+            mlPredictions.get(step.id),
+            'failure'
+          );
+        }
+      } catch {
+        /* ML optimizer advisory only */
+      }
+      logger.error(
+        `${colors.red}✗ Failed: ${formatRuntimeStepName(step)} - ${error.message}${colors.reset}`
+      );
+      logger.closeStepLogFile();
+    });
+
+    this.workflowEngine.on('step:skipped', ({ step, result }) => {
+      logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
+      logger.info(
+        `${colors.yellow}⊘ Skipped: ${formatRuntimeStepName(step)} - ${result.reason}${colors.reset}`
+      );
+      logger.closeStepLogFile();
+    });
+  }
+
+  async _storeWorkflowRunResults(workflow, engineResult, executionContext) {
+    this.results = {
+      workflowId: workflow.id,
+      status: engineResult.success ? 'success' : 'failed',
+      steps: engineResult.results.reduce((acc, result) => {
+        acc[result.stepId] = result;
+        return acc;
+      }, {}),
+      startTime: this.startTime,
+      endTime: Date.now(),
+      summary: engineResult.summary,
+    };
+
+    return this.checkpointManager.save(workflow, {
+      stage: this.stage,
+      results: this.results.steps,
+      context: executionContext,
+      completedSteps: Object.keys(this.results.steps).filter(
+        (stepId) => this.results.steps[stepId].status === 'success'
+      ),
+      failedSteps: Object.keys(this.results.steps).filter(
+        (stepId) => this.results.steps[stepId].status === 'failed'
+      ),
+      skippedSteps: Object.keys(this.results.steps).filter(
+        (stepId) => this.results.steps[stepId].status === 'skipped'
+      ),
+      timestamp: Date.now(),
+    });
+  }
+
+  async _finalizeWorkflowRun(workflow, engineResult, commitHistory, headAtWorkflowStart) {
+    const executedStepIds = new Set((engineResult.results || []).map((result) => result.stepId));
+    const summaryLogLabel = executedStepIds.has('step_17')
+      ? 'Refreshing workflow summary...'
+      : 'Generating workflow summary...';
+    logger.info(`\n${colors.blue}${summaryLogLabel}${colors.reset}`);
+    const summary = await this.summaryGenerator.generateSummary({
+      workflowRunId: this.configManager.workflowRunId,
+      stepResults: engineResult.results,
+      startTime: this.startTime ? new Date(this.startTime).toISOString() : undefined,
+      endTime: new Date().toISOString(),
+    });
+    this.results.generatedSummary = summary;
+
+    const duration = Date.now() - this.startTime;
+    const totalPerfMetrics = this.performanceTracker.endTimer('workflow_total');
+    if (totalPerfMetrics) {
+      logger.debug(`[Performance] Total workflow: ${totalPerfMetrics.durationFormatted}`);
     }
+    logger.info(`\n${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
+    if (engineResult.success) {
+      logger.info(`${colors.green}✓ Workflow completed successfully${colors.reset}`);
+    } else {
+      logger.warn(`${colors.yellow}⚠ Workflow completed with failures${colors.reset}`);
+    }
+    logger.info(`Duration: ${Math.round(duration / 1000)}s`);
+    logger.info(`Steps: ${engineResult.summary.succeeded}/${engineResult.summary.total} succeeded`);
+    logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
+
+    if (engineResult.success) {
+      try {
+        const headToSave = headAtWorkflowStart || this.gitOps.getCurrentHead();
+        if (headToSave) {
+          commitHistory.save(headToSave, workflow.id);
+        }
+      } catch {
+        // Non-critical — never block completion
+      }
+    }
+
+    await this.mlOptimizer.saveModel().catch(() => {});
+    await logger.closeLogFile();
+
+    return {
+      success: engineResult.success,
+      workflow,
+      results: this.results,
+      summary,
+      duration,
+    };
   }
 
   /**
@@ -1911,6 +947,7 @@ export class MainOrchestrator {
    */
   async execute(context = {}) {
     let workflowExecutionStarted = false;
+    let executionPlanBuilt = false;
 
     try {
       this.startTime = Date.now();
@@ -1948,6 +985,7 @@ export class MainOrchestrator {
       logger.info(
         'Validating .workflow-config.yaml step overrides against canonical workflow order...'
       );
+      logger.info('Preflight config validation only — no workflow steps have started yet.');
       this.registerAllSteps(this.projectWorkflowConfig);
       const configuredDependencyIndex = Object.fromEntries(
         this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
@@ -1956,15 +994,32 @@ export class MainOrchestrator {
         this.stage,
         this.projectWorkflowConfig
       );
+      const stepsWithDependencyComment = new Set(
+        (this.projectWorkflowConfig?.workflow?.steps || [])
+          .filter((s) => typeof s?.dependency_comment === 'string' && s.dependency_comment.trim())
+          .map((s) => normalizeWorkflowConfigStepId(s?.id))
+          .filter(Boolean)
+      );
       const configuredPlanValidation = validatePlannedStepDependencies(
         stageConfiguredSteps,
         configuredDependencyIndex,
         getStepsForStage(this.stage),
-        { disabledStepIds: disabledConfiguredStepIds }
+        { disabledStepIds: disabledConfiguredStepIds, stepsWithDependencyComment }
       );
       if (!configuredPlanValidation.valid) {
-        throw new Error(configuredPlanValidation.errors.join('\n'));
+        logEffectiveExecutionPlan(
+          buildExecutionPlanPreview(stageConfiguredSteps, this.stepRegistry),
+          'Effective configured workflow step set before validation failure:'
+        );
+        throw attachWorkflowFailureContext(new Error(configuredPlanValidation.errors.join('\n')), {
+          failedPhase: 'preflight_config_validation',
+          workflowStepsStarted: false,
+          executedSteps: [],
+          executionPlanBuilt: false,
+          failedCommand: null,
+        });
       }
+      logger.info('Workflow configuration overrides validated.');
 
       // Detect workflow profile
       let detectedProfile = await this.profileManager.detectProfile();
@@ -1973,7 +1028,13 @@ export class MainOrchestrator {
       // Health checks
       const healthResults = await this.healthCheck();
       if (!healthResults.passed) {
-        throw new Error('Health checks failed - cannot proceed');
+        throw attachWorkflowFailureContext(new Error('Health checks failed - cannot proceed'), {
+          failedPhase: 'preflight_health_checks',
+          workflowStepsStarted: false,
+          executedSteps: [],
+          executionPlanBuilt: false,
+          failedCommand: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT]?.failedCommand,
+        });
       }
 
       // Initialize metrics (creates current_run.json so step_17 can read it)
@@ -2156,45 +1217,27 @@ export class MainOrchestrator {
         stepsToExecute,
         dependencyIndex,
         getStepsForStage(this.stage),
-        { disabledStepIds: disabledConfiguredStepIds }
+        { disabledStepIds: disabledConfiguredStepIds, stepsWithDependencyComment }
       );
       if (!selectedPlanValidation.valid) {
-        throw new Error(selectedPlanValidation.errors.join('\n'));
+        logEffectiveExecutionPlan(
+          buildExecutionPlanPreview(stepsToExecute, this.stepRegistry),
+          'Effective workflow step set before profile-filtered validation failure:'
+        );
+        throw attachWorkflowFailureContext(new Error(selectedPlanValidation.errors.join('\n')), {
+          failedPhase: 'execution_plan_validation',
+          workflowStepsStarted: false,
+          executedSteps: [],
+          executionPlanBuilt: false,
+          failedCommand: null,
+        });
       }
       logger.info(`Executing ${stepsToExecute.length} steps for stage: ${this.stage}`);
 
-      // Create workflow definition with step handlers
-      const workflow = {
-        id: `workflow_${Date.now()}`,
-        name: 'AI Workflow Automation',
-        version: '2.0.0',
-        steps: stepsToExecute.map((stepId) => {
-          const stepDef = this.stepRegistry.get(stepId);
-          const canonicalName = stepDef.metadata?.canonicalName || stepDef.name;
-          const canonicalDescription =
-            stepDef.metadata?.canonicalDescription || stepDef.description;
-          const canonicalDependencies = Array.isArray(stepDef.metadata?.canonicalDependencies)
-            ? stepDef.metadata.canonicalDependencies
-            : stepDef.dependencies || [];
-          const aliasName = stepDef.name !== canonicalName ? stepDef.name : null;
-          return {
-            id: stepId,
-            name: stepDef.name,
-            aliasName,
-            canonicalName,
-            description: stepDef.description,
-            canonicalDescription,
-            dependencies: stepDef.dependencies || [],
-            canonicalDependencies,
-            handler: this._createStepHandler(stepId, stepDef),
-            critical: stepDef.critical !== false,
-          };
-        }),
-      };
-
+      const workflow = this._buildExecutableWorkflow(stepsToExecute);
+      executionPlanBuilt = true;
       logEffectiveExecutionPlan(workflow.steps);
 
-      // Execute workflow
       workflowExecutionStarted = true;
       logger.info(`\n${colors.blue}Starting workflow execution...${colors.reset}\n`);
 
@@ -2202,145 +1245,14 @@ export class MainOrchestrator {
         profile: this.profileManager.currentProfile,
         changeStats: buildMlChangeStats(allChangedFiles),
       };
-
-      const executionContext = {
-        ...context,
-        workflowDir: this.workflowDir,
-        projectRoot: this.projectRoot,
-        auto: this.auto,
-        workflowRunId: this.configManager.workflowRunId,
-        modifiedFiles: allChangedFiles,
-        projectType:
-          this.projectWorkflowConfig?.project?.type ||
-          (await this.projectDetection.detectProjectKind(this.projectRoot))?.kind ||
-          null,
-        // Req 9: ensure AI prompt context fields are populated for all steps
-        scope: context.scope || detectedProfile || '',
-        projectDescription:
-          context.projectDescription ||
-          this.projectWorkflowConfig?.project?.description ||
-          this.configManager?.getConfig?.()?.project_description ||
-          this.configManager?.getConfig?.()?.project?.description ||
-          path.basename(this.projectRoot),
-        alternatives: this.alternatives,
-        preflightCheck: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] || null,
-        resumeCommandHint: 'ai-workflow resume --latest',
-        changeStats: mlContextBase.changeStats,
-      };
-
-      // Setup event listeners for progress tracking
-      const stepsLogDir = path.join(logsRunDir, 'steps');
-      const mlPredictions = new Map();
-      this.workflowEngine.on('step:start', ({ step }) => {
-        this.currentStep = step.id;
-        this.performanceTracker.startTimer(step.id);
-        // ML: record prediction for this step
-        try {
-          if (this.mlOptimizer.initialized) {
-            const pred = this.mlOptimizer.predict(step.id, {
-              ...mlContextBase,
-            });
-            mlPredictions.set(step.id, pred);
-            if (pred.prediction === 'skip') {
-              logger.debug(
-                `[MLOptimizer] ${step.id}: predicted skippable (confidence ${pred.confidence.toFixed(2)})`
-              );
-            }
-          }
-        } catch {
-          /* ML optimizer advisory only */
-        }
-        logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
-        logger.info(`\n${colors.cyan}→ Starting: ${formatRuntimeStepName(step)}${colors.reset}`);
-      });
-
-      this.workflowEngine.on('step:complete', ({ step, result }) => {
-        const perfMetrics = this.performanceTracker.endTimer(step.id);
-        this.performanceMonitor.checkMetrics(step.id, perfMetrics || {});
-        // ML: record outcome
-        try {
-          if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
-            this.mlOptimizer.recordOutcome(
-              step.id,
-              {
-                ...mlContextBase,
-                previousResults: this.workflowEngine.results[
-                  this.workflowEngine.results.length - 1
-                ] || {
-                  success: true,
-                },
-              },
-              mlPredictions.get(step.id),
-              result.success ? 'success' : 'failure'
-            );
-          }
-        } catch {
-          /* ML optimizer advisory only */
-        }
-        const durationStr = result.duration ? `(${Math.round(result.duration / 1000)}s)` : '';
-        const degraded = result.output?.degraded === true;
-        if (result.skipped) {
-          logger.info(
-            `${colors.yellow}⊘ Skipped: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
-          );
-        } else if (!result.success) {
-          logger.info(
-            `${colors.red}✗ Completed with failure: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
-          );
-        } else if (degraded) {
-          logger.info(
-            `${colors.yellow}⚠ Completed with degradation: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
-          );
-        } else {
-          logger.info(
-            `${colors.green}✓ Completed: ${formatRuntimeStepName(step)}${colors.reset} ${durationStr}`
-          );
-        }
-        logger.closeStepLogFile();
-      });
-
-      this.workflowEngine.on('step:budget_exceeded', ({ step, budgetMs, durationMs }) => {
-        logger.warn(
-          `${colors.yellow}⚠ BUDGET_EXCEEDED: ${formatRuntimeStepName(step)} (${Math.round(
-            durationMs / 1000
-          )}s > ${Math.round(budgetMs / 1000)}s)${colors.reset}`
-        );
-      });
-
-      this.workflowEngine.on('step:error', ({ step, error }) => {
-        // ML: record failure outcome
-        try {
-          if (this.mlOptimizer.initialized && mlPredictions.has(step.id)) {
-            this.mlOptimizer.recordOutcome(
-              step.id,
-              {
-                ...mlContextBase,
-                previousResults: this.workflowEngine.results[
-                  this.workflowEngine.results.length - 1
-                ] || {
-                  success: true,
-                },
-              },
-              mlPredictions.get(step.id),
-              'failure'
-            );
-          }
-        } catch {
-          /* ML optimizer advisory only */
-        }
-        logger.error(
-          `${colors.red}✗ Failed: ${formatRuntimeStepName(step)} - ${error.message}${colors.reset}`
-        );
-        logger.closeStepLogFile();
-      });
-
-      this.workflowEngine.on('step:skipped', ({ step, result }) => {
-        logger.openStepLogFile(path.join(stepsLogDir, `${step.id}.log`));
-        logger.info(
-          `${colors.yellow}⊘ Skipped: ${formatRuntimeStepName(step)} - ${result.reason}${colors.reset}`
-        );
-        logger.closeStepLogFile();
-      });
+      const executionContext = await this._buildWorkflowExecutionContext(
+        context,
+        detectedProfile,
+        allChangedFiles,
+        healthResults,
+        workflow
+      );
+      this._attachWorkflowRunListeners(logsRunDir, mlContextBase);
 
       // Initialize ML optimizer (non-blocking)
       await this.mlOptimizer.initialize().catch(() => {});
@@ -2349,106 +1261,34 @@ export class MainOrchestrator {
       await this.workflowEngine.loadWorkflow(workflow);
       this.performanceTracker.startTimer('workflow_total');
       const engineResult = await this.workflowEngine.executeWorkflow(executionContext);
-
-      // Store results
-      this.results = {
-        workflowId: workflow.id,
-        status: engineResult.success ? 'success' : 'failed',
-        steps: engineResult.results.reduce((acc, result) => {
-          acc[result.stepId] = result;
-          return acc;
-        }, {}),
-        startTime: this.startTime,
-        endTime: Date.now(),
-        summary: engineResult.summary,
-      };
-
-      // Save checkpoint
-      const checkpointId = await this.checkpointManager.save(workflow, {
-        stage: this.stage,
-        results: this.results.steps,
-        context: executionContext,
-        completedSteps: Object.keys(this.results.steps).filter(
-          (stepId) => this.results.steps[stepId].status === 'success'
-        ),
-        failedSteps: Object.keys(this.results.steps).filter(
-          (stepId) => this.results.steps[stepId].status === 'failed'
-        ),
-        skippedSteps: Object.keys(this.results.steps).filter(
-          (stepId) => this.results.steps[stepId].status === 'skipped'
-        ),
-        timestamp: Date.now(),
-      });
+      const checkpointId = await this._storeWorkflowRunResults(
+        workflow,
+        engineResult,
+        executionContext
+      );
       if (!engineResult.success) {
         logger.warn(
           `Checkpoint saved. After fixing the issue, resume with: ai-workflow resume ${checkpointId}`
         );
       }
-
-      const executedStepIds = new Set((engineResult.results || []).map((result) => result.stepId));
-      const step17Result = (engineResult.results || []).find(
-        (result) => result.stepId === 'step_17'
-      );
-      let summary = step17Result?.output?.summary || null;
-      if (!executedStepIds.has('step_17')) {
-        // Generate summary — pass the current run ID explicitly to avoid reading a stale metrics file
-        logger.info(`\n${colors.blue}Generating workflow summary...${colors.reset}`);
-        summary = await this.summaryGenerator.generateSummary({
-          workflowRunId: this.configManager.workflowRunId,
-          stepResults: engineResult.results,
-          startTime: this.startTime ? new Date(this.startTime).toISOString() : undefined,
-          endTime: new Date().toISOString(),
-        });
-      }
-
-      // Calculate metrics
-      const duration = Date.now() - this.startTime;
-      const totalPerfMetrics = this.performanceTracker.endTimer('workflow_total');
-      if (totalPerfMetrics) {
-        logger.debug(`[Performance] Total workflow: ${totalPerfMetrics.durationFormatted}`);
-      }
-      logger.info(`\n${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-      if (engineResult.success) {
-        logger.info(`${colors.green}✓ Workflow completed successfully${colors.reset}`);
-      } else {
-        logger.warn(`${colors.yellow}⚠ Workflow completed with failures${colors.reset}`);
-      }
-      logger.info(`Duration: ${Math.round(duration / 1000)}s`);
-      logger.info(
-        `Steps: ${engineResult.summary.succeeded}/${engineResult.summary.total} succeeded`
-      );
-      logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
-
-      // Persist the HEAD captured at workflow start so the next run diffs
-      // against real source changes, not artifact commits made during this run.
-      if (engineResult.success) {
-        try {
-          const headToSave = headAtWorkflowStart || this.gitOps.getCurrentHead();
-          if (headToSave) {
-            commitHistory.save(headToSave, workflow.id);
-          }
-        } catch {
-          // Non-critical — never block completion
-        }
-      }
-
-      await this.mlOptimizer.saveModel().catch(() => {});
-
-      await logger.closeLogFile();
-
-      return {
-        success: engineResult.success,
-        workflow,
-        results: this.results,
-        summary,
-        duration,
-      };
+      return this._finalizeWorkflowRun(workflow, engineResult, commitHistory, headAtWorkflowStart);
     } catch (error) {
       if (!workflowExecutionStarted) {
         logger.error(
           `${colors.red}✗ Preflight validation failed before workflow execution (0 steps executed)${colors.reset}`
         );
       }
+      logger.error(
+        `[RunState] ${JSON.stringify(
+          buildWorkflowFailureRunState(error, {
+            failedPhase: workflowExecutionStarted ? 'workflow_execution' : 'preflight',
+            workflowStepsStarted: workflowExecutionStarted,
+            executedSteps: Object.keys(this.results?.steps || {}),
+            executionPlanBuilt,
+            failedCommand: null,
+          })
+        )}`
+      );
       logger.error(`${colors.red}✗ Workflow terminated before completion${colors.reset}`);
       logger.error(`${colors.red}✗ Workflow failed: ${error.message}${colors.reset}`);
       await logger.closeLogFile();
@@ -2683,11 +1523,17 @@ export class MainOrchestrator {
       const dependencyIndex = Object.fromEntries(
         this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
       );
+      const stepsWithDependencyComment = new Set(
+        (this.projectWorkflowConfig?.workflow?.steps || [])
+          .filter((s) => typeof s?.dependency_comment === 'string' && s.dependency_comment.trim())
+          .map((s) => normalizeWorkflowConfigStepId(s?.id))
+          .filter(Boolean)
+      );
       const selectedPlanValidation = validatePlannedStepDependencies(
         allSteps,
         dependencyIndex,
         getStepsForStage(this.stage),
-        { disabledStepIds: disabledConfiguredStepIds }
+        { disabledStepIds: disabledConfiguredStepIds, stepsWithDependencyComment }
       );
       if (!selectedPlanValidation.valid) {
         throw new Error(selectedPlanValidation.errors.join('\n'));

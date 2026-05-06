@@ -1,7 +1,7 @@
 # step_00_analyze.js API Documentation
 
 **Module:** `steps/step_00_analyze`
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

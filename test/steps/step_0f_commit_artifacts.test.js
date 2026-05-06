@@ -143,6 +143,23 @@ describe('Step0fCommitArtifacts', () => {
     expect(loggerInfoSpy).toHaveBeenCalledWith('No eligible artifact files after filtering');
   });
 
+  it('skips artifact commits after earlier critical failures by default', async () => {
+    const result = await step.execute('/project/root', {
+      criticalStepIds: ['step_08'],
+      results: [{ stepId: 'step_08', stepName: 'Test Execution', success: false }],
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        success: true,
+        skipped: true,
+        blockedByFailures: ['step_08'],
+      })
+    );
+    expect(mockGitOps.status).not.toHaveBeenCalled();
+    expect(mockAutoCommit.commitArtifacts).not.toHaveBeenCalled();
+  });
+
   it('handles errors thrown during execution', async () => {
     mockGitOps.status.mockRejectedValue(new Error('Git failure'));
     const result = await step.execute('/project/root');

@@ -74,6 +74,7 @@ export const TEST_FILE_PATTERNS = {
  * Files to exclude from gap analysis
  */
 export const EXCLUDE_FILES = ['__init__.py', 'index.js', 'main.js', 'config.js', 'constants.js'];
+export const EXCLUDE_FILE_PATTERNS = [/\.min\.[^.]+$/i, /\.bundle\.[^.]+$/i, /\.generated\.[^.]+$/i];
 
 /**
  * Directories to exclude
@@ -124,8 +125,14 @@ export function getTestPatterns(language) {
  */
 export function shouldExcludeFile(filePath) {
   if (!filePath || typeof filePath !== 'string') return false;
+  const normalizedPath = filePath.replace(/\\/g, '/');
   const fileName = path.basename(filePath);
-  return EXCLUDE_FILES.includes(fileName);
+  return (
+    EXCLUDE_FILES.includes(fileName) ||
+    EXCLUDE_FILE_PATTERNS.some((pattern) => pattern.test(fileName)) ||
+    normalizedPath.includes('/vendor/') ||
+    normalizedPath.includes('/third_party/')
+  );
 }
 
 /**
@@ -186,10 +193,10 @@ export function hasCorrespondingTest(sourceFile, testFiles, language) {
  * @param {string} params.language - Programming language
  * @returns {string[]} Untested files
  */
-export function findUntestedFiles({ sourceFiles, testFiles, language }) {
+export function findUntestedFiles({ sourceFiles, testFiles, language, includeExcluded = false }) {
   return sourceFiles.filter((sourceFile) => {
     // Skip excluded files
-    if (shouldExcludeFile(sourceFile)) return false;
+    if (!includeExcluded && shouldExcludeFile(sourceFile)) return false;
 
     // Skip test files
     const isTestFile = testFiles.includes(sourceFile);
@@ -245,7 +252,14 @@ export function categorizeUntestedFiles(untestedFiles) {
  * @returns {string} Formatted report
  */
 export function formatTestGenerationReport(results) {
-  const { totalSourceFiles = 0, totalTestFiles = 0, untestedFiles = [], categories = {} } = results;
+  const {
+    totalSourceFiles = 0,
+    totalTestFiles = 0,
+    untestedFiles = [],
+    categories = {},
+    rawUntestedFiles = [],
+    excludedUntestedFiles = [],
+  } = results;
   const testedSourceFiles = Math.max(0, totalSourceFiles - untestedFiles.length);
 
   let report = '# Test Generation Report\n\n';
@@ -256,6 +270,9 @@ export function formatTestGenerationReport(results) {
   report += `- **Total Test Files**: ${totalTestFiles}\n`;
   report += `- **Matched Source Files**: ${testedSourceFiles}/${totalSourceFiles}\n`;
   report += `- **Untested Files**: ${untestedFiles.length}\n`;
+  if (rawUntestedFiles.length > untestedFiles.length) {
+    report += `- **Excluded From Actionable Gaps**: ${excludedUntestedFiles.length}\n`;
+  }
   report += '- **Inventory Type**: File matching only (not measured runtime coverage)\n\n';
 
   // Inventory status
@@ -266,6 +283,10 @@ export function formatTestGenerationReport(results) {
   } else if (totalSourceFiles > 0) {
     report += '## ⚠️ Test File Inventory Gaps\n\n';
     report += `${untestedFiles.length} of ${totalSourceFiles} discovered source file(s) do not have a corresponding test file by naming convention.\n\n`;
+    if (excludedUntestedFiles.length > 0) {
+      report +=
+        `${excludedUntestedFiles.length} additional unmatched file(s) were excluded from action because they appear to be minified, generated, vendored, or third-party assets.\n\n`;
+    }
   }
 
   // Untested files by category
@@ -523,13 +544,23 @@ export class Step7TestGenerator {
       }
 
       // Phase 3: Identify untested files
-      const untestedFiles = findUntestedFiles({
+      const rawUntestedFiles = findUntestedFiles({
         sourceFiles,
         testFiles,
         language,
+        includeExcluded: true,
       });
+      const excludedUntestedFiles = rawUntestedFiles.filter((sourceFile) =>
+        shouldExcludeFile(sourceFile)
+      );
+      const untestedFiles = rawUntestedFiles.filter((sourceFile) => !shouldExcludeFile(sourceFile));
 
-      logger.info(`Identified ${untestedFiles.length} untested file(s)`);
+      logger.info(`Identified ${untestedFiles.length} actionable untested file(s)`);
+      if (excludedUntestedFiles.length > 0) {
+        logger.info(
+          `Excluded ${excludedUntestedFiles.length} unmatched file(s) from test-gap action because they appear minified, generated, vendored, or third-party`
+        );
+      }
 
       // Phase 4: Calculate coverage
       const testedCount = sourceFiles.length - untestedFiles.length;
@@ -546,7 +577,9 @@ export class Step7TestGenerator {
       const results = {
         totalSourceFiles: sourceFiles.length,
         totalTestFiles: testFiles.length,
+        rawUntestedFiles,
         untestedFiles,
+        excludedUntestedFiles,
         coveragePercentage,
         categories,
       };
@@ -639,7 +672,7 @@ export class Step7TestGenerator {
           'Step 7 completed - all discovered source files have corresponding test files'
         );
       } else {
-        logger.warn(`Step 7 completed - ${untestedFiles.length} file(s) need testing`);
+        logger.warn(`Step 7 completed - ${untestedFiles.length} actionable file(s) need testing`);
       }
 
       return {
@@ -666,8 +699,9 @@ export class Step7TestGenerator {
       const content = await this.fileOps.readFile(absSource);
 
       if (content.length > MAX_SOURCE_FILE_CHARS) {
-        logger.warn(`Skipping ${sourceFile} — file too large (${content.length} chars)`);
-        return null;
+        logger.info(
+          `Source file ${sourceFile} exceeds ${MAX_SOURCE_FILE_CHARS} chars; truncating prompt input`
+        );
       }
 
       const testOutputPath = getTestOutputPath(sourceFile, language);

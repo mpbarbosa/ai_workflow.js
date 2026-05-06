@@ -379,7 +379,7 @@ export class StepRegistry {
     this.steps.set(stepId, step);
     this.registrationOrder.push(stepId);
 
-    logger.debug(`Registered step: ${stepId}`);
+    logger.debug(`Registered canonical workflow step definition for planning: ${stepId}`);
     return step;
   }
 

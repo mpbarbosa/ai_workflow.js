@@ -120,6 +120,11 @@ describe('Step 7: Test Generation', () => {
       expect(shouldExcludeFile('src/module.py')).toBe(false);
     });
 
+    test('excludes minified and vendored assets', () => {
+      expect(shouldExcludeFile('src/assets/js/jquery.min.js')).toBe(true);
+      expect(shouldExcludeFile('src/vendor/react.js')).toBe(true);
+    });
+
     test('returns false for null/undefined filePath', () => {
       expect(shouldExcludeFile(null)).toBe(false);
       expect(shouldExcludeFile(undefined)).toBe(false);
@@ -209,6 +214,18 @@ describe('Step 7: Test Generation', () => {
 
       expect(result).toHaveLength(0);
     });
+
+    test('can include excluded unmatched files for raw inventory accounting', () => {
+      const result = findUntestedFiles({
+        sourceFiles: ['src/assets/js/jquery.min.js', 'src/utils.js'],
+        testFiles: [],
+        language: 'javascript',
+        includeExcluded: true,
+      });
+
+      expect(result).toContain('src/assets/js/jquery.min.js');
+      expect(result).toContain('src/utils.js');
+    });
   });
 
   describe('calculateCoverage', () => {
@@ -252,6 +269,23 @@ describe('Step 7: Test Generation', () => {
     test('handles empty array', () => {
       const result = categorizeUntestedFiles([]);
       expect(Object.keys(result)).toHaveLength(0);
+    });
+  });
+
+  describe('formatTestGenerationReport', () => {
+    test('reports excluded unmatched assets separately from actionable gaps', () => {
+      const report = formatTestGenerationReport({
+        totalSourceFiles: 5,
+        totalTestFiles: 2,
+        rawUntestedFiles: ['src/assets/js/jquery.min.js', 'src/utils.js'],
+        untestedFiles: ['src/utils.js'],
+        excludedUntestedFiles: ['src/assets/js/jquery.min.js'],
+        categories: { src: ['src/utils.js'] },
+      });
+
+      expect(report).toContain('**Untested Files**: 1');
+      expect(report).toContain('**Excluded From Actionable Gaps**: 1');
+      expect(report).toContain('excluded from action because they appear to be minified');
     });
   });
 
@@ -637,6 +671,24 @@ describe('Step 7: Test Generation', () => {
 
       expect(writeCount).toBe(0);
       expect(result.generatedFiles).toHaveLength(0);
+    });
+
+    test('uses prompt truncation instead of skipping oversized source files', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) return Promise.resolve(['src/map.js']);
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.includes('.test.')) {
+          return Promise.reject(new Error('not found'));
+        }
+        return Promise.resolve('x'.repeat(MAX_SOURCE_FILE_CHARS + 100));
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+
+      const result = await generator.execute('/project');
+
+      expect(result.generatedFiles).toEqual(['test/map.test.js']);
     });
   });
 

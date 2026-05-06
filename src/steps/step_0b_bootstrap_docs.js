@@ -30,7 +30,7 @@ import { Step0bStateCache } from '../lib/step0b_state_cache.js';
 export const DOC_TYPES = Object.freeze({
   readme: 'README.md',
   changelog: 'CHANGELOG.md',
-  contributing: 'CONTRIBUTING.md',
+  contributing: 'docs/CONTRIBUTING.md',
   license: 'LICENSE',
   api: 'docs/API.md',
   architecture: 'docs/ARCHITECTURE.md',
@@ -283,7 +283,8 @@ export function buildTechnicalWriterPrompt(context) {
           ? `\n${twPrompt.behavioral_guidelines}\n`
           : '';
 
-        return `${twPrompt.role_prefix.trimEnd()}${behavioralGuidelines}\n${taskText.trimEnd()}\n\n**Documentation Gaps Identified**:\n${missingList}\n\nPlease generate documentation for the identified gaps, prioritizing critical files first.`;
+        const outputFormat = `\n\n**OUTPUT FORMAT — REQUIRED** (responses not matching this schema are discarded):\nFor each file to generate:\n\n## <relative/path/to/file.md>\n### Content:\n\`\`\`markdown\n(full file content — no truncation)\n\`\`\`\n\nIf no documentation is needed respond with exactly:\nNO ACTION NEEDED — <one-sentence reason>`;
+        return `${twPrompt.role_prefix.trimEnd()}${behavioralGuidelines}\n${taskText.trimEnd()}\n\n**Documentation Gaps Identified**:\n${missingList}\n\nPlease generate documentation for the identified gaps, prioritizing critical files first.${outputFormat}`;
       }
     } catch {
       // fall through to inline template
@@ -303,6 +304,11 @@ export function buildTechnicalWriterPrompt(context) {
 **Documentation Gaps Identified**:
 ${missingList}
 
+**Root-Level Placement Rule**:
+- Keep only \`README.md\` and \`CHANGELOG.md\` at the repository root.
+- Place every other markdown documentation file under \`docs/\` or the matching
+  \`docs/\` subdirectory.
+
 **Minimum Documentation Framework** — apply this three-tier priority order:
 
 **Must-have** (project is unusable without these):
@@ -312,7 +318,7 @@ ${missingList}
 
 **Should-have** (contributors cannot work safely without these):
 - CHANGELOG.md — consumers need to know what changed between versions
-- CONTRIBUTING.md — coding conventions, test commands, PR process
+- docs/CONTRIBUTING.md — coding conventions, test commands, PR process
 - LICENSE — legal requirement for open source
 
 **Nice-to-have** (appropriate for published packages with external contributors):
@@ -692,8 +698,13 @@ export class Step0bBootstrapDocs {
             }
             this.logger.success(`Step 0b: Generated ${generated.length} documentation files`);
             if (generated.length === 0) {
-              // AI ran but produced nothing — cache this state to skip next time
-              await this.stateCache.persist(docEntries, cacheResult.fingerprint);
+              // Only cache the "nothing to do" state when the AI confirmed no action
+              // was needed. If the response indicated ACTION NEEDED but produced no
+              // parseable files (output format mismatch), skip caching so the next
+              // run re-evaluates instead of silently skipping the identified gap.
+              if (!response.content.includes('ACTION NEEDED')) {
+                await this.stateCache.persist(docEntries, cacheResult.fingerprint);
+              }
             } else {
               // Files were generated — next run must re-evaluate
               await this.stateCache.invalidate();

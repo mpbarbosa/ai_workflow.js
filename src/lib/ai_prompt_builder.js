@@ -482,6 +482,18 @@ export function truncateContext(context, maxTokens, truncationMessage = '...(tru
 
   // Calculate character limit
   const maxChars = maxTokens * 4 - truncationMessage.length;
+  const projectContextMarker = '\n**Project Context**:\n';
+  const projectContextIndex = context.indexOf(projectContextMarker);
+
+  if (projectContextIndex > 0) {
+    const projectContextBlock = context.substring(projectContextIndex);
+
+    if (projectContextBlock.length + truncationMessage.length < maxChars) {
+      const headBudget = maxChars - projectContextBlock.length;
+      return context.substring(0, headBudget) + truncationMessage + projectContextBlock;
+    }
+  }
+
   return context.substring(0, maxChars) + truncationMessage;
 }
 
@@ -719,7 +731,11 @@ ${docList}
 
 Treat the files in "Documentation to review" as the only documentation edit targets. Use changed files strictly as supporting evidence for whether those scoped documentation targets need updates.
 
-A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".`;
+Treat markdown documentation outside docs/ as misplaced unless the file is README.md or CHANGELOG.md. When visible evidence shows a scoped documentation file lives at the project root and is not one of those two exceptions, propose moving it into docs/ or the appropriate docs/ subdirectory instead of normalizing new root-level docs.
+
+  A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".
+
+If the visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list, cross-check changed files against that visible inventory. A changed file that should appear in that visible inventory but is missing or no longer described is a documentation issue, not "No updates required".`;
 
   const approach = `**Methodology**:
 1. **Analyze Changes**: Examine what was modified in each changed file
@@ -729,7 +745,7 @@ A "specific edit" means a concrete before/after text change tied to a file path 
 
 **Output Format**: Use markdown blocks with file paths and before/after examples
 
-    **Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. Choose exactly one verdict per scoped documentation file or clearly labeled file section, and never combine "Not applicable" with "No updates required" for the same file. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes.`;
+    **Critical**: ALWAYS provide specific edits OR state "No updates needed" only when the visible file contents support that conclusion. Choose exactly one verdict per scoped documentation file or clearly labeled file section, and never combine "Not applicable" with "No updates required" for the same file. If evidence is incomplete, mark the result unavailable or inconclusive instead of defaulting to no changes. If the visible evidence is out of scope for the documentation target, mark the result not applicable instead of no changes. When a scoped doc visibly inventories files or modules, verify that changed files are still represented there before clearing the doc as current.`;
 
   const basePrompt = buildStructuredPrompt({ role, task, approach });
   return injectProjectContext(basePrompt, projectInfo);
@@ -824,11 +840,13 @@ ${fileList}${fileContentsSection}`;
   only on partition-local visibility
 
 If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly.
+- Do not treat a documented command as mismatched merely because its executable name does not appear in the visible markdown file list. Commands may refer to external CLIs, package-manager binaries, or tools outside the listed docs; only flag a command mismatch when visible manifests, scripts, or file contents contradict the documented usage.
 - Do not claim that no version numbers or badges are present unless the relevant in-scope files or excerpts needed to support that absence are actually visible in the prompt or already established by the programmatic scan.
 - Do not claim heading, list, or code-fence consistency across files unless the exact supporting headings, list items, or fenced blocks are visible for each compared file; otherwise keep the claim scoped to the visible excerpts or mark it inconclusive.
 - Do not claim missing-documentation, missing-cross-reference, or stub-level checks passed merely because a file name appears in the file list; require visible file content or mark the check inconclusive.
 - Unlabelled fenced blocks are not automatically inconsistent; only report a code-block language-tag issue when the exact visible block and a visible project convention support that conclusion.
 - Do not write negative pass findings such as "No visible inconsistencies", "No evidence of mismatched terminology", or "No missing cross-references detected" unless the exact compared artifacts are visibly supported; otherwise phrase the remaining check as limited or inconclusive.
+- If you use the exact sentence "No additional issues found beyond the programmatic scan.", do not append unsupported pass claims after it; either stop there or keep any remaining checks explicitly limited or inconclusive.
 - If a file path appears in the provided file list but its content is omitted or truncated, do not say the file or section is "not visible"; describe the comparison as unavailable from the visible excerpt instead.
 If key evidence is missing for a requested comparison, say so explicitly and mark that conclusion limited or inconclusive.`;
 

@@ -15,6 +15,7 @@ import {
   enforceTerminalStepOrder,
   sanitizeWorkflowConfigDependencies,
   validatePlannedStepDependencies,
+  formatExecutionPlanDependencies,
   detectWorkflowConfigStructure,
   buildGeneratedWorkflowConfig,
   calculateProgress,
@@ -222,6 +223,7 @@ describe('Main Orchestrator - Pure Functions', () => {
         'step_00',
         'step_01',
         'step_14',
+        'step_16',
         'step_17',
         'step_0f',
         'step_12',
@@ -386,7 +388,7 @@ describe('Main Orchestrator - Pure Functions', () => {
       ]);
     });
 
-    test('preserves mandatory full-stage git finalization chain', () => {
+    test('preserves mandatory full-stage git finalization chain while keeping step_16 independent', () => {
       const plannedSteps = [
         'step_00',
         'step_04',
@@ -418,7 +420,7 @@ describe('Main Orchestrator - Pure Functions', () => {
         step_13: ['step_10'],
         step_14: ['step_13'],
         step_15: ['step_14'],
-        step_16: ['step_15'],
+        step_16: ['step_03'],
         step_18: ['step_16'],
         step_19: ['step_18'],
         step_20: ['step_19'],
@@ -429,7 +431,21 @@ describe('Main Orchestrator - Pure Functions', () => {
 
       expect(
         filterStepIdsByProfile(plannedSteps, [2, 4], dependencyIndex, ['step_08'], ['step_12'])
-      ).toEqual(plannedSteps);
+      ).toEqual([
+        'step_00',
+        'step_04',
+        'step_05',
+        'step_06',
+        'step_07',
+        'step_08',
+        'step_16',
+        'step_18',
+        'step_19',
+        'step_20',
+        'step_17',
+        'step_0f',
+        'step_12',
+      ]);
     });
 
     test('does not collapse focus=all plans to the preserved terminal dependency chain', () => {
@@ -515,7 +531,7 @@ describe('Main Orchestrator - Pure Functions', () => {
           ['step_15', 'step_16'],
           {
             step_15: ['step_14'],
-            step_16: ['step_15'],
+            step_16: ['step_03'],
           },
           ['step_14', 'step_15', 'step_16']
         )
@@ -535,7 +551,7 @@ describe('Main Orchestrator - Pure Functions', () => {
           ['step_15', 'step_16'],
           {
             step_15: ['step_14'],
-            step_16: ['step_15'],
+            step_16: ['step_03'],
           },
           ['step_14', 'step_15', 'step_16'],
           { disabledStepIds: ['step_14'] }
@@ -556,7 +572,7 @@ describe('Main Orchestrator - Pure Functions', () => {
           ['step_14', 'step_15', 'step_16'],
           {
             step_15: ['step_14'],
-            step_16: ['step_15'],
+            step_16: ['step_03'],
           },
           ['step_14', 'step_15', 'step_16']
         )
@@ -623,6 +639,74 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(result.errors[0]).toContain('cannot be removed via dependency_comment');
     });
 
+    test('flags locked canonical verification deps with an evidence-bound hint', () => {
+      const result = validatePlannedStepDependencies(
+        ['step_05', 'step_09'],
+        {
+          step_09: ['step_05', 'step_08'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        { disabledStepIds: ['step_08'] }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain(
+        'Selected step step_09 depends on step(s) excluded from the execution plan: step_08.'
+      );
+      expect(result.errors[0]).toContain(
+        'step_08 cannot be removed via dependency_comment because canonical dependency enforcement restores them.'
+      );
+      expect(result.errors[0]).toContain('Effective dependencies for step_09: [step_05, step_08].');
+    });
+
+    test('prioritizes locked canonical hints over dependency_comment guidance', () => {
+      const result = validatePlannedStepDependencies(
+        [
+          'step_09',
+          'step_11',
+          'step_15',
+          'step_19',
+          'step_20',
+          'step_22',
+          'step_23',
+          'step_17',
+          'step_0f',
+          'step_12',
+        ],
+        {
+          step_11: ['step_09', 'step_13'],
+          step_15: ['step_11'],
+          step_19: ['step_15'],
+          step_20: ['step_19'],
+          step_22: ['step_20'],
+          step_23: ['step_22'],
+          step_17: ['step_03', 'step_11', 'step_20', 'step_23'],
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        {
+          disabledStepIds: ['step_13'],
+          stepsWithDependencyComment: new Set(['step_11']),
+        }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain(
+        'Locked canonical prerequisite(s) for step_11: [step_13].'
+      );
+      expect(result.errors[0]).toContain(
+        'The current .workflow-config.yaml disables required prerequisite step(s): step_13 while keeping step_11 enabled.'
+      );
+      expect(result.errors[0]).toContain(
+        'If you keep [step_13] disabled, also disable enabled dependent step(s): [step_15, step_19, step_20, step_22, step_23, step_17, step_0f, step_12].'
+      );
+      expect(result.errors[0]).toContain(
+        'If you disabled step_13 because markdown lint tooling is unavailable, re-enable step_10 and step_13 instead'
+      );
+      expect(result.errors[0]).toContain('step_13 cannot be removed via dependency_comment');
+      expect(result.errors[0]).toContain('Effective dependencies for step_11: [step_09, step_13].');
+      expect(result.errors[0]).not.toContain('already has a dependency_comment');
+    });
+
     test('flags terminal summary steps when dep index still contains disabled branch deps', () => {
       // Tests validatePlannedStepDependencies in isolation with a manually-constructed index
       // that still has step_11_6/step_23 (i.e. before sanitize removes them).
@@ -662,9 +746,92 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(result.errors[0]).toContain('step_17');
       expect(result.errors[0]).toContain('cannot be removed via dependency_comment');
     });
+
+    test('emits targeted hint when step has dependency_comment and a missing disabled dep', () => {
+      // Reproduces the guia_js failure: step_17 explicitly lists disabled step_11_6 in
+      // dependencies alongside a dependency_comment. The hint must tell the author to
+      // remove the disabled dep from the array rather than suggesting dependency_comment
+      // as a new fix (the step already has one).
+      const result = validatePlannedStepDependencies(
+        ['step_03', 'step_20', 'step_17', 'step_0f', 'step_12'],
+        {
+          step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        {
+          disabledStepIds: ['step_11_6', 'step_23'],
+          stepsWithDependencyComment: new Set(['step_17']),
+        }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain(
+        'Selected step step_17 depends on step(s) excluded from the execution plan'
+      );
+      expect(result.errors[0]).toContain('step_17 already has a dependency_comment');
+      expect(result.errors[0]).toContain('remove it from the dependencies array');
+      expect(result.errors[0]).not.toContain('cannot be removed via dependency_comment');
+      expect(result.errors[0]).not.toContain('override its dependencies with dependency_comment');
+    });
+
+    test('emits absent-from-config hint when DEFAULT_TERMINAL_BRANCH dep is re-injected but not in disabledStepIds', () => {
+      // Reproduces the doc_template_lib failure: step_11_6 was omitted from the config entirely
+      // (not listed as enabled:false), so canonical enforcement re-injected it into step_17's
+      // effective deps. The author added dependency_comment believing that alone would suppress
+      // it, but the dep was never in disabledStepIds so suppression never applied.
+      const result = validatePlannedStepDependencies(
+        ['step_03', 'step_11', 'step_17', 'step_0f', 'step_12'],
+        {
+          step_17: ['step_03', 'step_11', 'step_11_6'],
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        {
+          disabledStepIds: ['step_20', 'step_23'],
+          stepsWithDependencyComment: new Set(['step_17']),
+        }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('step_11_6');
+      expect(result.errors[0]).toContain('absent from your config');
+      expect(result.errors[0]).toContain("enabled: false");
+      expect(result.errors[0]).not.toContain('already has a dependency_comment');
+      expect(result.errors[0]).not.toContain('remove it from the dependencies array');
+    });
+
+    test('falls back to generic hint when stepsWithDependencyComment is absent', () => {
+      const result = validatePlannedStepDependencies(
+        ['step_03', 'step_20', 'step_17', 'step_0f', 'step_12'],
+        {
+          step_17: ['step_03', 'step_11_6', 'step_20', 'step_23'],
+          step_0f: ['step_17'],
+          step_12: ['step_0f'],
+        },
+        getStepsForStage(WORKFLOW_STAGES.FULL),
+        { disabledStepIds: ['step_11_6', 'step_23'] }
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('dependency_comment');
+      expect(result.errors[0]).not.toContain('already has a dependency_comment');
+    });
   });
 
   describe('terminal finalization helpers', () => {
+    test('formatExecutionPlanDependencies keeps excluded prerequisites visible in plan previews', () => {
+      expect(
+        formatExecutionPlanDependencies(
+          { dependencies: ['step_09', 'step_13'] },
+          ['step_09', 'step_11', 'step_15']
+        )
+      ).toBe('step_09, step_13 [excluded]');
+    });
+
+    test('formatExecutionPlanDependencies returns none when a step has no dependencies', () => {
+      expect(formatExecutionPlanDependencies({}, ['step_00'])).toBe('(none)');
+    });
+
     test('enforceTerminalStepOrder moves terminal steps to the tail without dropping other steps', () => {
       expect(
         enforceTerminalStepOrder(['step_12', 'step_00', 'step_17', 'step_16', 'step_0f'])
@@ -1510,6 +1677,38 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result.results.status).toBe('failed');
       expect(result.results.summary.failed).toBe(2);
     });
+
+    test('refreshes the persisted summary after execution even when step_17 already ran', async () => {
+      const generateSummary = jest.fn().mockResolvedValue({ success: true, summary: 'refreshed' });
+      orchestrator.summaryGenerator.generateSummary = generateSummary;
+      orchestrator.workflowEngine.executeWorkflow = async () => ({
+        success: false,
+        summary: {
+          total: 3,
+          succeeded: 2,
+          failed: 1,
+          skipped: 0,
+        },
+        results: [
+          {
+            stepId: 'step_17',
+            stepName: 'Workflow Summary',
+            success: true,
+            duration: 10,
+            output: { summary: { success: true, summary: 'stale' } },
+          },
+          { stepId: 'step_0f', stepName: 'Commit Artifacts', success: true, duration: 5 },
+          { stepId: 'step_12', stepName: 'Git Finalization', success: false, duration: 5 },
+        ],
+        duration: 20,
+      });
+
+      const result = await orchestrator.execute();
+
+      expect(generateSummary).toHaveBeenCalledTimes(1);
+      expect(result.summary).toEqual({ success: true, summary: 'refreshed' });
+      expect(result.results.generatedSummary).toEqual({ success: true, summary: 'refreshed' });
+    });
   });
 
   describe('Workflow Resume', () => {
@@ -1946,6 +2145,14 @@ describe('Main Orchestrator - Integration Tests', () => {
         }
       });
 
+      test('registers step_16 on the script-reference branch instead of the UX chain', () => {
+        orchestrator.registerAllSteps();
+
+        expect(orchestrator.stepRegistry.get('step_16')).toMatchObject({
+          dependencies: ['step_03'],
+        });
+      });
+
       test('should enforce bootstrap and terminal summary dependencies', () => {
         orchestrator.registerAllSteps();
 
@@ -1985,6 +2192,22 @@ describe('Main Orchestrator - Integration Tests', () => {
             ].join('[\\s\\S]*')
           )
         );
+      });
+
+      test('explains that disabled steps still need dependency_comment for dependency overrides', () => {
+        expect(() =>
+          orchestrator.registerAllSteps({
+            workflow: {
+              steps: [
+                {
+                  id: 'step_21',
+                  enabled: false,
+                  dependencies: ['step_20'],
+                },
+              ],
+            },
+          })
+        ).toThrow(/disabled steps still require dependency_comment/i);
       });
 
       test('validates all dependency overrides before applying any project workflow updates', () => {
@@ -2802,6 +3025,53 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(result.checks.preflight.failedCommand).toBe('npm test');
     });
 
+    test('healthCheck treats exit-0 test failures as blocking when no baseline exists', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      jest.spyOn(orch, '_runPreflightQualitySuites').mockResolvedValue({
+        passed: false,
+        advisory: false,
+        hasForceExitWarning: false,
+        skipped: false,
+        commands: [{ name: 'test', command: 'npm test', passed: false, exitCode: 0 }],
+        failedCommand: 'npm test',
+        failureOutput: 'Parsed test failures: 2',
+        failureKind: 'test-parser-anomaly',
+        parsedFailureCount: 2,
+        failureEvidence: {
+          matchedLine: 'Tests: 2 failed, 8 passed',
+          matchedLineNumber: 14,
+          summaryExcerpt: 'Test Suites: 1 failed, 1 total\nTests: 2 failed, 8 passed',
+        },
+        message:
+          'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
+      });
+
+      const result = await orch.healthCheck();
+
+      expect(result.passed).toBe(false);
+      expect(result.checks.preflight.failedCommand).toBe('npm test');
+    });
+
+    test('healthCheck emits advisory for exit-0 test failures with no changed test files', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      jest.spyOn(orch, '_runPreflightQualitySuites').mockResolvedValue({
+        passed: true,
+        advisory: true,
+        advisoryMessage:
+          '2 test failure(s) detected but no test files are in the current changeset — ' +
+          'strongly suggests pre-existing failures unrelated to these changes.',
+        hasForceExitWarning: false,
+        skipped: false,
+        commands: [{ name: 'test', command: 'npm test', passed: true, exitCode: 0 }],
+        message: 'Advisory: 2 test failure(s) detected but no test files...',
+      });
+
+      const result = await orch.healthCheck();
+
+      expect(result.passed).toBe(true);
+      expect(result.checks.preflight.advisory).toBe(true);
+    });
+
     test('execute returns failure when health checks fail', async () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
       // Override healthCheck to return failure
@@ -2813,7 +3083,47 @@ describe('Main Orchestrator - Integration Tests', () => {
       );
       expect(result.success).toBe(false);
       expect(result.error).toContain('Health checks failed');
+      expect(logContent).toContain('"failed_phase":"preflight_health_checks"');
+      expect(logContent).toContain('"workflow_steps_started":false');
+      expect(logContent).toContain('"execution_plan_built":false');
       expect(logContent).toContain('✗ Workflow terminated before completion');
+    });
+
+    test('execute logs parser-anomaly evidence for blocking preflight failures', async () => {
+      const orch = new MainOrchestrator({ workflowDir: localTestDir });
+      jest.spyOn(orch, '_runPreflightQualitySuites').mockResolvedValue({
+        passed: false,
+        advisory: false,
+        hasForceExitWarning: false,
+        skipped: false,
+        commands: [{ name: 'test', command: 'npm test', passed: false, exitCode: 0 }],
+        failedCommand: 'npm test',
+        failureOutput: 'Parsed test failures: 2',
+        failureKind: 'test-parser-anomaly',
+        parsedFailureCount: 2,
+        failureEvidence: {
+          matchedLine: 'Tests: 2 failed, 8 passed, 10 total',
+          matchedLineNumber: 27,
+          summaryExcerpt:
+            'Test Suites: 1 failed, 1 total\nTests: 2 failed, 8 passed, 10 total\nRan all test suites.',
+        },
+        failureArtifact: path.join(localTestDir, 'logs', 'preflight', 'test.log'),
+        message:
+          'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
+      });
+
+      const result = await orch.execute({});
+      const logContent = await fs.readFile(
+        path.join(localTestDir, 'logs', orch.configManager.workflowRunId, 'workflow.log'),
+        'utf8'
+      );
+
+      expect(result.success).toBe(false);
+      expect(logContent).toContain(
+        'Pre-flight anomaly: parsed test-failure summary conflicts with process exit code: npm test'
+      );
+      expect(logContent).toContain('Matched summary line [line 27]: Tests: 2 failed, 8 passed, 10 total');
+      expect(logContent).toContain('"failed_command":"npm test"');
     });
 
     test('execute fails before pre-flight suites when workflow overrides are invalid', async () => {
@@ -2857,9 +3167,22 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(logContent).toContain(
         'Validating .workflow-config.yaml step overrides against canonical workflow order...'
       );
+      expect(logContent).toContain(
+        'Preflight config validation only — no workflow steps have started yet.'
+      );
+      expect(logContent).toContain(
+        'Loading canonical workflow step definitions for preflight validation (execution has not started)...'
+      );
+      expect(logContent).toContain(
+        '[WorkflowConfig] Dependency override validation failed. Raw vs effective dependency diagnostics:'
+      );
+      expect(logContent).toContain(
+        '[WorkflowConfig] Invalid dependency override for step_02 (Consistency Analysis) | canonical=[step_01_5] | raw=[step_01] | dependency_comment=missing'
+      );
       expect(logContent).not.toContain('Pre-flight quality suites passed');
       expect(logContent).not.toContain('All health checks passed');
       expect(logContent).not.toContain('Profile: full_validation');
+      expect(logContent).not.toContain('Starting workflow execution...');
     });
 
     test('execute fails before pre-flight suites when an enabled step depends on an explicitly disabled prerequisite', async () => {

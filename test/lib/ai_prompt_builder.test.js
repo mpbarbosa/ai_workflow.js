@@ -1183,6 +1183,17 @@ describe('AI Prompt Builder Module - PromptBuilder Class', () => {
 
       expect(result.length).toBeLessThan(500);
     });
+
+    test('preserves project context when truncating long prompts', () => {
+      const result = builder.buildDocAnalysis({
+        changedFiles: ['app.js'],
+        docFiles: ['README.md'],
+      });
+
+      expect(result).toContain('**Project Context**');
+      expect(result).toContain('JavaScript');
+      expect(result).toContain('(truncated)');
+    });
   });
 
   describe('buildConsistency', () => {

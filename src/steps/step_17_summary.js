@@ -71,7 +71,7 @@ export function aggregateStepResults(metrics) {
       rawStatus === 'passed' ? 'success' : rawStatus === 'pass' ? 'success' : rawStatus;
     const duration =
       typeof stepData.duration_ms === 'number'
-        ? stepData.duration_ms
+        ? stepData.duration_ms / 1000
         : typeof stepData.duration_seconds === 'number'
           ? stepData.duration_seconds
           : typeof stepData.duration === 'number'

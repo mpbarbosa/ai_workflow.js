@@ -1,13 +1,14 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 41,
-  "filesHash": "84a701a5",
+  "totalPartitions": 42,
+  "filesHash": "bada873e",
   "partitionLabels": [
     "test/cli",
     "test/cli (2)",
     "test/cli (3)",
     "test/cli (4)",
+    "test/cli (5)",
     "test/core",
     "test/e2e",
     "test/e2e (2)",
@@ -46,5 +47,5 @@
     "test/types, test/utils",
     "src/steps"
   ],
-  "updatedAt": "2026-05-06T02:58:10.371Z"
+  "updatedAt": "2026-05-06T04:22:44.089Z"
 }

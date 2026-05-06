@@ -123,13 +123,38 @@ export function aggregateIssues(stepResults) {
     passed: 0,
   };
 
+  const countResultIssues = (result) => {
+    if (typeof result?.totalIssues === 'number') {
+      return result.totalIssues;
+    }
+
+    if (typeof result?.stats?.totalIssues === 'number') {
+      return result.stats.totalIssues;
+    }
+
+    if (Array.isArray(result?.issues)) {
+      return result.issues.length;
+    }
+
+    return [
+      result?.antiPatterns,
+      result?.brokenLinks,
+      result?.versionIssues,
+      result?.missingScripts,
+      result?.unreferencedScripts,
+    ].reduce((count, collection) => count + (Array.isArray(collection) ? collection.length : 0), 0);
+  };
+
   stepResults.forEach((result) => {
+    const warningCount = Array.isArray(result.warnings) ? result.warnings.length : 0;
+    const issueCount = countResultIssues(result);
+
     if (result.success === false) {
       summary.critical++;
       summary.total++;
-    } else if (result.warnings && result.warnings.length > 0) {
-      summary.warnings++;
-      summary.total++;
+    } else if (issueCount > 0 || warningCount > 0) {
+      summary.warnings += issueCount + warningCount;
+      summary.total += issueCount + warningCount;
     } else if (result.success === true) {
       summary.passed++;
     }

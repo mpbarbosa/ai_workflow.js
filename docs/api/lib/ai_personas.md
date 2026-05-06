@@ -1,7 +1,7 @@
 # ai_personas
 
 **Module:** `src/lib/ai_personas.js`
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Architecture:** Pure functions only
 
 AI persona definitions and management for workflow automation.

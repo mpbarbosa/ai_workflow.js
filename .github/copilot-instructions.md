@@ -62,7 +62,7 @@ Use narrower scripts from `package.json` only for intentionally scoped tasks.
 
 ## Authoritative References
 
-Consult these documents for details:
+For further details, consult:
 
 - `README.md`
 - `docs/ARCHITECTURE.md`

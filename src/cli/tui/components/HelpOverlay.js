@@ -14,36 +14,21 @@ import React from 'react';
 import { Box, Text, useInput } from 'ink';
 import { buildHelpLines } from '../helpers.js';
 export function HelpOverlay({ onClose }) {
-  const lines = buildHelpLines();
-  useInput((input, key) => {
-    if (input === 'h' || input === 'H' || key.escape) {
-      onClose?.();
-    }
-  });
-  return React.createElement(
-    Box,
-    { flexDirection: 'column', borderStyle: 'double', borderColor: 'cyan', padding: 1, marginX: 4 },
-    React.createElement(Text, { bold: true, color: 'cyan' }, '⌨  Keyboard Shortcuts'),
-    React.createElement(Text, null, ''),
-    ...lines.map((line, index) =>
-      React.createElement(
-        Text,
-        {
-          key: index,
-          color:
-            line === ''
-              ? 'gray'
-              : line.startsWith('  ')
+    const lines = buildHelpLines();
+    useInput((input, key) => {
+        if (input === 'h' || input === 'H' || key.escape) {
+            onClose?.();
+        }
+    });
+    return React.createElement(Box, { flexDirection: 'column', borderStyle: 'double', borderColor: 'cyan', padding: 1, marginX: 4 }, React.createElement(Text, { bold: true, color: 'cyan' }, '⌨  Keyboard Shortcuts'), React.createElement(Text, null, ''), ...lines.map((line, index) => React.createElement(Text, {
+        key: index,
+        color: line === ''
+            ? 'gray'
+            : line.startsWith('  ')
                 ? 'white'
                 : line.startsWith('When') || line.startsWith('Mouse')
-                  ? 'yellow'
-                  : 'white',
-        },
-        line === '' ? ' ' : line
-      )
-    ),
-    React.createElement(Text, null, ''),
-    React.createElement(Text, { color: 'gray', dimColor: true }, 'Press [h] or [Esc] to close')
-  );
+                    ? 'yellow'
+                    : 'white',
+    }, line === '' ? ' ' : line)), React.createElement(Text, null, ''), React.createElement(Text, { color: 'gray', dimColor: true }, 'Press [h] or [Esc] to close'));
 }
 export default HelpOverlay;

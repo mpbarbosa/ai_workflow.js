@@ -425,6 +425,9 @@ describe('Step 1: Documentation Validation', () => {
         'When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines)'
       );
       expect(prompt).toContain('Never invent or infer release dates or "Last updated" dates');
+      expect(prompt).toContain(
+        'If a visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list'
+      );
     });
 
     test('buildStep1SynthesisPrompt omits empty project context sections', () => {
@@ -471,6 +474,27 @@ describe('Step 1: Documentation Validation', () => {
       ];
 
       expect(selectStep1FinalAnalysisContent(combined, synthesis, scopedDocEntries)).toBe(combined);
+    });
+
+    test('selectStep1FinalAnalysisContent keeps partition findings when synthesis overstates certainty on mixed support-only evidence', () => {
+      const combined = [
+        '#### Partition 1 of 3',
+        '',
+        'README.md\n\nVerdict: No updates required',
+        '',
+        '#### Partition 2 of 3',
+        '',
+        'Not applicable — visible files are unrelated to README.md.',
+        '',
+        '#### Partition 3 of 3',
+        '',
+        'Not applicable — support-only evidence with no direct README.md excerpt.',
+      ].join('\n');
+      const synthesis = 'README.md\n\nVerdict: No updates required';
+
+      expect(selectStep1FinalAnalysisContent(combined, synthesis, [{ relativePath: 'README.md', content: '# README' }])).toBe(
+        combined
+      );
     });
   });
 

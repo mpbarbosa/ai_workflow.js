@@ -282,6 +282,16 @@ describe('Step 8: Test Execution', () => {
       expect(result.total).toBe(5037);
       expect(result.suitesFailed).toBe(5);
     });
+
+    test('parses Vitest summaries', () => {
+      const output = ['Test Files  1 passed (1)', 'Tests  3 passed (3)'].join('\n');
+      const result = parseJestOutput(output);
+
+      expect(result.passed).toBe(3);
+      expect(result.total).toBe(3);
+      expect(result.suitesFailed).toBe(0);
+      expect(result.suitesTotal).toBe(1);
+    });
   });
 
   describe('parsePytestOutput', () => {
@@ -694,6 +704,24 @@ describe('Step 8: Test Execution', () => {
       expect(result.testResults.failed).toBe(2);
     });
 
+    test('does not log silent-exit preflight correlation notes for parsed test failures', async () => {
+      const loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+      mockExecutor.execute = async () => ({
+        exitCode: 0,
+        stdout: 'Test Suites: 1 failed, 3 passed, 4 total\nTests: 8 passed, 2 failed, 10 total',
+        stderr: '',
+      });
+
+      const result = await executor.execute('/project', {
+        preflightCheck: {
+          commands: [{ name: 'test', command: 'npm test', passed: true }],
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(loggerInfoSpy).not.toHaveBeenCalledWith(expect.stringContaining('silent exit here points'));
+    });
+
     test('[BUG FIX] treats 0 tests found as success=true (warning, not critical failure)', async () => {
       // jest exits with code 1 when no test files are found — this must not halt the workflow
       mockExecutor.execute = async () => {
@@ -761,6 +789,20 @@ describe('Step 8: Test Execution', () => {
       expect(result.success).toBe(false);
       expect(result.noTestsFound).toBe(false);
       expect(result.exitCode).toBe(1);
+    });
+
+    test('[BUG FIX] Vitest pass output is not collapsed into "no tests found"', async () => {
+      mockExecutor.execute = async () => ({
+        stdout: ['Test Files  1 passed (1)', 'Tests  3 passed (3)'].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      });
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(result.noTestsFound).toBe(false);
+      expect(result.testResults.total).toBe(3);
     });
 
     test('collects coverage metrics', async () => {

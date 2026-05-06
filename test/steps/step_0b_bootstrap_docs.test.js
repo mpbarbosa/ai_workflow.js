@@ -84,7 +84,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
       const missing = identifyMissingDocs(existing);
 
       expect(missing).toContain('CHANGELOG.md');
-      expect(missing).toContain('CONTRIBUTING.md');
+      expect(missing).toContain('docs/CONTRIBUTING.md');
       expect(missing).toContain('LICENSE');
       expect(missing).not.toContain('README.md');
     });
@@ -199,7 +199,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
         primaryLanguage: 'JavaScript',
         docCount: 2,
         sourceCount: 50,
-        missingDocs: ['CHANGELOG.md', 'CONTRIBUTING.md'],
+        missingDocs: ['CHANGELOG.md', 'docs/CONTRIBUTING.md'],
       };
 
       const prompt = buildTechnicalWriterPrompt(context);
@@ -208,7 +208,8 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(prompt).toContain('A test project');
       expect(prompt).toContain('JavaScript');
       expect(prompt).toContain('CHANGELOG.md');
-      expect(prompt).toContain('CONTRIBUTING.md');
+      expect(prompt).toContain('docs/CONTRIBUTING.md');
+      expect(prompt).toContain('Keep only `README.md` and `CHANGELOG.md` at the repository root');
       expect(prompt).toContain('Senior Technical Writer');
     });
 
@@ -253,10 +254,10 @@ describe('Step 0b: Bootstrap Documentation', () => {
         },
         categorized: {
           critical: ['README.md'],
-          important: ['CHANGELOG.md', 'CONTRIBUTING.md'],
+          important: ['CHANGELOG.md', 'docs/CONTRIBUTING.md'],
           optional: ['docs/API.md'],
         },
-        missingDocs: ['README.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'docs/API.md'],
+        missingDocs: ['README.md', 'CHANGELOG.md', 'docs/CONTRIBUTING.md', 'docs/API.md'],
         timestamp: '2026-02-08 13:30:00',
       };
 
@@ -362,7 +363,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
     });
 
     test('parses content block with bare (no-language) fence', () => {
-      const response = '## CONTRIBUTING.md\n\n### Content:\n```\n# Contributing\n```\n';
+      const response = '## docs/CONTRIBUTING.md\n\n### Content:\n```\n# Contributing\n```\n';
       const results = parseAiDocResponse(response);
       expect(results).toHaveLength(1);
       expect(results[0].content).toContain('# Contributing');
@@ -521,7 +522,7 @@ describe('Step 0b: Bootstrap Documentation', () => {
         .mockResolvedValue([
           'README.md',
           'CHANGELOG.md',
-          'CONTRIBUTING.md',
+          'docs/CONTRIBUTING.md',
           'LICENSE',
           'docs/API.md',
           'docs/ARCHITECTURE.md',
@@ -625,6 +626,57 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(result.error).toBe('File system error');
       expect(mockBacklog.saveStepIssues).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  // ========================================================================
+  // buildTechnicalWriterPrompt - output format contract
+  // ========================================================================
+
+  describe('buildTechnicalWriterPrompt', () => {
+    const baseContext = {
+      projectName: 'test-project',
+      projectDescription: 'A test project',
+      primaryLanguage: 'javascript',
+      docCount: 2,
+      sourceCount: 10,
+      missingDocs: ['README.md'],
+      resolvedAiHelpers: null,
+    };
+
+    test('inline fallback prompt contains required output format schema', () => {
+      const prompt = buildTechnicalWriterPrompt(baseContext);
+      expect(prompt).toContain('### Content:');
+      expect(prompt).toContain('```markdown');
+    });
+
+    test('yaml-path prompt appends output format schema when resolvedAiHelpers is provided', () => {
+      const context = {
+        ...baseContext,
+        resolvedAiHelpers: {
+          technical_writer_prompt: {
+            role_prefix: 'You are a technical writer.',
+            task_template: 'Analyze {project_name} docs.',
+            behavioral_guidelines: null,
+          },
+        },
+      };
+      const prompt = buildTechnicalWriterPrompt(context);
+      expect(prompt).toContain('OUTPUT FORMAT — REQUIRED');
+      expect(prompt).toContain('### Content:');
+      expect(prompt).toContain('NO ACTION NEEDED');
+    });
+
+    test('yaml-path prompt falls back to inline when role_prefix is missing', () => {
+      const context = {
+        ...baseContext,
+        resolvedAiHelpers: {
+          technical_writer_prompt: { task_template: 'Analyze {project_name} docs.' },
+        },
+      };
+      const prompt = buildTechnicalWriterPrompt(context);
+      // Falls back to inline template which already has the format
+      expect(prompt).toContain('### Content:');
     });
   });
 });

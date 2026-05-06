@@ -431,29 +431,35 @@ export function parseJestOutput(output) {
     suitesTotal: 0,
   };
 
-  // Find the "Tests:" summary line (Jest order varies: failed, skipped, passed, total)
-  const testsLine = clean.match(/^Tests:\s+.+$/m);
+  // Find the test summary line for Jest or Vitest.
+  const testsLine = clean.match(/^\s*Tests:\s+.+$/m) || clean.match(/^\s*Tests\s+.+$/m);
   if (testsLine) {
     const line = testsLine[0];
     const passedMatch = line.match(/(\d+)\s+passed/);
     const failedMatch = line.match(/(\d+)\s+failed/);
     const skippedMatch = line.match(/(\d+)\s+skipped/);
-    const totalMatch = line.match(/(\d+)\s+total/);
+    const totalMatch = line.match(/(\d+)\s+total|\((\d+)\)/);
 
     if (passedMatch) results.passed = parseInt(passedMatch[1], 10);
     if (failedMatch) results.failed = parseInt(failedMatch[1], 10);
     if (skippedMatch) results.skipped = parseInt(skippedMatch[1], 10);
-    if (totalMatch) results.total = parseInt(totalMatch[1], 10);
+    if (totalMatch) {
+      results.total = parseInt(totalMatch[1] || totalMatch[2], 10);
+    } else if (results.passed > 0 || results.failed > 0 || results.skipped > 0) {
+      results.total = results.passed + results.failed + results.skipped;
+    }
   }
 
-  // Also parse "Test Suites:" line to capture suite-level failures (e.g. module not found)
-  const suitesLine = clean.match(/^Test Suites:\s+.+$/m);
+  // Also parse suite/file summary lines to capture module-level failures.
+  const suitesLine =
+    clean.match(/^\s*Test Suites:\s+.+$/m) || clean.match(/^\s*Test Files?\s+.+$/m);
   if (suitesLine) {
     const line = suitesLine[0];
     const suiteFailedMatch = line.match(/(\d+)\s+failed/);
-    const suiteTotalMatch = line.match(/(\d+)\s+total/);
+    const suiteTotalMatch = line.match(/(\d+)\s+total|\((\d+)\)/);
     if (suiteFailedMatch) results.suitesFailed = parseInt(suiteFailedMatch[1], 10);
-    if (suiteTotalMatch) results.suitesTotal = parseInt(suiteTotalMatch[1], 10);
+    if (suiteTotalMatch)
+      results.suitesTotal = parseInt(suiteTotalMatch[1] || suiteTotalMatch[2], 10);
   }
 
   return results;
@@ -1106,13 +1112,6 @@ export class Step8TestExecutor {
       }
 
       logger.info(`Test command: ${testCommand}`);
-      const preflightCorrelationNote = formatPreflightCorrelationNote(
-        options.preflightCheck,
-        testCommand
-      );
-      if (preflightCorrelationNote) {
-        logger.info(preflightCorrelationNote);
-      }
 
       // Phase 2: Execute tests
       logger.debug(`[step_08] Executing test command: ${testCommand} in ${projectRoot}`);
@@ -1142,11 +1141,14 @@ export class Step8TestExecutor {
       const executionError = testResult.executionError || '';
       const noRuntimeEvidenceFailure =
         !noTestsMessageInOutput && (runnerCrashed || executionError.length > 0);
+      const preflightCorrelationNote = noRuntimeEvidenceFailure
+        ? formatPreflightCorrelationNote(options.preflightCheck, testCommand)
+        : '';
+      if (preflightCorrelationNote) {
+        logger.info(preflightCorrelationNote);
+      }
       const duration = Date.now() - startTime;
-      const noTestsFound =
-        testResults.total === 0 &&
-        (testResults.suitesFailed ?? 0) === 0 &&
-        (testResult.exitCode === 0 || noTestsMessageInOutput);
+      const noTestsFound = noTestsMessageInOutput;
       const anyFailure =
         testResults.failed > 0 ||
         (testResults.suitesFailed ?? 0) > 0 ||
@@ -1448,8 +1450,8 @@ export class Step8TestExecutor {
       }
 
       return {
-        success,
         ...results,
+        success,
       };
     } catch (error) {
       logger.error(`Step 8 failed: ${error.message}`);

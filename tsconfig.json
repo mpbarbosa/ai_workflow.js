@@ -23,6 +23,7 @@
     "src/cli/tui/components/ErrorDetailPanel.ts",
     "src/cli/tui/components/Header.ts",
     "src/cli/tui/components/HelpOverlay.ts",
+    "src/cli/tui/helpers/reusable.ts",
     "src/cli/commands/clean.ts",
     "src/cli/commands/config.ts",
     "src/cli/commands/deploy.ts",

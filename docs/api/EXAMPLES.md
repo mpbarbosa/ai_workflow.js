@@ -1,6 +1,6 @@
 # API Usage Examples
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Last Updated:** February 2, 2026
 **Status:** Complete
 

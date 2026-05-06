@@ -20,6 +20,7 @@ import { buildYamlStepPrompt, loadResolvedAiHelpers } from '../lib/ai_prompt_bui
 export const COPILOT_INSTRUCTIONS_RELATIVE_PATH = '.github/copilot-instructions.md';
 export const COPILOT_REFERENCE_DOCS = [
   'README.md',
+  'CLAUDE.md',
   'INDEX.md',
   'ROADMAP.md',
   'docs/ARCHITECTURE.md',
@@ -62,6 +63,7 @@ export const COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS = [
   'Stable Source Layers',
   'Supporting Workflow Surfaces',
   'Authoritative Reference Docs',
+  'Reference Doc Signals',
   'Public Package Entry Points',
 ];
 const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|d\.ts)$/i;
@@ -92,18 +94,89 @@ function isSourceFile(fileName) {
   return SOURCE_FILE_PATTERN.test(fileName);
 }
 
-function buildReferenceDocSignal(relativePath, content) {
-  const lines = String(content ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (lines.length === 0) {
-    return null;
+function normalizeSignalSnippet(text) {
+  return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 240);
+}
+
+function isSkippableSignalBlock(block) {
+  if (!block) {
+    return true;
   }
 
-  const snippet = lines.slice(0, 2).join(' ').replace(/\s+/g, ' ').slice(0, 200);
+  const trimmed = block.trim();
+  if (!trimmed) {
+    return true;
+  }
 
-  return `${relativePath}: ${snippet}`;
+  if (trimmed.startsWith('```')) {
+    return true;
+  }
+
+  const lines = trimmed.split(/\r?\n/).map((line) => line.trim());
+  if (lines.every((line) => line.startsWith('#'))) {
+    return true;
+  }
+
+  if (lines.every((line) => /^[:|\- ]+$/.test(line))) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildReferenceDocSignals(relativePath, content) {
+  const text = String(content ?? '');
+  if (!text.trim()) {
+    return [];
+  }
+
+  const signals = [];
+  const blocks = text
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => block.trim())
+    .filter((block) => !isSkippableSignalBlock(block));
+
+  const firstNarrativeBlock = blocks.find((block) =>
+    block
+      .split(/\r?\n/)
+      .some((line) => {
+        const trimmed = line.trim();
+        return trimmed.length > 0 && !trimmed.startsWith('#') && !trimmed.startsWith('|');
+      })
+  );
+  if (firstNarrativeBlock) {
+    signals.push(`${relativePath}: ${normalizeSignalSnippet(firstNarrativeBlock)}`);
+  }
+
+  const conventionPatterns = [
+    /each guide should/i,
+    /cross-reference/i,
+    /write documentation/i,
+    /keep documents actionable/i,
+    /mirror the structure/i,
+    /documentation-first/i,
+    /no source code/i,
+    /no build/i,
+    /no test/i,
+  ];
+  const conventionLines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => /^(-|\d+\.)\s/.test(line))
+    .filter((line) => conventionPatterns.some((pattern) => pattern.test(line)))
+    .map((line) => `${relativePath}: ${normalizeSignalSnippet(line)}`);
+
+  for (const signal of conventionLines) {
+    if (!signals.includes(signal)) {
+      signals.push(signal);
+    }
+    if (signals.length >= 5) {
+      break;
+    }
+  }
+
+  return signals;
 }
 
 function formatPackageEntryPoint(label, target) {
@@ -388,10 +461,13 @@ export function validateCopilotInstructionsFindings(findingsText, repoFactsConte
   }
 
   const issues = [];
+  const sectionCount = sections.length;
   for (const section of sections) {
     const heading = section.split('\n', 1)[0] || 'Unknown finding';
+    const findingTitle = heading.replace(/^###\s+Finding\s+\d+\s+-\s+/i, '').trim();
     const classification = extractFindingBulletValue(section, 'Classification');
     const action = extractFindingBulletValue(section, 'Action');
+    const currentFileEvidence = extractFindingBulletValue(section, 'Current file evidence');
     const repoFactEvidence = extractFindingBulletValue(section, 'Repo-fact evidence');
 
     if (!COPILOT_INSTRUCTIONS_FINDING_CLASSIFICATIONS.includes(classification)) {
@@ -402,6 +478,16 @@ export function validateCopilotInstructionsFindings(findingsText, repoFactsConte
 
     if (!COPILOT_INSTRUCTIONS_FINDING_ACTIONS.includes(action)) {
       issues.push(`${heading} uses unsupported action "${action || '(missing)'}".`);
+    }
+
+    if (
+      sectionCount > 1 &&
+      /^(absence of|no )/i.test(findingTitle) &&
+      /^(none\b|no\b)/i.test(currentFileEvidence)
+    ) {
+      issues.push(
+        `${heading} is a meta or absent-topic finding; reserve that pattern for the single no-issue finding or a concretely required omission.`
+      );
     }
 
     const repoFactValidation = validateRepoFactEvidence(
@@ -431,6 +517,9 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
     .map(({ path: layerPath, purpose }) => `- \`${layerPath}\` - ${purpose}`)
     .join('\n');
   const referenceDocs = (facts.referenceDocs ?? []).map((doc) => `- \`${doc}\``).join('\n');
+  const referenceDocSignals = (facts.referenceDocSignals ?? [])
+    .map((signal) => `- ${signal}`)
+    .join('\n');
   const supportingSurfaces = (facts.supportingSurfaces ?? [])
     .map(({ path: surfacePath, purpose }) => `- \`${surfacePath}\` - ${purpose}`)
     .join('\n');
@@ -470,6 +559,9 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
     '',
     '### Authoritative Reference Docs',
     referenceDocs || '- Unavailable',
+    '',
+    '### Reference Doc Signals',
+    referenceDocSignals || '- Unavailable',
     '',
     '### Public Package Entry Points',
     packageExports || '- Unavailable',
@@ -642,12 +734,12 @@ export class Step1_5CopilotInstructionsValidator {
       referenceDocs.map(async (relativePath) => {
         try {
           const content = await this.fileOps.readFile(path.join(projectRoot, relativePath));
-          return buildReferenceDocSignal(relativePath, content);
+          return buildReferenceDocSignals(relativePath, content);
         } catch {
-          return null;
+          return [];
         }
       })
-    ).then((signals) => signals.filter(Boolean));
+    ).then((signals) => signals.flat().filter(Boolean));
 
     return {
       packageManifestPresent,

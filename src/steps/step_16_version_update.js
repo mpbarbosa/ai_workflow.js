@@ -1,7 +1,8 @@
 /**
  * Step 16: AI-Powered Semantic Version Update
  * Updates semantic versions in modified files and project metadata.
- * Runs after analysis steps (10,12,13,14), before Git Finalization.
+ * Runs after the script-reference branch so version updates remain mandatory
+ * even when prompt/UX analysis is blocked by unrelated failures.
  * @module steps/step_16_version_update
  * @version 2.0.0
  */
