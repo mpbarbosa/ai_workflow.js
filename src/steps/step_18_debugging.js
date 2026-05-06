@@ -211,7 +211,7 @@ export const STEP_DEFINITION = {
   name: 'Debugging Analysis',
   kind: STEP_KIND.ANALYSIS,
   description: 'AI-powered debugging analysis using observer, async, and data-structure personas',
-  dependencies: [],
+  dependencies: ['step_16'],
 };
 
 // ============================================================================

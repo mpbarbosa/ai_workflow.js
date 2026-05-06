@@ -796,7 +796,7 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(result.valid).toBe(false);
       expect(result.errors[0]).toContain('step_11_6');
       expect(result.errors[0]).toContain('absent from your config');
-      expect(result.errors[0]).toContain("enabled: false");
+      expect(result.errors[0]).toContain('enabled: false');
       expect(result.errors[0]).not.toContain('already has a dependency_comment');
       expect(result.errors[0]).not.toContain('remove it from the dependencies array');
     });
@@ -821,10 +821,11 @@ describe('Main Orchestrator - Pure Functions', () => {
   describe('terminal finalization helpers', () => {
     test('formatExecutionPlanDependencies keeps excluded prerequisites visible in plan previews', () => {
       expect(
-        formatExecutionPlanDependencies(
-          { dependencies: ['step_09', 'step_13'] },
-          ['step_09', 'step_11', 'step_15']
-        )
+        formatExecutionPlanDependencies({ dependencies: ['step_09', 'step_13'] }, [
+          'step_09',
+          'step_11',
+          'step_15',
+        ])
       ).toBe('step_09, step_13 [excluded]');
     });
 
@@ -3042,8 +3043,7 @@ describe('Main Orchestrator - Integration Tests', () => {
           matchedLineNumber: 14,
           summaryExcerpt: 'Test Suites: 1 failed, 1 total\nTests: 2 failed, 8 passed',
         },
-        message:
-          'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
+        message: 'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
       });
 
       const result = await orch.healthCheck();
@@ -3108,8 +3108,7 @@ describe('Main Orchestrator - Integration Tests', () => {
             'Test Suites: 1 failed, 1 total\nTests: 2 failed, 8 passed, 10 total\nRan all test suites.',
         },
         failureArtifact: path.join(localTestDir, 'logs', 'preflight', 'test.log'),
-        message:
-          'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
+        message: 'Preflight anomaly: parsed test-failure summary conflicts with process exit code',
       });
 
       const result = await orch.execute({});
@@ -3122,7 +3121,9 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(logContent).toContain(
         'Pre-flight anomaly: parsed test-failure summary conflicts with process exit code: npm test'
       );
-      expect(logContent).toContain('Matched summary line [line 27]: Tests: 2 failed, 8 passed, 10 total');
+      expect(logContent).toContain(
+        'Matched summary line [line 27]: Tests: 2 failed, 8 passed, 10 total'
+      );
       expect(logContent).toContain('"failed_command":"npm test"');
     });
 
@@ -3178,6 +3179,12 @@ describe('Main Orchestrator - Integration Tests', () => {
       );
       expect(logContent).toContain(
         '[WorkflowConfig] Invalid dependency override for step_02 (Consistency Analysis) | canonical=[step_01_5] | raw=[step_01] | dependency_comment=missing'
+      );
+      expect(logContent).toContain(
+        'Effective configured workflow step set before dependency override validation failure:'
+      );
+      expect(logContent).toContain(
+        'step_02 — Consistency Analysis | deps: step_01 [excluded] | dependency override: added step_01; removed step_01_5'
       );
       expect(logContent).not.toContain('Pre-flight quality suites passed');
       expect(logContent).not.toContain('All health checks passed');

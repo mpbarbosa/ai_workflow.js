@@ -179,6 +179,7 @@ describe('STEP_DEFINITION', () => {
     expect(STEP_DEFINITION).toHaveProperty('kind');
     expect(STEP_DEFINITION).toHaveProperty('description');
     expect(Array.isArray(STEP_DEFINITION.dependencies)).toBe(true);
+    expect(STEP_DEFINITION.dependencies).toEqual(['step_16']);
   });
 });
 

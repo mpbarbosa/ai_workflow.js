@@ -331,10 +331,7 @@ export class MainOrchestrator {
         const summaryStepHandler = getCanonicalWorkflowSteps().find(
           (step) => step.id === 'step_17'
         )?.handler;
-        const SummaryGenerator = await this._resolveStepExecutor(
-          'step_17',
-          summaryStepHandler
-        );
+        const SummaryGenerator = await this._resolveStepExecutor('step_17', summaryStepHandler);
         const generator = new SummaryGenerator(this.workflowDir);
         return generator.generateSummary(options);
       },
@@ -458,8 +455,10 @@ export class MainOrchestrator {
     }
 
     const overrides = buildWorkflowConfigStepIndex(projectWorkflowConfig);
+    const disabledConfigStepIds = getDisabledWorkflowConfigStepIds(projectWorkflowConfig);
     const configPath = path.join(this.projectRoot, '.workflow-config.yaml');
     const pendingUpdates = [];
+    const previewUpdates = new Map();
     const pendingErrors = [];
     const pendingDiagnostics = [];
 
@@ -479,7 +478,6 @@ export class MainOrchestrator {
           ? existingStep.metadata.canonicalDependencies
           : existingStep?.dependencies || [];
         const rawConfiguredDependencies = normalizeDependencyList(override.dependencies);
-        const disabledConfigStepIds = getDisabledWorkflowConfigStepIds(projectWorkflowConfig);
         const sanitizedDependencies = sanitizeWorkflowConfigDependencies(
           stepId,
           rawConfiguredDependencies,
@@ -518,6 +516,10 @@ export class MainOrchestrator {
           : normalizeDependencyList(canonicalDependencies);
         if (semanticallyOverridesCanonical) {
           if (!override.dependencyComment) {
+            previewUpdates.set(stepId, {
+              ...updates,
+              dependencies: sanitizedDependencies,
+            });
             pendingDiagnostics.push(
               buildWorkflowConfigDependencyOverrideDiagnostic({
                 stepId,
@@ -570,6 +572,7 @@ export class MainOrchestrator {
         updates.description = override.description;
       }
 
+      previewUpdates.set(stepId, updates);
       pendingUpdates.push([stepId, updates]);
     }
 
@@ -580,6 +583,33 @@ export class MainOrchestrator {
         );
         pendingDiagnostics.forEach((diagnostic) => logger.error(diagnostic));
       }
+      if (disabledConfigStepIds.length > 0) {
+        logger.info(
+          `[WorkflowConfig] Disabled steps in .workflow-config.yaml: ${disabledConfigStepIds.join(', ')}`
+        );
+      }
+      logEffectiveExecutionPlan(
+        getConfiguredStepsForStage(this.stage, projectWorkflowConfig)
+          .map((stepId) => {
+            const step = this.stepRegistry.get(stepId);
+            if (!step) {
+              return null;
+            }
+            const updates = previewUpdates.get(stepId) || {};
+            return {
+              id: step.id,
+              name: updates.name || step.name,
+              canonicalName: step.metadata?.canonicalName || step.name,
+              dependencies: updates.dependencies || step.dependencies || [],
+              metadata: {
+                ...(step.metadata || {}),
+                ...(updates.metadata || {}),
+              },
+            };
+          })
+          .filter(Boolean),
+        'Effective configured workflow step set before dependency override validation failure:'
+      );
       throw new Error(pendingErrors.join('\n\n'));
     }
 
@@ -776,7 +806,9 @@ export class MainOrchestrator {
             step.id,
             {
               ...mlContextBase,
-              previousResults: this.workflowEngine.results[this.workflowEngine.results.length - 1] || {
+              previousResults: this.workflowEngine.results[
+                this.workflowEngine.results.length - 1
+              ] || {
                 success: true,
               },
             },
@@ -824,7 +856,9 @@ export class MainOrchestrator {
             step.id,
             {
               ...mlContextBase,
-              previousResults: this.workflowEngine.results[this.workflowEngine.results.length - 1] || {
+              previousResults: this.workflowEngine.results[
+                this.workflowEngine.results.length - 1
+              ] || {
                 success: true,
               },
             },

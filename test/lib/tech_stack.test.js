@@ -143,7 +143,7 @@ describe('Tech Stack Detection - Pure Functions', () => {
 
   describe('detectFrameworksFromRequirements', () => {
     it('should detect Flask', () => {
-      const requirements = 'Flask==2.3.0\nclick==8.1.0';
+      const requirements = 'Flask==2.3.1\nclick==8.1.0';
       const result = detectFrameworksFromRequirements(requirements);
 
       expect(result.some((fw) => fw.name === 'Flask')).toBe(true);
@@ -171,7 +171,7 @@ describe('Tech Stack Detection - Pure Functions', () => {
     });
 
     it('should handle comments', () => {
-      const requirements = '# Test dependencies\npytest==7.4.0\n# Web framework\nFlask==2.3.0';
+      const requirements = '# Test dependencies\npytest==7.4.0\n# Web framework\nFlask==2.3.1';
       const result = detectFrameworksFromRequirements(requirements);
 
       expect(result.length).toBe(2);
@@ -424,7 +424,7 @@ describe('Tech Stack Detection - Integration', () => {
 
   it('should detect Python + Flask + Pytest stack', async () => {
     // Create requirements.txt
-    await fs.writeFile(path.join(tempDir, 'requirements.txt'), 'Flask==2.3.0\npytest==7.4.0');
+    await fs.writeFile(path.join(tempDir, 'requirements.txt'), 'Flask==2.3.1\npytest==7.4.0');
 
     // Create Python files
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });

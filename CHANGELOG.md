@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Step 12 git commit prompt grounding** (`.workflow_core/config/ai_helpers/workflow_steps.yaml`) — Hardened the prompt so partial evidence no longer justifies file-specific body claims, inferred benefits, or a forced "No breaking changes detected" line. The prompt now prefers shorter commit messages when the visible diff is insufficient for a grounded body or breaking-change conclusion.
 - **Step 1.5 Copilot instructions prompt grounding** (`.workflow_core/config/ai_helpers/workflow_steps.yaml`) — Hardened the prompt so repo-specific Copilot guidance claims must be supported by the surfaced repo-facts block or the visible current file content. `supported guidance` findings now require explicit repo-fact support, invented repo-fact citations are disallowed, and findings for absent current-file topics are blocked unless the omission is explicitly required by the task. Unsupported-but-plausible details are now omitted or generalized instead of being restated as verified repository facts.
 
-## [2.3.0] - 2026-04-10
+## [2.3.1] - 2026-04-10
 
 ### Changed
 
@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.3.0] - 2026-04-10
+## [2.3.1] - 2026-04-10
 
 ### Changed
 

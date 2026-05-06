@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -100,7 +100,8 @@
   "private": true,
   "overrides": {
     "@jridgewell/trace-mapping": "0.3.31",
-    "esquery": "1.7.0"
+    "esquery": "1.7.0",
+    "test-exclude": "7.0.1"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.118",
