@@ -1,7 +1,7 @@
 # metrics - Metrics Collection Module
 
 **Module:** `lib/metrics`
-**Version:** 2.2.17
+**Version:** 2.3.0
 **Type:** Pure Functions + Wrapper
 
 ## Overview

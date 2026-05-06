@@ -264,7 +264,7 @@
     "src/cli/commands/init.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-03-22T23:26:39.734Z"
+      "lastAnalyzed": "2026-05-06T03:02:46.240Z"
     },
     "src/lib/log_parser.js": {
       "score": 100,
@@ -720,6 +720,26 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-04-29T01:04:04.045Z"
+    },
+    "src/cli/tui/helpers/project.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-06T03:02:46.240Z"
+    },
+    "src/cli/tui/helpers/reusable.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-06T03:02:46.240Z"
+    },
+    "src/cli/tui/helpers/reusable.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-06T03:02:46.240Z"
+    },
+    "src/cli/tui/helpers/reusable.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-06T03:02:46.240Z"
     }
   }
 }

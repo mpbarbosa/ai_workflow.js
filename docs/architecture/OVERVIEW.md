@@ -7,7 +7,7 @@ orchestration, workflow steps, and reusable library modules.
 ## Main layers
 
 - **CLI** - command entry points, help output, prompts, and the Ink-based TUI
-- **Orchestrator** - workflow engine, dependency resolution, execution flow, and checkpoints
+- **Orchestrator** - workflow engine, dependency resolution, execution planning, preflight quality orchestration, and checkpoints
 - **Steps** - individual workflow-step implementations executed by the orchestrator
 - **Library modules** - config, git, AI integration, caching, parsing, and analysis
 - **Core and utils** - low-level logging, execution, colors, versioning, and shared errors
@@ -19,7 +19,7 @@ orchestration, workflow steps, and reusable library modules.
 | `src/core/`          | Foundational runtime helpers such as logging, colors, system, executor, and version utilities     |
 | `src/utils/`         | Small shared helpers and error types                                                              |
 | `src/lib/`           | Main reusable domain logic: config, AI helpers, caching, git automation, parsing, and analysis    |
-| `src/orchestrator/`  | Workflow engine and orchestration primitives                                                      |
+| `src/orchestrator/`  | Workflow engine plus orchestration primitives such as the main orchestrator, workflow step catalog, execution planning, and preflight quality runner |
 | `src/steps/`         | Individual workflow-step implementations                                                          |
 | `src/cli/`           | CLI commands, prompt handling, output helpers, and TUI components                                 |
 | `scripts/`           | Developer automation scripts for setup, validation, testing, release preparation, and maintenance |
@@ -38,6 +38,13 @@ bin/ai-workflow.js
 src/cli/
         |
         v
+src/orchestrator/main_orchestrator.js
+        |
+        +--> src/orchestrator/workflow_step_catalog.js
+        +--> src/orchestrator/workflow_execution_plan.js
+        +--> src/orchestrator/preflight_quality_runner.js
+        |
+        v
 src/orchestrator/workflow_engine.js
         |
         v
@@ -51,6 +58,7 @@ src/lib/ + src/core/ + src/utils/
 
 - CLI code should keep user interaction concerns in `src/cli/`.
 - The orchestrator owns workflow sequencing and checkpoint behavior.
+- `MainOrchestrator` should stay focused on lifecycle coordination, while reusable planning, catalog, and preflight policy stay in dedicated orchestrator modules.
 - Steps are executable units, but reusable logic should live in `src/lib/`.
 - Core and utils should stay low-level and broadly reusable.
 

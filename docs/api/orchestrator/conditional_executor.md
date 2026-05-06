@@ -1,7 +1,7 @@
 # Conditional Executor API
 
 **Module:** `orchestrator/conditional_executor`
-**Version:** 2.2.17
+**Version:** 2.3.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview

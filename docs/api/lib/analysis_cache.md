@@ -1,6 +1,6 @@
 # Analysis Cache Module
 
-**Version:** 2.2.17
+**Version:** 2.3.0
 **Module:** `lib/analysis_cache`
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 

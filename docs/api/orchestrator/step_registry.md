@@ -1,7 +1,7 @@
 # Step Registry API
 
 **Module:** `orchestrator/step_registry`
-**Version:** 2.2.17
+**Version:** 2.3.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview

@@ -339,7 +339,15 @@ Use `workflow.steps` to override the generated canonical step set, not to invent
 - Preserve the canonical dependencies by default.
 - Reordering the same dependency set is normalized back to canonical order and does not require `dependency_comment`.
 - If you intentionally change the dependency set, add `dependency_comment` explaining why.
+- **Disabled steps are not exempt.** A step entry with `enabled: false` and a non-canonical `dependencies` list still requires `dependency_comment`. If the step will never execute, the simplest fix is to remove the `dependencies` key entirely — canonical dependencies apply but never run.
+- Keep each `dependency_comment` evidence-bound to the repository. Before claiming that tests, linting, or another prerequisite branch is unavailable, verify that conclusion against the visible `tech_stack` commands, config values, and project scripts.
+- `dependency_comment` documents an allowed override; it does **not** bypass locked prerequisite edges such as `step_09 <- step_08`, `step_10 <- step_09`, `step_11 <- step_13`, `step_0f <- step_17`, or `step_12 <- step_0f`.
 - If you disable a step, disable or rewire every enabled dependent step too; selected steps cannot depend on excluded prerequisites.
+- Check the whole downstream dependency closure, not just the immediate child. If a locked prerequisite stays disabled, every enabled step that still depends on that branch must be disabled or rewired too.
+- If a locked prerequisite is absent because the project has no tests, linting, or another capability branch, keep the dependent branch disabled too instead of trying to jump around the missing step.
+- For `full` stage, a partial `workflow.steps` list is still the execution plan. Omitted enabled steps are excluded from the plan unless they are mandatory preserved steps. `step_16` is always kept in the full-stage plan, and the terminal chain `step_17 -> step_0f -> step_12` is always restored at the end, so validate the full dependency closure before trimming the list.
+- Keep the terminal chain `step_17 -> step_0f -> step_12` at the end. Do **not** make review branches depend on `step_17`, and do **not** move `step_17` ahead of review branches such as `step_22` or `step_23`.
+- Do not rewire around missing lint tooling by swapping `step_10`, `step_13`, and `step_11`. `step_10` and `step_13` already self-skip safely when their tools are unavailable.
 - Leave project-kind-gated steps enabled unless you are intentionally removing the whole branch. Most of them self-skip safely when the project kind does not match.
 - Safe customizations that do **not** require dependency overrides include `enabled`, `name`, `description`, and `ai_persona`.
 
@@ -381,6 +389,48 @@ workflow:
 ```
 
 That configuration still fails fast because `step_15` depends on an excluded prerequisite. Re-enable `step_14`, disable `step_15`, or rewrite the dependency with `dependency_comment`.
+
+Another invalid pattern is trying to skip locked verification prerequisites:
+
+```yaml
+workflow:
+  steps:
+    - id: step_08
+      enabled: false
+
+    - id: step_09
+      enabled: true
+      dependencies:
+        - step_05
+      dependency_comment: 'Trying to skip test execution for a project with no tests'
+```
+
+That still fails fast. `step_09` keeps the locked `step_08` prerequisite during canonical enforcement, so `dependency_comment` cannot turn `step_05 -> step_09` into a valid shortcut.
+
+Another invalid pattern is keeping the terminal summary chain while omitting upstream review branches from a partial full-stage plan:
+
+```yaml
+workflow:
+  steps:
+    - id: step_16
+      enabled: true
+
+    - id: step_17
+      enabled: true
+      dependencies:
+        - step_16
+      dependency_comment: 'Summary should run right after versioning'
+
+    - id: step_22
+      enabled: true
+      dependencies:
+        - step_17
+```
+
+That shape is invalid for two reasons:
+
+1. `step_17` still depends on its active upstream review branches unless you explicitly disable or rewire them.
+2. `step_22` is an upstream review branch; it must feed into summary, not depend on it.
 
 ### Logging Configuration
 
