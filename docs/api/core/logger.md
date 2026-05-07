@@ -3,7 +3,7 @@
 # logger.js API Documentation
 
 **Module:** `core/logger`
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Architecture:** Class-based
 
 ## Overview
@@ -229,7 +229,7 @@ const l
 # logger - Logging Module
 
 **Module:** `core/logger`
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Type:** Class-based with singleton instance
 
 ## Overview

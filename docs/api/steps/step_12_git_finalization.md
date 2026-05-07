@@ -1,7 +1,7 @@
 # step_12_git_finalization.js API Documentation
 
 **Module:** `steps/step_12_git_finalization`
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

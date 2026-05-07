@@ -1,7 +1,7 @@
 # performance_monitoring — Real-time Performance Monitoring
 
 **Module:** `src/lib/performance_monitoring.js`
-**Version:** v2.5.0
+**Version:** v2.6.0
 **Phase:** 8 (Performance Optimization)
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 

@@ -617,7 +617,7 @@ Three bugs in `step_03_script_refs.js` + `ai_helpers.yaml` (see Pattern 11):
 ### Run: `workflow_20260220_202333` — pre-structured-logging run, two new patterns identified (2026-02-20)
 
 **Project:** `ai_workflow.js` (nodejs_api)
-**Stage:** full | **Mode:** interactive | **Version:** 2.5.0 (shell-based predecessor)
+**Stage:** full | **Mode:** interactive | **Version:** 2.6.0 (shell-based predecessor)
 **Duration:** 50m 26s | **Steps:** 20/20 ✅
 **Result:** ⚠️ Validation non-conformant — structural gaps + 2 code bugs found and fixed
 
@@ -640,7 +640,7 @@ These gaps are artefacts of the older shell-based engine and do not reflect defe
 - **C1** ⚠️ Partially verified — `workflow_summary.md` confirms 20/20 steps, but no `workflow.log` for registration/execution order. `step_0a` (present in old engine) has no backlog file.
 - **C2** ❌ No `steps/*.log` directory — C2 cannot be met for this run.
 - **C3** ⚠️ step_14 confirmed **Pattern 8** — backlog shows `"project type unknown"` despite step_00 detecting configuration-scope changes. Caused by broken `getProjectKind()` call in `main_orchestrator.js` (now fixed). step_04 confirmed **Pattern 9** — `.ai_cache/index.json` flagged as syntax error (now fixed).
-- **C4** ❌ No `prompts/` folder — prompt-saving did not exist in v2.5.0.
+- **C4** ❌ No `prompts/` folder — prompt-saving did not exist in v2.6.0.
 
 #### Bugs found and fixed
 

@@ -1,7 +1,7 @@
 # Checkpoint Manager API
 
 **Module:** `orchestrator/checkpoint_manager`
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview
