@@ -7,4 +7,4 @@
  */
 
 export * from './helpers/reusable.js';
-export * from './helpers/project.js';
+export { buildHelpLines } from './helpers/project.js';

@@ -7,6 +7,18 @@ import { jest } from '@jest/globals';
 import React from 'react';
 import { render, cleanup } from 'ink-testing-library';
 
+const mockTruncateStackTrace = jest.fn((stack, maxLines) => {
+  if (!stack) return [];
+  return stack.split('\n').slice(0, maxLines ?? 20);
+});
+
+// Mock helpers.js (the direct import in ErrorDetailPanel) rather than the
+// internal helpers/reusable.js, so other modules that import reusable.js
+// directly (e.g. helpers/project.js) are not affected by this partial mock.
+jest.unstable_mockModule('../../../../src/cli/tui/helpers.js', () => ({
+  truncateStackTrace: mockTruncateStackTrace,
+}));
+
 let ErrorDetailPanel;
 beforeAll(async () => {
   ({ ErrorDetailPanel } = await import('../../../../src/cli/tui/components/ErrorDetailPanel.js'));
