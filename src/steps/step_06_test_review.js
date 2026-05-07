@@ -8,6 +8,7 @@
 
 import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
+import execute from '../core/executor.js';
 import { FileOperations } from '../lib/file_operations.js';
 import { Backlog } from '../lib/backlog.js';
 import { TechStackDetector } from '../lib/tech_stack.js';
@@ -26,6 +27,10 @@ import {
   buildYamlStepPrompt,
   buildProjectKindPrompt,
 } from '../lib/ai_prompt_builder.js';
+import { DEFAULT_TOTAL_TOKENS } from '../lib/token_budget.js';
+import { loadArtifacts } from '../lib/artifact_repository.js';
+import { assemble, buildManifestPreamble } from '../lib/context_assembler.js';
+import { mergeReviews } from '../lib/review_synthesizer.js';
 import yaml from 'js-yaml';
 import { Step10PartitionCache } from '../lib/step10_partition_cache.js';
 
@@ -68,6 +73,7 @@ export const ISSUE_TYPE = {
   LOW_COVERAGE: 'low_coverage',
   NO_COVERAGE_REPORT: 'no_coverage_report',
   MISSING_TESTS: 'missing_tests',
+  LINT_ERRORS: 'lint_errors',
 };
 
 // ============================================================================
@@ -440,8 +446,11 @@ export class Step6TestReviewer {
         logger.warn('No coverage reports found');
       }
 
+      // Phase 4.5: Lint check on JS/TS test files (best-effort, non-blocking)
+      const lintIssues = await this._lintTestFiles(projectRoot, testFiles);
+
       // Phase 5: Identify issues
-      const issues = this.identifyIssues({ testFiles, coverage, statistics });
+      const issues = [...this.identifyIssues({ testFiles, coverage, statistics }), ...lintIssues];
 
       // Phase 6: Generate report
       const results = {
@@ -494,26 +503,33 @@ export class Step6TestReviewer {
             `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
           );
 
-          // Read file contents only for the current partition
-          const fileContents = {};
-          await Promise.all(
-            partition.files.map(async (relPath) => {
-              try {
-                const abs = relPath.startsWith('/') ? relPath : `${projectRoot}/${relPath}`;
-                let content = await this.fileOps.readFile(abs);
-                if (content.length > 5000) content = content.slice(0, 5000) + '\n... (truncated)';
-                fileContents[relPath] = content;
-              } catch {
-                /* skip unreadable */
-              }
-            })
-          );
+          // Load and prioritize file contents for the current partition
+          const artifacts = await loadArtifacts(partition.files, options.modifiedFiles ?? [], {
+            projectRoot,
+            fileOps: this.fileOps,
+          });
 
-          // Slice partition into small batches (mirrors step 10 AI_FILES_PER_SLICE = 5)
+          // Load config and project context once — shared across all slices in this partition
+          const CONFIG_CANDIDATES = [
+            'package.json',
+            'jest.config.js',
+            'jest.config.ts',
+            'jest.config.cjs',
+            'jest.config.mjs',
+            'vitest.config.ts',
+            'vitest.config.js',
+            'tsconfig.json',
+          ];
+          const [configArtifacts, contextArtifacts] = await Promise.all([
+            loadArtifacts(CONFIG_CANDIDATES, [], { projectRoot, fileOps: this.fileOps }),
+            loadArtifacts(['README.md'], [], { projectRoot, fileOps: this.fileOps }),
+          ]);
+
+          // Slice partition into small batches in priority order (modified files first)
           const FILES_PER_SLICE = 5;
           const slices = [];
-          for (let i = 0; i < partition.files.length; i += FILES_PER_SLICE) {
-            slices.push(partition.files.slice(i, i + FILES_PER_SLICE));
+          for (let i = 0; i < artifacts.length; i += FILES_PER_SLICE) {
+            slices.push(artifacts.slice(i, i + FILES_PER_SLICE));
           }
           if (slices.length === 0) slices.push([]);
 
@@ -565,71 +581,121 @@ export class Step6TestReviewer {
             /* fallback to hardcoded builder */
           }
 
-          // Run all slices in parallel — each is a self-contained review of 5 files
-          const aiSectionResults = await Promise.all(
-            slices.map(async (sliceFiles, si) => {
-              const sliceContents = {};
-              for (const f of sliceFiles) {
-                if (Object.prototype.hasOwnProperty.call(fileContents, f)) {
-                  sliceContents[f] = fileContents[f];
-                }
-              }
-              const fileContentSections = sliceFiles.map((rel) => {
-                const content = sliceContents[rel] ?? '(unavailable)';
-                return `### ${rel}\n\`\`\`${language}\n${content}\n\`\`\``;
-              });
-              const testFileContents = fileContentSections.join('\n\n');
+          // Build one AI review for a set of artifacts; returns { content, manifest }.
+          const runSlice = async (sliceArtifacts, sliceId) => {
+            const sliceFiles = sliceArtifacts.map((a) => a.path);
+            const context = assemble(
+              [
+                {
+                  name: 'primary_test_files',
+                  artifacts: sliceArtifacts,
+                  budget: 0.7,
+                  policy: 'line-boundary',
+                },
+                { name: 'config_files', artifacts: configArtifacts, budget: 0.15, policy: 'skip' },
+                {
+                  name: 'project_context',
+                  artifacts: contextArtifacts,
+                  budget: 0.15,
+                  policy: 'tail',
+                },
+              ],
+              DEFAULT_TOTAL_TOKENS
+            );
+            const testFileContents = context.slots.primary_test_files;
+            const configFileContents = context.slots.config_files;
+            const projectContextContents = context.slots.project_context;
+            const evidenceManifest = buildManifestPreamble(
+              context.manifest.filter((e) => e.slot === 'primary_test_files')
+            );
 
-              let prompt;
-              if (sharedParsedYaml) {
-                try {
-                  prompt = buildYamlStepPrompt(sharedParsedYaml, 'step6_test_review_prompt', {
-                    project_name: path.basename(projectRoot),
-                    project_description:
-                      ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
-                    primary_language: language,
-                    change_scope: options?.scope || 'N/A',
-                    modified_count: String((options?.modifiedFiles ?? []).length),
-                    test_framework: testFramework,
-                    test_env: configTestCommand,
-                    test_command: configTestCommand,
-                    coverage_command: configCovCommand,
-                    test_count: String(testFiles.length),
-                    scoped_test_count: String(sliceFiles.length),
-                    tests_in_tests_dir: String(totalDedicatedDirTests),
-                    tests_colocated: String(totalColocatedTests),
-                    test_files: sliceFiles.join(', '),
-                    test_file_contents: testFileContents,
-                  });
-                  if (prompt && sharedRoleOverride) {
-                    prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
-                  }
-                } catch {
-                  /* fallback */
-                }
-              }
-              if (!prompt) {
-                prompt = buildTestReviewPrompt({
-                  testFiles: sliceFiles,
-                  framework: language,
-                  testFramework,
-                  testCommand: configTestCommand,
-                  coverageCommand: configCovCommand,
+            let prompt;
+            if (sharedParsedYaml) {
+              try {
+                prompt = buildYamlStepPrompt(sharedParsedYaml, 'step6_test_review_prompt', {
+                  project_name: path.basename(projectRoot),
+                  project_description:
+                    ctx.projectDescription ?? options?.projectDescription ?? 'N/A',
+                  primary_language: language,
+                  change_scope: options?.scope || 'N/A',
+                  modified_count: String((options?.modifiedFiles ?? []).length),
+                  test_framework: testFramework,
+                  test_env: configTestCommand,
+                  test_command: configTestCommand,
+                  coverage_command: configCovCommand,
+                  test_count: String(testFiles.length),
+                  scoped_test_count: String(sliceFiles.length),
+                  tests_in_tests_dir: String(totalDedicatedDirTests),
+                  tests_colocated: String(totalColocatedTests),
+                  test_files: sliceFiles.join(', '),
+                  test_file_contents: testFileContents,
+                  config_file_contents: configFileContents,
+                  project_context_contents: projectContextContents,
+                  evidence_manifest: evidenceManifest,
                 });
+                if (prompt && sharedRoleOverride) {
+                  prompt = `[Project-Kind Role: ${sharedRoleOverride}]\n\n${prompt}`;
+                }
+              } catch {
+                /* fallback */
               }
+            }
+            if (!prompt) {
+              prompt = buildTestReviewPrompt({
+                testFiles: sliceFiles,
+                framework: language,
+                testFramework,
+                testCommand: configTestCommand,
+                coverageCommand: configCovCommand,
+              });
+            }
 
-              const fileHashEntries = Object.entries(sliceContents).map(([k, v]) => `${k}:${v}`);
-              const aiResult = await this.aiCache.withFileChangeGuard(
-                `step_06_p${partition.index}_s${si}`,
-                fileHashEntries,
-                () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
-              );
-              return aiResult?.content ?? '';
-            })
+            const fileHashEntries = sliceArtifacts.map((a) => `${a.path}:${a.content}`);
+            const aiResult = await this.aiCache.withFileChangeGuard(
+              `step_06_p${partition.index}_${sliceId}`,
+              fileHashEntries,
+              () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+            );
+            return { content: aiResult?.content ?? '', manifest: context.manifest };
+          };
+
+          // Round 1: run initial slices in parallel
+          const initialResults = await Promise.all(
+            slices.map((sliceArtifacts, si) => runSlice(sliceArtifacts, `s${si}`))
           );
 
-          const aiSections = aiSectionResults.filter((c) => c);
-          const aiContent = aiSections.join('\n\n---\n\n');
+          // Round 2: continuation slices for artifacts absent from initial round
+          const absentPaths = options?.noContinuation
+            ? []
+            : [
+                ...new Set(
+                  initialResults.flatMap((r) =>
+                    r.manifest.filter((e) => e.status === 'absent').map((e) => e.file)
+                  )
+                ),
+              ];
+          const absentArtifacts = absentPaths
+            .map((p) => artifacts.find((a) => a.path === p))
+            .filter(Boolean);
+
+          const continuationResults = await Promise.all(
+            absentArtifacts.map((artifact, ci) => runSlice([artifact], `c${ci}`))
+          );
+
+          // Merge results; add slice labels only when continuation slices exist
+          const allReviews = [
+            ...initialResults.map((r) => r.content),
+            ...continuationResults.map((r) => r.content),
+          ];
+          const hasContinuation = continuationResults.length > 0;
+          const aiContent = mergeReviews(allReviews, {
+            sliceLabel: hasContinuation
+              ? (i) =>
+                  i < initialResults.length
+                    ? `Slice ${i + 1}`
+                    : `Continuation: ${absentArtifacts[i - initialResults.length].path}`
+              : undefined,
+          });
           if (aiContent) {
             const partitionHeader = `## AI Test Review — Partition ${partition.index + 1}/${partition.total}: \`${partition.label}\`\n`;
             const coverageNote = reviewCoverage ? `> AI coverage: ${reviewCoverage}.\n\n` : '';
@@ -764,6 +830,31 @@ export class Step6TestReviewer {
    * @param {Object} params - Parameters
    * @returns {Array} Array of issues
    */
+  async _lintTestFiles(projectRoot, testFiles) {
+    const jstsFiles = testFiles.filter((f) => /\.[jt]sx?$/.test(f));
+    if (jstsFiles.length === 0) return [];
+    const absFiles = jstsFiles.map((f) => (path.isAbsolute(f) ? f : path.join(projectRoot, f)));
+    try {
+      await execute(`eslint ${absFiles.map((f) => JSON.stringify(f)).join(' ')}`, {
+        cwd: projectRoot,
+        shell: true,
+        timeout: 30000,
+      });
+      return [];
+    } catch (error) {
+      const output = [error?.stdout, error?.stderr, error?.output]
+        .filter((v) => typeof v === 'string' && v.trim())
+        .join('\n');
+      const match = output.match(/(\d+)\s+error/);
+      if (!match) return [];
+      const count = parseInt(match[1], 10);
+      logger.warn(
+        `Step 6: ${count} lint error(s) in test files — run \`npm run lint\` for details`
+      );
+      return [{ type: ISSUE_TYPE.LINT_ERRORS, message: `${count} lint error(s) in test files` }];
+    }
+  }
+
   identifyIssues({ testFiles, coverage, statistics }) {
     const issues = [];
 

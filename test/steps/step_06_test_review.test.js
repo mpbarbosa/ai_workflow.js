@@ -485,6 +485,46 @@ describe('Step 6: Test Review', () => {
       expect(instance.aiHelper).toBeDefined();
     });
 
+    test('injects config_file_contents and project_context_contents into AI prompt', async () => {
+      const prompts = [];
+      const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-slots-'));
+      mockFileOps.glob = () => Promise.resolve(['test/unit.test.js']);
+      mockFileOps.readFile = (filePath) => {
+        const p = String(filePath);
+        if (p.endsWith('ai_helpers.yaml')) {
+          return Promise.resolve(`
+step6_test_review_prompt:
+  role: Test reviewer
+  task_template: |
+    cfg={config_file_contents}
+    ctx={project_context_contents}
+    tests={test_file_contents}
+  approach: |
+    noop
+`);
+        }
+        if (p.endsWith('package.json')) return Promise.resolve('{"name":"my-pkg"}');
+        if (p.endsWith('README.md')) return Promise.resolve('# My Project');
+        return Promise.resolve('// test body');
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve({ content: 'ok' });
+      };
+      mockAiCache.withFileChangeGuard = (_key, _entries, fn) => fn();
+      try {
+        const result = await reviewer.execute(tempProjectRoot);
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain('package.json');
+        expect(prompts[0]).toContain('README.md');
+        expect(prompts[0]).toContain('test/unit.test.js');
+      } finally {
+        fs.rmSync(tempProjectRoot, { recursive: true, force: true });
+      }
+    });
+
     test('uses global test-directory counts and per-slice scope in AI prompts', async () => {
       const prompts = [];
       const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-review-'));

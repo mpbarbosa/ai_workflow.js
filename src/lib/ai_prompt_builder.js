@@ -15,6 +15,12 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
+import {
+  estimateTokens,
+  fitToTokens,
+  DEFAULT_PER_FILE_TOKENS,
+  DEFAULT_TOTAL_TOKENS,
+} from './token_budget.js';
 
 const __filename = fileURLToPath(import.meta.url);
 // Resolves to: ai_workflow.js/.workflow_core/config/ai_helpers.yaml
@@ -473,8 +479,7 @@ export function truncateContext(context, maxTokens, truncationMessage = '...(tru
     return '';
   }
 
-  // Rough estimation: 4 characters ≈ 1 token
-  const estimatedTokens = Math.ceil(context.length / 4);
+  const estimatedTokens = estimateTokens(context);
 
   if (estimatedTokens <= maxTokens) {
     return context;
@@ -980,32 +985,24 @@ ${codeList}`;
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Code quality review prompt
  */
-/** Maximum characters per file injected into the code review prompt (~1 000 tokens). */
-export const MAX_CHARS_PER_FILE = 4_000;
+/** Maximum characters per file injected into the code review prompt. Derived from DEFAULT_PER_FILE_TOKENS. */
+export const MAX_CHARS_PER_FILE = DEFAULT_PER_FILE_TOKENS * 4;
 
-/** Maximum total characters for all injected file contents (~7 500 tokens). */
-export const MAX_CHARS_TOTAL_CONTENTS = 30_000;
+/** Maximum total characters for all injected file contents. Derived from DEFAULT_TOTAL_TOKENS. */
+export const MAX_CHARS_TOTAL_CONTENTS = DEFAULT_TOTAL_TOKENS * 4;
 
 /**
  * Build a fenced code block section for a single file, truncating if needed.
  *
- * When the content exceeds MAX_CHARS_PER_FILE, the cut is made at the last
- * newline before the limit so the excerpt always ends on a complete line
- * rather than mid-line or mid-comment.
+ * When the content exceeds the per-file token budget, the cut is made at the
+ * last newline before the limit so the excerpt always ends on a complete line.
  *
  * @param {string} filePath - Relative file path used as the section header.
  * @param {string} content  - Raw file content.
  * @returns {string} Markdown fenced block.
  */
 export function buildFileContentBlock(filePath, content) {
-  let truncated;
-  if (content.length > MAX_CHARS_PER_FILE) {
-    const cutAt = content.lastIndexOf('\n', MAX_CHARS_PER_FILE);
-    const safeAt = cutAt > 0 ? cutAt : MAX_CHARS_PER_FILE;
-    truncated = content.substring(0, safeAt) + '\n\n...(truncated — remainder omitted)';
-  } else {
-    truncated = content;
-  }
+  const truncated = fitToTokens(content, DEFAULT_PER_FILE_TOKENS, 'line-boundary');
   const ext = filePath.split('.').pop() ?? '';
   return `### \`${filePath}\`\n\`\`\`${ext}\n${truncated}\n\`\`\``;
 }

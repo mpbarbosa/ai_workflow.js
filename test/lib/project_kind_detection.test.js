@@ -141,7 +141,7 @@ describe('Project Kind Detection - Pure Functions', () => {
 
   describe('analyzeRequirementsTxt', () => {
     it('should detect Python app from Flask', () => {
-      const requirements = 'Flask==2.5.0\nrequests==2.28.0';
+      const requirements = 'Flask==2.6.0\nrequests==2.28.0';
 
       const result = analyzeRequirementsTxt(requirements);
 
@@ -461,7 +461,7 @@ describe('Project Kind Detection - Integration', () => {
 
   it('should detect Python app project', async () => {
     // Create requirements.txt
-    await fs.writeFile(path.join(tempDir, 'requirements.txt'), 'Flask==2.5.0\nrequests==2.28.0');
+    await fs.writeFile(path.join(tempDir, 'requirements.txt'), 'Flask==2.6.0\nrequests==2.28.0');
 
     const result = await detector.detectProjectKind(tempDir);
 

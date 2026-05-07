@@ -11,7 +11,7 @@
  * the import path stays stable even if the underlying package changes again.
  *
  * @module lib/copilot_sdk_wrapper
- * @version 2.5.0
+ * @version 2.6.0
  */
 
 export {

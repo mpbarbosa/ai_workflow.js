@@ -861,3 +861,13 @@ export {
   applyAiAnalysis,
   generateAnalysisSummary as generateAiAnalysisSummary,
 } from './steps/step_02_5_lib/ai_analyzer.js';
+export {
+  estimateTokens,
+  fitToTokens,
+  DEFAULT_PER_FILE_TOKENS,
+  DEFAULT_PER_TEST_FILE_TOKENS,
+  DEFAULT_TOTAL_TOKENS,
+} from './lib/token_budget.js';
+export { extToLanguage, loadArtifacts } from './lib/artifact_repository.js';
+export { assemble, buildManifestPreamble } from './lib/context_assembler.js';
+export { extractSignals, findDuplicateSignals, mergeReviews } from './lib/review_synthesizer.js';

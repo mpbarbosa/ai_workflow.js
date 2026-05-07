@@ -317,3 +317,13 @@ export {
   isValidCacheType as isValidDependencyCacheType,
   getCacheFilePaths as getDependencyCacheFilePaths,
 } from './dependency_cache.js';
+export {
+  estimateTokens,
+  fitToTokens,
+  DEFAULT_PER_FILE_TOKENS,
+  DEFAULT_PER_TEST_FILE_TOKENS,
+  DEFAULT_TOTAL_TOKENS,
+} from './token_budget.js';
+export { extToLanguage, loadArtifacts } from './artifact_repository.js';
+export { assemble, buildManifestPreamble } from './context_assembler.js';
+export { extractSignals, findDuplicateSignals, mergeReviews } from './review_synthesizer.js';

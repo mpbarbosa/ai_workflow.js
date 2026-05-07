@@ -243,14 +243,56 @@ export async function writePreflightBaseline(workflowDir, testFailureCount) {
   try {
     await fs.mkdir(workflowDir, { recursive: true });
     const baselinePath = path.join(workflowDir, 'preflight_baseline.json');
+    let existing = {};
+    try {
+      existing = JSON.parse(await fs.readFile(baselinePath, 'utf8'));
+    } catch {
+      /* ok — first write */
+    }
     await fs.writeFile(
       baselinePath,
-      JSON.stringify({ testFailureCount, updatedAt: new Date().toISOString() }),
+      JSON.stringify({ ...existing, testFailureCount, updatedAt: new Date().toISOString() }),
       'utf8'
     );
   } catch {
     // Non-critical — baseline is best-effort
   }
+}
+
+async function readPreflightLintBaseline(workflowDir) {
+  try {
+    const baselinePath = path.join(workflowDir, 'preflight_baseline.json');
+    const raw = await fs.readFile(baselinePath, 'utf8');
+    const data = JSON.parse(raw);
+    return typeof data.lintErrorCount === 'number' ? data.lintErrorCount : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writePreflightLintBaseline(workflowDir, lintErrorCount) {
+  try {
+    await fs.mkdir(workflowDir, { recursive: true });
+    const baselinePath = path.join(workflowDir, 'preflight_baseline.json');
+    let existing = {};
+    try {
+      existing = JSON.parse(await fs.readFile(baselinePath, 'utf8'));
+    } catch {
+      /* ok — first write */
+    }
+    await fs.writeFile(
+      baselinePath,
+      JSON.stringify({ ...existing, lintErrorCount, updatedAt: new Date().toISOString() }),
+      'utf8'
+    );
+  } catch {
+    // Non-critical — baseline is best-effort
+  }
+}
+
+function parseLintErrorCount(output) {
+  const match = output.match(/(\d+)\s+error/);
+  return match ? parseInt(match[1], 10) : null;
 }
 
 export async function runPreflightQualitySuites({
@@ -289,6 +331,7 @@ export async function runPreflightQualitySuites({
   }
 
   const baselineFailureCount = await readPreflightBaseline(workflowDir);
+  const baselineLintErrorCount = await readPreflightLintBaseline(workflowDir);
 
   const suitesToRun = preflightTestCommand
     ? commands.map((suite) =>
@@ -364,6 +407,9 @@ export async function runPreflightQualitySuites({
       }
 
       results.push({ ...suite, passed: true });
+      if (suite.name === 'lint') {
+        await writePreflightLintBaseline(workflowDir, 0);
+      }
     } catch (error) {
       const fullFailureOutput = [error?.stdout, error?.stderr, error?.output]
         .filter((value) => typeof value === 'string' && value.trim())
@@ -450,6 +496,21 @@ export async function runPreflightQualitySuites({
         }
       }
 
+      if (suite.name === 'lint') {
+        const currentErrorCount = parseLintErrorCount(fullFailureOutput);
+        if (currentErrorCount !== null) {
+          await writePreflightLintBaseline(workflowDir, currentErrorCount);
+          const noNewLintErrors =
+            baselineLintErrorCount !== null && currentErrorCount <= baselineLintErrorCount;
+          if (noNewLintErrors) {
+            advisory = true;
+            advisoryMessage =
+              `${currentErrorCount} pre-existing lint error(s) ` +
+              `(baseline: ${baselineLintErrorCount}). No new errors in this changeset.`;
+          }
+        }
+      }
+
       return {
         passed: false,
         advisory,
@@ -468,7 +529,10 @@ export async function runPreflightQualitySuites({
     }
   }
 
-  await writePreflightBaseline(workflowDir, 0);
+  await Promise.all([
+    writePreflightBaseline(workflowDir, 0),
+    writePreflightLintBaseline(workflowDir, 0),
+  ]);
 
   return {
     passed: true,

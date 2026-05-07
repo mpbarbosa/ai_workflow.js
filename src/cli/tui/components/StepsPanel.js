@@ -10,7 +10,7 @@
  * (the bottom hints bar) so that SDK execution state is shown alongside keybinding
  * hints rather than consuming a row inside the steps column.
  *
- * @version 2.5.0
+ * @version 2.6.0
  * @since 2026-04-04
  */
 

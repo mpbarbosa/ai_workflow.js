@@ -167,7 +167,7 @@ See @3.1.0 for details
     });
 
     test('handles single version', () => {
-      expect(findNewestVersion(['2.5.0'])).toBe('2.5.0');
+      expect(findNewestVersion(['2.6.0'])).toBe('2.6.0');
     });
   });
 
@@ -392,12 +392,12 @@ See @3.1.0 for details
     });
 
     test('detectProjectVersion reads package.json', async () => {
-      mockFileOps.readFile.mockResolvedValue('{"version": "2.5.0"}');
+      mockFileOps.readFile.mockResolvedValue('{"version": "2.6.0"}');
 
       const version = await analyzer.detectProjectVersion('/project');
 
-      expect(version).toBe('2.5.0');
-      expect(mockLogger.info).toHaveBeenCalledWith('Detected version from package.json: 2.5.0');
+      expect(version).toBe('2.6.0');
+      expect(mockLogger.info).toHaveBeenCalledWith('Detected version from package.json: 2.6.0');
     });
 
     test('detectProjectVersion falls back to pyproject.toml', async () => {
@@ -433,7 +433,7 @@ See @3.1.0 for details
     test('analyzeFiles processes multiple files', async () => {
       mockFileOps.readFile
         .mockResolvedValueOnce('# API v1.2.3\nFor version 2.0.0')
-        .mockResolvedValueOnce('# Guide v2.5.0');
+        .mockResolvedValueOnce('# Guide v2.6.0');
 
       const files = ['api.md', 'guide.md'];
       const analyses = await analyzer.analyzeFiles(files);
