@@ -261,19 +261,38 @@ export function detectTestFramework(packageJson, files) {
 
   // Check package.json for test framework
   if (packageJson && typeof packageJson === 'object') {
-    const deps = {
-      ...(packageJson.dependencies || {}),
-      ...(packageJson.devDependencies || {}),
-    };
+    // Prefer the test script over installed deps: a project may have jest in
+    // devDependencies for a plugin while actually running vitest (or vice versa).
+    const testScript =
+      packageJson.scripts && typeof packageJson.scripts.test === 'string'
+        ? packageJson.scripts.test
+        : '';
 
-    if (deps.jest) {
+    if (testScript.includes('vitest')) {
+      result.name = 'vitest';
+      result.command = 'npm test';
+      return result;
+    }
+
+    if (testScript.includes('jest')) {
       result.name = 'jest';
       result.command = 'npm test';
       return result;
     }
 
+    const deps = {
+      ...(packageJson.dependencies || {}),
+      ...(packageJson.devDependencies || {}),
+    };
+
     if (deps.vitest) {
       result.name = 'vitest';
+      result.command = 'npm test';
+      return result;
+    }
+
+    if (deps.jest) {
+      result.name = 'jest';
       result.command = 'npm test';
       return result;
     }
