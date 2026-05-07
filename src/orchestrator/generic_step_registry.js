@@ -62,6 +62,10 @@ export function filterStepsByEnabled(steps, enabledOnly = true) {
  * @pure
  */
 export function findStepsByPhase(steps, phase) {
+  if (phase === undefined) {
+    return [];
+  }
+
   return steps.filter((step) => step.phase === phase);
 }
 

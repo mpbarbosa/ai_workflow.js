@@ -4,9 +4,6 @@
  */
 
 import { jest } from '@jest/globals';
-import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
 import {
   filterPerformanceReviewTargets,
   isPerformanceSensitiveProject,
@@ -128,10 +125,9 @@ describe('step_23_perf_review - Pure Functions', () => {
 
     test('accepts basename-only mentions for in-scope files', () => {
       expect(
-        validatePerformanceAiResponseScope(
-          'No issues found in step_04_config_validation.js.',
-          ['src/steps/step_04_config_validation.js']
-        )
+        validatePerformanceAiResponseScope('No issues found in step_04_config_validation.js.', [
+          'src/steps/step_04_config_validation.js',
+        ])
       ).toEqual({
         adequate: true,
         reason: 'response stayed within visible scope',
@@ -614,7 +610,7 @@ describe('Step23PerfReview - Wrapper', () => {
     expect(aiHelper.executeRequest).not.toHaveBeenCalled();
   });
 
-  test('accepts sourceFiles override via options', async () => {
+  test('accepts sourceFiles override via options and prefers it over modifiedFiles', async () => {
     const fileOps = makeFileOps();
     const step = new Step23PerfReview({
       fileOps,
@@ -624,115 +620,71 @@ describe('Step23PerfReview - Wrapper', () => {
       techStack: makeTechStack(),
     });
 
-    await step.execute('/project', { sourceFiles: ['custom/file.ts'] });
+    const result = await step.execute('/project', {
+      sourceFiles: ['custom/file.ts', 'custom/extra.ts'],
+      modifiedFiles: ['src/perf.ts'],
+    });
+
+    expect(result.fileCount).toBe(2);
     expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
   });
 
-  test('analyzes only modified JS/TS files since the last successful workflow execution', async () => {
-    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step23-success-'));
-    try {
-      await fs.writeFile(
-        path.join(workflowDir, 'commit_history.json'),
-        JSON.stringify(
-          {
-            version: '1.0.0',
-            lastRunCommit: 'aaaaaaa',
-            runs: [
-              {
-                hash: 'aaaaaaa',
-                runId: 'workflow_20260414_225733',
-                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
-              },
-            ],
-          },
-          null,
-          2
-        ),
-        'utf8'
-      );
+  test('analyzes only modified JS/TS files from options and ignores broader git baseline logic', async () => {
+    const gitOps = {
+      getChangedFilesSince: jest.fn().mockReturnValue([
+        { file: 'src/perf.ts', status: 'modified' },
+        { file: 'src/from-history.js', status: 'modified' },
+      ]),
+      status: jest.fn().mockResolvedValue({
+        staged: [{ file: 'src/from-status.js', status: 'modified' }],
+        unstaged: [],
+        untracked: [],
+      }),
+    };
+    const fileOps = makeFileOps(['src/ignored-by-full-scan.js']);
+    const step = new Step23PerfReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper: makeAiHelper(),
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+      gitOps,
+    });
 
-      const gitOps = {
-        getChangedFilesSince: jest.fn().mockReturnValue([
-          { file: 'src/perf.ts', status: 'modified' },
-          { file: 'README.md', status: 'modified' },
-        ]),
-        status: jest.fn().mockResolvedValue({
-          staged: [],
-          unstaged: [{ file: 'src/extra.js', status: 'modified' }],
-          untracked: [{ file: 'notes.txt', status: 'untracked' }],
-        }),
-      };
-      const fileOps = makeFileOps(['src/ignored-by-full-scan.js']);
-      const step = new Step23PerfReview({
-        fileOps,
-        backlog: makeBacklog(),
-        aiHelper: makeAiHelper(),
-        aiCache: makeAiCache(),
-        techStack: makeTechStack(),
-        gitOps,
-      });
+    const result = await step.execute('/project', {
+      modifiedFiles: ['src/only-this.ts', 'README.md'],
+      workflowDir: '/tmp/workflow-dir-that-should-not-be-used',
+    });
 
-      const result = await step.execute('/project', {
-        workflowDir,
-        workflowRunId: 'workflow_20260415_003447',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.fileCount).toBe(2);
-      expect(gitOps.getChangedFilesSince).toHaveBeenCalledWith('aaaaaaa');
-      expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
-    } finally {
-      await fs.rm(workflowDir, { recursive: true, force: true });
-    }
+    expect(result.success).toBe(true);
+    expect(result.fileCount).toBe(1);
+    expect(gitOps.getChangedFilesSince).not.toHaveBeenCalled();
+    expect(gitOps.status).not.toHaveBeenCalled();
+    expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
   });
 
-  test('skips when no JS/TS files changed since the last successful workflow execution', async () => {
-    const workflowDir = await fs.mkdtemp(path.join(os.tmpdir(), 'step23-success-empty-'));
-    try {
-      await fs.writeFile(
-        path.join(workflowDir, 'commit_history.json'),
-        JSON.stringify(
-          {
-            version: '1.0.0',
-            lastRunCommit: 'aaaaaaa',
-            runs: [
-              {
-                hash: 'aaaaaaa',
-                runId: 'workflow_success',
-                timestamp: new Date(2026, 3, 10, 10, 5, 0).toISOString(),
-              },
-            ],
-          },
-          null,
-          2
-        ),
-        'utf8'
-      );
+  test('skips when modifiedFiles contain no JS/TS review targets', async () => {
+    const fileOps = makeFileOps(['src/full-scan.js']);
+    const step = new Step23PerfReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper: makeAiHelper(),
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+      gitOps: {
+        getChangedFilesSince: jest.fn(),
+        status: jest.fn(),
+      },
+    });
 
-      const step = new Step23PerfReview({
-        fileOps: makeFileOps(['src/full-scan.js']),
-        backlog: makeBacklog(),
-        aiHelper: makeAiHelper(),
-        aiCache: makeAiCache(),
-        techStack: makeTechStack(),
-        gitOps: {
-          getChangedFilesSince: jest
-            .fn()
-            .mockReturnValue([{ file: 'README.md', status: 'modified' }]),
-          status: jest.fn().mockResolvedValue({ staged: [], unstaged: [], untracked: [] }),
-        },
-      });
+    const result = await step.execute('/project', {
+      modifiedFiles: ['README.md', 'docs/guide.md'],
+    });
 
-      const result = await step.execute('/project', {
-        workflowDir,
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.skipped).toBe(true);
-      expect(result.message).toContain('last successful run');
-    } finally {
-      await fs.rm(workflowDir, { recursive: true, force: true });
-    }
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.message).toContain('No JS/TS files');
+    expect(fileOps.listDirectoryRecursive).not.toHaveBeenCalled();
   });
 
   test('prompt includes enriched context fields from tech stack', async () => {

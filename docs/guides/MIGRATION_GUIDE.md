@@ -1,6 +1,6 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v2.3.2**
+**AI Workflow Automation v2.4.0**
 **Last Updated:** 2026-04-23
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 
@@ -998,17 +998,17 @@ registry.register(6, MyStep6, { sequential: true, dependsOn: [5] });
 
 ## Getting Help
 
-| Resource                    | Link                                                               |
-| --------------------------- | ------------------------------------------------------------------ |
-| User Guide                  | [`docs/guides/USER_GUIDE.md`](USER_GUIDE.md)                       |
-| Configuration Reference     | [`docs/guides/CONFIGURATION_GUIDE.md`](CONFIGURATION_GUIDE.md)     |
-| CLI Usage Guide             | [`docs/CLI_USAGE_GUIDE.md`](../CLI_USAGE_GUIDE.md)                 |
-| Architecture Overview       | [`docs/architecture/OVERVIEW.md`](../architecture/OVERVIEW.md)     |
-| Troubleshooting Guide       | [`docs/guides/TROUBLESHOOTING.md`](TROUBLESHOOTING.md)             |
-| Developer Guide             | [`docs/guides/DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)             |
-| Testing Guide               | [`docs/guides/TESTING_GUIDE.md`](TESTING_GUIDE.md)                 |
-| Original bash `ai_workflow` | <https://github.com/mpbarbosa/ai_workflow>                         |
-| GitHub Issues               | <https://github.com/mpbarbosa/ai_workflow.js/issues>               |
+| Resource                    | Link                                                           |
+| --------------------------- | -------------------------------------------------------------- |
+| User Guide                  | [`docs/guides/USER_GUIDE.md`](USER_GUIDE.md)                   |
+| Configuration Reference     | [`docs/guides/CONFIGURATION_GUIDE.md`](CONFIGURATION_GUIDE.md) |
+| CLI Usage Guide             | [`docs/CLI_USAGE_GUIDE.md`](../CLI_USAGE_GUIDE.md)             |
+| Architecture Overview       | [`docs/architecture/OVERVIEW.md`](../architecture/OVERVIEW.md) |
+| Troubleshooting Guide       | [`docs/guides/TROUBLESHOOTING.md`](TROUBLESHOOTING.md)         |
+| Developer Guide             | [`docs/guides/DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md)         |
+| Testing Guide               | [`docs/guides/TESTING_GUIDE.md`](TESTING_GUIDE.md)             |
+| Original bash `ai_workflow` | <https://github.com/mpbarbosa/ai_workflow>                     |
+| GitHub Issues               | <https://github.com/mpbarbosa/ai_workflow.js/issues>           |
 
 ### Reporting Migration Issues
 
@@ -1026,37 +1026,37 @@ issue and include:
 
 The JavaScript rewrite was built in 13 phases, all now complete. Phase test counts below reflect the state at phase completion; overall totals have grown since.
 
-| Phase    | Status | Description                                                                                       |
-| -------- | ------ | ------------------------------------------------------------------------------------------------- |
-| Phase 1  | ✅     | Core Foundation (colors, logger, system, version, executor, errors)                               |
-| Phase 2  | ✅     | Configuration & State (config, backlog, session, metrics)                                         |
-| Phase 3  | ✅     | File Operations (file ops, edit ops, utils, arg parser, cleanup)                                  |
-| Phase 4  | ✅     | Project Detection (kind detection, config, tech stack, exclusions)                                |
-| Phase 5  | ✅     | Git Integration (automation, cache, auto-commit, change detection)                                |
-| Phase 6  | ✅     | AI Integration (jq, personas, validation, cache, prompts, helpers)                                |
-| Phase 7  | ✅     | Workflow Orchestration (engine, registry, resolver, executor, conditional, checkpoint)             |
-| Phase 8  | ✅     | Performance Optimization (parallel validation, ML optimization, incremental analysis)             |
-| Phase 9  | ✅     | Workflow Steps (32 steps: step_00–step_23 plus step_01_5, step_0b/0d/0f, step_11_5/11_6)         |
-| Phase 10 | ✅     | Main Orchestrator Integration                                                                     |
-| Phase 11 | ✅     | CLI & User Interface (7 commands: run, resume, init, status, config, clean, deploy)               |
-| Phase 12 | ✅     | Testing & Security (automation scripts, security audit)                                           |
-| Phase 13 | ✅     | Packaging & Release (npm package, CI/CD, documentation)                                           |
+| Phase    | Status | Description                                                                              |
+| -------- | ------ | ---------------------------------------------------------------------------------------- |
+| Phase 1  | ✅     | Core Foundation (colors, logger, system, version, executor, errors)                      |
+| Phase 2  | ✅     | Configuration & State (config, backlog, session, metrics)                                |
+| Phase 3  | ✅     | File Operations (file ops, edit ops, utils, arg parser, cleanup)                         |
+| Phase 4  | ✅     | Project Detection (kind detection, config, tech stack, exclusions)                       |
+| Phase 5  | ✅     | Git Integration (automation, cache, auto-commit, change detection)                       |
+| Phase 6  | ✅     | AI Integration (jq, personas, validation, cache, prompts, helpers)                       |
+| Phase 7  | ✅     | Workflow Orchestration (engine, registry, resolver, executor, conditional, checkpoint)   |
+| Phase 8  | ✅     | Performance Optimization (parallel validation, ML optimization, incremental analysis)    |
+| Phase 9  | ✅     | Workflow Steps (32 steps: step_00–step_23 plus step_01_5, step_0b/0d/0f, step_11_5/11_6) |
+| Phase 10 | ✅     | Main Orchestrator Integration                                                            |
+| Phase 11 | ✅     | CLI & User Interface (7 commands: run, resume, init, status, config, clean, deploy)      |
+| Phase 12 | ✅     | Testing & Security (automation scripts, security audit)                                  |
+| Phase 13 | ✅     | Packaging & Release (npm package, CI/CD, documentation)                                  |
 
 ### Features Added vs the Original Shell Version
 
-| Feature                                        | bash v3.0.0 | ai_workflow.js |
-| ---------------------------------------------- | ----------- | -------------- |
-| Cross-platform (Linux, macOS, Windows)         | Linux/macOS | ✅             |
-| Comprehensive unit and integration test suite  | —           | ✅             |
-| Modern async/await patterns                    | —           | ✅             |
-| Structured error handling and recovery         | —           | ✅             |
-| Modular, extensible architecture               | —           | ✅             |
-| Plugin system for custom step updaters         | —           | ✅             |
-| Rich CLI with progress indicators and colours  | —           | ✅             |
-| JSDoc type documentation                       | —           | ✅             |
-| npm package distribution                       | —           | ✅             |
-| GitHub Copilot SDK integration                 | —           | ✅             |
+| Feature                                       | bash v3.0.0 | ai_workflow.js |
+| --------------------------------------------- | ----------- | -------------- |
+| Cross-platform (Linux, macOS, Windows)        | Linux/macOS | ✅             |
+| Comprehensive unit and integration test suite | —           | ✅             |
+| Modern async/await patterns                   | —           | ✅             |
+| Structured error handling and recovery        | —           | ✅             |
+| Modular, extensible architecture              | —           | ✅             |
+| Plugin system for custom step updaters        | —           | ✅             |
+| Rich CLI with progress indicators and colours | —           | ✅             |
+| JSDoc type documentation                      | —           | ✅             |
+| npm package distribution                      | —           | ✅             |
+| GitHub Copilot SDK integration                | —           | ✅             |
 
 ---
 
-_Last Updated: 2026-04-23 · `ai_workflow.js` v2.3.2 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
+_Last Updated: 2026-04-23 · `ai_workflow.js` v2.4.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_

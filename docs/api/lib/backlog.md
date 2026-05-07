@@ -1,7 +1,7 @@
 # Backlog Module API Documentation
 
 **Module:** `lib/backlog`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Pure Functions + Impure Wrapper (Referential Transparency)
 
 ## Overview

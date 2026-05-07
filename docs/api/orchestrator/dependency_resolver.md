@@ -1,7 +1,7 @@
 # Dependency Resolver API
 
 **Module:** `orchestrator/dependency_resolver`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 
 ## Overview

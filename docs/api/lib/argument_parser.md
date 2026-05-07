@@ -7,7 +7,7 @@
 The Argument Parser module provides comprehensive CLI argument parsing with schema-based validation, type coercion, default values, and auto-generated help text. It implements pure parsing and validation functions combined with an impure wrapper class for error handling and logging.
 
 **Module:** `lib/argument_parser`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

@@ -785,6 +785,31 @@
       "score": 100,
       "issueCount": 0,
       "lastAnalyzed": "2026-05-07T03:27:19.172Z"
+    },
+    "src/orchestrator/generic_step_registry.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+    },
+    "src/orchestrator/olinda_step_registry.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+    },
+    "src/orchestrator/olinda_step_registry.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+    },
+    "src/orchestrator/main_orchestrator.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+    },
+    "src/orchestrator/olinda_step_registry.d.ts": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
     }
   }
 }

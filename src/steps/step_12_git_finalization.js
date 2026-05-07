@@ -69,6 +69,12 @@ export const GIT_OPERATIONS = {
   submoduleStatus: 'git submodule status',
 };
 
+const VOLATILE_WORKFLOW_STATE_PATHS = [
+  '.ai_workflow/.ai_cache',
+  '.ai_workflow/commit_history.json',
+  '.ai_workflow/.ml_model.json',
+];
+
 // ============================================================================
 // PURE FUNCTIONS - Git State Analysis
 // ============================================================================
@@ -537,11 +543,12 @@ export class Step12GitFinalization {
         return result;
       }
 
-      // Phase 4: Stage changes
-      await this._stageChanges(gitState);
-
-      // Phase 5: Generate commit message
+      // Phase 4: Generate commit message before staging so any cache writes it
+      // triggers are captured by the final staging pass.
       const commitMessage = await this._generateCommitMessage(gitState);
+
+      // Phase 5: Stage changes
+      await this._stageChanges(gitState);
 
       // Phase 6: Commit changes
       const committed = await this._commitChanges(commitMessage);
@@ -769,12 +776,18 @@ export class Step12GitFinalization {
     if (gitState.hasSubmodules) {
       await this._stageSubmoduleChanges();
     }
+    // Migrate volatile workflow state out of version control before staging the
+    // real change set. These files are local runtime state and should stay
+    // gitignored even in repos that tracked them historically.
+    await this._executeGit(
+      `git rm --cached -r --ignore-unmatch -- ${VOLATILE_WORKFLOW_STATE_PATHS.map((target) => `"${target}"`).join(' ')}`
+    );
     await this._executeGit('git add -A');
     // Force-add only the specific .ai_workflow/ artifacts that are intentionally
     // tracked despite being gitignored in target projects. Broad force-adding
     // (.ai_workflow/) would bypass gitignore for logs/, checkpoints/, and other
     // ephemeral subdirectories that must never be committed.
-    for (const target of ['.ai_workflow/.step_cache/', '.ai_workflow/commit_history.json']) {
+    for (const target of ['.ai_workflow/.step_cache/']) {
       try {
         await this._executeGit(`git add -f ${target}`);
       } catch {

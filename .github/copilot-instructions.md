@@ -68,7 +68,9 @@ For further details, consult:
 - `docs/ARCHITECTURE.md`
 - `docs/CLI_USAGE_GUIDE.md`
 - `docs/guides/MIGRATION_GUIDE.md`
-- `CHANGELOG.md`, `CONTRIBUTING.md`, `ROADMAP.md`
+- `CHANGELOG.md`
+- `CONTRIBUTING.md`
+- `ROADMAP.md`
 - `package.json`
 
 ---

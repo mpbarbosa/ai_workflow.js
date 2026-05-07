@@ -1,7 +1,7 @@
 # Tech Stack Detection API
 
 **Module:** `lib/tech_stack`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -175,14 +175,14 @@ Detects Python web frameworks from requirements.txt content.
 
 ```javascript
 const requirements = `
-Flask==2.3.2
+Flask==2.4.0
 Django==4.2.0
 requests==2.28.0
 `;
 
 const frameworks = detectFrameworksFromRequirements(requirements);
 // => [
-//   { name: 'Flask', type: 'web-framework', version: '2.3.2' },
+//   { name: 'Flask', type: 'web-framework', version: '2.4.0' },
 //   { name: 'Django', type: 'web-framework', version: '4.2.0' }
 // ]
 ```

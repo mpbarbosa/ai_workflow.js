@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Last Updated:** April 27, 2026
 
 This document gives the high-level architecture for `ai_workflow.js`. The
@@ -9,14 +9,14 @@ phase-based module map.
 
 ## Main layers
 
-| Layer        | Path                | Responsibility                                                                                               |
-| ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| CLI          | `src/cli/`          | Command entry points, prompts, help output, and Ink-based TUI code                                           |
+| Layer        | Path                | Responsibility                                                                                                              |
+| ------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| CLI          | `src/cli/`          | Command entry points, prompts, help output, and Ink-based TUI code                                                          |
 | Orchestrator | `src/orchestrator/` | Workflow engine, dependency resolution, execution planning, preflight orchestration, workflow step catalog, and checkpoints |
-| Steps        | `src/steps/`        | Executable workflow-step implementations invoked by the orchestrator                                         |
-| Library      | `src/lib/`          | Reusable domain logic such as config loading, git automation, AI integration, caching, parsing, and analysis |
-| Core         | `src/core/`         | Foundational runtime helpers such as logging, execution, colors, system detection, and version helpers       |
-| Utils        | `src/utils/`        | Shared low-level helpers and error types                                                                     |
+| Steps        | `src/steps/`        | Executable workflow-step implementations invoked by the orchestrator                                                        |
+| Library      | `src/lib/`          | Reusable domain logic such as config loading, git automation, AI integration, caching, parsing, and analysis                |
+| Core         | `src/core/`         | Foundational runtime helpers such as logging, execution, colors, system detection, and version helpers                      |
+| Utils        | `src/utils/`        | Shared low-level helpers and error types                                                                                    |
 
 ## Data flow
 

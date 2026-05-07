@@ -11,35 +11,23 @@ import {
   validateStepDependencies,
 } from '../../src/orchestrator/generic_step_registry.js';
 
-import * as olinda from '../../src/orchestrator/olinda_step_registry.js';
-
-jest.mock('../../src/orchestrator/olinda_step_registry.js');
-
 describe('generic_step_registry', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('matchStepRequirements', () => {
-    it('delegates to matchOlindaStepRequirements with provided context', () => {
+    it('returns met=true when provided requirements exist in the context', () => {
       const step = { requirements: ['foo'] };
       const context = { foo: true };
-      olinda.matchStepRequirements.mockReturnValue({ met: true, missing: [] });
 
       const result = matchStepRequirements(step, context);
 
-      expect(olinda.matchStepRequirements).toHaveBeenCalledWith(step, context);
       expect(result).toEqual({ met: true, missing: [] });
     });
 
     it('uses empty object if context is undefined', () => {
-      const step = { requirements: ['bar'] };
-      olinda.matchStepRequirements.mockReturnValue({ met: false, missing: ['bar'] });
+      const step = { requirements: { tools: ['bar'] } };
 
       const result = matchStepRequirements(step);
 
-      expect(olinda.matchStepRequirements).toHaveBeenCalledWith(step, {});
-      expect(result).toEqual({ met: false, missing: ['bar'] });
+      expect(result).toEqual({ met: false, missing: ['tool:bar'] });
     });
   });
 
@@ -84,18 +72,12 @@ describe('generic_step_registry', () => {
       { id: 'c' }, // no enabled property
     ];
 
-    it('delegates to filterOlindaStepsByEnabled with default enabledOnly=true', () => {
-      olinda.filterStepsByEnabled.mockReturnValue([{ id: 'a', enabled: true }]);
-      const result = filterStepsByEnabled(steps);
-      expect(olinda.filterStepsByEnabled).toHaveBeenCalledWith(steps, true);
-      expect(result).toEqual([{ id: 'a', enabled: true }]);
+    it('returns enabled steps by default', () => {
+      expect(filterStepsByEnabled(steps)).toEqual([{ id: 'a', enabled: true }, { id: 'c' }]);
     });
 
-    it('delegates to filterOlindaStepsByEnabled with enabledOnly=false', () => {
-      olinda.filterStepsByEnabled.mockReturnValue(steps);
-      const result = filterStepsByEnabled(steps, false);
-      expect(olinda.filterStepsByEnabled).toHaveBeenCalledWith(steps, false);
-      expect(result).toEqual(steps);
+    it('returns all steps when enabledOnly=false', () => {
+      expect(filterStepsByEnabled(steps, false)).toEqual(steps);
     });
   });
 
@@ -125,35 +107,19 @@ describe('generic_step_registry', () => {
   });
 
   describe('sortStepsById', () => {
-    it('delegates to sortOlindaStepsById', () => {
+    it('sorts steps by numeric id', () => {
       const steps = [{ id: 'step_02' }, { id: 'step_01' }];
-      const sorted = [{ id: 'step_01' }, { id: 'step_02' }];
-      olinda.sortStepsById.mockReturnValue(sorted);
-
-      const result = sortStepsById(steps);
-
-      expect(olinda.sortStepsById).toHaveBeenCalledWith(steps);
-      expect(result).toEqual(sorted);
+      expect(sortStepsById(steps)).toEqual([{ id: 'step_01' }, { id: 'step_02' }]);
     });
   });
 
   describe('validateStepDependencies', () => {
-    it('delegates to validateOlindaStepDependencies with normalized dependencies', () => {
+    it('normalizes missing dependencies arrays', () => {
       const steps = [
         { id: 'a', dependencies: ['b'] },
         { id: 'b' }, // missing dependencies
       ];
-      const normalized = [
-        { id: 'a', dependencies: ['b'] },
-        { id: 'b', dependencies: [] },
-      ];
-      const validationResult = { errors: [] };
-      olinda.validateStepDependencies.mockReturnValue(validationResult);
-
-      const result = validateStepDependencies(steps);
-
-      expect(olinda.validateStepDependencies).toHaveBeenCalledWith(normalized);
-      expect(result).toBe(validationResult);
+      expect(validateStepDependencies(steps)).toEqual({ valid: true, errors: [] });
     });
 
     it('handles all steps with dependencies array', () => {
@@ -161,18 +127,11 @@ describe('generic_step_registry', () => {
         { id: 'a', dependencies: [] },
         { id: 'b', dependencies: ['a'] },
       ];
-      olinda.validateStepDependencies.mockReturnValue({ errors: [] });
-
-      const result = validateStepDependencies(steps);
-
-      expect(olinda.validateStepDependencies).toHaveBeenCalledWith(steps);
-      expect(result).toEqual({ errors: [] });
+      expect(validateStepDependencies(steps)).toEqual({ valid: true, errors: [] });
     });
 
     it('handles empty steps array', () => {
-      olinda.validateStepDependencies.mockReturnValue({ errors: [] });
-      expect(validateStepDependencies([])).toEqual({ errors: [] });
-      expect(olinda.validateStepDependencies).toHaveBeenCalledWith([]);
+      expect(validateStepDependencies([])).toEqual({ valid: true, errors: [] });
     });
   });
 });

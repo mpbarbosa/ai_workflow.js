@@ -46,6 +46,8 @@ const TEST_FILE_PATH_PATTERN = /(^|\/)(test|tests|__tests__)(\/|$)/i;
 const TEST_FILE_NAME_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const PARTITION_SUFFIX_RE = /\s+\(part \d+\/\d+\)$/i;
 const PERFORMANCE_FILE_REFERENCE_RE = /\b[\w./-]+\.[cm]?[jt]sx?\b/g;
+const PERFORMANCE_REVIEW_EXTENSIONS = ['.js', '.mjs', '.cjs', '.ts', '.tsx'];
+const PERFORMANCE_REVIEW_EXCLUDES = ['node_modules', 'dist', 'build', 'coverage', '.git'];
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -100,7 +102,10 @@ export function filterPerformanceReviewTargets(files) {
  * @returns {string}
  */
 export function normalizePerformanceScopePath(filePath) {
-  return String(filePath ?? '').replace(/\\/g, '/').replace(PARTITION_SUFFIX_RE, '').trim();
+  return String(filePath ?? '')
+    .replace(/\\/g, '/')
+    .replace(PARTITION_SUFFIX_RE, '')
+    .trim();
 }
 
 /**
@@ -125,9 +130,9 @@ export function extractPerformanceResponseFileMentions(aiResponse) {
  */
 export function validatePerformanceAiResponseScope(aiResponse, relativeFilePaths) {
   const response = String(aiResponse ?? '');
-  const scopePaths = [...new Set((relativeFilePaths ?? []).map(normalizePerformanceScopePath))].filter(
-    Boolean
-  );
+  const scopePaths = [
+    ...new Set((relativeFilePaths ?? []).map(normalizePerformanceScopePath)),
+  ].filter(Boolean);
 
   if (scopePaths.length === 0) {
     return { adequate: true, reason: 'no files to check', offScopeMentions: [] };
@@ -280,6 +285,44 @@ export class Step23PerfReview extends ReviewStepBase {
     this.techStack = options.techStack || new TechStackDetector();
   }
 
+  async resolvePerformanceAnalysisScope(projectRoot, options = {}) {
+    if (Array.isArray(options.sourceFiles)) {
+      return {
+        analysisMode: 'override',
+        relativeFiles: this._normalizeScopedFiles(
+          projectRoot,
+          options.sourceFiles,
+          filterPerformanceReviewTargets
+        ),
+      };
+    }
+
+    if (Array.isArray(options.modifiedFiles) && options.modifiedFiles.length > 0) {
+      return {
+        analysisMode: 'modified-files',
+        relativeFiles: this._normalizeScopedFiles(
+          projectRoot,
+          options.modifiedFiles,
+          filterPerformanceReviewTargets
+        ),
+      };
+    }
+
+    const allFiles = await this.fileOps.listDirectoryRecursive(projectRoot, {
+      extensions: PERFORMANCE_REVIEW_EXTENSIONS,
+      exclude: PERFORMANCE_REVIEW_EXCLUDES,
+    });
+
+    return {
+      analysisMode: 'full-scan',
+      relativeFiles: this._normalizeScopedFiles(
+        projectRoot,
+        allFiles,
+        filterPerformanceReviewTargets
+      ),
+    };
+  }
+
   /**
    * Execute the performance review step.
    *
@@ -295,13 +338,9 @@ export class Step23PerfReview extends ReviewStepBase {
     logger.step('Step 23: Performance Review');
 
     try {
-      const { analysisMode, baselineHash, relativeFiles } = await this._resolveAnalysisScope(
+      const { analysisMode, relativeFiles } = await this.resolvePerformanceAnalysisScope(
         projectRoot,
-        options,
-        {
-          extensions: ['.js', '.mjs', '.cjs', '.ts', '.tsx'],
-          filterFn: filterPerformanceReviewTargets,
-        }
+        options
       );
 
       const skipResult = this._buildSkipResult(relativeFiles, isPerformanceSensitiveProject, {
@@ -314,10 +353,8 @@ export class Step23PerfReview extends ReviewStepBase {
         return skipResult;
       }
 
-      if (analysisMode === 'since-last-successful-run') {
-        logger.info(
-          `Step 23: Analyzing ${relativeFiles.length} JS/TS file(s) changed since last successful run (${baselineHash?.substring(0, 7) ?? 'unknown'})`
-        );
+      if (analysisMode === 'modified-files') {
+        logger.info(`Step 23: Analyzing ${relativeFiles.length} modified JS/TS file(s)`);
       } else {
         logger.info(`Step 23: Analyzing ${relativeFiles.length} JS/TS files`);
       }
@@ -390,7 +427,8 @@ export class Step23PerfReview extends ReviewStepBase {
                   ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
                   : String(relativeFiles.length),
               file_paths:
-                filePathsContext || '      - (no readable JavaScript/TypeScript files were available)',
+                filePathsContext ||
+                '      - (no readable JavaScript/TypeScript files were available)',
               file_content_block:
                 fileContentBlock ||
                 '_No readable file excerpts were available in the current context window._',
@@ -440,7 +478,9 @@ export class Step23PerfReview extends ReviewStepBase {
                 `(${scopeValidation.offScopeMentions.join(', ') || 'unknown off-scope file'}). ` +
                 'That response was omitted from the final report.';
               aiSections.push(
-                total > 1 ? `#### Partition ${i + 1} of ${total}\n\n${validationNote}` : validationNote
+                total > 1
+                  ? `#### Partition ${i + 1} of ${total}\n\n${validationNote}`
+                  : validationNote
               );
               continue;
             }

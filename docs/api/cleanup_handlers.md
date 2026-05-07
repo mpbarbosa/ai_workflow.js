@@ -1,7 +1,7 @@
 # cleanup_handlers - Cleanup Operations Module
 
 **Module:** `lib/cleanup_handlers`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Type:** Pure Functions + Wrapper
 
 ## Overview

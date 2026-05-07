@@ -1,6 +1,6 @@
 # First Workflow Tutorial
 
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Last Updated:** April 26, 2026
 
 Build your first workflow from scratch using ai_workflow.js! This tutorial walks you through creating a complete project analysis workflow that detects project type, analyzes tech stack, and generates a report.

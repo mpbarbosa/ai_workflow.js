@@ -1,6 +1,6 @@
 # Incremental Analysis Module
 
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Module:** `lib/incremental_analysis`
 **Architecture:** Referential Transparency (Pure Functions + Impure Wrapper)
 

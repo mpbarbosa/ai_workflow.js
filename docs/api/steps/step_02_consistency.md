@@ -1,7 +1,7 @@
 # step_02_consistency.js API Documentation
 
 **Module:** `steps/step_02_consistency`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

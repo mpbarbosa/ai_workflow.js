@@ -7,7 +7,7 @@
 The Edit Operations module provides comprehensive text editing capabilities with pure transformation functions combined with file I/O operations. It implements find/replace, line manipulation, diff generation, and content transformation with a clean separation between pure text processing and file system interactions.
 
 **Module:** `lib/edit_operations`
-**Version:** 2.3.2
+**Version:** 2.4.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

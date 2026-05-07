@@ -1,8 +1,8 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 41,
-  "filesHash": "7318f84c",
+  "totalPartitions": 42,
+  "filesHash": "948e57fa",
   "partitionLabels": [
     "test/cli",
     "test/cli (2)",
@@ -29,6 +29,7 @@
     "test/lib (10)",
     "test/orchestrator",
     "test/orchestrator (2)",
+    "test/orchestrator (3)",
     "test/scripts",
     "test/scripts (2)",
     "test/steps",
@@ -46,5 +47,5 @@
     "test/steps (13)",
     "test/types, test/utils"
   ],
-  "updatedAt": "2026-05-07T03:22:56.001Z"
+  "updatedAt": "2026-05-07T04:47:02.561Z"
 }

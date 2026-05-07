@@ -360,7 +360,9 @@ export function validateStepDependencies(steps: StepDefinition[]): DependencyVal
   const stepIds = new Set(steps.map((step) => step.id));
 
   for (const step of steps) {
-    for (const dependency of step.dependencies) {
+    const dependencies = Array.isArray(step.dependencies) ? step.dependencies : [];
+
+    for (const dependency of dependencies) {
       if (!stepIds.has(dependency)) {
         result.valid = false;
         result.errors.push(`Step '${step.id}' depends on non-existent step '${dependency}'`);
