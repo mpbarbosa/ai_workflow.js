@@ -14,12 +14,14 @@ tech_stack:
     - 'typescript'
   build_system: 'npm'
   test_framework: 'jest'
+  test_runner: 'jest'
   test_command: 'npm test'
   lint_command: 'npm run lint'
   # step_10 reads lint_commands (plural keyed map) to drive per-language linting
   lint_commands:
     javascript: 'npm run lint'
     typescript: 'npm run lint'
+  build_command: 'npm run build'
 
 structure:
   source_dirs:
@@ -28,10 +30,31 @@ structure:
     - test
   docs_dirs:
     - docs
+  config_files:
+    - .workflow-config.yaml
+    - eslint.config.mjs
+    - jest.config.json
+    - jest.integration.config.json
+    - package.json
+    - tsconfig.json
+  artifact_dir: '.ai_workflow'
+  exclude_paths:
+    - .ai_workflow/logs
+    - .ai_workflow/summaries
+    - .ai_workflow/backlog
+    - .ai_workflow/metrics
+    - .ai_workflow/checkpoints
+    - .ai_workflow/prompts
+    - .ai_workflow/ml_models
+    - .ai_workflow/cache
+    - .ai_workflow/archive
+    - .ai_workflow/archived_docs
 
 # step_16 reads version.config_files for JS/TS files that export VERSION + BUILD_DATE
 version:
   config_files: []
+  required_files:
+    - CHANGELOG.md
 
 # step_16 reads skills.version_sync to run a project-specific version-sync hook
 skills:
@@ -39,6 +62,28 @@ skills:
     command: 'npm run validate'
     check_command: 'npm run validate:versions'
     description: 'Validate version consistency across package.json and source files'
+
+ai_personas:
+  enabled:
+    - javascript_reviewer
+    - typescript_reviewer
+    - test_engineer
+    - code_quality_analyst
+    - architecture_reviewer
+    - documentation_expert
+    - technical_writer
+    - devops_engineer
+    - dependency_analyst
+    - git_specialist
+    - prompt_engineer
+    - ux_analyst
+    - accessibility_expert
+    - api_designer
+    - security_expert
+    - async_performance_engineer
+    - performance_engineer
+  disabled:
+    - aws_serverless_engineer
 
 # Workflow execution settings (template v4.0.0+)
 workflow:
@@ -49,6 +94,15 @@ workflow:
     ml_optimize: false # use ML-driven step optimization
     multi_stage: false # progressive validation pipeline
     auto_commit: false # automatically commit workflow artifacts
+
+  stages:
+    quick:
+      enabled: true
+    medium:
+      enabled: true
+    full:
+      enabled: true
+
   steps:
     - id: step_00
       name: 'Pre-Analysis'
