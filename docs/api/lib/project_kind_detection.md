@@ -1,7 +1,7 @@
 # Project Kind Detection API
 
 **Module:** `lib/project_kind_detection`
-**Version:** 2.3.1
+**Version:** 2.3.2
 **Architecture:** Pure Functions + Wrapper Class
 
 ## Overview
@@ -122,7 +122,7 @@ Analyzes requirements.txt to determine Python project type.
 
 ```javascript
 const requirements = `
-flask==2.3.1
+flask==2.3.2
 sqlalchemy==2.0.0
 requests==2.28.0
 `;
