@@ -1794,6 +1794,66 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     expect(content).not.toContain('**Project Version:** 1.2.3');
   });
 
+  test('re-reads the workingDirectory package version for each prompt log', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const projectDir = await mkdtemp(path.join(tmpdir(), 'ai-log-working-dir-refresh-'));
+    await writeFile(
+      path.join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'demo-project', version: '0.2.2' }),
+      'utf8'
+    );
+    const helper = new AiHelper({
+      promptsDir,
+      workingDirectory: projectDir,
+      projectVersion: '0.1.0',
+    });
+
+    await helper._logPrompt(
+      'test prompt one',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response one' }
+    );
+    await writeFile(
+      path.join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'demo-project', version: '0.3.0' }),
+      'utf8'
+    );
+    await helper._logPrompt(
+      'test prompt two',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response two' }
+    );
+
+    const files = (await readdir(promptsDir)).sort();
+    const firstContent = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    const secondContent = await readFile(path.join(promptsDir, files[1]), 'utf8');
+
+    expect(firstContent).toContain('**Project Version:** 0.2.2');
+    expect(secondContent).toContain('**Project Version:** 0.3.0');
+    expect(secondContent).not.toContain('**Project Version:** 0.2.2');
+  });
+
+  test('falls back to the configured project version when the workingDirectory package is invalid', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const projectDir = await mkdtemp(path.join(tmpdir(), 'ai-log-working-dir-invalid-'));
+    await writeFile(path.join(projectDir, 'package.json'), '{ invalid json }', 'utf8');
+    const helper = new AiHelper({
+      promptsDir,
+      workingDirectory: projectDir,
+      projectVersion: '1.2.3',
+    });
+
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'tester', model: 'gpt-4.1' },
+      { content: 'test response' }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    expect(content).toContain('**Project Version:** 1.2.3');
+  });
+
   test('adds an auto-extracted issue snapshot ahead of the raw prompt and response blocks', async () => {
     const { readFile, readdir } = await import('fs/promises');
     const helper = new AiHelper({ promptsDir });

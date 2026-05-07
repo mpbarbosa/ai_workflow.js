@@ -215,6 +215,27 @@ describe('Step Registry Module', () => {
       const step = createStepDefinition(metadata);
       expect(step.enabled).toBe(false);
     });
+
+    test('preserves explicit metadata fields over default metadata fields', () => {
+      const step = createStepDefinition({
+        id: 'step_01',
+        name: 'Analysis',
+        description: 'Analyze code',
+        registered: 123,
+        version: '2.0.0',
+        metadata: {
+          registered: 456,
+          version: '3.0.0',
+          custom: 'value',
+        },
+      });
+
+      expect(step.metadata).toEqual({
+        registered: 456,
+        version: '3.0.0',
+        custom: 'value',
+      });
+    });
   });
 
   describe('Pure Functions - matchStepRequirements', () => {
@@ -498,6 +519,15 @@ describe('Step Registry Module', () => {
 
       expect(result.valid).toBe(true);
     });
+
+    test('treats missing dependencies as empty', () => {
+      const steps = [{ id: 'step_00' }, { id: 'step_01', dependencies: ['step_00'] }];
+
+      const result = validateStepDependencies(steps);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
   });
 
   // ============================================================================
@@ -582,6 +612,24 @@ describe('Step Registry Module', () => {
 
       expect(updated.name).toBe('Updated');
       expect(updated.tags).toContain('new-tag');
+    });
+
+    test('preserves registration metadata and version across updates', () => {
+      const registry = new StepRegistry();
+
+      registry.register('step_00', {
+        name: 'Original',
+        description: 'Original description',
+        version: '2.0.0',
+      });
+
+      const original = registry.get('step_00');
+      const updated = registry.update('step_00', {
+        tags: ['new-tag'],
+      });
+
+      expect(updated.metadata.registered).toBe(original.metadata.registered);
+      expect(updated.metadata.version).toBe('2.0.0');
     });
 
     test('throws error for non-existent step', () => {
@@ -916,6 +964,27 @@ describe('Step Registry Module', () => {
       expect(stats.critical).toBe(1);
       expect(stats.byPhase.analysis).toBe(1);
       expect(stats.byPhase.testing).toBe(1);
+    });
+
+    test('reports every workflow phase even when empty', () => {
+      const registry = new StepRegistry();
+
+      registry.register('step_00', {
+        name: 'Analysis',
+        description: 'Analysis',
+        phase: 'analysis',
+      });
+
+      const stats = registry.getStats();
+
+      expect(Object.keys(stats.byPhase)).toEqual([
+        'analysis',
+        'validation',
+        'testing',
+        'quality',
+        'finalization',
+        'execution',
+      ]);
     });
   });
 

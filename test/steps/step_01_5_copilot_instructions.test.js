@@ -76,7 +76,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('accepts findings that match the supported schema and surfaced repo facts', () => {
       const repoFacts = buildCopilotInstructionsRepoFactsContext({
         packageName: 'ai-workflow',
-        packageVersion: '2.3.1',
+        packageVersion: '2.3.2',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -171,7 +171,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
     test('formats deterministic repo facts for prompt injection', () => {
       const facts = {
         packageName: 'ai-workflow',
-        packageVersion: '2.3.1',
+        packageVersion: '2.3.2',
         packageDescription: 'Workflow automation',
         validationCommands: {
           Lint: 'npm run lint',
@@ -195,7 +195,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
 
       const context = buildCopilotInstructionsRepoFactsContext(facts);
       expect(context).toContain('package.json present: yes');
-      expect(context).toContain('Package version: `2.3.1`');
+      expect(context).toContain('Package version: `2.3.2`');
       expect(context).toContain('Prefer links to authoritative docs over duplicated inventories');
       expect(context).toContain('- Lint: `npm run lint`');
       expect(context).toContain('`src/lib/`');
@@ -276,7 +276,7 @@ describe('Step 1.5: GitHub Copilot Instructions Validation', () => {
         if (filePath.endsWith('package.json')) {
           return JSON.stringify({
             name: 'ai-workflow',
-            version: '2.3.1',
+            version: '2.3.2',
             description: 'Workflow automation',
             main: 'dist/index.js',
             types: 'dist/index.d.ts',

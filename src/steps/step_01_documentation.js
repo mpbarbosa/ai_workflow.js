@@ -431,6 +431,48 @@ export function buildStep1ScopedDocContextBlock(
     .join('\n\n');
 }
 
+export function buildStep1PartitionEvidenceSummary(partitions = [], docFiles = []) {
+  const docFileSet = new Set(
+    (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
+  );
+  const partitionSummaries = (Array.isArray(partitions) ? partitions : [])
+    .map((partition, index, allPartitions) => {
+      const scopePaths = [
+        ...new Set(
+          (Array.isArray(partition?.scopePaths) && partition.scopePaths.length > 0
+            ? partition.scopePaths
+            : Array.isArray(partition?.entries)
+              ? partition.entries.map((entry) => entry?.sourcePath ?? entry?.relativePath)
+              : []
+          )
+            .map(normalizeStep1EvidencePath)
+            .filter(Boolean)
+        ),
+      ];
+
+      const scopedPaths = scopePaths.filter((filePath) => docFileSet.has(filePath));
+      const supportingPaths = scopePaths.filter((filePath) => !docFileSet.has(filePath));
+      const partitionType =
+        scopedPaths.length > 0 && supportingPaths.length > 0
+          ? 'scoped documentation excerpts + supporting evidence'
+          : scopedPaths.length > 0
+            ? 'scoped documentation excerpts'
+            : supportingPaths.length > 0
+              ? 'support-only evidence'
+              : 'no readable evidence';
+
+      return [
+        `#### Partition ${index + 1} of ${allPartitions.length}`,
+        `- Partition evidence type: ${partitionType}`,
+        `- Scoped documentation targets in partition: ${scopedPaths.join(', ') || '(none)'}`,
+        `- Supporting evidence files in partition: ${supportingPaths.join(', ') || '(none)'}`,
+      ].join('\n');
+    })
+    .filter(Boolean);
+
+  return partitionSummaries.join('\n\n') || '(no partition evidence summary was available)';
+}
+
 function appendPromptSectionIfMissing(prompt, heading, content) {
   const normalizedPrompt = String(prompt ?? '');
   const normalizedContent = String(content ?? '').trim();
@@ -454,11 +496,15 @@ export function buildStep1SynthesisPrompt({
   docFiles = [],
   projectInfo = {},
   scopedDocEntries = [],
+  partitionEvidenceSummary = '',
   partitionFindings = '',
   totalPartitions = 0,
 }) {
   const docTargetsContext = buildStep1ScopedDocPathsContext(docFiles);
   const docContentsContext = buildStep1ScopedDocContextBlock(scopedDocEntries);
+  const evidenceSummaryContext =
+    String(partitionEvidenceSummary ?? '').trim() ||
+    '(no partition evidence summary was available)';
   const findingsContext =
     String(partitionFindings ?? '').trim() || '(no partition findings were available)';
 
@@ -475,10 +521,14 @@ ${docTargetsContext}
 **Direct documentation target excerpts**:
 ${docContentsContext}
 
+**Partition evidence summary**:
+${evidenceSummaryContext}
+
 **Primary partition findings**:
 ${findingsContext}`;
   const approach = `Use the partition findings to reconcile cross-partition contradictions, but ground every final conclusion in the visible documentation excerpts above. Provide one final whole-scope answer only. Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If the partition findings conflict or the visible documentation evidence is incomplete, mark the affected file Inconclusive instead of guessing.
 
+- Use the partition evidence summary to tell apart genuinely unrelated support-only partitions from support evidence that still affects commands, APIs, architecture, or inventories described in the scoped documentation targets.
 - Treat current-state docs (status summaries, implementation tables, released step lists, "current version" blocks) as describing shipped behavior unless the visible scoped document already labels that section as planned/future work.
 - Do not promote roadmap-only or planned items into released/current-state docs unless the visible implementation evidence in this prompt shows the feature already exists.
 - When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines), reconcile them as a linked set. Update only the values explicitly supported by visible evidence, and keep any unsupported line Unavailable or Inconclusive rather than guessing.
@@ -1127,6 +1177,10 @@ export class Step1DocumentationAnalyzer {
                 docFiles: files,
                 projectInfo,
                 scopedDocEntries,
+                partitionEvidenceSummary: buildStep1PartitionEvidenceSummary(
+                  partitionsToAnalyze,
+                  files
+                ),
                 partitionFindings: combinedContent,
                 totalPartitions: partitionsToAnalyze.length,
               });

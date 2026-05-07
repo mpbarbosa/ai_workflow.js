@@ -376,15 +376,15 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       stepLogPath = path.join(stepsDir, 'step_02.log');
     });
 
-    afterEach(() => {
+    afterEach(async () => {
       // Always close any open step log stream to avoid fd leaks across tests
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
     });
 
     test('logger.openStepLogFile() creates the log file on disk', async () => {
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       logger.info('probe');
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 50)); // allow stream flush
       const stat = await fs.stat(stepLogPath);
@@ -392,9 +392,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
     });
 
     test('log file records the step start message', async () => {
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       logger.info('Step 2: Documentation Consistency Analysis');
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 50));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -402,10 +402,10 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
     });
 
     test('log file records the skip-guard message when no docs found', async () => {
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       logger.info('Step 2: Documentation Consistency Analysis');
       logger.info('No documentation files found - skipping consistency check');
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 50));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -424,9 +424,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       await analyzer.execute(tempDir);
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 100));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -444,9 +444,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       await analyzer.execute(tempDir);
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 100));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -463,9 +463,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       await analyzer.execute(tempDir);
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 100));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -482,9 +482,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       await analyzer.execute(tempDir);
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 100));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -501,9 +501,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         aiHelper: { initialize: () => Promise.resolve(false) },
       });
 
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       await analyzer.execute(tempDir);
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 100));
       const content = await fs.readFile(stepLogPath, 'utf8');
@@ -519,9 +519,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
     });
 
     test('log file contains ISO-8601 timestamps for each entry', async () => {
-      logger.openStepLogFile(stepLogPath);
+      await logger.openStepLogFile(stepLogPath);
       logger.info('timestamp test');
-      logger.closeStepLogFile();
+      await logger.closeStepLogFile();
 
       await new Promise((r) => setTimeout(r, 50));
       const content = await fs.readFile(stepLogPath, 'utf8');

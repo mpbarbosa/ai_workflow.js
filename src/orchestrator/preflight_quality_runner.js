@@ -17,6 +17,13 @@ export const HEALTH_CHECK_CATEGORIES = Object.freeze({
 const PRE_FLIGHT_QUALITY_SCRIPT_ORDER = Object.freeze(['lint', 'test', 'build']);
 const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
+const OS_ERROR_PATTERN = /EACCES|ENOENT|EPERM|EBUSY|EMFILE|permission denied/i;
+const TEST_RESULT_LINE_PATTERNS = [
+  /^Test Suites:/i,
+  /^Tests?:/i,
+  /^\d+\s+(?:passed|failed|skipped|todo|total)(?:,\s*\d+\s+(?:passed|failed|skipped|todo|total))+$/i,
+  /^[✓✗]/,
+];
 
 function buildPackageScriptCommand(packageManager, scriptName) {
   switch (packageManager) {
@@ -59,6 +66,27 @@ export function getPreflightQualityCommands(packageJson = {}, packageManager = '
   );
 }
 
+export function classifyPreflightFailure(output) {
+  if (OS_ERROR_PATTERN.test(output) && !hasStructuredTestResults(output)) {
+    return 'environment';
+  }
+  return 'command-failure';
+}
+
+export function buildEnvironmentRemediationHint(output) {
+  if (/EACCES|permission denied/i.test(output)) {
+    const pathMatch = output.match(/(?:rmdir|mkdir|open|unlink)\s+['"]?([^\s'"]+)/i);
+    const offendingPath = pathMatch?.[1] ?? null;
+    return offendingPath
+      ? `Fix: sudo chown -R $USER "${offendingPath}"`
+      : 'Fix: check file ownership — try: sudo chown -R $USER <affected-directory>';
+  }
+  if (/ENOENT/i.test(output)) {
+    return 'Fix: a required file or directory was not found — check your project setup.';
+  }
+  return 'Fix: resolve the environment-level error preventing the test runner from starting.';
+}
+
 function buildSummaryExcerpt(lines = [], startIndex = 0) {
   const excerptLines = [];
   for (const line of lines.slice(startIndex)) {
@@ -73,6 +101,14 @@ function buildSummaryExcerpt(lines = [], startIndex = 0) {
   }
 
   return excerptLines.join('\n').trim();
+}
+
+function hasStructuredTestResults(output) {
+  if (typeof output !== 'string' || output.trim().length === 0) return false;
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => TEST_RESULT_LINE_PATTERNS.some((pattern) => pattern.test(line)));
 }
 
 export function parseTestFailureDetails(output) {
@@ -222,6 +258,7 @@ export async function runPreflightQualitySuites({
   workflowDir,
   logsRunDir,
   changeCounts = null,
+  preflightTestCommand = null,
   logger,
 }) {
   let packageJson;
@@ -253,8 +290,14 @@ export async function runPreflightQualitySuites({
 
   const baselineFailureCount = await readPreflightBaseline(workflowDir);
 
+  const suitesToRun = preflightTestCommand
+    ? commands.map((suite) =>
+        suite.name === 'test' ? { ...suite, command: preflightTestCommand } : suite
+      )
+    : commands;
+
   const results = [];
-  for (const suite of commands) {
+  for (const suite of suitesToRun) {
     logger.info(`Running pre-flight quality suite: ${suite.command} (cwd: ${projectRoot})`);
     try {
       const cmdOutput = await executorModule(suite.command, {
@@ -358,6 +401,25 @@ export async function runPreflightQualitySuites({
       let advisory = false;
       let advisoryMessage = null;
       if (suite.name === 'test') {
+        const envFailureKind = classifyPreflightFailure(fullFailureOutput);
+        if (envFailureKind === 'environment') {
+          return {
+            passed: false,
+            advisory: false,
+            advisoryMessage: null,
+            hasForceExitWarning,
+            skipped: false,
+            packageManager,
+            commands: results,
+            failedCommand: suite.command,
+            failureOutput,
+            failureKind: 'environment',
+            failureArtifact,
+            failureArtifactError,
+            message: `Environment error blocked test runner (${suite.command}). ${buildEnvironmentRemediationHint(fullFailureOutput)}`,
+          };
+        }
+
         const testFailureDetails = parseTestFailureDetails(fullFailureOutput);
         const currentFailureCount = testFailureDetails?.failureCount ?? null;
         const testFilesChanged = changeCounts?.tests ?? null;

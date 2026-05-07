@@ -78,6 +78,36 @@ export const SOURCE_EXTENSIONS = {
   json: ['.json'],
 };
 
+const STEP10_SOURCE_FILE_GLOB_IGNORES = Object.freeze([
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/build/**',
+  '**/.git/**',
+  '**/.ai_workflow/**',
+  '**/.github/**',
+  '**/.husky/**',
+  '**/venv/**',
+  '**/.venv/**',
+  '**/coverage/**',
+  '**/.coverage/**',
+  '**/__pycache__/**',
+  '**/.jest-cache/**',
+  '**/.cache/**',
+  '**/legacy-tests/**',
+  '**/vendor/**',
+  '**/test/**',
+  '**/tests/**',
+  '**/__tests__/**',
+  '**/spec/**',
+  '**/specs/**',
+  '**/*.test.*',
+  '**/*.spec.*',
+  '**/*.test.js',
+  '**/*.test.ts',
+  '**/*.test.jsx',
+  '**/*.test.tsx',
+]);
+
 /**
  * Quality metrics thresholds
  */
@@ -841,37 +871,7 @@ export class Step10CodeQualityAnalyzer {
         try {
           const files = await this.fileOps.glob(pattern, {
             cwd: projectRoot,
-            ignore: [
-              '**/node_modules/**',
-              '**/dist/**',
-              '**/build/**',
-              '**/.git/**',
-              '**/.ai_workflow/**',
-              '**/.github/**',
-              '**/.husky/**',
-              '**/venv/**',
-              '**/.venv/**',
-              '**/coverage/**',
-              '**/.coverage/**',
-              '**/__pycache__/**',
-              '**/.jest-cache/**',
-              '**/.cache/**',
-              '**/legacy-tests/**',
-              '**/vendor/**',
-              // Exclude test directories and test file patterns so only source files
-              // are counted; linters (e.g. eslint 'src/**') already exclude tests.
-              '**/test/**',
-              '**/tests/**',
-              '**/__tests__/**',
-              '**/*.test.js',
-              '**/*.test.ts',
-              '**/*.test.jsx',
-              '**/*.test.tsx',
-              '**/*.spec.js',
-              '**/*.spec.ts',
-              '**/*.spec.jsx',
-              '**/*.spec.tsx',
-            ],
+            ignore: STEP10_SOURCE_FILE_GLOB_IGNORES,
           });
           allFiles = allFiles.concat(files);
         } catch {

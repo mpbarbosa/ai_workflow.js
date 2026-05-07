@@ -6,6 +6,8 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { jest } from '@jest/globals';
+import { logger } from '../../src/core/logger.js';
 import { AI_HELPERS_PATH, PROMPT_ROLES_PATH } from '../../src/lib/ai_prompt_builder.js';
 import {
   Step9DependencyValidator,
@@ -13,6 +15,9 @@ import {
   getAuditCommand,
   getOutdatedCommand,
   supportsDependencyValidation,
+  isStep9RelevantModifiedFile,
+  resolveStep9AiScope,
+  resolveJavascriptPromptContext,
   parsePackageJson,
   buildDependencyPromptEvidence,
   parseNpmAudit,
@@ -135,6 +140,69 @@ describe('Step 9: Dependency Validation', () => {
 
     test('returns false for shell', () => {
       expect(supportsDependencyValidation('shell')).toBe(false);
+    });
+  });
+
+  describe('isStep9RelevantModifiedFile', () => {
+    test('matches dependency manifests and lockfiles', () => {
+      expect(isStep9RelevantModifiedFile('package.json')).toBe(true);
+      expect(isStep9RelevantModifiedFile('frontend/pnpm-lock.yaml')).toBe(true);
+      expect(isStep9RelevantModifiedFile('requirements-dev.txt')).toBe(true);
+    });
+
+    test('ignores source-only changes', () => {
+      expect(isStep9RelevantModifiedFile('src/index.js')).toBe(false);
+      expect(isStep9RelevantModifiedFile('docs/README.md')).toBe(false);
+    });
+  });
+
+  describe('resolveStep9AiScope', () => {
+    test('keeps AI enabled when dependency-relevant files changed', () => {
+      expect(resolveStep9AiScope(['src/index.js', 'package.json'])).toEqual({
+        shouldAnalyze: true,
+        reason: 'relevant-modified-files-present',
+        relevantFiles: ['package.json'],
+      });
+    });
+
+    test('skips AI when scoped changes do not touch dependency files', () => {
+      expect(resolveStep9AiScope(['src/index.js', 'README.md'])).toEqual({
+        shouldAnalyze: false,
+        reason: 'no-step9-relevant-modified-files',
+        relevantFiles: [],
+      });
+    });
+
+    test('preserves current behavior when modified file scope is unavailable', () => {
+      expect(resolveStep9AiScope(undefined)).toEqual({
+        shouldAnalyze: true,
+        reason: 'modified-files-unavailable',
+        relevantFiles: [],
+      });
+    });
+  });
+
+  describe('resolveJavascriptPromptContext', () => {
+    test('prefers actual package scripts and framework dependencies over hardcoded defaults', () => {
+      expect(
+        resolveJavascriptPromptContext(
+          {
+            scripts: {
+              test: 'vitest run',
+              lint: 'eslint "src/**/*.ts"',
+            },
+            devDependencies: {
+              vitest: '^4.0.0',
+            },
+          },
+          'typescript'
+        )
+      ).toEqual({
+        buildSystem: 'npm',
+        testFramework: 'vitest',
+        testCommand: 'vitest run',
+        lintCommand: 'eslint "src/**/*.ts"',
+      });
     });
   });
 
@@ -1002,6 +1070,145 @@ describe('Step 9: Dependency Validation', () => {
       expect(dependencyPrompt).toContain('Dependency Tree / Usage Evidence:');
       expect(dependencyPrompt).toContain('"engines": {');
       expect(dependencyPrompt).toContain('runtime pin files: .nvmrc');
+    });
+
+    test('uses package.json test and lint context in the JavaScript package review prompt', async () => {
+      const prompts = [];
+      mockFileOps.exists = async (targetPath) =>
+        targetPath.endsWith('package.json') || targetPath.endsWith('package-lock.json');
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === AI_HELPERS_PATH || targetPath === PROMPT_ROLES_PATH) {
+          return fs.readFileSync(targetPath, 'utf-8');
+        }
+        if (targetPath.endsWith('package.json')) {
+          return JSON.stringify({
+            scripts: {
+              test: 'vitest run',
+              lint: 'eslint "src/**/*.ts"',
+            },
+            devDependencies: {
+              vitest: '^4.1.5',
+              eslint: '^9.39.1',
+            },
+          });
+        }
+        return '';
+      };
+      mockExecutor.execute = async (cmd) => {
+        if (cmd.includes('audit')) {
+          return {
+            stdout: JSON.stringify({
+              metadata: { vulnerabilities: { total: 0 } },
+              vulnerabilities: {},
+            }),
+          };
+        }
+        if (cmd.includes('outdated')) {
+          return { stdout: '{}' };
+        }
+        return { stdout: '{}' };
+      };
+
+      validator = new Step9DependencyValidator({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: async (prompt) => {
+            prompts.push(prompt);
+            return { content: '' };
+          },
+        },
+        aiCache: {
+          init: async () => {},
+          withFileChangeGuard: async (_stepId, _hashEntries, callback) => callback(),
+        },
+        depCache: {
+          init: async () => {},
+          has: async () => false,
+          get: async () => null,
+          set: async () => {},
+        },
+      });
+
+      const result = await validator.execute('/project', {
+        projectKind: 'generic',
+        modifiedFiles: ['package.json'],
+      });
+
+      expect(result.success).toBe(true);
+      const jsPrompt = prompts.find((prompt) => prompt.includes('**Current package.json:**'));
+      expect(jsPrompt).toBeTruthy();
+      expect(jsPrompt).toContain('- Test Framework: vitest');
+      expect(jsPrompt).toContain('- Test Command: vitest run');
+      expect(jsPrompt).toContain('- Lint Command: eslint "src/**/*.ts"');
+      expect(jsPrompt).not.toContain('- Test Framework: jest');
+      expect(jsPrompt).not.toContain('- Lint Command: eslint .');
+    });
+
+    test('logs and skips the optional AI phase when no step 9 relevant files changed', async () => {
+      mockFileOps.exists = async () => true;
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath.endsWith('package.json')) {
+          return JSON.stringify({
+            dependencies: { react: '^18.0.0' },
+          });
+        }
+        return '';
+      };
+      mockExecutor.execute = async (cmd) => {
+        if (cmd.includes('audit')) {
+          return {
+            stdout: JSON.stringify({
+              metadata: { vulnerabilities: { total: 0 } },
+              vulnerabilities: {},
+            }),
+          };
+        }
+        if (cmd.includes('outdated')) {
+          return { stdout: '{}' };
+        }
+        return { stdout: '{}' };
+      };
+
+      const initialize = jest.fn().mockResolvedValue(true);
+      const executeRequest = jest.fn().mockResolvedValue({ content: 'should not run' });
+      const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+
+      validator = new Step9DependencyValidator({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize,
+          executeRequest,
+        },
+        aiCache: {
+          init: async () => {},
+          withFileChangeGuard: async (_stepId, _hashEntries, callback) => callback(),
+        },
+        depCache: {
+          init: async () => {},
+          has: async () => false,
+          get: async () => null,
+          set: async () => {},
+        },
+      });
+
+      const result = await validator.execute('/project', {
+        modifiedFiles: ['src/index.js', 'README.md'],
+      });
+
+      expect(result.success).toBe(true);
+      expect(initialize).not.toHaveBeenCalled();
+      expect(executeRequest).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith(
+        'Skipping AI dependency analysis: no-step9-relevant-modified-files'
+      );
+      infoSpy.mockRestore();
     });
   });
 

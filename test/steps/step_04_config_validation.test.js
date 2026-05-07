@@ -850,6 +850,68 @@ describe('Step 4: Configuration Validation', () => {
       expect(savedContent).not.toContain('Validation note');
     });
 
+    test('normalizes partition responses that overstate scope or reference other files', async () => {
+      const longYaml = [
+        'workflow:',
+        `  note: "${'x'.repeat(MAX_PROMPT_ENTRY_CHARS * 2 + 1200)}"`,
+      ].join('\n');
+      let savedContent = '';
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (prompt) => {
+          if (prompt.includes('- Partition: 2/2')) {
+            return Promise.resolve({
+              content: [
+                'All configuration files validated successfully.',
+                '',
+                '**Files checked:** 2',
+                '',
+                '- package.json is valid.',
+                '- .workflow-config.yaml is also well-structured.',
+              ].join('\n'),
+            });
+          }
+
+          return Promise.resolve({
+            content: 'No issues detected in the visible files for this partition.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve(['.workflow-config.yaml', 'package.json', '.github/workflows/ci.yml']);
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('.workflow-config.yaml')) return Promise.resolve(longYaml);
+        if (filePath.endsWith('package.json'))
+          return Promise.resolve('{"name":"test","version":"1.0.0"}');
+        if (filePath.endsWith('.github/workflows/ci.yml'))
+          return Promise.resolve('name: CI\non: push');
+        return Promise.reject(new Error('not found'));
+      };
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedContent = content;
+        return Promise.resolve();
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      expect(savedContent).toContain('Validation note');
+      expect(savedContent).toContain('Configuration validation remains inconclusive');
+      expect(savedContent).toContain('**Files checked:** 3');
+    });
+
     test('keeps generated package-lock content compact in AI prompt context', async () => {
       const lockfile = JSON.stringify({
         name: 'test',
@@ -865,12 +927,13 @@ describe('Step 4: Configuration Validation', () => {
         },
       });
       let seenPrompt = '';
+      let savedContent = '';
       const aiHelper = {
         initialize: () => Promise.resolve(true),
         executeRequest: (prompt) => {
           seenPrompt = prompt;
           return Promise.resolve({
-            content: 'All configuration files validated successfully.',
+            content: 'All configuration files validated successfully.\n\n**Files checked:** 1',
           });
         },
       };
@@ -883,6 +946,10 @@ describe('Step 4: Configuration Validation', () => {
       mockFileOps.readFile = (filePath) => {
         if (filePath.endsWith('package-lock.json')) return Promise.resolve(lockfile);
         return Promise.reject(new Error('not found'));
+      };
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedContent = content;
+        return Promise.resolve();
       };
 
       analyzer = new Step4ConfigAnalyzer({
@@ -898,6 +965,9 @@ describe('Step 4: Configuration Validation', () => {
       expect(seenPrompt).toContain('[generated npm lockfile summary]');
       expect(seenPrompt).toContain('"rootDependencies"');
       expect(seenPrompt).not.toContain('"node_modules/react"');
+      expect(savedContent).toContain('Validation note');
+      expect(savedContent).toContain('Configuration validation remains inconclusive');
+      expect(savedContent).not.toContain('All configuration files validated successfully');
     });
 
     test('supplementary quality prompt injects visible config file contents and scope note', async () => {
@@ -1018,6 +1088,94 @@ describe('Step 4: Configuration Validation', () => {
       expect(EXCLUDE_DIRS).toContain('venv');
       expect(EXCLUDE_DIRS).toContain('.venv');
       expect(EXCLUDE_DIRS).toContain('env');
+    });
+
+    describe('structure.config_files allowlist', () => {
+      test('uses declared file list from options.configFiles instead of git/glob discovery', async () => {
+        const discoveredViaGit = [];
+        mockGitOps.getModifiedFiles = () => {
+          discoveredViaGit.push('git-called');
+          return Promise.resolve(['package-lock.json', 'src/index.ts']);
+        };
+        const globCalled = [];
+        mockFileOps.glob = (...args) => {
+          globCalled.push(args);
+          return Promise.resolve([]);
+        };
+        mockFileOps.readFile = (filePath) => {
+          if (filePath.endsWith('package.json')) return Promise.resolve('{"name":"test"}');
+          if (filePath.endsWith('tsconfig.json')) return Promise.resolve('{}');
+          return Promise.reject(new Error(`unexpected read: ${filePath}`));
+        };
+
+        const result = await analyzer.execute('/project', {
+          configFiles: ['package.json', 'tsconfig.json'],
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.filesChecked).toBe(2);
+        // git discovery and glob fallback must not be called when the allowlist is provided
+        expect(discoveredViaGit).toHaveLength(0);
+        expect(globCalled).toHaveLength(0);
+      });
+
+      test('falls back to git/glob discovery when options.configFiles is absent', async () => {
+        const gitCallCount = [];
+        mockGitOps.getModifiedFiles = () => {
+          gitCallCount.push(1);
+          return Promise.resolve(['package.json']);
+        };
+        mockFileOps.readFile = () => Promise.resolve('{"name":"test"}');
+
+        await analyzer.execute('/project');
+
+        expect(gitCallCount).toHaveLength(1);
+      });
+
+      test('falls back to git/glob discovery when options.configFiles is an empty array', async () => {
+        const gitCallCount = [];
+        mockGitOps.getModifiedFiles = () => {
+          gitCallCount.push(1);
+          return Promise.resolve(['package.json']);
+        };
+        mockFileOps.readFile = () => Promise.resolve('{"name":"test"}');
+
+        await analyzer.execute('/project', { configFiles: [] });
+
+        expect(gitCallCount).toHaveLength(1);
+      });
+
+      test('excludes package-lock.json when it is absent from the declared list', async () => {
+        let promptSeen = '';
+        const aiHelper = {
+          initialize: () => Promise.resolve(true),
+          executeRequest: (prompt) => {
+            promptSeen = prompt;
+            return Promise.resolve({ content: 'package.json looks good.' });
+          },
+        };
+        const aiCache = {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+        };
+        mockFileOps.readFile = (filePath) => {
+          if (filePath.endsWith('package.json')) return Promise.resolve('{"name":"test"}');
+          return Promise.reject(new Error(`unexpected: ${filePath}`));
+        };
+
+        analyzer = new Step4ConfigAnalyzer({
+          fileOps: mockFileOps,
+          backlog: mockBacklog,
+          gitOps: mockGitOps,
+          aiHelper,
+          aiCache,
+        });
+
+        const result = await analyzer.execute('/project', { configFiles: ['package.json'] });
+
+        expect(result.success).toBe(true);
+        expect(promptSeen).not.toContain('package-lock.json');
+      });
     });
   });
 
@@ -1372,7 +1530,9 @@ describe('Step 4: Configuration Validation', () => {
 
       expect(promptPartitions).toHaveLength(2);
       expect(scopeNote).toContain('capped to 2 partition(s)');
-      expect(scopeNote).toContain('deterministic validation still covered the full configuration set');
+      expect(scopeNote).toContain(
+        'deterministic validation still covered the full configuration set'
+      );
     });
   });
 
@@ -1461,6 +1621,25 @@ describe('Step 4: Configuration Validation', () => {
       expect(result.hasPartialEvidence).toBe(true);
       expect(result.truncatedFiles).toEqual(['package.json']);
       expect(result.unavailableFiles).toEqual(['ci.yml']);
+    });
+
+    test('treats generated summaries and subset partitions as partial evidence', () => {
+      const result = assessPromptEvidence(
+        ['package-lock.json'],
+        [
+          {
+            relativePath: 'package-lock.json',
+            content: '[generated npm lockfile summary]\n{"lockfileVersion":3}',
+          },
+        ],
+        MAX_FILE_CONTENT_CHARS,
+        { totalScopeCount: 2 }
+      );
+
+      expect(result.hasPartialEvidence).toBe(true);
+      expect(result.hasPartialScope).toBe(true);
+      expect(result.summarizedFiles).toEqual(['package-lock.json']);
+      expect(result.totalScopeCount).toBe(2);
     });
   });
 
@@ -1558,6 +1737,100 @@ describe('Step 4: Configuration Validation', () => {
       expect(result.adequate).toBe(true);
       expect(result.hasPartialEvidence).toBe(true);
     });
+
+    test('returns adequate=false for summary-backed full-success claims', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'All configuration files validated successfully.\n\nNo issues detected.',
+        ['package-lock.json'],
+        [
+          {
+            relativePath: 'package-lock.json',
+            content: '[generated npm lockfile summary]\n{"lockfileVersion":3}',
+          },
+        ]
+      );
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toContain('summarized: package-lock.json');
+      expect(result.summarizedFiles).toEqual(['package-lock.json']);
+    });
+
+    test('returns adequate=false for global-success claims over a partitioned subset', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'All configuration files validated successfully.\n\n**Files checked:** 2',
+        ['package-lock.json'],
+        [{ relativePath: 'package-lock.json', content: '{"lockfileVersion":3}' }],
+        MAX_FILE_CONTENT_CHARS,
+        {
+          totalScopeCount: 2,
+          allRunPaths: ['package-lock.json', '.workflow-config.yaml'],
+        }
+      );
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toContain('partial scope');
+      expect(result.reportedFileCount).toBe(2);
+      expect(result.scopeFileCount).toBe(1);
+    });
+
+    test('returns adequate=false when a partition response mentions files outside scope', () => {
+      const result = validateAiResponseEvidenceHandling(
+        'package-lock.json looks consistent. .workflow-config.yaml is also well-structured.',
+        ['package-lock.json'],
+        [{ relativePath: 'package-lock.json', content: '{"lockfileVersion":3}' }],
+        MAX_FILE_CONTENT_CHARS,
+        {
+          allRunPaths: ['package-lock.json', '.workflow-config.yaml'],
+        }
+      );
+
+      expect(result.adequate).toBe(false);
+      expect(result.outOfScopeMentions).toEqual(['.workflow-config.yaml']);
+      expect(result.reason).toContain('out-of-scope references');
+    });
+
+    test('returns adequate=false when an exhaustive override claim omits visible override ids', () => {
+      const result = validateAiResponseEvidenceHandling(
+        [
+          'The workflow is mostly canonical.',
+          'One override (`step_18`) is documented with a dependency_comment.',
+          'No other non-canonical rewires are visible.',
+        ].join('\n'),
+        ['.workflow-config.yaml (part 1/2)', '.workflow-config.yaml (part 2/2)'],
+        [
+          {
+            relativePath: '.workflow-config.yaml (part 1/2)',
+            sourcePath: '.workflow-config.yaml',
+            content: [
+              'workflow:',
+              '  steps:',
+              '    - id: step_18',
+              '      dependencies:',
+              '        - step_10',
+              '      dependency_comment: "documented override"',
+            ].join('\n'),
+          },
+          {
+            relativePath: '.workflow-config.yaml (part 2/2)',
+            sourcePath: '.workflow-config.yaml',
+            content: [
+              '    - id: step_17',
+              '      dependencies:',
+              '        - step_03',
+              '        - step_11',
+              '        - step_19',
+              '      dependency_comment: "another documented override"',
+            ].join('\n'),
+          },
+        ],
+        Number.MAX_SAFE_INTEGER
+      );
+
+      expect(result.adequate).toBe(false);
+      expect(result.visibleOverrideIds).toEqual(['step_17', 'step_18']);
+      expect(result.missingDependencyOverrides).toEqual(['step_17']);
+      expect(result.reason).toContain('missing visible dependency overrides');
+    });
   });
 
   describe('normalizeAiResponseForPartialEvidence', () => {
@@ -1569,6 +1842,30 @@ describe('Step 4: Configuration Validation', () => {
 
       expect(normalized).toContain('Configuration validation remains inconclusive');
       expect(normalized).toContain('No issues detected in the visible excerpts');
+    });
+
+    test('removes out-of-scope mentions and rewrites counts for partitioned responses', () => {
+      const normalized = normalizeAiResponseForPartialEvidence(
+        [
+          'All configuration files validated successfully.',
+          '',
+          '**Files checked:** 2',
+          '- package-lock.json is consistent.',
+          '- .workflow-config.yaml is also well-structured.',
+        ].join('\n'),
+        {
+          hasPartialEvidence: true,
+          hasPartialScope: true,
+          scopeFileCount: 1,
+          reportedFileCount: 2,
+          outOfScopeMentions: ['.workflow-config.yaml'],
+        }
+      );
+
+      expect(normalized).toContain('Configuration validation is limited to the current partition');
+      expect(normalized).toContain('**Files checked:** 1');
+      expect(normalized).not.toContain('.workflow-config.yaml is also well-structured');
+      expect(normalized).toContain('Scope note');
     });
   });
 

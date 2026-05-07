@@ -44,6 +44,47 @@ export const DEPENDENCY_FILES = {
   rust: ['Cargo.toml', 'Cargo.lock'],
 };
 
+const STEP9_EXTRA_RELEVANT_FILES = [
+  '.nvmrc',
+  '.node-version',
+  '.npmrc',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  'npm-shrinkwrap.json',
+];
+
+const STEP9_RELEVANT_FILE_NAMES = new Set([
+  ...Object.values(DEPENDENCY_FILES).flat(),
+  ...STEP9_EXTRA_RELEVANT_FILES,
+]);
+
+const DEFAULT_TEST_FRAMEWORK_BY_LANGUAGE = {
+  javascript: 'jest',
+  typescript: 'jest',
+  python: 'pytest',
+  go: 'go test',
+  ruby: 'rspec',
+  rust: 'cargo test',
+};
+
+const DEFAULT_TEST_COMMAND_BY_LANGUAGE = {
+  javascript: 'npm test',
+  typescript: 'npm test',
+  python: 'pytest',
+  go: 'go test ./...',
+  ruby: 'rspec',
+  rust: 'cargo test',
+};
+
+const DEFAULT_LINT_COMMAND_BY_LANGUAGE = {
+  javascript: 'eslint .',
+  typescript: 'eslint .',
+  python: 'flake8',
+  go: 'golint',
+  ruby: 'rubocop',
+  rust: 'cargo clippy',
+};
+
 /**
  * Audit commands by language
  */
@@ -143,6 +184,93 @@ export function getOutdatedCommand(language) {
 export function supportsDependencyValidation(language) {
   const normalized = language.toLowerCase();
   return ['bash', 'shell', 'sh'].indexOf(normalized) === -1;
+}
+
+function normalizeStep9FilePath(filePath) {
+  return typeof filePath === 'string' ? filePath.replace(/\\/g, '/').trim() : '';
+}
+
+export function isStep9RelevantModifiedFile(filePath) {
+  const normalizedPath = normalizeStep9FilePath(filePath);
+  if (!normalizedPath) {
+    return false;
+  }
+
+  const fileName = path.posix.basename(normalizedPath);
+  if (STEP9_RELEVANT_FILE_NAMES.has(fileName)) {
+    return true;
+  }
+
+  return /(^|\/)requirements[^/]*\.txt$/i.test(normalizedPath);
+}
+
+export function resolveStep9AiScope(modifiedFiles) {
+  if (!Array.isArray(modifiedFiles)) {
+    return {
+      shouldAnalyze: true,
+      reason: 'modified-files-unavailable',
+      relevantFiles: [],
+    };
+  }
+
+  const normalizedFiles = modifiedFiles.map(normalizeStep9FilePath).filter(Boolean);
+  const relevantFiles = normalizedFiles.filter((filePath) => isStep9RelevantModifiedFile(filePath));
+
+  if (relevantFiles.length > 0) {
+    return {
+      shouldAnalyze: true,
+      reason: 'relevant-modified-files-present',
+      relevantFiles,
+    };
+  }
+
+  return {
+    shouldAnalyze: false,
+    reason:
+      normalizedFiles.length === 0
+        ? 'no-modified-files-provided'
+        : 'no-step9-relevant-modified-files',
+    relevantFiles: [],
+  };
+}
+
+function detectManifestTestFramework(packageJson, language) {
+  const deps = {
+    ...(packageJson?.dependencies || {}),
+    ...(packageJson?.devDependencies || {}),
+  };
+
+  if (deps.vitest) return 'vitest';
+  if (deps.jest) return 'jest';
+  if (deps.mocha) return 'mocha';
+  if (deps['@playwright/test']) return 'playwright';
+
+  return DEFAULT_TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
+}
+
+export function resolveJavascriptPromptContext(packageJson, language) {
+  const scripts = packageJson?.scripts || {};
+
+  return {
+    buildSystem:
+      {
+        javascript: 'npm',
+        typescript: 'npm',
+        python: 'pip',
+        go: 'go',
+        ruby: 'bundler',
+        rust: 'cargo',
+      }[language] ?? 'npm',
+    testFramework: detectManifestTestFramework(packageJson, language),
+    testCommand:
+      typeof scripts.test === 'string' && scripts.test.trim().length > 0
+        ? scripts.test.trim()
+        : (DEFAULT_TEST_COMMAND_BY_LANGUAGE[language] ?? 'npm test'),
+    lintCommand:
+      typeof scripts.lint === 'string' && scripts.lint.trim().length > 0
+        ? scripts.lint.trim()
+        : (DEFAULT_LINT_COMMAND_BY_LANGUAGE[language] ?? 'eslint .'),
+  };
 }
 
 // ============================================================================
@@ -1039,10 +1167,16 @@ export class Step9DependencyValidator {
       await this.backlog.saveStepSummary(9, 'Dependency Validation', report);
 
       // Phase 7: AI-powered dependency analysis (optional enrichment)
+      const aiScope = resolveStep9AiScope(options?.modifiedFiles);
+      if (!aiScope.shouldAnalyze) {
+        logger.info(`Skipping AI dependency analysis: ${aiScope.reason}`);
+      }
+
       try {
         await enrichStepSummaryWithOptionalAiAnalysis({
           aiHelper: this.aiHelper,
           aiCache: this.aiCache,
+          shouldInitialize: aiScope.shouldAnalyze,
           unavailableMessage: 'AI helper not available - skipping AI dependency analysis',
           backlog: this.backlog,
           stepId: 9,
@@ -1063,6 +1197,17 @@ export class Step9DependencyValidator {
               ...outdatedPackages.slice(0, 20).map((p) => `outdated:${p.name}:${p.latest}`),
             ];
             const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
+            let currentPackageJson = 'Not found';
+            let parsedPackageJson = null;
+            if (language === 'javascript' || language === 'typescript') {
+              try {
+                currentPackageJson = await this.fileOps.readFile(`${projectRoot}/package.json`);
+                parsedPackageJson = JSON.parse(currentPackageJson);
+              } catch {
+                currentPackageJson = 'Not found';
+                parsedPackageJson = null;
+              }
+            }
             const prompt = await buildStepPromptWithFallback({
               buildPrompt: async () => {
                 const pkgMgrMap = {
@@ -1080,16 +1225,6 @@ export class Step9DependencyValidator {
                 const prodList = Object.keys(prodDepsObj).slice(0, 30).join(', ') || 'none';
                 const devList = Object.keys(devDepsObj).slice(0, 30).join(', ') || 'none';
                 const vulnSum = vulnerabilities.summary ?? {};
-                let promptPackageJson = null;
-                if (language === 'javascript' || language === 'typescript') {
-                  try {
-                    promptPackageJson = JSON.parse(
-                      await this.fileOps.readFile(`${projectRoot}/package.json`)
-                    );
-                  } catch {
-                    promptPackageJson = null;
-                  }
-                }
                 const runtimePinFiles = [];
                 for (const pinFile of ['.nvmrc', '.node-version']) {
                   if (await this.fileOps.exists(path.join(projectRoot, pinFile))) {
@@ -1099,7 +1234,7 @@ export class Step9DependencyValidator {
                 const promptEvidence = buildDependencyPromptEvidence({
                   language,
                   dependencyFiles,
-                  packageJson: promptPackageJson,
+                  packageJson: parsedPackageJson,
                   lockfileIssues,
                   runtimePinFiles,
                 });
@@ -1156,55 +1291,17 @@ export class Step9DependencyValidator {
             let jsContent = '';
             if (language === 'javascript' || language === 'typescript') {
               try {
-                // Read the actual package.json so the AI reviews reality, not an invention
-                let currentPackageJson = 'Not found';
-                try {
-                  currentPackageJson = await this.fileOps.readFile(`${projectRoot}/package.json`);
-                } catch {
-                  /* file may not exist */
-                }
+                const jsPromptContext = resolveJavascriptPromptContext(parsedPackageJson, language);
 
                 const jsPrompt = buildYamlStepPrompt(parsedYaml, 'javascript_developer_prompt', {
                   project_name: path.basename(projectRoot),
                   project_description: options?.projectDescription ?? 'N/A',
                   project_kind: options?.projectType ?? options?.projectKind ?? 'N/A',
                   primary_language: language,
-                  build_system:
-                    {
-                      javascript: 'npm',
-                      typescript: 'npm',
-                      python: 'pip',
-                      go: 'go',
-                      ruby: 'bundler',
-                      rust: 'cargo',
-                    }[language] ?? 'npm',
-                  test_framework:
-                    {
-                      javascript: 'jest',
-                      typescript: 'jest',
-                      python: 'pytest',
-                      go: 'go test',
-                      ruby: 'rspec',
-                      rust: 'cargo test',
-                    }[language] ?? 'jest',
-                  test_command:
-                    {
-                      javascript: 'npm test',
-                      typescript: 'npm test',
-                      python: 'pytest',
-                      go: 'go test ./...',
-                      ruby: 'rspec',
-                      rust: 'cargo test',
-                    }[language] ?? 'npm test',
-                  lint_command:
-                    {
-                      javascript: 'eslint .',
-                      typescript: 'eslint .',
-                      python: 'flake8',
-                      go: 'golint',
-                      ruby: 'rubocop',
-                      rust: 'cargo clippy',
-                    }[language] ?? 'eslint .',
+                  build_system: jsPromptContext.buildSystem,
+                  test_framework: jsPromptContext.testFramework,
+                  test_command: jsPromptContext.testCommand,
+                  lint_command: jsPromptContext.lintCommand,
                   modified_count: String(options?.modifiedCount ?? 'N/A'),
                   current_package_json: currentPackageJson,
                 });

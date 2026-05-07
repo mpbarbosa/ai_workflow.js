@@ -24,6 +24,8 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(template).toContain('compact summary of a generated');
     expect(template).toContain('lockfile or other oversized');
     expect(template).toContain('do not infer, search for, or include any other files');
+    expect(template).toContain('never use the exact');
+    expect(template).toContain('"All configuration files validated successfully"');
   });
 
   test('approach constrains praise and freshness claims to visible evidence', () => {
@@ -36,6 +38,8 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(approach).toContain(
       'Limit any "no issues found" wording to the visible excerpt(s) only'
     );
+    expect(approach).toContain('keep conclusions partition-local');
+    expect(approach).toContain('list each visible step ID');
   });
 
   test('rendered prompt preserves partition guidance alongside split file labels', () => {

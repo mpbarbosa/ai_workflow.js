@@ -20,6 +20,7 @@
     "src/lib/ai_provider.ts",
     "src/lib/ai_cache.ts",
     "src/lib/ai_personas.ts",
+    "src/orchestrator/olinda_step_registry.ts",
     "src/cli/tui/components/ErrorDetailPanel.ts",
     "src/cli/tui/components/Header.ts",
     "src/cli/tui/components/HelpOverlay.ts",

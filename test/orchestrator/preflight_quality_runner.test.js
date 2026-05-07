@@ -1,5 +1,7 @@
 import {
   HEALTH_CHECK_CATEGORIES,
+  buildEnvironmentRemediationHint,
+  classifyPreflightFailure,
   detectPreflightPackageManager,
   getPreflightQualityCommands,
   parseTestFailureCount,
@@ -62,6 +64,101 @@ describe('preflight_quality_runner', () => {
     expect(parseTestFailureCount(output)).toBeNull();
   });
 
+  test('classifyPreflightFailure returns environment for OS errors with no test results', () => {
+    const eaccesOutput = "Error: EACCES: permission denied, rmdir '/project/coverage/lcov-report'";
+    expect(classifyPreflightFailure(eaccesOutput)).toBe('environment');
+  });
+
+  test('classifyPreflightFailure returns command-failure when test results are also present', () => {
+    const mixedOutput = 'Error: EACCES: permission denied\n3 passed, 2 failed';
+    expect(classifyPreflightFailure(mixedOutput)).toBe('command-failure');
+  });
+
+  test('classifyPreflightFailure returns command-failure for normal test failure output', () => {
+    const normalOutput = 'Tests: 2 failed, 8 passed, 10 total';
+    expect(classifyPreflightFailure(normalOutput)).toBe('command-failure');
+  });
+
+  test('buildEnvironmentRemediationHint includes fix for EACCES with detected path', () => {
+    const output = "Error: EACCES: permission denied, rmdir '/project/coverage/lcov-report'";
+    const hint = buildEnvironmentRemediationHint(output);
+    expect(hint).toContain('sudo chown -R $USER');
+    expect(hint).toContain('/project/coverage/lcov-report');
+  });
+
+  test('buildEnvironmentRemediationHint covers ENOENT', () => {
+    const hint = buildEnvironmentRemediationHint('ENOENT: no such file or directory');
+    expect(hint).toContain('not found');
+  });
+
+  test('runPreflightQualitySuites classifies EACCES crash as environment failure', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-env-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'env-failure-fixture',
+        version: '1.0.0',
+        scripts: {
+          test: `node -e "process.stderr.write('Error: EACCES: permission denied, rmdir /project/coverage/lcov-report\\n'); process.exit(1)"`,
+        },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: { tests: 0 },
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.advisory).toBe(false);
+    expect(result.failureKind).toBe('environment');
+    expect(result.message).toContain('Environment error blocked test runner');
+    expect(result.message).toContain('Fix:');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites uses preflightTestCommand when provided', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-override-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'override-fixture',
+        version: '1.0.0',
+        scripts: { test: 'node -e "process.exit(1)"' },
+      }),
+      'utf8'
+    );
+
+    // override with a passing lightweight command
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: null,
+      preflightTestCommand: 'node -e "process.exit(0)"',
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(true);
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
   test('runPreflightQualitySuites records exact evidence for exit-0 parser anomalies', async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-anomaly-'));
     const projectRoot = path.join(tempRoot, 'project');
@@ -77,8 +174,7 @@ describe('preflight_quality_runner', () => {
           version: '1.0.0',
           scripts: {
             lint: 'node -e "console.log(\'lint ok\')"',
-            test:
-              'node -e "console.log(\'Test Suites: 1 failed, 1 total\'); console.log(\'Tests: 2 failed, 8 passed, 10 total\'); console.log(\'Snapshots: 0 total\'); console.log(\'Time: 0.1 s\'); console.log(\'Ran all test suites.\')"',
+            test: "node -e \"console.log('Test Suites: 1 failed, 1 total'); console.log('Tests: 2 failed, 8 passed, 10 total'); console.log('Snapshots: 0 total'); console.log('Time: 0.1 s'); console.log('Ran all test suites.')\"",
           },
         },
         null,

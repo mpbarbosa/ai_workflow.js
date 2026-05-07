@@ -12,7 +12,8 @@
  *     We add a minimal exports map so the extensionless subpath resolves to node.js.
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import * as childProcess from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -30,6 +31,40 @@ function writePkg(pkgPath, pkg) {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
 }
 
+function ensureOlindaUtilsBuild(nodeModulesPath) {
+  const pkgDir = join(nodeModulesPath, 'olinda_utils.js');
+  const pkgPath = join(pkgDir, 'package.json');
+  if (!readPkg(pkgPath)) {
+    return;
+  }
+
+  const cjsEntry = join(pkgDir, 'dist', 'src', 'index.js');
+  const esmEntry = join(pkgDir, 'dist', 'esm', 'index.js');
+  if (existsSync(cjsEntry) && existsSync(esmEntry)) {
+    return;
+  }
+
+  const tscBin = join(nodeModulesPath, 'typescript', 'bin', 'tsc');
+  if (!existsSync(tscBin)) {
+    throw new Error(`postinstall: missing TypeScript compiler at ${tscBin}`);
+  }
+
+  childProcess.execFileSync(process.execPath, [tscBin, '--project', 'tsconfig.json'], {
+    cwd: pkgDir,
+    stdio: 'pipe',
+  });
+  childProcess.execFileSync(process.execPath, [tscBin, '--project', 'tsconfig.esm.json'], {
+    cwd: pkgDir,
+    stdio: 'pipe',
+  });
+
+  const esmPkgPath = join(pkgDir, 'dist', 'esm', 'package.json');
+  mkdirSync(dirname(esmPkgPath), { recursive: true });
+  writeFileSync(esmPkgPath, '{"type":"module"}\n', 'utf8');
+
+  console.log('postinstall: built olinda_utils.js dist/ artifacts (src + esm)');
+}
+
 /**
  * Apply all postinstall patches to the given node_modules directory.
  * Exported for testing; called automatically when run as main script.
@@ -37,6 +72,8 @@ function writePkg(pkgPath, pkg) {
  * @param {string} [nodeModulesPath] - Path to node_modules (defaults to ../node_modules relative to this script)
  */
 export function patchAll(nodeModulesPath = join(__dirname, '..', 'node_modules')) {
+  ensureOlindaUtilsBuild(nodeModulesPath);
+
   // --- Patch 1: olinda_shell_interface.js ---
   {
     const pkgPath = join(nodeModulesPath, 'olinda_shell_interface.js', 'package.json');

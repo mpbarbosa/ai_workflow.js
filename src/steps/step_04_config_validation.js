@@ -7,6 +7,7 @@
  */
 
 import path from 'path';
+import yaml from 'js-yaml';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
@@ -645,7 +646,9 @@ export function buildPackageLockPromptSummary(content) {
           {
             declaredSpec: deps?.[name] ?? null,
             resolvedVersion:
-              packages[`node_modules/${name}`]?.version ?? legacyDependencies[name]?.version ?? null,
+              packages[`node_modules/${name}`]?.version ??
+              legacyDependencies[name]?.version ??
+              null,
           },
         ])
       );
@@ -819,21 +822,146 @@ export function selectConfigPromptPartitions(
 export function assessPromptEvidence(
   relativeFilePaths,
   fileEntries,
-  maxChars = MAX_FILE_CONTENT_CHARS
+  maxChars = MAX_FILE_CONTENT_CHARS,
+  options = {}
 ) {
   const entries = Array.isArray(fileEntries) ? fileEntries : [];
   const availableFiles = new Set(entries.map((entry) => entry.relativePath));
   const truncatedFiles = entries
     .filter((entry) => typeof entry.content === 'string' && entry.content.length > maxChars)
     .map((entry) => entry.relativePath);
+  const summarizedFiles = entries
+    .filter(
+      (entry) =>
+        typeof entry.content === 'string' && /^\[generated [^\n]+ summary\]/im.test(entry.content)
+    )
+    .map((entry) => entry.relativePath);
   const unavailableFiles = (relativeFilePaths ?? []).filter(
     (filePath) => !availableFiles.has(filePath)
   );
+  const totalScopeCount =
+    Number.isInteger(options.totalScopeCount) && options.totalScopeCount > 0
+      ? options.totalScopeCount
+      : (relativeFilePaths ?? []).length;
+  const hasPartialScope = totalScopeCount > (relativeFilePaths ?? []).length;
 
   return {
-    hasPartialEvidence: truncatedFiles.length > 0 || unavailableFiles.length > 0,
+    hasPartialEvidence:
+      truncatedFiles.length > 0 ||
+      summarizedFiles.length > 0 ||
+      unavailableFiles.length > 0 ||
+      hasPartialScope,
+    hasPartialScope,
+    totalScopeCount,
     truncatedFiles,
+    summarizedFiles,
     unavailableFiles,
+  };
+}
+
+function normalizePromptScopePath(filePath) {
+  return String(filePath ?? '')
+    .replace(/\\/g, '/')
+    .replace(/\s+\(part \d+\/\d+\)$/i, '');
+}
+
+function escapeRegex(text) {
+  return String(text ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function pathMentionedInResponse(response, filePath) {
+  const normalizedPath = normalizePromptScopePath(filePath);
+  if (!normalizedPath) return false;
+
+  const basename = normalizedPath.split('/').pop();
+  const patterns = [normalizedPath, basename].filter(Boolean).map((candidate) => {
+    const escaped = escapeRegex(candidate);
+    return new RegExp(`(^|[^A-Za-z0-9_./-])${escaped}($|[^A-Za-z0-9_./-])`, 'i');
+  });
+
+  return patterns.some((pattern) => pattern.test(response));
+}
+
+function buildOutOfScopeMentions(response, allowedPaths, allRunPaths) {
+  const allowed = new Set((allowedPaths ?? []).map(normalizePromptScopePath));
+  return [...new Set((allRunPaths ?? []).map(normalizePromptScopePath))]
+    .filter((filePath) => filePath && !allowed.has(filePath))
+    .filter((filePath) => pathMentionedInResponse(response, filePath));
+}
+
+function mergePromptEntrySlices(entries) {
+  const grouped = new Map();
+
+  for (const entry of entries ?? []) {
+    const sourcePath = normalizePromptScopePath(entry.sourcePath ?? entry.relativePath);
+    if (!sourcePath) continue;
+    const match = String(entry.relativePath ?? '').match(/\(part (\d+)\/(\d+)\)$/i);
+    const partIndex = match ? Number.parseInt(match[1], 10) : 1;
+    const existing = grouped.get(sourcePath) ?? [];
+    existing.push({ partIndex, content: String(entry.content ?? '') });
+    grouped.set(sourcePath, existing);
+  }
+
+  return [...grouped.entries()].map(([relativePath, slices]) => ({
+    relativePath,
+    content: slices
+      .sort((a, b) => a.partIndex - b.partIndex)
+      .map((slice) => slice.content)
+      .join('\n'),
+  }));
+}
+
+function collectVisibleWorkflowDependencyOverrideIds(fileEntries) {
+  const mergedEntries = mergePromptEntrySlices(fileEntries);
+  const workflowEntries = mergedEntries.filter((entry) =>
+    /(^|\/)\.workflow-config\.ya?ml$/i.test(entry.relativePath)
+  );
+
+  const overrideIds = new Set();
+  for (const entry of workflowEntries) {
+    try {
+      const parsed = yaml.load(entry.content);
+      const steps = parsed?.workflow?.steps;
+      if (!Array.isArray(steps)) continue;
+      for (const step of steps) {
+        if (
+          step &&
+          typeof step === 'object' &&
+          typeof step.id === 'string' &&
+          typeof step.dependency_comment === 'string' &&
+          step.dependency_comment.trim()
+        ) {
+          overrideIds.add(step.id.trim());
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return [...overrideIds].sort();
+}
+
+function buildMissingDependencyOverrides(response, fileEntries) {
+  const visibleOverrideIds = collectVisibleWorkflowDependencyOverrideIds(fileEntries);
+  if (visibleOverrideIds.length <= 1) {
+    return { visibleOverrideIds, missingDependencyOverrides: [] };
+  }
+
+  const mentionedOverrideIds = visibleOverrideIds.filter((stepId) =>
+    new RegExp(`\\b${escapeRegex(stepId)}\\b`, 'i').test(response)
+  );
+  const claimsExhaustiveCoverage =
+    /\b(no other|no additional|only|single|one documented override|one override|only override|only non-canonical)\b/i.test(
+      response
+    ) && /\b(override|rewire|dependency_comment|canonical)\b/i.test(response);
+
+  return {
+    visibleOverrideIds,
+    missingDependencyOverrides:
+      claimsExhaustiveCoverage && mentionedOverrideIds.length > 0
+        ? visibleOverrideIds.filter((stepId) => !mentionedOverrideIds.includes(stepId))
+        : [],
   };
 }
 
@@ -857,30 +985,106 @@ export function validateAiResponseEvidenceHandling(
   aiResponse,
   relativeFilePaths,
   fileEntries,
-  maxChars = MAX_FILE_CONTENT_CHARS
+  maxChars = MAX_FILE_CONTENT_CHARS,
+  options = {}
 ) {
-  const evidence = assessPromptEvidence(relativeFilePaths, fileEntries, maxChars);
+  const evidence = assessPromptEvidence(relativeFilePaths, fileEntries, maxChars, options);
+  const scopeFileCount = (relativeFilePaths ?? []).length;
   if (!evidence.hasPartialEvidence) {
+    const response = String(aiResponse ?? '');
+    const outOfScopeMentions = buildOutOfScopeMentions(
+      response,
+      relativeFilePaths,
+      options.allRunPaths ?? relativeFilePaths
+    );
+    const { visibleOverrideIds, missingDependencyOverrides } = buildMissingDependencyOverrides(
+      response,
+      fileEntries
+    );
+    const filesCheckedMatch = response.match(/\bFiles checked\b[^0-9]{0,12}(\d+)\b/i);
+    const reportedFileCount = filesCheckedMatch ? Number.parseInt(filesCheckedMatch[1], 10) : null;
+
+    if (
+      outOfScopeMentions.length === 0 &&
+      missingDependencyOverrides.length === 0 &&
+      (reportedFileCount === null || reportedFileCount === scopeFileCount)
+    ) {
+      return {
+        adequate: true,
+        reason: 'all listed files were available in full',
+        outOfScopeMentions,
+        visibleOverrideIds,
+        missingDependencyOverrides,
+        reportedFileCount,
+        scopeFileCount,
+        ...evidence,
+      };
+    }
+
+    const issues = [];
+    if (outOfScopeMentions.length > 0) {
+      issues.push(`out-of-scope references: ${outOfScopeMentions.join(', ')}`);
+    }
+    if (missingDependencyOverrides.length > 0) {
+      issues.push(`missing visible dependency overrides: ${missingDependencyOverrides.join(', ')}`);
+    }
+    if (reportedFileCount !== null && reportedFileCount !== scopeFileCount) {
+      issues.push(`reported ${reportedFileCount} files checked for a ${scopeFileCount}-file scope`);
+    }
+
     return {
-      adequate: true,
-      reason: 'all listed files were available in full',
+      adequate: false,
+      reason: `AI response overreaches the current scope (${issues.join('; ')})`,
+      outOfScopeMentions,
+      visibleOverrideIds,
+      missingDependencyOverrides,
+      reportedFileCount,
+      scopeFileCount,
       ...evidence,
     };
   }
 
   const response = String(aiResponse ?? '');
   const acknowledgesPartialEvidence =
-    /\b(inconclusive|unavailable|truncated|partial evidence|visible excerpt|visible excerpts|provided excerpt|content unavailable)\b/i.test(
+    /\b(inconclusive|unavailable|truncated|partial evidence|visible excerpt|visible excerpts|provided excerpt|content unavailable|summarized fields|summary only)\b/i.test(
+      response
+    );
+  const acknowledgesPartialScope =
+    /\b(this partition|current partition|this request|current request|current scope|files in this partition|files in this request|visible file|visible files)\b/i.test(
       response
     );
   const hasUnqualifiedSuccessClaim =
     /\bAll configuration files validated successfully\b/i.test(response) ||
-    (/\bNo issues detected\b/i.test(response) && !acknowledgesPartialEvidence);
+    /\b(?:all|every|both|each)\s+(?:configuration\s+)?files?\b[\s\S]{0,60}\b(?:validated|pass(?:ed)?|clean|issue[- ]free|no issues)\b/i.test(
+      response
+    ) ||
+    (/\bNo issues detected\b/i.test(response) &&
+      !(acknowledgesPartialEvidence || (evidence.hasPartialScope && acknowledgesPartialScope)));
+  const filesCheckedMatch = response.match(/\bFiles checked\b[^0-9]{0,12}(\d+)\b/i);
+  const reportedFileCount = filesCheckedMatch ? Number.parseInt(filesCheckedMatch[1], 10) : null;
+  const outOfScopeMentions = buildOutOfScopeMentions(
+    response,
+    relativeFilePaths,
+    options.allRunPaths ?? relativeFilePaths
+  );
+  const { visibleOverrideIds, missingDependencyOverrides } = buildMissingDependencyOverrides(
+    response,
+    fileEntries
+  );
+  const hasScopeOverreach =
+    outOfScopeMentions.length > 0 ||
+    missingDependencyOverrides.length > 0 ||
+    (reportedFileCount !== null && reportedFileCount !== scopeFileCount);
 
-  if (!hasUnqualifiedSuccessClaim) {
+  if (!hasUnqualifiedSuccessClaim && !hasScopeOverreach) {
     return {
       adequate: true,
       reason: 'partial evidence handled without an unqualified full-success claim',
+      outOfScopeMentions,
+      visibleOverrideIds,
+      missingDependencyOverrides,
+      reportedFileCount,
+      scopeFileCount,
       ...evidence,
     };
   }
@@ -889,13 +1093,35 @@ export function validateAiResponseEvidenceHandling(
   if (evidence.truncatedFiles.length > 0) {
     details.push(`truncated: ${evidence.truncatedFiles.join(', ')}`);
   }
+  if (evidence.summarizedFiles.length > 0) {
+    details.push(`summarized: ${evidence.summarizedFiles.join(', ')}`);
+  }
   if (evidence.unavailableFiles.length > 0) {
     details.push(`unavailable: ${evidence.unavailableFiles.join(', ')}`);
+  }
+  if (evidence.hasPartialScope) {
+    details.push(
+      `partial scope: ${scopeFileCount} of ${evidence.totalScopeCount} file(s) in this run`
+    );
+  }
+  if (outOfScopeMentions.length > 0) {
+    details.push(`out-of-scope references: ${outOfScopeMentions.join(', ')}`);
+  }
+  if (missingDependencyOverrides.length > 0) {
+    details.push(`missing visible dependency overrides: ${missingDependencyOverrides.join(', ')}`);
+  }
+  if (reportedFileCount !== null && reportedFileCount !== scopeFileCount) {
+    details.push(`reported ${reportedFileCount} files checked for a ${scopeFileCount}-file scope`);
   }
 
   return {
     adequate: false,
     reason: `AI response claims full validation despite partial evidence (${details.join('; ')})`,
+    outOfScopeMentions,
+    visibleOverrideIds,
+    missingDependencyOverrides,
+    reportedFileCount,
+    scopeFileCount,
     ...evidence,
   };
 }
@@ -909,17 +1135,59 @@ export function validateAiResponseEvidenceHandling(
  * @returns {string} Response with misleading global-success claims narrowed
  */
 export function normalizeAiResponseForPartialEvidence(aiResponse, evidence) {
-  const response = String(aiResponse ?? '');
-  if (!evidence?.hasPartialEvidence || response.length === 0) {
+  let response = String(aiResponse ?? '');
+  if (response.length === 0) {
     return response;
   }
 
-  return response
+  if (Array.isArray(evidence?.outOfScopeMentions) && evidence.outOfScopeMentions.length > 0) {
+    const lines = response.split('\n');
+    const filteredLines = lines.filter(
+      (line) =>
+        !evidence.outOfScopeMentions.some((filePath) => pathMentionedInResponse(line, filePath))
+    );
+    if (filteredLines.length > 0) {
+      response = filteredLines.join('\n');
+    }
+  }
+
+  if (Number.isInteger(evidence?.reportedFileCount) && Number.isInteger(evidence?.scopeFileCount)) {
+    response = response.replace(
+      /(\bFiles checked\b[^0-9]{0,12})(\d+)\b/i,
+      `$1${evidence.scopeFileCount}`
+    );
+  }
+
+  response = response
     .replace(
       /\bAll configuration files validated successfully\b/gi,
-      'Configuration validation remains inconclusive for truncated or unavailable file content'
+      evidence?.hasPartialScope
+        ? 'Configuration validation is limited to the current partition or scoped request'
+        : 'Configuration validation remains inconclusive for summarized, truncated, or unavailable file content'
     )
-    .replace(/\bNo issues detected\b/gi, 'No issues detected in the visible excerpts');
+    .replace(
+      /\bNo issues detected\b/gi,
+      evidence?.hasPartialScope
+        ? 'No issues detected in the visible files for this partition or scoped request'
+        : 'No issues detected in the visible excerpts'
+    );
+
+  const notes = [];
+  if (Array.isArray(evidence?.outOfScopeMentions) && evidence.outOfScopeMentions.length > 0) {
+    notes.push(
+      `> **Scope note:** References to files outside the current request were removed (${evidence.outOfScopeMentions.join(', ')}).`
+    );
+  }
+  if (
+    Array.isArray(evidence?.missingDependencyOverrides) &&
+    evidence.missingDependencyOverrides.length > 0
+  ) {
+    notes.push(
+      `> **Override note:** Visible \`.workflow-config.yaml\` dependency overrides requiring explicit coverage: ${evidence.missingDependencyOverrides.join(', ')}.`
+    );
+  }
+
+  return [notes.join('\n'), response].filter(Boolean).join('\n\n');
 }
 
 /**
@@ -986,7 +1254,11 @@ export class Step4ConfigAnalyzer {
       logger.step('Step 4: Configuration Validation');
 
       // Phase 1: Discover configuration files
-      let configFiles = await this.discoverConfigFiles(projectRoot);
+      const declaredFiles =
+        Array.isArray(options.configFiles) && options.configFiles.length > 0
+          ? options.configFiles
+          : null;
+      let configFiles = await this.discoverConfigFiles(projectRoot, declaredFiles);
       configFiles = await this.resolveConfigFilesForValidation(projectRoot, configFiles);
       if (configFiles.length === 0) {
         logger.info('No configuration files found - skipping validation');
@@ -1099,6 +1371,7 @@ export class Step4ConfigAnalyzer {
           const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
           const partitionFileEntries = partition.entries.map((entry) => ({
             relativePath: entry.relativePath,
+            sourcePath: entry.sourcePath ?? entry.relativePath,
             content: entry.content,
           }));
           const filesContentBlock = buildFileContentsBlock(
@@ -1114,9 +1387,9 @@ export class Step4ConfigAnalyzer {
             promptPartitions.length > 1
               ? `This partition covers ${partition.scopePaths.length} of ${configFiles.length} configuration files in the current run. Entries labeled "(part X/Y)" are deliberate sequential slices created to avoid prompt truncation; analyze only the visible slice(s) in this request.`
               : 'This request contains the full configuration-file scope for this run.';
-          const fullPartitionScopeNote = [partitionScopeNote, promptScopeNote].filter(Boolean).join(
-            ' '
-          );
+          const fullPartitionScopeNote = [partitionScopeNote, promptScopeNote]
+            .filter(Boolean)
+            .join(' ');
 
           let prompt = await buildStepPromptWithFallback({
             buildPrompt: async () =>
@@ -1172,7 +1445,11 @@ ${filesContentBlock}`,
             aiContent,
             partitionDisplayPaths,
             partitionFileEntries,
-            Number.MAX_SAFE_INTEGER
+            Number.MAX_SAFE_INTEGER,
+            {
+              totalScopeCount: configFiles.length,
+              allRunPaths: fileEntries.map((entry) => entry.relativePath),
+            }
           );
           if (!evidenceQuality.adequate) {
             logger.warn(`Step 4 AI evidence handling low: ${evidenceQuality.reason}`);
@@ -1232,13 +1509,21 @@ ${filesContentBlock}`,
             const qualityEvidence = validateAiResponseEvidenceHandling(
               qualityContent,
               qualityPromptContext.promptFileEntries.map((entry) => entry.relativePath),
-              qualityPromptContext.promptFileEntries
+              qualityPromptContext.promptFileEntries,
+              MAX_FILE_CONTENT_CHARS,
+              {
+                totalScopeCount: fileEntries.length,
+                allRunPaths: fileEntries.map((entry) => entry.relativePath),
+              }
             );
             if (!qualityEvidence.adequate) {
               logger.warn(
                 `Step 4 supplementary quality review evidence handling low: ${qualityEvidence.reason}`
               );
-              qualityContent = normalizeAiResponseForPartialEvidence(qualityContent, qualityEvidence);
+              qualityContent = normalizeAiResponseForPartialEvidence(
+                qualityContent,
+                qualityEvidence
+              );
             }
           }
         } catch {
@@ -1250,7 +1535,9 @@ ${filesContentBlock}`,
           const scopedReport = promptScopeNote
             ? `${report}\n\n> AI scope note: ${promptScopeNote}`
             : report;
-          const sections = aiSection ? [appendAiRecommendations(scopedReport, aiSection)] : [scopedReport];
+          const sections = aiSection
+            ? [appendAiRecommendations(scopedReport, aiSection)]
+            : [scopedReport];
           if (qualityContent) sections.push(`\n\n## Quality Review\n\n${qualityContent}`);
           await this.backlog.saveStepSummary(4, 'Configuration Validation', sections.join(''));
         }
@@ -1281,7 +1568,11 @@ ${filesContentBlock}`,
    * @param {string} projectRoot - Project root directory
    * @returns {Promise<string[]>} Array of config file paths
    */
-  async discoverConfigFiles(projectRoot) {
+  async discoverConfigFiles(projectRoot, declaredFiles = null) {
+    if (Array.isArray(declaredFiles) && declaredFiles.length > 0) {
+      return declaredFiles.map((f) => (path.isAbsolute(f) ? f : path.resolve(projectRoot, f)));
+    }
+
     try {
       const changedFiles = await this.gitOps.getModifiedFiles();
       const configChanged = changedFiles

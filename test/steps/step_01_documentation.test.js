@@ -7,6 +7,7 @@ import {
   Step1DocumentationAnalyzer,
   buildStep1PromptPartitions,
   buildStep1FileContentsBlock,
+  buildStep1PartitionEvidenceSummary,
   buildStep1ScopedDocContextBlock,
   validateDocumentationCounts,
   checkVersionReferences,
@@ -338,6 +339,39 @@ describe('Step 1: Documentation Validation', () => {
   });
 
   describe('Step 1 partition consolidation', () => {
+    test('buildStep1PartitionEvidenceSummary preserves support-only file context', () => {
+      const summary = buildStep1PartitionEvidenceSummary(
+        [
+          {
+            scopePaths: ['README.md', 'docs/generic_step_registry.md'],
+          },
+          {
+            scopePaths: ['docs/step_registry.md'],
+          },
+          {
+            scopePaths: [
+              '.workflow-config.yaml',
+              'src/__tests__/generic_step_registry.test.ts',
+              'src/generic_step_registry.ts',
+            ],
+          },
+        ],
+        ['README.md']
+      );
+
+      expect(summary).toContain('#### Partition 1 of 3');
+      expect(summary).toContain(
+        '- Partition evidence type: scoped documentation excerpts + supporting evidence'
+      );
+      expect(summary).toContain('- Scoped documentation targets in partition: README.md');
+      expect(summary).toContain(
+        '- Supporting evidence files in partition: docs/generic_step_registry.md'
+      );
+      expect(summary).toContain('#### Partition 3 of 3');
+      expect(summary).toContain('- Partition evidence type: support-only evidence');
+      expect(summary).toContain('src/__tests__/generic_step_registry.test.ts');
+    });
+
     test('collapses repeated no-update partition responses into one summary', () => {
       const content = [
         '#### Partition 1 of 2',
@@ -414,12 +448,28 @@ describe('Step 1: Documentation Validation', () => {
             content: '## Current Implementation Status\n- Steps: step_00 through step_23',
           },
         ],
+        partitionEvidenceSummary: buildStep1PartitionEvidenceSummary(
+          [
+            {
+              scopePaths: ['README.md', 'package.json'],
+            },
+            {
+              scopePaths: ['src/__tests__/generic_step_registry.test.ts'],
+            },
+          ],
+          ['README.md']
+        ),
         partitionFindings: 'README.md: Specific edit required',
         totalPartitions: 2,
       });
 
+      expect(prompt).toContain('**Partition evidence summary**:');
+      expect(prompt).toContain('src/__tests__/generic_step_registry.test.ts');
       expect(prompt).toContain(
         'Do not promote roadmap-only or planned items into released/current-state docs'
+      );
+      expect(prompt).toContain(
+        'Use the partition evidence summary to tell apart genuinely unrelated support-only partitions'
       );
       expect(prompt).toContain(
         'When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines)'
@@ -492,9 +542,11 @@ describe('Step 1: Documentation Validation', () => {
       ].join('\n');
       const synthesis = 'README.md\n\nVerdict: No updates required';
 
-      expect(selectStep1FinalAnalysisContent(combined, synthesis, [{ relativePath: 'README.md', content: '# README' }])).toBe(
-        combined
-      );
+      expect(
+        selectStep1FinalAnalysisContent(combined, synthesis, [
+          { relativePath: 'README.md', content: '# README' },
+        ])
+      ).toBe(combined);
     });
   });
 

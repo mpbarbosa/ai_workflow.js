@@ -50,7 +50,8 @@ export const CATEGORY_PATTERNS = {
   [DIR_CATEGORIES.BUGFIX]: /(BUGFIX|FIX|ISSUE|BUG)/i,
   [DIR_CATEGORIES.IMPLEMENTATION]: /(IMPLEMENTATION|COMPLETE|SUMMARY|MIGRATION|REFACTOR|ROADMAP)/i,
   [DIR_CATEGORIES.ANALYSIS]: /(ANALYSIS|REPORT|VALIDATION|REVIEW|AUDIT)/i,
-  [DIR_CATEGORIES.GUIDE]: /(GUIDE|HOWTO|TUTORIAL|QUICK|REFERENCE|CONTRIBUTING|SECURITY|CODE_OF_CONDUCT)/i,
+  [DIR_CATEGORIES.GUIDE]:
+    /(GUIDE|HOWTO|TUTORIAL|QUICK|REFERENCE|CONTRIBUTING|SECURITY|CODE_OF_CONDUCT)/i,
   [DIR_CATEGORIES.ARCHITECTURE]: /(ARCHITECTURE|DESIGN|PATTERN|STRUCTURE)/i,
   [DIR_CATEGORIES.REPORT]: /(DELIVERABLE|CHECKLIST|PHASE|RECOMMENDATION)/i,
 };
@@ -74,10 +75,7 @@ export const CATEGORY_DIRS = {
 /**
  * Files that should remain in project root
  */
-export const ROOT_ALLOWED_FILES = [
-  'README.md',
-  'CHANGELOG.md',
-];
+export const ROOT_ALLOWED_FILES = ['README.md', 'CHANGELOG.md'];
 
 /**
  * Directories to exclude from validation (checked against individual path segments)
@@ -123,6 +121,22 @@ export const DIRECTORY_VALIDATION_DOC_FILES = [
   'docs/ARCHITECTURE.md',
   'docs/CONTRIBUTING.md',
   '.github/copilot-instructions.md',
+];
+
+/**
+ * Config files included in full (not excerpted) as authoritative structural evidence.
+ * Order matters: workflow config first, then test-runner configs in priority order.
+ */
+export const AUTHORITATIVE_CONFIG_FILES = [
+  '.workflow-config.yaml',
+  'vitest.config.js',
+  'vitest.config.ts',
+  'vitest.config.mjs',
+  'vitest.config.cjs',
+  'jest.config.js',
+  'jest.config.ts',
+  'jest.config.mjs',
+  'jest.config.cjs',
 ];
 
 /**
@@ -393,6 +407,26 @@ export function buildDirectoryDocumentationExcerpts(docFiles, directories = [], 
   return excerpt.slice(0, maxChars) + '\n... [truncated]';
 }
 
+/**
+ * Build prompt context from authoritative config files, each shown in full.
+ * Unlike documentation excerpts these are never truncated; callers are
+ * responsible for only passing small, structurally critical files.
+ *
+ * @pure
+ * @param {Array<{path: string, content: string}>} configFiles
+ * @returns {string} Fenced-code blocks, one per file, separated by blank lines
+ */
+export function buildAuthoritativeConfigContext(configFiles) {
+  if (!Array.isArray(configFiles) || configFiles.length === 0) return '';
+  return configFiles
+    .map(({ path: filePath, content }) => {
+      const ext = String(filePath).split('.').pop() ?? '';
+      const lang = ext === 'yaml' || ext === 'yml' ? 'yaml' : 'js';
+      return `### ${filePath}\n\`\`\`${lang}\n${String(content ?? '').trimEnd()}\n\`\`\``;
+    })
+    .join('\n\n');
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Reporting
 // ============================================================================
@@ -560,6 +594,25 @@ export class Step5DirectoryAnalyzer {
   }
 
   /**
+   * Read authoritative config files in full for inclusion in the AI prompt.
+   * Only files that exist on disk are returned; missing files are silently skipped.
+   * @param {string} projectRoot
+   * @returns {Promise<Array<{path: string, content: string}>>}
+   */
+  async collectAuthoritativeConfigFiles(projectRoot) {
+    const result = [];
+    for (const relativePath of AUTHORITATIVE_CONFIG_FILES) {
+      try {
+        const content = await this.fileOps.readFile(path.join(projectRoot, relativePath));
+        result.push({ path: relativePath, content: String(content ?? '') });
+      } catch {
+        // File doesn't exist or isn't readable — skip
+      }
+    }
+    return result;
+  }
+
+  /**
    * Execute Step 5 directory structure validation
    * @param {string} projectRoot - Project root directory
    * @param {Object} _options - Execution options (reserved)
@@ -646,6 +699,8 @@ export class Step5DirectoryAnalyzer {
                 ? structureResults.existingDirs.slice(0, 50).join('\n')
                 : 'none';
             const documentationFiles = structureResults.documentationFiles ?? [];
+            const authConfigFiles = await this.collectAuthoritativeConfigFiles(projectRoot);
+            const configContext = buildAuthoritativeConfigContext(authConfigFiles);
             const docContext = buildDirectoryDocumentationExcerpts(
               documentationFiles,
               structureResults.existingDirs ?? [],
@@ -664,6 +719,7 @@ export class Step5DirectoryAnalyzer {
               doc_structure_mismatch: String(structureResults.docMismatch ?? 0),
               structure_issues_content: issueLines,
               dir_tree: dirTree,
+              config_context: configContext || 'No authoritative config files found.',
               doc_context: docContext || 'No documentation excerpts available.',
               language_specific_directory_standards: directoryStandards,
             });
@@ -693,7 +749,11 @@ export class Step5DirectoryAnalyzer {
         if (aiContent) {
           report = formatDirectoryReport(results);
           aiRecommendationReport = `${report}\n\n---\n\n## AI Recommendations\n\n${aiContent}`;
-          await this.backlog.saveStepSummary(5, 'Directory Structure Validation', aiRecommendationReport);
+          await this.backlog.saveStepSummary(
+            5,
+            'Directory Structure Validation',
+            aiRecommendationReport
+          );
         }
       } else {
         logger.info('AI helper not available - skipping AI analysis');

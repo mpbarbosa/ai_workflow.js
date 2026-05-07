@@ -35,6 +35,7 @@ import { PerformanceTracker } from '../lib/performance.js';
 import { PerformanceMonitor, DEFAULT_THRESHOLDS } from '../lib/performance_monitoring.js';
 import { WorkflowProfileManager, categorizeChanges } from '../lib/workflow_profiles.js';
 import { AiHelper } from '../lib/ai_helpers.js';
+import { readProjectVersionFromPackage } from '../lib/project_version.js';
 import { DocsOnlyOptimizer } from '../lib/docs_only_optimization.js';
 import { CodeChangesOptimizer } from '../lib/code_changes_optimization.js';
 import { FullChangesOptimizer } from '../lib/full_changes_optimization.js';
@@ -684,11 +685,14 @@ export class MainOrchestrator {
   }
 
   async _runPreflightQualitySuites(projectRoot, changeCounts = null) {
+    const preflightTestCommand =
+      this.configManager?.getConfig?.()?.tech_stack?.preflight_test_command ?? null;
     return runPreflightQualitySuites({
       projectRoot,
       workflowDir: this.workflowDir,
       logsRunDir: this.logsRunDir,
       changeCounts,
+      preflightTestCommand,
       logger,
     });
   }
@@ -768,6 +772,7 @@ export class MainOrchestrator {
         .filter((step) => step.critical !== false)
         .map((step) => step.id),
       allowFinalizeOnFailure: this.allowFinalizeOnFailure,
+      configFiles: this.projectWorkflowConfig?.structure?.config_files ?? null,
     };
   }
 
@@ -999,7 +1004,7 @@ export class MainOrchestrator {
       // Use this.workflowDir so that tests passing a custom workflowDir
       // (e.g. a temp directory) don't pollute the real .ai_workflow/logs folder.
       const logsRunDir = path.join(this.workflowDir, 'logs', this.configManager.workflowRunId);
-      logger.setLogFile(path.join(logsRunDir, 'workflow.log'));
+      await logger.setLogFile(path.join(logsRunDir, 'workflow.log'));
       this.logsRunDir = logsRunDir;
 
       logger.info(`${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
@@ -1062,12 +1067,32 @@ export class MainOrchestrator {
       // Health checks
       const healthResults = await this.healthCheck();
       if (!healthResults.passed) {
+        const preflightCheck = healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT];
+        if (this.logsRunDir) {
+          const preflightSummary = {
+            timestamp: new Date().toISOString(),
+            detectedProfile,
+            changeCounts: this.profileManager?.changeCounts ?? null,
+            preflightPassed: false,
+            failedCommand: preflightCheck?.failedCommand ?? null,
+            failureKind: preflightCheck?.failureKind ?? null,
+            message: preflightCheck?.message ?? null,
+            advisoryMessage: preflightCheck?.advisoryMessage ?? null,
+          };
+          const summaryPath = path.join(this.logsRunDir, 'preflight', 'summary.json');
+          await fs
+            .mkdir(path.dirname(summaryPath), { recursive: true })
+            .then(() =>
+              fs.writeFile(summaryPath, JSON.stringify(preflightSummary, null, 2), 'utf8')
+            )
+            .catch(() => {});
+        }
         throw attachWorkflowFailureContext(new Error('Health checks failed - cannot proceed'), {
           failedPhase: 'preflight_health_checks',
           workflowStepsStarted: false,
           executedSteps: [],
           executionPlanBuilt: false,
-          failedCommand: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT]?.failedCommand,
+          failedCommand: preflightCheck?.failedCommand,
         });
       }
 
@@ -1375,13 +1400,7 @@ export class MainOrchestrator {
         // Read project version from target project's package.json (non-fatal).
         // Stamped into every prompt log header so validators can tell which
         // project version the AI findings apply to.
-        let projectVersion = null;
-        try {
-          const pkgRaw = await fs.readFile(path.join(this.projectRoot, 'package.json'), 'utf8');
-          projectVersion = JSON.parse(pkgRaw).version || null;
-        } catch {
-          // package.json absent or unreadable — leave projectVersion null
-        }
+        const projectVersion = await readProjectVersionFromPackage(this.projectRoot);
         commonDeps.projectVersion = projectVersion;
 
         // Read ai_workflow.js tool version and workflow_core submodule version (non-fatal).

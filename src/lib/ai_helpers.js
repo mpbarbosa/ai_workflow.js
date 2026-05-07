@@ -19,6 +19,7 @@ import { promisify } from 'util';
 import { defineTool } from '@github/copilot-sdk';
 export { defineTool };
 import { createProviderWrapper, isProviderAvailable } from './ai_provider.js';
+import { readProjectVersionFromPackage } from './project_version.js';
 import { logger } from '../core/logger.js';
 import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
@@ -1276,24 +1277,7 @@ export class AiHelper {
         ? this.config.projectVersion.trim()
         : null;
 
-    if (!this.config.workingDirectory) {
-      return configuredVersion;
-    }
-
-    try {
-      const pkgRaw = await fs.readFile(
-        path.join(this.config.workingDirectory, 'package.json'),
-        'utf8'
-      );
-      const liveVersion = JSON.parse(pkgRaw).version;
-      if (typeof liveVersion === 'string' && liveVersion.trim()) {
-        return liveVersion.trim();
-      }
-    } catch {
-      // package.json absent or unreadable — fall back to injected version
-    }
-
-    return configuredVersion;
+    return (await readProjectVersionFromPackage(this.config.workingDirectory)) ?? configuredVersion;
   }
 
   /**

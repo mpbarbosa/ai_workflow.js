@@ -19,6 +19,7 @@ import {
   injectProjectContext,
   loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
+import { classifyFiles, FILE_CATEGORY } from './step_00_analyze.js';
 import yaml from 'js-yaml';
 import { execFile } from 'child_process';
 import { join, basename } from 'path';
@@ -813,6 +814,18 @@ export class Step16VersionUpdate {
         };
       }
 
+      // CHANGELOG.md is mandatory — fail early with a clear message if absent.
+      const changelogPath = join(this.projectRoot, 'CHANGELOG.md');
+      let changelogContent;
+      try {
+        changelogContent = await readFileAsync(changelogPath, 'utf-8');
+      } catch {
+        const msg = 'CHANGELOG.md not found at project root. Create it before running this step.';
+        this.logger.error(msg);
+        await this.backlog.saveStepSummary('16', 'Version_Update', `Blocked: ${msg}`, '🚫');
+        return { success: false, error: msg };
+      }
+
       // Phase 1: Detect current version
       this.logger.info(`${colors.blue}Phase 1:${colors.reset} Detecting current version...`);
       const currentVersion = await this.detectCurrentVersion(modifiedFiles);
@@ -845,31 +858,36 @@ export class Step16VersionUpdate {
       if (aiAvailable) {
         try {
           await this.aiCache.init();
-          const cats = gitStats.categories || {};
+          // Compute per-category counts from the actual modifiedFiles list.
+          // gitStats.categories is never populated upstream, and the old key names
+          // (cats.tests, cats.code) did not match FILE_CATEGORY keys (test, source).
+          const { counts: cats } = classifyFiles(modifiedFiles);
           const gitCtx = await this._gatherGitContext();
 
           const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
           const cfg = parsedYaml?.version_manager_prompt || {};
 
-          // Compose rich changed_files block: file list + per-category counts
+          // Compose rich changed_files block: file list + per-category counts.
+          // Counts are derived from modifiedFiles; staged-diff stats come from _gatherGitContext.
           const changedFilesBlock = [
             ...modifiedFiles,
             '',
-            `Documentation: ${cats.documentation || 0}, Tests: ${cats.tests || 0}, Code: ${cats.code || 0}, Config: ${cats.config || 0}`,
+            `Documentation: ${cats[FILE_CATEGORY.DOCUMENTATION] || 0}, Tests: ${cats[FILE_CATEGORY.TEST] || 0}, Code: ${cats[FILE_CATEGORY.SOURCE] || 0}, Config: ${cats[FILE_CATEGORY.CONFIG] || 0}`,
             `Insertions: ${gitCtx.insertions}, Deletions: ${gitCtx.deletions}`,
+            `_(Diff statistics cover the staged scope only; Changed Files may include additional committed changes from this workflow run.)_`,
           ]
             .join('\n')
             .trim();
 
-          // Compose git_context: log + diff stats + diff sample
+          // Compose git_context: log + diff stats + diff sample (staged only)
           const gitContextBlock = [
             'Recent git log:',
             gitCtx.gitLog,
             '',
-            'Diff statistics:',
+            'Staged diff statistics:',
             gitCtx.diffSummary,
             '',
-            'Diff sample (first 80 lines):',
+            'Staged diff sample (first 80 lines):',
             gitCtx.diffSample,
           ].join('\n');
 
@@ -881,6 +899,7 @@ export class Step16VersionUpdate {
             heuristic_recommendation: bumpType,
             changed_files: changedFilesBlock,
             git_context: gitContextBlock,
+            changelog_content: changelogContent,
           });
 
           // output_format is not handled by buildYamlStepPrompt; append if present
@@ -1589,10 +1608,12 @@ export class Step16VersionUpdate {
         });
       });
 
+    // Use --cached (staged only) so the stats and sample match what is about to
+    // be committed, not the broader working-tree diff that includes unstaged edits.
     const [gitLog, diffShortstat, rawDiff] = await Promise.all([
       run('git log --oneline -n 10'),
-      run('git diff --shortstat HEAD'),
-      run('git diff HEAD'),
+      run('git diff --cached --shortstat'),
+      run('git diff --cached'),
     ]);
 
     // Parse insertions/deletions from shortstat

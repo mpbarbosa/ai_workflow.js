@@ -14,10 +14,12 @@ import {
   isDirectoryDocumented,
   validateDirectoryStructure,
   buildDirectoryDocumentationExcerpts,
+  buildAuthoritativeConfigContext,
   formatDirectoryReport,
   DIR_CATEGORIES,
   ISSUE_TYPE,
   EXCLUDED_DIR_PATHS,
+  AUTHORITATIVE_CONFIG_FILES,
 } from '../../src/steps/step_05_directory.js';
 
 describe('Step 5: Directory Structure Validation', () => {
@@ -349,6 +351,53 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(excerpt).toContain('### docs/ARCHITECTURE.md');
       expect(excerpt).toContain('misc/');
       expect(excerpt).toContain('... [excerpt omitted]');
+    });
+  });
+
+  describe('buildAuthoritativeConfigContext', () => {
+    test('returns empty string for empty input', () => {
+      expect(buildAuthoritativeConfigContext([])).toBe('');
+      expect(buildAuthoritativeConfigContext(null)).toBe('');
+    });
+
+    test('wraps yaml files in a yaml fenced block', () => {
+      const result = buildAuthoritativeConfigContext([
+        { path: '.workflow-config.yaml', content: 'version: 1.0.0\n' },
+      ]);
+      expect(result).toContain('### .workflow-config.yaml');
+      expect(result).toContain('```yaml');
+      expect(result).toContain('version: 1.0.0');
+    });
+
+    test('wraps js files in a js fenced block', () => {
+      const result = buildAuthoritativeConfigContext([
+        { path: 'vitest.config.js', content: 'export default { test: {} };\n' },
+      ]);
+      expect(result).toContain('### vitest.config.js');
+      expect(result).toContain('```js');
+      expect(result).toContain('export default');
+    });
+
+    test('separates multiple files with a blank line', () => {
+      const result = buildAuthoritativeConfigContext([
+        { path: '.workflow-config.yaml', content: 'a: 1' },
+        { path: 'vitest.config.js', content: 'b = 2' },
+      ]);
+      expect(result).toContain('### .workflow-config.yaml');
+      expect(result).toContain('### vitest.config.js');
+      // two fenced blocks separated by blank line
+      expect(result.match(/```/g)).toHaveLength(4);
+    });
+  });
+
+  describe('AUTHORITATIVE_CONFIG_FILES', () => {
+    test('includes .workflow-config.yaml as first entry', () => {
+      expect(AUTHORITATIVE_CONFIG_FILES[0]).toBe('.workflow-config.yaml');
+    });
+
+    test('includes common test runner configs', () => {
+      expect(AUTHORITATIVE_CONFIG_FILES).toContain('vitest.config.js');
+      expect(AUTHORITATIVE_CONFIG_FILES).toContain('jest.config.js');
     });
   });
 

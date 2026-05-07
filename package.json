@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "AI-powered workflow automation for software development projects with GitHub Copilot integration",
   "type": "module",
   "main": "src/index.js",
@@ -101,7 +101,8 @@
   "overrides": {
     "@jridgewell/trace-mapping": "0.3.31",
     "esquery": "1.7.0",
-    "test-exclude": "7.0.1"
+    "glob": "13.0.6",
+    "test-exclude": "8.0.0"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.118",
@@ -113,8 +114,9 @@
     "js-yaml": "^4.1.1",
     "minimatch": "^10.2.4",
     "olinda_copilot_sdk.ts": "https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/v0.9.1.tar.gz",
+    "olinda_orchestrator": "https://github.com/mpbarbosa/olinda_orchestrator/archive/refs/tags/v0.2.1.tar.gz",
     "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.10.tar.gz",
-    "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#semver:0.3.9",
+    "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#v0.3.16",
     "ora": "^9.3.0",
     "pajussara_tui_comp": "https://github.com/mpbarbosa/pajussara_tui_comp/archive/refs/tags/v1.4.0.tar.gz",
     "react": "^19.2.4"
