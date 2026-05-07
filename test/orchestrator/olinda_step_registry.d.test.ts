@@ -50,10 +50,14 @@ describe('olinda_step_registry.d.ts types', () => {
       id: 'step_01',
       name: 'Test Step',
       description: 'desc',
+      phase: 'main',
+      registered: 123,
     };
     expect(input.id).toBe('step_01');
     expect(input.name).toBe('Test Step');
     expect(input.description).toBe('desc');
+    expect(input.phase).toBe('main');
+    expect(input.registered).toBe(123);
   });
 
   it('StepDefinition has required and optional fields', () => {
@@ -113,10 +117,12 @@ describe('olinda_step_registry.d.ts types', () => {
   it('StepListFilter allows optional filters', () => {
     const filter: StepListFilter = {
       stage: 'main',
+      phase: 'main',
       tags: ['foo'],
       enabledOnly: false,
     };
     expect(filter.stage).toBe('main');
+    expect(filter.phase).toBe('main');
     expect(filter.tags).toContain('foo');
     expect(filter.enabledOnly).toBe(false);
   });

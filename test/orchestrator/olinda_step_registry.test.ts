@@ -196,6 +196,17 @@ describe('olinda_step_registry.ts', () => {
       const step = createStepDefinition(meta);
       expect(step.execute).toBe(handler);
     });
+
+    it('uses registered as registeredAt when the canonical field is missing', () => {
+      const step = createStepDefinition({
+        id: 'x',
+        name: 'n',
+        description: 'd',
+        registered: 456,
+      });
+
+      expect(step.metadata.registeredAt).toBe(456);
+    });
   });
 
   describe('matchStepRequirements', () => {
@@ -464,6 +475,11 @@ describe('olinda_step_registry.ts', () => {
       ]);
       // By stage
       expect(registry.list({ stage: 'a' })).toEqual([
+        expect.objectContaining({ id: 's1' }),
+        expect.objectContaining({ id: 's3' }),
+      ]);
+      // By phase alias
+      expect(registry.list({ phase: 'a' })).toEqual([
         expect.objectContaining({ id: 's1' }),
         expect.objectContaining({ id: 's3' }),
       ]);

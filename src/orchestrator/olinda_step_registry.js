@@ -1,16 +1,20 @@
 /**
- * Vendored from `olinda_orchestrator/src/step_registry.ts` v0.2.1.
+ * Vendored from `olinda_orchestrator/src/step_registry.ts` v0.4.1.
  *
- * The upstream dependency currently ships TypeScript source in the GitHub
- * tarball without a built `dist/` directory, so this local copy is compiled
- * with the rest of the repo and can be imported safely from runtime JS.
+ * The upstream module now imports helper functions from
+ * `generic_step_registry.ts`. This repository keeps those helpers inlined here
+ * because `tsconfig.json` compiles this file directly with `allowJs=false`,
+ * while the local legacy `generic_step_registry.js` still serves the older
+ * phase-based registry implementation.
  */
+/** Thrown when a step definition fails validation (bad input from the caller). */
 export class StepRegistryValidationError extends Error {
   constructor(message) {
     super(message);
     this.name = 'StepRegistryValidationError';
   }
 }
+/** Thrown for internal registry failures unrelated to caller-provided input. */
 export class StepRegistrySystemError extends Error {
   constructor(message) {
     super(message);
@@ -23,6 +27,8 @@ function isRecord(value) {
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
+/** Steps whose IDs contain no numeric component sort after all numbered steps. */
+const NUMERIC_SORT_FALLBACK = 999;
 function getStage(input) {
   return input.stage ?? input.phase ?? 'default';
 }
@@ -102,6 +108,10 @@ export function validateStepMetadata(metadata) {
   }
   return errors;
 }
+/**
+ * Creates a normalized `StepDefinition` from loose input, applying all defaults.
+ * @throws {StepRegistryValidationError} when the input fails validation.
+ */
 export function createStepDefinition(metadata) {
   const errors = validateStepMetadata(metadata);
   if (errors.length > 0) {
@@ -170,6 +180,7 @@ export function matchStepRequirements(step, context = {}) {
   }
   return result;
 }
+/** Groups steps by their `stage`, returning a map of stage name -> step array. */
 export function groupStepsByStage(steps) {
   const groups = {};
   for (const step of steps) {
@@ -178,34 +189,57 @@ export function groupStepsByStage(steps) {
   }
   return groups;
 }
+/**
+ * @deprecated Use `groupStepsByStage` instead. `phase` is a legacy alias for `stage`.
+ */
 export function groupStepsByPhase(steps) {
   return groupStepsByStage(steps);
 }
+/**
+ * Returns only the steps that match all of the provided tags.
+ * Returns all steps when `tags` is empty or omitted.
+ */
 export function filterStepsByTags(steps, tags) {
   if (!tags || tags.length === 0) {
     return steps;
   }
   return steps.filter((step) => tags.every((tag) => step.tags.includes(tag)));
 }
+/**
+ * Returns only enabled steps when `enabledOnly` is true (the default).
+ * Pass `false` to return all steps regardless of their `enabled` flag.
+ */
 export function filterStepsByEnabled(steps, enabledOnly = true) {
   if (!enabledOnly) {
     return steps;
   }
   return steps.filter((step) => step.enabled !== false);
 }
+/** Returns all steps whose `stage` matches the given value. */
 export function findStepsByStage(steps, stage) {
   return steps.filter((step) => step.stage === stage);
 }
+/**
+ * @deprecated Use `findStepsByStage` instead. `phase` is a legacy alias for `stage`.
+ */
 export function findStepsByPhase(steps, phase) {
   return findStepsByStage(steps, phase);
 }
+/**
+ * Returns a sorted copy of `steps` ordered by the first numeric run in each ID.
+ * Steps with no numeric component in their ID sort after all numbered steps.
+ */
 export function sortStepsById(steps) {
   return [...steps].sort((left, right) => {
-    const leftNumber = parseInt(left.id.match(/\d+/)?.[0] ?? '999', 10);
-    const rightNumber = parseInt(right.id.match(/\d+/)?.[0] ?? '999', 10);
+    const leftNumber = parseInt(left.id.match(/\d+/)?.[0] ?? String(NUMERIC_SORT_FALLBACK), 10);
+    const rightNumber = parseInt(right.id.match(/\d+/)?.[0] ?? String(NUMERIC_SORT_FALLBACK), 10);
     return leftNumber - rightNumber;
   });
 }
+/**
+ * Validates that every dependency declared on each step refers to a known step ID.
+ * Returns `{ valid: true, errors: [] }` when all dependencies resolve.
+ */
 export function validateStepDependencies(steps) {
   const result = {
     valid: true,
@@ -226,6 +260,10 @@ export function validateStepDependencies(steps) {
 export class StepRegistry {
   steps = new Map();
   registrationOrder = [];
+  /**
+   * Registers a new step under `stepId` with the provided definition.
+   * @throws {StepRegistryValidationError} when `stepId` is already registered or the definition is invalid.
+   */
   register(stepId, definition) {
     if (this.steps.has(stepId)) {
       throw new StepRegistryValidationError(`Step '${stepId}' is already registered`);
@@ -239,6 +277,10 @@ export class StepRegistry {
     this.registrationOrder.push(stepId);
     return step;
   }
+  /**
+   * Applies partial updates to an existing step, preserving all unspecified fields.
+   * @throws {StepRegistryValidationError} when `stepId` is not found or the updated definition is invalid.
+   */
   update(stepId, updates) {
     const existing = this.steps.get(stepId);
     if (!existing) {
@@ -266,6 +308,7 @@ export class StepRegistry {
     this.steps.set(stepId, step);
     return step;
   }
+  /** Removes `stepId` from the registry. Returns `true` if the step existed and was removed. */
   unregister(stepId) {
     const deleted = this.steps.delete(stepId);
     if (deleted) {
@@ -275,12 +318,18 @@ export class StepRegistry {
     }
     return deleted;
   }
+  /** Returns the step definition for `stepId`, or `null` if not found. */
   get(stepId) {
     return this.steps.get(stepId) ?? null;
   }
+  /** Returns `true` when `stepId` is registered. */
   has(stepId) {
     return this.steps.has(stepId);
   }
+  /**
+   * Returns registered steps that match the filter, sorted by numeric ID order.
+   * Defaults to returning only enabled steps; pass `{ enabledOnly: false }` to include disabled ones.
+   */
   list(filter = {}) {
     let steps = Array.from(this.steps.values());
     const stage = filter.stage ?? filter.phase;
@@ -295,20 +344,30 @@ export class StepRegistry {
     }
     return sortStepsById(steps);
   }
+  /** Returns all registered steps grouped by their `stage` value. */
   getByStage() {
     return groupStepsByStage(Array.from(this.steps.values()));
   }
+  /**
+   * @deprecated Use `getByStage()` instead. `phase` is a legacy alias for `stage`.
+   */
   getByPhase() {
     return this.getByStage();
   }
+  /** Returns all registered steps in the order they were registered. */
   getInOrder() {
     return this.registrationOrder
       .map((stepId) => this.steps.get(stepId))
       .filter((step) => step !== undefined);
   }
+  /** Validates all inter-step dependency references; returns errors for missing dependencies. */
   validateAll() {
     return validateStepDependencies(Array.from(this.steps.values()));
   }
+  /**
+   * Checks whether the requirements declared on `stepId` are satisfied by `context`.
+   * @throws {StepRegistryValidationError} when `stepId` is not found.
+   */
   checkRequirements(stepId, context = {}) {
     const step = this.get(stepId);
     if (!step) {
@@ -316,10 +375,12 @@ export class StepRegistry {
     }
     return matchStepRequirements(step, context);
   }
+  /** Removes all steps and resets registration order. */
   clear() {
     this.steps.clear();
     this.registrationOrder = [];
   }
+  /** Returns aggregate counts for the registered steps (total, enabled, disabled, critical, by stage). */
   getStats() {
     const steps = Array.from(this.steps.values());
     const byStage = steps.reduce((counts, step) => {
@@ -334,6 +395,10 @@ export class StepRegistry {
       byStage,
     };
   }
+  /**
+   * Not yet implemented - placeholder for future directory-based step discovery.
+   * @throws {StepRegistrySystemError} always, until this method is implemented.
+   */
   loadStepsFromDirectory(dir) {
     throw new StepRegistrySystemError(`loadStepsFromDirectory not yet implemented: ${dir}`);
   }

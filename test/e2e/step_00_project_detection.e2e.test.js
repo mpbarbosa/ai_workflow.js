@@ -150,7 +150,7 @@ describe('E2E: Step 0 Project Detection Auto-Detection', () => {
    * Helper: Create a Python project structure
    */
   async function createPythonProject() {
-    const requirements = `flask==2.4.0
+    const requirements = `flask==2.5.0
 pytest==7.4.0
 requests==2.31.0`;
 

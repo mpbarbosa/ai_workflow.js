@@ -35,6 +35,15 @@
 
 set -euo pipefail
 
+DOCKER_HOST_NPM_VERSION=$(npm --version)
+echo "Detected host npm version: ${DOCKER_HOST_NPM_VERSION}"
+if [[ "${DOCKER_HOST_NPM_VERSION%%.*}" -lt 7 ]]; then
+  echo "Warning: Detected npm version ${DOCKER_HOST_NPM_VERSION} is older than 7. This script is designed to work with npm 7 or later. Please upgrade npm to avoid potential issues with peer dependencies and lockfile formats."
+fi
+DOCKER_NPM_VERSION="${DOCKER_NPM_VERSION:-${DOCKER_HOST_NPM_VERSION:-11.14.0}}"
+echo "Using npm version ${DOCKER_NPM_VERSION} inside Docker (can be overridden with DOCKER_NPM_VERSION env var)"
+
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 # shellcheck source=scripts/colors.sh
 source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
@@ -154,7 +163,7 @@ docker run \
   -e CI=true \
   "${DOCKER_VOLUME_ARGS[@]}" \
   "${IMAGE_NAME}" \
-  sh -c "${TEST_CMD}"
+  bash -c "${TEST_CMD} && npm install --global npm@${DOCKER_NPM_VERSION} && npm ci && npm test -- ${JEST_ARGS}"
 TEST_EXIT_CODE=$?
 set -e
 
