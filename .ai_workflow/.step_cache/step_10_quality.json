@@ -794,12 +794,12 @@
     "src/orchestrator/olinda_step_registry.js": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+      "lastAnalyzed": "2026-05-07T11:02:22.386Z"
     },
     "src/orchestrator/olinda_step_registry.ts": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+      "lastAnalyzed": "2026-05-07T11:02:22.386Z"
     },
     "src/orchestrator/main_orchestrator.js": {
       "score": 100,
@@ -809,7 +809,17 @@
     "src/orchestrator/olinda_step_registry.d.ts": {
       "score": 100,
       "issueCount": 0,
-      "lastAnalyzed": "2026-05-07T04:49:48.260Z"
+      "lastAnalyzed": "2026-05-07T11:02:22.386Z"
+    },
+    "src/orchestrator/preflight_quality_runner.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T11:02:22.386Z"
+    },
+    "src/orchestrator/step_definition.js": {
+      "score": 100,
+      "issueCount": 0,
+      "lastAnalyzed": "2026-05-07T11:02:22.386Z"
     }
   }
 }

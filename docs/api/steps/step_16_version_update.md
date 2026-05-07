@@ -1,7 +1,7 @@
 # step_16_version_update.js API Documentation
 
 **Module:** `steps/step_16_version_update`
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Architecture:** Pure functions + Wrapper class (Referential Transparency)
 
 ## Overview

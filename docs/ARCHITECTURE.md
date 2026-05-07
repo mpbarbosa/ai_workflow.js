@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Last Updated:** April 27, 2026
 
 This document gives the high-level architecture for `ai_workflow.js`. The

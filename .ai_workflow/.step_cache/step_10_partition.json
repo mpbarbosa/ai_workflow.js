@@ -1,14 +1,11 @@
 {
   "version": 1,
   "partitionIndex": 1,
-  "totalPartitions": 20,
-  "filesHash": "30dcb888",
+  "totalPartitions": 18,
+  "filesHash": "787aa389",
   "partitionLabels": [
     "src/orchestrator",
     "src/orchestrator (2)",
-    "src/orchestrator (3)",
-    "src/steps",
-    "src/steps (2)",
     ".workflow_core/src, eslint.config.mjs",
     "scripts",
     "src/cli",
@@ -22,8 +19,9 @@
     "src/lib (4)",
     "src/lib (5)",
     "src/lib (6)",
+    "src/steps",
     "src/types",
     "src/utils"
   ],
-  "updatedAt": "2026-05-07T04:49:48.261Z"
+  "updatedAt": "2026-05-07T11:02:22.386Z"
 }

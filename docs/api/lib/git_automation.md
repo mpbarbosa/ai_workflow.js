@@ -7,7 +7,7 @@
 The Git Automation module provides a comprehensive interface for Git operations with intelligent output parsing and structured results. It implements Git commands as pure parsing functions combined with an impure wrapper class for command execution.
 
 **Module:** `lib/git_automation`
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation

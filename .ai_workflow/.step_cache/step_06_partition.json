@@ -2,7 +2,7 @@
   "version": 1,
   "partitionIndex": 1,
   "totalPartitions": 42,
-  "filesHash": "948e57fa",
+  "filesHash": "375a1947",
   "partitionLabels": [
     "test/cli",
     "test/cli (2)",
@@ -45,7 +45,7 @@
     "test/steps (11)",
     "test/steps (12)",
     "test/steps (13)",
-    "test/types, test/utils"
+    "test/types, test/utils, scripts"
   ],
-  "updatedAt": "2026-05-07T04:47:02.561Z"
+  "updatedAt": "2026-05-07T10:58:24.645Z"
 }

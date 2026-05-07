@@ -1,6 +1,6 @@
 # Migration Guide: `ai_workflow` (bash v3.0.0) → `ai_workflow.js` (v1.x)
 
-**AI Workflow Automation v2.4.0**
+**AI Workflow Automation v2.5.0**
 **Last Updated:** 2026-04-23
 **Audience:** Teams migrating from the bash-based `ai_workflow` to the JavaScript implementation
 
@@ -1059,4 +1059,4 @@ The JavaScript rewrite was built in 13 phases, all now complete. Phase test coun
 
 ---
 
-_Last Updated: 2026-04-23 · `ai_workflow.js` v2.4.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_
+_Last Updated: 2026-04-23 · `ai_workflow.js` v2.5.0 · [Edit this page](https://github.com/mpbarbosa/ai_workflow.js/edit/main/docs/guides/MIGRATION_GUIDE.md)_

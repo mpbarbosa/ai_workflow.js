@@ -7,7 +7,7 @@
 The Git Cache module provides intelligent caching for Git operations to reduce repeated command execution. It uses TTL-based expiration, automatic invalidation on state changes, and memory-efficient storage with LRU eviction.
 
 **Module:** `lib/git_cache`
-**Version:** 2.4.0
+**Version:** 2.5.0
 **Architecture:** Referentially Transparent (Pure Functions + Impure Wrapper)
 
 ## Installation
