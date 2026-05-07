@@ -694,7 +694,7 @@
         "tokens": 0,
         "finishReason": "complete"
       },
-      "confidence": 0.9,
+      "confidence": 0.5,
       "success": true
     },
     "timestamp": 1777501681641
@@ -750,7 +750,7 @@
         "tokens": 0,
         "finishReason": "complete"
       },
-      "confidence": 0.9,
+      "confidence": 0.5,
       "success": true
     },
     "timestamp": 1777501702116
@@ -820,7 +820,7 @@
         "tokens": 0,
         "finishReason": "complete"
       },
-      "confidence": 0.9,
+      "confidence": 0.8,
       "success": true
     },
     "timestamp": 1777501799077

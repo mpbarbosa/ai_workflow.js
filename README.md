@@ -7,6 +7,8 @@ AI-Powered Workflow Automation for Software Development
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
+[![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
+[![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
 **Version:** 2.6.0 🎉 **STABLE RELEASE**
 **Status:** Production Ready ✅
@@ -34,7 +36,9 @@ ai-workflow status
 ## 📖 Overview
 
 **ai_workflow.js** is a production-ready Node.js implementation of AI-powered workflow automation for software development projects. It provides a comprehensive 30+ step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
+**ai_workflow.js** is a production-ready Node.js implementation of AI-powered workflow automation for software development projects. It provides a comprehensive 30+ step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
 
+See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming from the original Shell/Bash implementation.
 See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming from the original Shell/Bash implementation.
 
 ### ✨ Key Features
@@ -43,6 +47,7 @@ See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming fro
 - **⚡ Fast**: Parallel execution, smart caching, incremental processing
 - **🔧 Configurable**: Project-specific workflows via YAML config
 - **📊 Observable**: Progress tracking, metrics, and checkpoints
+- **🧪 Tested**: 7,330 tests passing, 86.68% coverage
 - **🧪 Tested**: 7,330 tests passing, 86.68% coverage
 - **🔒 Secure**: 0 vulnerabilities, automated security scanning
 - **📦 Production-Ready**: npm package with CI/CD automation
@@ -113,12 +118,17 @@ import { Step0Analyzer } from 'ai-workflow/steps';
 
 ---
 
+**Total:** 13 phases complete, 7,330 passing tests
+
+---
+
 ## Documentation
 
 Key project documents:
 
 - **[API Reference](./docs/api/README.md)** - Complete API documentation for all modules with usage examples
 - **[Workflow Engine Requirements](./docs/WORKFLOW_ENGINE_REQUIREMENTS.md)** - Phase 7 planning, test validation, and orchestration specifications
+- **[Migration Guide](./docs/guides/MIGRATION_GUIDE.md)** - Migrating from the bash v3.0.0 implementation: CLI equivalents, config compatibility, API, and implementation history
 - **[Migration Guide](./docs/guides/MIGRATION_GUIDE.md)** - Migrating from the bash v3.0.0 implementation: CLI equivalents, config compatibility, API, and implementation history
 - **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1-5 (Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration)
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and notable changes with semantic versioning
@@ -159,6 +169,7 @@ ai_workflow.js/
 │   ├── core/             # Foundation utilities (colors, logger, system, version, executor)
 │   ├── utils/            # Helper utilities (errors)
 │   ├── lib/              # Core libraries (config, session, metrics, file ops, git, AI)
+│   ├── steps/            # Workflow step implementations (step_00–step_23 plus extras)
 │   ├── steps/            # Workflow step implementations (step_00–step_23 plus extras)
 │   │   └── step_02_5_lib/ # Helper modules for step_02_5 (doc optimization)
 │   ├── orchestrator/     # Workflow orchestration engine, step catalog, execution planning, and preflight coordination
@@ -239,6 +250,7 @@ The installed `ai-workflow` command is backed by [`bin/ai-workflow.js`](./bin/ai
 | `config` | Manage configuration   | `ai-workflow config show`           |
 | `clean`  | Clean artifacts        | `ai-workflow clean --all --dry-run` |
 | `deploy` | Deploy workflow        | `ai-workflow deploy`                |
+| `deploy` | Deploy workflow        | `ai-workflow deploy`                |
 
 ### CLI Documentation
 
@@ -292,6 +304,7 @@ ai-workflow resume --list
 ## Development Commands
 
 - `npm test` - Run Jest test suite (7,333 tests, 7,330 passing ✅, 3 failures)
+- `npm test` - Run Jest test suite (7,333 tests, 7,330 passing ✅, 3 failures)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
@@ -313,6 +326,7 @@ ai-workflow resume --list
 
 ## Contributing
 
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests.
 Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests.
 
 ## License

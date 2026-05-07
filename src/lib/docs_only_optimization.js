@@ -12,7 +12,7 @@
  * @version 2.0.0
  */
 
-import logger from '../core/logger.js';
+import { logger } from '../core/logger.js';
 
 // ============================================================================
 // CONSTANTS
@@ -132,7 +132,7 @@ export function categorizeFiles(files) {
   const code = [];
   const other = [];
 
-  for (const file of (Array.isArray(files) ? files : [])) {
+  for (const file of Array.isArray(files) ? files : []) {
     if (isDocsFile(file)) {
       docs.push(file);
     } else if (file.match(/\.(js|jsx|ts|tsx|py|java|go|rs|c|cpp|h|hpp)$/i)) {
