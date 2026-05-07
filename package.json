@@ -114,7 +114,7 @@
     "js-yaml": "^4.1.1",
     "minimatch": "^10.2.4",
     "olinda_copilot_sdk.ts": "https://github.com/mpbarbosa/olinda_copilot_sdk.ts/archive/refs/tags/v0.9.1.tar.gz",
-    "olinda_orchestrator": "https://github.com/mpbarbosa/olinda_orchestrator/archive/refs/tags/v0.4.1.tar.gz",
+    "olinda_orchestrator": "https://github.com/mpbarbosa/olinda_orchestrator/archive/refs/tags/v0.5.0.tar.gz",
     "olinda_shell_interface.js": "https://github.com/mpbarbosa/olinda_shell_interface.js/archive/refs/tags/v0.5.10.tar.gz",
     "olinda_utils.js": "github:mpbarbosa/olinda_utils.js#v0.3.16",
     "ora": "^9.3.0",

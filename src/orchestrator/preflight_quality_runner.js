@@ -17,7 +17,10 @@ export const HEALTH_CHECK_CATEGORIES = Object.freeze({
 const PRE_FLIGHT_QUALITY_SCRIPT_ORDER = Object.freeze(['lint', 'test', 'build']);
 const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
+const PRE_FLIGHT_GIT_STASH_COMMAND = 'git stash list';
+const PRE_FLIGHT_GIT_STASH_CHECK_NAME = 'git-stash';
 const OS_ERROR_PATTERN = /EACCES|ENOENT|EPERM|EBUSY|EMFILE|permission denied/i;
+const NOT_A_GIT_REPOSITORY_PATTERN = /not a git repository/i;
 const TEST_RESULT_LINE_PATTERNS = [
   /^Test Suites:/i,
   /^Tests?:/i,
@@ -71,6 +74,22 @@ export function classifyPreflightFailure(output) {
     return 'environment';
   }
   return 'command-failure';
+}
+
+export function parseGitStashList(output) {
+  if (typeof output !== 'string' || output.trim().length === 0) {
+    return { count: 0, entries: [] };
+  }
+
+  const entries = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return {
+    count: entries.length,
+    entries,
+  };
 }
 
 export function buildEnvironmentRemediationHint(output) {
@@ -295,6 +314,91 @@ function parseLintErrorCount(output) {
   return match ? parseInt(match[1], 10) : null;
 }
 
+async function runGitStashPreflightCheck(projectRoot, logger) {
+  logger.info(
+    `Running pre-flight quality suite: ${PRE_FLIGHT_GIT_STASH_COMMAND} (cwd: ${projectRoot})`
+  );
+
+  try {
+    const cmdOutput = await executorModule(PRE_FLIGHT_GIT_STASH_COMMAND, {
+      cwd: projectRoot,
+      shell: true,
+      timeout: PRE_FLIGHT_COMMAND_TIMEOUT_MS,
+    });
+    const combinedOutput = [cmdOutput?.stdout, cmdOutput?.stderr]
+      .filter((value) => typeof value === 'string' && value.trim())
+      .join('\n');
+    const stashDetails = parseGitStashList(combinedOutput);
+
+    if (stashDetails.count === 0) {
+      return {
+        skipped: false,
+        result: {
+          name: PRE_FLIGHT_GIT_STASH_CHECK_NAME,
+          command: PRE_FLIGHT_GIT_STASH_COMMAND,
+          passed: true,
+          stashCount: 0,
+        },
+      };
+    }
+
+    return {
+      skipped: false,
+      result: {
+        name: PRE_FLIGHT_GIT_STASH_CHECK_NAME,
+        command: PRE_FLIGHT_GIT_STASH_COMMAND,
+        passed: false,
+        stashCount: stashDetails.count,
+      },
+      failure: {
+        passed: false,
+        advisory: false,
+        hasForceExitWarning: false,
+        skipped: false,
+        failedCommand: PRE_FLIGHT_GIT_STASH_COMMAND,
+        failureOutput: stashDetails.entries.join('\n'),
+        failureKind: 'git-stash-present',
+        stashCount: stashDetails.count,
+        message:
+          `Pre-flight rule failed: found ${stashDetails.count} git stash ` +
+          `entr${stashDetails.count === 1 ? 'y' : 'ies'}. Clear stashed assets before running the workflow.`,
+      },
+    };
+  } catch (error) {
+    const fullFailureOutput = [error?.stdout, error?.stderr, error?.output, error?.message]
+      .filter((value) => typeof value === 'string' && value.trim())
+      .join('\n')
+      .trim();
+
+    if (NOT_A_GIT_REPOSITORY_PATTERN.test(fullFailureOutput)) {
+      return { skipped: true, result: null };
+    }
+
+    return {
+      skipped: false,
+      result: {
+        name: PRE_FLIGHT_GIT_STASH_CHECK_NAME,
+        command: PRE_FLIGHT_GIT_STASH_COMMAND,
+        passed: false,
+        exitCode: error?.exitCode ?? 1,
+      },
+      failure: {
+        passed: false,
+        advisory: false,
+        hasForceExitWarning: false,
+        skipped: false,
+        failedCommand: PRE_FLIGHT_GIT_STASH_COMMAND,
+        failureOutput: fullFailureOutput
+          .split('\n')
+          .slice(-PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES)
+          .join('\n'),
+        failureKind: 'git-stash-check-failed',
+        message: `Unable to inspect git stash state: ${PRE_FLIGHT_GIT_STASH_COMMAND}`,
+      },
+    };
+  }
+}
+
 export async function runPreflightQualitySuites({
   projectRoot,
   workflowDir,
@@ -303,6 +407,19 @@ export async function runPreflightQualitySuites({
   preflightTestCommand = null,
   logger,
 }) {
+  const results = [];
+  const stashCheck = await runGitStashPreflightCheck(projectRoot, logger);
+  if (stashCheck.result) {
+    results.push(stashCheck.result);
+  }
+  if (stashCheck.failure) {
+    return {
+      ...stashCheck.failure,
+      commands: results,
+      packageManager: null,
+    };
+  }
+
   let packageJson;
   try {
     const packageJsonRaw = await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8');
@@ -311,8 +428,11 @@ export async function runPreflightQualitySuites({
     return {
       passed: true,
       skipped: true,
-      commands: [],
-      message: 'No package.json found in project root',
+      commands: results,
+      message:
+        results.length > 0
+          ? 'No package.json found in project root (git stash check passed)'
+          : 'No package.json found in project root',
     };
   }
 
@@ -324,9 +444,12 @@ export async function runPreflightQualitySuites({
     return {
       passed: true,
       skipped: true,
-      commands: [],
+      commands: results,
       packageManager,
-      message: 'No lint/test/build scripts found',
+      message:
+        results.length > 0
+          ? 'No lint/test/build scripts found (git stash check passed)'
+          : 'No lint/test/build scripts found',
     };
   }
 
@@ -339,7 +462,6 @@ export async function runPreflightQualitySuites({
       )
     : commands;
 
-  const results = [];
   for (const suite of suitesToRun) {
     logger.info(`Running pre-flight quality suite: ${suite.command} (cwd: ${projectRoot})`);
     try {

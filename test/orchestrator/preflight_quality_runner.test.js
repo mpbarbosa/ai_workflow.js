@@ -4,12 +4,14 @@ import {
   classifyPreflightFailure,
   detectPreflightPackageManager,
   getPreflightQualityCommands,
+  parseGitStashList,
   parseTestFailureCount,
   parseTestFailureDetails,
   performHealthChecks,
   runPreflightQualitySuites,
 } from '../../src/orchestrator/preflight_quality_runner.js';
 import { jest } from '@jest/globals';
+import { execFileSync } from 'child_process';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -32,6 +34,13 @@ describe('preflight_quality_runner', () => {
       { name: 'test', command: 'npm test' },
       { name: 'build', command: 'npm run build' },
     ]);
+  });
+
+  test('parseGitStashList counts stash entries', () => {
+    expect(parseGitStashList('stash@{0}: On main: WIP\nstash@{1}: On main: debug')).toEqual({
+      count: 2,
+      entries: ['stash@{0}: On main: WIP', 'stash@{1}: On main: debug'],
+    });
   });
 
   test('returns categorized workflow health checks', () => {
@@ -204,6 +213,46 @@ describe('preflight_quality_runner', () => {
     const artifact = await fs.readFile(result.failureArtifact, 'utf8');
     expect(artifact).toContain('Command: npm test');
     expect(artifact).toContain('Tests: 2 failed, 8 passed, 10 total');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites fails when git stash entries are present', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-stash-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(projectRoot, { recursive: true });
+    execFileSync('git', ['init'], { cwd: projectRoot });
+    execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: projectRoot });
+    execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: projectRoot });
+    await fs.writeFile(path.join(projectRoot, 'README.md'), 'hello\n', 'utf8');
+    execFileSync('git', ['add', 'README.md'], { cwd: projectRoot });
+    execFileSync('git', ['commit', '-m', 'init'], { cwd: projectRoot });
+    await fs.writeFile(path.join(projectRoot, 'README.md'), 'hello\nmore work\n', 'utf8');
+    execFileSync('git', ['stash', 'push', '-m', 'fixture stash'], { cwd: projectRoot });
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failedCommand).toBe('git stash list');
+    expect(result.failureKind).toBe('git-stash-present');
+    expect(result.stashCount).toBe(1);
+    expect(result.message).toContain('Clear stashed assets');
+    expect(result.commands).toEqual([
+      {
+        name: 'git-stash',
+        command: 'git stash list',
+        passed: false,
+        stashCount: 1,
+      },
+    ]);
 
     await fs.rm(tempRoot, { recursive: true, force: true });
   });
