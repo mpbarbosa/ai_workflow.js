@@ -27,10 +27,10 @@ import {
 // ============================================================================
 
 const CRITICAL_PERF_LINE =
-  "[2026-03-12T18:14:20.129Z] ✗ [CRITICAL] Operation 'step_02' took 39.8s (memory: 162.12MB)";
+  "[2026-03-12T18:14:20.129Z] ⚠ [PERF] Operation 'step_02' took 39.8s (memory: 162.12MB)";
 
 const WARNING_PERF_LINE =
-  "[2026-03-12T18:13:40.288Z] ⚠ [WARNING] Operation 'step_04' took 14.7s (memory: 42.76MB)";
+  "[2026-03-12T18:13:40.288Z] ⚠ [PERF] Operation 'step_04' took 14.7s (memory: 42.76MB)";
 
 const WARNING_NPM_LINE =
   '[2026-03-12T18:16:28.577Z] ⚠ npm install --dry-run failed — possible unresolvable lockfile entries';
@@ -81,12 +81,12 @@ describe('parseLogLine', () => {
     expect(result.timestamp).toBe('2026-03-12T18:14:20.129Z');
   });
 
-  test('identifies CRITICAL severity', () => {
+  test('identifies WARNING severity from [PERF] prefix', () => {
     const result = parseLogLine(CRITICAL_PERF_LINE);
-    expect(result.severity).toBe(SEVERITY.CRITICAL);
+    expect(result.severity).toBe(SEVERITY.WARNING);
   });
 
-  test('identifies WARNING severity from [WARNING] prefix', () => {
+  test('identifies WARNING severity from second [PERF] line', () => {
     const result = parseLogLine(WARNING_PERF_LINE);
     expect(result.severity).toBe(SEVERITY.WARNING);
   });
@@ -165,7 +165,7 @@ describe('extractIssues', () => {
   test('extracts critical performance issue', () => {
     const issues = extractIssues(CRITICAL_PERF_LINE);
     expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe(SEVERITY.CRITICAL);
+    expect(issues[0].severity).toBe(SEVERITY.WARNING);
     expect(issues[0].category).toBe(CATEGORY.PERFORMANCE);
     expect(issues[0].stepId).toBe('step_02');
   });

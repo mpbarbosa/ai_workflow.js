@@ -797,6 +797,21 @@ export class Step16VersionUpdate {
       const modifiedFiles = context.modifiedFiles || [];
       const gitStats = context.gitStats || {};
 
+      const step08Result = Array.isArray(context.results)
+        ? context.results.find((r) => r.stepId === 'step_08')
+        : null;
+      if (step08Result?.success === false) {
+        this.logger.warn(
+          'Step 16: Skipping version bump — test suite failed (step_08). ' +
+            'Resolve test failures before releasing a new version.'
+        );
+        return {
+          success: true,
+          skipped: true,
+          reason: 'test execution failed',
+        };
+      }
+
       if (modifiedFiles.length === 0) {
         this.logger.warn('Step 16: No modified files to process');
 

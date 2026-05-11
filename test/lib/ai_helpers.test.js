@@ -1970,3 +1970,69 @@ describe('AiHelper.executeRefined', () => {
     result.catch(() => {});
   });
 });
+
+// ============================================================================
+// PHASE 14 — PROMPT ENGINEERING ENHANCEMENTS (AiHelper)
+// ============================================================================
+
+describe('AiHelper — Phase 14 constructor config', () => {
+  test('reflection defaults to false', () => {
+    const helper = new AiHelper({});
+    expect(helper.config.reflection).toBe(false);
+  });
+
+  test('cognitiveVerifier defaults to false', () => {
+    const helper = new AiHelper({});
+    expect(helper.config.cognitiveVerifier).toBe(false);
+  });
+
+  test('cognitiveVerifierThreshold defaults to 20', () => {
+    const helper = new AiHelper({});
+    expect(helper.config.cognitiveVerifierThreshold).toBe(20);
+  });
+
+  test('promptRefinement defaults to false', () => {
+    const helper = new AiHelper({});
+    expect(helper.config.promptRefinement).toBe(false);
+  });
+
+  test('reflection can be enabled via config', () => {
+    const helper = new AiHelper({ reflection: true });
+    expect(helper.config.reflection).toBe(true);
+  });
+
+  test('cognitiveVerifierThreshold can be overridden', () => {
+    const helper = new AiHelper({ cognitiveVerifierThreshold: 5 });
+    expect(helper.config.cognitiveVerifierThreshold).toBe(5);
+  });
+});
+
+describe('AiHelper.executeDecomposed', () => {
+  test('is a function', () => {
+    const helper = new AiHelper({});
+    expect(typeof helper.executeDecomposed).toBe('function');
+  });
+
+  test('returns a Promise', () => {
+    // executeDecomposed will fail without a live SDK, but it should return a Promise
+    const helper = new AiHelper({});
+    const result = helper.executeDecomposed('main prompt', ['sub1', 'sub2']);
+    expect(result).toBeInstanceOf(Promise);
+    // Suppress unhandled rejection (expected without live SDK)
+    result.catch(() => {});
+  });
+});
+
+describe('AiHelper.executeRefined', () => {
+  test('is a function', () => {
+    const helper = new AiHelper({});
+    expect(typeof helper.executeRefined).toBe('function');
+  });
+
+  test('returns a Promise', () => {
+    const helper = new AiHelper({});
+    const result = helper.executeRefined('raw prompt');
+    expect(result).toBeInstanceOf(Promise);
+    result.catch(() => {});
+  });
+});

@@ -118,22 +118,13 @@ export function parseLogLine(line) {
  * Each entry: { pattern, severity, category, extractMessage }
  */
 const ISSUE_PATTERNS = [
-  // Critical performance
+  // Performance threshold exceeded (both warning and critical, unified under [PERF] prefix)
   {
-    pattern: /✗\s*\[CRITICAL\]\s*Operation '(step_[^']+)' took ([\d.]+)s \(memory: ([\d.]+MB)\)/,
-    severity: SEVERITY.CRITICAL,
-    category: CATEGORY.PERFORMANCE,
-    extractMessage: (m) =>
-      `Operation '${m[1]}' exceeded critical threshold: ${m[2]}s elapsed, ${m[3]} memory used`,
-    extractStep: (m) => m[1],
-  },
-  // Warning performance
-  {
-    pattern: /⚠\s*\[WARNING\]\s*Operation '(step_[^']+)' took ([\d.]+)s \(memory: ([\d.]+MB)\)/,
+    pattern: /⚠\s*\[PERF\]\s*Operation '(step_[^']+)' took ([\d.]+)s \(memory: ([\d.]+MB)\)/,
     severity: SEVERITY.WARNING,
     category: CATEGORY.PERFORMANCE,
     extractMessage: (m) =>
-      `Operation '${m[1]}' exceeded warning threshold: ${m[2]}s elapsed, ${m[3]} memory used`,
+      `Operation '${m[1]}' exceeded performance threshold: ${m[2]}s elapsed, ${m[3]} memory used`,
     extractStep: (m) => m[1],
   },
   // Test runner silent exit / no output

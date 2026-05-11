@@ -796,7 +796,12 @@ export class WorkflowEngine extends EventEmitter {
         }
 
         const failedDependency = (reverseDependencyMap.get(step.id) || []).find((dependencyId) =>
-          this.results.some((result) => result.stepId === dependencyId && result.success === false)
+          this.results.some(
+            (result) =>
+              result.stepId === dependencyId &&
+              (result.success === false ||
+                (result.skipped === true && result.blockedBy !== undefined))
+          )
         );
         if (failedDependency) {
           const blockedBy = {

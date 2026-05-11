@@ -94,7 +94,7 @@ describe('Performance Monitoring Module - Pure Functions', () => {
     test('generates message with duration', () => {
       const metrics = { duration: 6000 };
       const message = generateAlertMessage('db-query', metrics, 'warning');
-      expect(message).toContain('[WARNING]');
+      expect(message).toContain('[PERF]');
       expect(message).toContain('db-query');
       expect(message).toContain('6.0s');
     });
@@ -102,7 +102,7 @@ describe('Performance Monitoring Module - Pure Functions', () => {
     test('generates message with memory', () => {
       const metrics = { memory: { heapUsed: 600 } };
       const message = generateAlertMessage('data-processing', metrics, 'critical');
-      expect(message).toContain('[CRITICAL]');
+      expect(message).toContain('[PERF]');
       expect(message).toContain('data-processing');
       expect(message).toContain('600MB');
     });

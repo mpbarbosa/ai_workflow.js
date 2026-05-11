@@ -26,6 +26,7 @@ import {
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import path from 'path';
+import executor from '../core/executor.js';
 
 // ============================================================================
 // CONSTANTS
@@ -74,7 +75,11 @@ export const TEST_FILE_PATTERNS = {
  * Files to exclude from gap analysis
  */
 export const EXCLUDE_FILES = ['__init__.py', 'index.js', 'main.js', 'config.js', 'constants.js'];
-export const EXCLUDE_FILE_PATTERNS = [/\.min\.[^.]+$/i, /\.bundle\.[^.]+$/i, /\.generated\.[^.]+$/i];
+export const EXCLUDE_FILE_PATTERNS = [
+  /\.min\.[^.]+$/i,
+  /\.bundle\.[^.]+$/i,
+  /\.generated\.[^.]+$/i,
+];
 
 /**
  * Directories to exclude
@@ -284,8 +289,7 @@ export function formatTestGenerationReport(results) {
     report += '## ⚠️ Test File Inventory Gaps\n\n';
     report += `${untestedFiles.length} of ${totalSourceFiles} discovered source file(s) do not have a corresponding test file by naming convention.\n\n`;
     if (excludedUntestedFiles.length > 0) {
-      report +=
-        `${excludedUntestedFiles.length} additional unmatched file(s) were excluded from action because they appear to be minified, generated, vendored, or third-party assets.\n\n`;
+      report += `${excludedUntestedFiles.length} additional unmatched file(s) were excluded from action because they appear to be minified, generated, vendored, or third-party assets.\n\n`;
     }
   }
 
@@ -426,17 +430,25 @@ const TEST_FRAMEWORK_BY_LANGUAGE = {
  * @param {Object|null} [parsedYaml] - Pre-loaded ai_helpers.yaml object (optional)
  * @returns {string} Prompt string
  */
-export function buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml = null) {
+export function buildSingleFileTestPrompt(
+  sourceFile,
+  content,
+  language,
+  parsedYaml = null,
+  targetTestPath = null
+) {
   const truncated =
     content.length > MAX_SOURCE_FILE_CHARS
       ? content.substring(0, MAX_SOURCE_FILE_CHARS) + '\n...(truncated)'
       : content;
   const ext = path.extname(sourceFile).replace('.', '') || language;
   const testFramework = TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
+  const resolvedTargetPath = targetTestPath ?? getTestOutputPath(sourceFile, language);
 
   if (parsedYaml) {
     const prompt = buildYamlStepPrompt(parsedYaml, 'single_file_test_prompt', {
       source_file: sourceFile,
+      target_test_path: resolvedTargetPath,
       language,
       test_framework: testFramework,
       source_ext: ext,
@@ -449,6 +461,7 @@ export function buildSingleFileTestPrompt(sourceFile, content, language, parsedY
   return `You are a senior test engineer. Generate a complete, runnable test file for the source file below.
 
 **Source file**: \`${sourceFile}\`
+**Target test file**: \`${resolvedTargetPath}\`
 **Language / framework**: ${testFramework}
 
 **Requirements**:
@@ -457,6 +470,8 @@ export function buildSingleFileTestPrompt(sourceFile, content, language, parsedY
 - Use the standard test framework for ${language} (e.g. Jest for JS/TS, pytest for Python)
 - Use descriptive test names
 - Do NOT include explanations outside the code block
+- Import \`${sourceFile}\` using the path relative to \`${resolvedTargetPath}\`
+- TypeScript only: never use \`@ts-expect-error\` with \`expect(...).toThrow()\` for interface violations
 
 \`\`\`${ext}
 ${truncated}
@@ -657,7 +672,24 @@ export class Step7TestGenerator {
               }
             }
             if (generatedFiles.length > 0) {
-              logger.success(`AI generated ${generatedFiles.length} test file(s)`);
+              const invalidFiles = await this._verifyGeneratedTests(projectRoot, generatedFiles);
+              if (invalidFiles.length > 0) {
+                logger.warn(
+                  `${invalidFiles.length} generated test file(s) failed compilation and were removed: ` +
+                    invalidFiles.join(', ')
+                );
+                for (const f of invalidFiles) {
+                  generatedFiles.splice(generatedFiles.indexOf(f), 1);
+                  try {
+                    await this.fileOps.deleteFile(path.join(projectRoot, f));
+                  } catch {
+                    /* best-effort */
+                  }
+                }
+              }
+              if (generatedFiles.length > 0) {
+                logger.success(`AI generated ${generatedFiles.length} test file(s)`);
+              }
             }
           } else {
             logger.warn('AI helper not available - skipping test generation');
@@ -716,7 +748,12 @@ export class Step7TestGenerator {
         // File does not exist — proceed
       }
 
-      const prompt = await this._buildSingleFilePrompt(sourceFile, content, language);
+      const prompt = await this._buildSingleFilePrompt(
+        sourceFile,
+        content,
+        language,
+        testOutputPath
+      );
       const aiResult = await this.aiCache.withFileChangeGuard(
         `step_07|${sourceFile}`,
         [`${sourceFile}:${content}`],
@@ -746,15 +783,53 @@ export class Step7TestGenerator {
    * @param {string} sourceFile - Relative source file path
    * @param {string} content - Source file content
    * @param {string} language - Detected language
+   * @param {string} targetTestPath - Relative path where the generated test file will be written
    * @returns {Promise<string>} Prompt string
    */
-  async _buildSingleFilePrompt(sourceFile, content, language) {
+  async _buildSingleFilePrompt(sourceFile, content, language, targetTestPath) {
     try {
       const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
       const parsedYaml = yaml.load(yamlContent);
-      return buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml);
+      return buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml, targetTestPath);
     } catch {
-      return buildSingleFileTestPrompt(sourceFile, content, language);
+      return buildSingleFileTestPrompt(sourceFile, content, language, null, targetTestPath);
+    }
+  }
+
+  /**
+   * Run a fast type-check on generated test files and return the paths of any that fail.
+   * Uses `npm run type:check` when defined in package.json, otherwise `npx tsc --noEmit`.
+   * Non-fatal: compilation errors are reported and the invalid files are removed by the
+   * caller, but the step does not throw.
+   * @param {string} projectRoot - Absolute project root
+   * @param {string[]} generatedFiles - Relative paths of the just-written test files
+   * @returns {Promise<string[]>} Relative paths of files that failed compilation
+   */
+  async _verifyGeneratedTests(projectRoot, generatedFiles) {
+    if (!generatedFiles.length) return [];
+
+    try {
+      // Prefer a project-defined typecheck script; fall back to npx tsc --noEmit.
+      let typecheckCmd = 'npx tsc --noEmit';
+      try {
+        const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
+        const pkg = JSON.parse(pkgRaw);
+        if (pkg?.scripts?.['type:check'] || pkg?.scripts?.['typecheck']) {
+          typecheckCmd = `npm run ${pkg.scripts['type:check'] ? 'type:check' : 'typecheck'}`;
+        }
+      } catch {
+        /* package.json unreadable — use default */
+      }
+
+      const result = await executor(typecheckCmd, { cwd: projectRoot, ignoreError: true });
+      const output = (result.output || result.stdout || '').toString();
+
+      if ((result.exitCode ?? 0) === 0) return [];
+
+      // Parse which generated files are mentioned in the compiler output.
+      return generatedFiles.filter((f) => output.includes(f));
+    } catch {
+      return [];
     }
   }
 

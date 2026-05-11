@@ -168,13 +168,9 @@ Increment a semantic version string.
 **Example:**
 
 ```javascript
-bumpVersion('1.4.2', 'patch');  // '1.4.3'
-<<<<<<< HEAD
-bumpVersion('1.4.2', 'minor');  // '1.9.11'
-=======
-bumpVersion('1.4.2', 'minor');  // '1.6.1'
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-bumpVersion('1.4.2', 'major');  // '2.0.0'
+bumpVersion('1.4.2', 'patch'); // '1.4.3'
+bumpVersion('1.4.2', 'minor'); // '1.9.11'
+bumpVersion('1.4.2', 'major'); // '2.0.0'
 ```
 
 #### `replaceVersionInContent(content, oldVersion, newVersion)`
@@ -192,18 +188,8 @@ Replace all version occurrences in file content.
 **Example:**
 
 ```javascript
-const updated = replaceVersionInContent(
-  '{"version": "1.4.2"}',
-  '1.4.2',
-<<<<<<< HEAD
-  '1.9.11'
-);
+const updated = replaceVersionInContent('{"version": "1.4.2"}', '1.4.2', '1.9.11');
 // '{"version": "1.9.11"}'
-=======
-  '1.6.1'
-);
-// '{"version": "1.6.1"}'
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 ```
 
 #### `inferBumpType(diffStats, changedFiles)`
@@ -281,11 +267,7 @@ const step = new Step16VersionUpdate();
 const result = await step.execute('/path/to/project');
 
 console.log(`${result.oldVersion} → ${result.newVersion} (${result.bumpType})`);
-<<<<<<< HEAD
 // '1.4.2 → 1.9.11 (minor)'
-=======
-// '1.4.2 → 1.6.1 (minor)'
->>>>>>> a4c4d4d (chore(workflow): update docs and metrics [skip ci])
 ```
 
 ## Usage Examples
