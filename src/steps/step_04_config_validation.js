@@ -549,11 +549,13 @@ export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_
   if (!fileEntries || fileEntries.length === 0) return '';
   return fileEntries
     .map(({ relativePath, content }) => {
+      const normalizedContent =
+        typeof content === 'string' && content.trim().length > 0 ? content : '[empty file]';
       const trimmed =
-        content.length > maxChars
-          ? content.slice(0, maxChars) +
-            `\n... [truncated — ${content.length - maxChars} more chars]`
-          : content;
+        normalizedContent.length > maxChars
+          ? normalizedContent.slice(0, maxChars) +
+            `\n... [truncated — ${normalizedContent.length - maxChars} more chars]`
+          : normalizedContent;
       return `--- ${relativePath} ---\n\`\`\`\n${trimmed}\n\`\`\``;
     })
     .join('\n\n');
@@ -571,16 +573,22 @@ export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_
  * @param {Object} [options={}] - Context options
  * @param {number} [options.maxFiles=10] - Max files to include in the prompt
  * @param {number} [options.maxChars=MAX_FILE_CONTENT_CHARS] - Per-file character limit
+ * @param {string[]} [options.candidatePaths=[]] - Candidate config files for fallback notes
  * @returns {{
  *   promptFileEntries: Array<{relativePath: string, content: string}>,
+ *   candidatePaths: string[],
  *   filesToReview: string,
  *   fileContentMap: string,
- *   qualityScopeNote: string
+ *   qualityScopeNote: string,
+ *   reviewUnavailable: boolean
  * }} Prompt context fields
  */
 export function buildStep4QualityPromptContext(fileEntries, options = {}) {
-  const { maxFiles = 10, maxChars = MAX_FILE_CONTENT_CHARS } = options;
+  const { maxFiles = 10, maxChars = MAX_FILE_CONTENT_CHARS, candidatePaths = [] } = options;
   const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  const candidatePathList = Array.isArray(candidatePaths)
+    ? candidatePaths.map((entry) => String(entry))
+    : [];
   const promptFileEntries = entries.slice(0, maxFiles).map((entry) => ({
     relativePath: entry.relativePath,
     content: summarizeConfigContentForPrompt(entry.relativePath, entry.content),
@@ -591,9 +599,12 @@ export function buildStep4QualityPromptContext(fileEntries, options = {}) {
   ).length;
 
   const scopeParts = [];
-  if (promptFileEntries.length === 0) {
+  const reviewUnavailable = promptFileEntries.length === 0;
+  if (reviewUnavailable) {
     scopeParts.push(
-      'No configuration file contents were available for this supplementary quality review.'
+      candidatePathList.length > 0
+        ? `Supplementary file-level quality review skipped because none of the ${candidatePathList.length} candidate configuration file(s) had inline excerpts available for prompt injection.`
+        : 'No configuration file contents were available for this supplementary quality review.'
     );
   } else {
     scopeParts.push(
@@ -610,10 +621,49 @@ export function buildStep4QualityPromptContext(fileEntries, options = {}) {
 
   return {
     promptFileEntries,
-    filesToReview: promptFileEntries.map((entry) => entry.relativePath).join(', '),
-    fileContentMap: buildFileContentsBlock(promptFileEntries, maxChars),
+    candidatePaths: candidatePathList,
+    filesToReview: (reviewUnavailable
+      ? candidatePathList
+      : promptFileEntries.map((entry) => entry.relativePath)
+    ).join(', '),
+    fileContentMap: reviewUnavailable
+      ? '(unavailable — no inline config excerpts could be prepared for this supplementary review; do not make file-level claims)'
+      : buildFileContentsBlock(promptFileEntries, maxChars),
     qualityScopeNote: scopeParts.join(' '),
+    reviewUnavailable,
   };
+}
+
+/**
+ * Build a deterministic fallback note for Step 4's supplementary quality review
+ * when no inline excerpts are available to ground an AI response.
+ *
+ * @pure
+ * @param {{
+ *   candidatePaths?: string[],
+ *   qualityScopeNote?: string,
+ *   reviewUnavailable?: boolean
+ * }} context - Step 4 quality prompt context
+ * @returns {string} Markdown note
+ */
+export function buildStep4QualityFallbackNote(context = {}) {
+  if (!context.reviewUnavailable) {
+    return '';
+  }
+
+  const affectedScope =
+    Array.isArray(context.candidatePaths) && context.candidatePaths.length > 0
+      ? groupConfigFilesList(context.candidatePaths)
+      : '';
+
+  return [
+    '**Evidence gap:** Supplementary file-level quality review was skipped because no inline configuration excerpts were available for this pass.',
+    context.qualityScopeNote || '',
+    affectedScope ? `**Affected scope:**\n${affectedScope}` : '',
+    'To enable concrete file-level findings, inject inline excerpts for the selected configuration files into the supplementary quality prompt.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
@@ -1316,6 +1366,7 @@ export class Step4ConfigAnalyzer {
 
       // Phase AI: AI-powered configuration analysis
       let parsedAlternatives = { alternatives: [], recommended: null };
+      let evidenceInadequate = false;
       const totalIssues = syntaxErrors.length + securityFindings.length + bestPracticeIssues.length;
       const aiAvailable = await initializeAiServices(this.aiHelper, this.aiCache);
       if (aiAvailable) {
@@ -1455,6 +1506,7 @@ ${filesContentBlock}`,
             logger.warn(`Step 4 AI evidence handling low: ${evidenceQuality.reason}`);
             aiContent = normalizeAiResponseForPartialEvidence(aiContent, evidenceQuality);
             aiValidationNote = `> **Validation note:** ${evidenceQuality.reason}`;
+            evidenceInadequate = true;
           }
 
           const quality = validateAiResponseQuality(aiContent, partition.scopePaths);
@@ -1480,50 +1532,53 @@ ${filesContentBlock}`,
         // Supplementary: quality_prompt for file-level quality review
         let qualityContent = '';
         try {
-          const qualityPromptContext = buildStep4QualityPromptContext(fileEntries);
-          const qualityFileHashEntries = qualityPromptContext.promptFileEntries.map(
-            (entry) => `${entry.relativePath}:${entry.content}`
-          );
-          const qPrompt =
-            qualityPromptContext.promptFileEntries.length > 0
-              ? buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
-                  files_to_review: qualityPromptContext.filesToReview,
-                  project_name: projectRoot,
-                  file_content_map: qualityPromptContext.fileContentMap,
-                  quality_scope_note: qualityPromptContext.qualityScopeNote,
-                })
-              : '';
-          if (qPrompt && qualityFileHashEntries.length > 0) {
-            // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
-            // specialist" role (anti-patterns, best practices, maintainability) — not security.
-            const qResult = await this.aiCache.withFileChangeGuard(
-              'step_04_quality',
-              qualityFileHashEntries,
-              () =>
-                this.aiHelper.executeRequest(qPrompt, {
-                  persona: 'code_quality_analyst',
-                  model: 'claude-haiku-4.5',
-                })
+          const qualityPromptContext = buildStep4QualityPromptContext(fileEntries, {
+            candidatePaths: configFiles,
+          });
+          if (qualityPromptContext.reviewUnavailable) {
+            qualityContent = buildStep4QualityFallbackNote(qualityPromptContext);
+          } else {
+            const qualityFileHashEntries = qualityPromptContext.promptFileEntries.map(
+              (entry) => `${entry.relativePath}:${entry.content}`
             );
-            qualityContent = qResult?.content ?? '';
-            const qualityEvidence = validateAiResponseEvidenceHandling(
-              qualityContent,
-              qualityPromptContext.promptFileEntries.map((entry) => entry.relativePath),
-              qualityPromptContext.promptFileEntries,
-              MAX_FILE_CONTENT_CHARS,
-              {
-                totalScopeCount: fileEntries.length,
-                allRunPaths: fileEntries.map((entry) => entry.relativePath),
-              }
-            );
-            if (!qualityEvidence.adequate) {
-              logger.warn(
-                `Step 4 supplementary quality review evidence handling low: ${qualityEvidence.reason}`
+            const qPrompt = buildYamlStepPrompt(parsedYaml, 'quality_prompt', {
+              files_to_review: qualityPromptContext.filesToReview,
+              project_name: projectRoot,
+              file_content_map: qualityPromptContext.fileContentMap,
+              quality_scope_note: qualityPromptContext.qualityScopeNote,
+            });
+            if (qPrompt && qualityFileHashEntries.length > 0) {
+              // Use 'code_quality_analyst' persona: quality_prompt defines a "senior code review
+              // specialist" role (anti-patterns, best practices, maintainability) — not security.
+              const qResult = await this.aiCache.withFileChangeGuard(
+                'step_04_quality',
+                qualityFileHashEntries,
+                () =>
+                  this.aiHelper.executeRequest(qPrompt, {
+                    persona: 'code_quality_analyst',
+                    model: 'claude-haiku-4.5',
+                  })
               );
-              qualityContent = normalizeAiResponseForPartialEvidence(
+              qualityContent = qResult?.content ?? '';
+              const qualityEvidence = validateAiResponseEvidenceHandling(
                 qualityContent,
-                qualityEvidence
+                qualityPromptContext.promptFileEntries.map((entry) => entry.relativePath),
+                qualityPromptContext.promptFileEntries,
+                MAX_FILE_CONTENT_CHARS,
+                {
+                  totalScopeCount: fileEntries.length,
+                  allRunPaths: fileEntries.map((entry) => entry.relativePath),
+                }
               );
+              if (!qualityEvidence.adequate) {
+                logger.warn(
+                  `Step 4 supplementary quality review evidence handling low: ${qualityEvidence.reason}`
+                );
+                qualityContent = normalizeAiResponseForPartialEvidence(
+                  qualityContent,
+                  qualityEvidence
+                );
+              }
             }
           }
         } catch {
@@ -1546,7 +1601,13 @@ ${filesContentBlock}`,
       }
 
       if (totalIssues === 0) {
-        logger.success('Step 4 completed - no issues found');
+        if (evidenceInadequate) {
+          logger.warn(
+            'Step 4 completed - no issues found, but AI evidence was partial; review may be incomplete'
+          );
+        } else {
+          logger.success('Step 4 completed - no issues found');
+        }
       } else {
         logger.warn(`Step 4 completed - ${totalIssues} issue(s) found`);
       }

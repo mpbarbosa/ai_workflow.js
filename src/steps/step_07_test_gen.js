@@ -60,8 +60,16 @@ export const SOURCE_PATTERNS = {
  * Test file patterns by language (for matching)
  */
 export const TEST_FILE_PATTERNS = {
-  javascript: ['.test.js', '.spec.js', '.test.ts', '.spec.ts', '__tests__'],
-  typescript: ['.test.ts', '.spec.ts', '__tests__'],
+  javascript: [
+    '.test.js',
+    '.spec.js',
+    '.test.ts',
+    '.spec.ts',
+    '.test.tsx',
+    '.spec.tsx',
+    '__tests__',
+  ],
+  typescript: ['.test.ts', '.spec.ts', '.test.tsx', '.spec.tsx', '__tests__'],
   python: ['test_', '_test.py', '/tests/'],
   go: ['_test.go'],
   java: ['Test.java', 'Tests.java', '/test/'],
@@ -202,6 +210,11 @@ export function findUntestedFiles({ sourceFiles, testFiles, language, includeExc
   return sourceFiles.filter((sourceFile) => {
     // Skip excluded files
     if (!includeExcluded && shouldExcludeFile(sourceFile)) return false;
+
+    // Skip source files whose own name marks them as test/spec files (e.g. src/**/*.test.tsx).
+    // These exist when a project colocates tests inside src/; treating them as "untested source"
+    // causes step_07 to generate *.test.test.tsx double-extension files that break step_08.
+    if (/\.(test|spec)\.[jt]sx?$/.test(path.basename(sourceFile))) return false;
 
     // Skip test files
     const isTestFile = testFiles.includes(sourceFile);
@@ -435,15 +448,26 @@ export function buildSingleFileTestPrompt(
   content,
   language,
   parsedYaml = null,
-  targetTestPath = null
+  targetTestPath = null,
+  projectContext = {}
 ) {
   const truncated =
     content.length > MAX_SOURCE_FILE_CHARS
       ? content.substring(0, MAX_SOURCE_FILE_CHARS) + '\n...(truncated)'
       : content;
   const ext = path.extname(sourceFile).replace('.', '') || language;
-  const testFramework = TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
+  // Prefer the framework detected from the project's package.json; fall back to the static map.
+  const testFramework =
+    projectContext.detectedTestFramework ?? TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
   const resolvedTargetPath = targetTestPath ?? getTestOutputPath(sourceFile, language);
+
+  const jestConstraints =
+    projectContext.jestConstraints ?? `- Use standard ${testFramework} idioms for this project`;
+  const typescriptConstraints =
+    projectContext.typescriptConstraints ?? '- Ensure all types are explicit; avoid implicit `any`';
+  const testImportExamples =
+    projectContext.testImportExamples ??
+    '(no examples available — infer from the source file location)';
 
   if (parsedYaml) {
     const prompt = buildYamlStepPrompt(parsedYaml, 'single_file_test_prompt', {
@@ -453,6 +477,9 @@ export function buildSingleFileTestPrompt(
       test_framework: testFramework,
       source_ext: ext,
       source_content: truncated,
+      jest_constraints: jestConstraints,
+      typescript_constraints: typescriptConstraints,
+      test_import_examples: testImportExamples,
     });
     if (prompt) return prompt;
   }
@@ -462,22 +489,33 @@ export function buildSingleFileTestPrompt(
 
 **Source file**: \`${sourceFile}\`
 **Target test file**: \`${resolvedTargetPath}\`
-**Language / framework**: ${testFramework}
+**Language**: ${language}
+**Framework**: ${testFramework}
+
+**Project test runner constraints** (MUST satisfy):
+${jestConstraints}
+
+**TypeScript constraints** (MUST satisfy):
+${typescriptConstraints}
 
 **Requirements**:
 - Output ONLY the test file content inside a single fenced code block (\`\`\`${ext} ... \`\`\`)
 - Cover: happy paths, edge cases, and error scenarios
-- Use the standard test framework for ${language} (e.g. Jest for JS/TS, pytest for Python)
+- Use ${testFramework} idioms and conventions
 - Use descriptive test names
 - Do NOT include explanations outside the code block
-- Import \`${sourceFile}\` using the path relative to \`${resolvedTargetPath}\`
-- TypeScript only: never use \`@ts-expect-error\` with \`expect(...).toThrow()\` for interface violations
+- Compute the import path for \`${sourceFile}\` relative to \`${resolvedTargetPath}\`
+- All imports MUST resolve to real files — do not invent module paths
+- Never use \`globalThis['import']\` for mocking; use the mock API provided by ${testFramework} (e.g. \`vi.mock()\` for vitest, \`jest.mock()\` for Jest)
+
+**Example import style from existing tests**:
+${testImportExamples}
 
 \`\`\`${ext}
 ${truncated}
 \`\`\`
 
-Now generate the test file:`;
+Now generate the test file for \`${resolvedTargetPath}\`:`;
 }
 
 /**
@@ -749,6 +787,7 @@ export class Step7TestGenerator {
       }
 
       const prompt = await this._buildSingleFilePrompt(
+        projectRoot,
         sourceFile,
         content,
         language,
@@ -780,57 +819,252 @@ export class Step7TestGenerator {
   /**
    * Build the per-file test-generation prompt using the YAML template when available.
    * Falls back to the inline template if YAML loading fails.
+   * @param {string} projectRoot - Absolute project root
    * @param {string} sourceFile - Relative source file path
    * @param {string} content - Source file content
    * @param {string} language - Detected language
    * @param {string} targetTestPath - Relative path where the generated test file will be written
    * @returns {Promise<string>} Prompt string
    */
-  async _buildSingleFilePrompt(sourceFile, content, language, targetTestPath) {
+  async _buildSingleFilePrompt(projectRoot, sourceFile, content, language, targetTestPath) {
+    const projectContext = await this._readProjectTestContext(projectRoot, language);
     try {
       const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
       const parsedYaml = yaml.load(yamlContent);
-      return buildSingleFileTestPrompt(sourceFile, content, language, parsedYaml, targetTestPath);
+      return buildSingleFileTestPrompt(
+        sourceFile,
+        content,
+        language,
+        parsedYaml,
+        targetTestPath,
+        projectContext
+      );
     } catch {
-      return buildSingleFileTestPrompt(sourceFile, content, language, null, targetTestPath);
+      return buildSingleFileTestPrompt(
+        sourceFile,
+        content,
+        language,
+        null,
+        targetTestPath,
+        projectContext
+      );
     }
   }
 
   /**
-   * Run a fast type-check on generated test files and return the paths of any that fail.
-   * Uses `npm run type:check` when defined in package.json, otherwise `npx tsc --noEmit`.
-   * Non-fatal: compilation errors are reported and the invalid files are removed by the
-   * caller, but the step does not throw.
+   * Read jest/tsconfig settings from the target project to enrich test-generation prompts.
+   * Returns empty strings for any field that can't be read — callers must handle missing context.
+   * @param {string} projectRoot - Absolute project root
+   * @param {string} language - Detected language
+   * @returns {Promise<{jestConstraints: string, typescriptConstraints: string, testImportExamples: string}>}
+   */
+  async _readProjectTestContext(projectRoot, language) {
+    const lines = [];
+
+    // Detect the actual test framework from package.json dependencies.
+    // This overrides the static TEST_FRAMEWORK_BY_LANGUAGE map so that projects
+    // using vitest, mocha, etc. get correct idioms in the generated test files.
+    let detectedTestFramework = null;
+    try {
+      const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
+      const pkg = JSON.parse(pkgRaw);
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (allDeps.vitest) detectedTestFramework = 'vitest';
+      else if (allDeps.jest || allDeps['@jest/core'] || allDeps['ts-jest'])
+        detectedTestFramework = 'Jest';
+      else if (allDeps.mocha) detectedTestFramework = 'Mocha';
+      else if (allDeps.jasmine || allDeps['@jest/jasmine2']) detectedTestFramework = 'Jasmine';
+      else if (allDeps.ava) detectedTestFramework = 'AVA';
+    } catch {
+      /* package.json unreadable — keep null, falls back to static map */
+    }
+
+    // Jest config: extract testPathPattern and moduleNameMapper
+    try {
+      const jestConfigPath = path.join(projectRoot, 'jest.config.js');
+      const jestRaw = await this.fileOps.readFile(jestConfigPath);
+      const patternMatch = jestRaw.match(/testPathPattern['":\s]+['"]([^'"]+)['"]/);
+      const testMatch = jestRaw.match(/testMatch[^[]*\[([^\]]+)\]/);
+      const moduleMapper = jestRaw.match(/moduleNameMapper\s*:\s*\{([^}]+)\}/s);
+
+      if (patternMatch)
+        lines.push(
+          `- Jest testPathPattern: \`${patternMatch[1]}\` — the generated file MUST be under a matching path`
+        );
+      if (testMatch) lines.push(`- Jest testMatch: ${testMatch[1].trim()}`);
+      if (moduleMapper) {
+        const mapperLines = moduleMapper[1]
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l && !l.startsWith('//'))
+          .slice(0, 5);
+        if (mapperLines.length > 0) {
+          lines.push(
+            `- Jest moduleNameMapper (use mapped paths — do NOT import the raw package directly):\n  ${mapperLines.join('\n  ')}`
+          );
+        }
+      }
+    } catch {
+      /* jest.config.js unreadable — skip */
+    }
+
+    // TypeScript: extract strict mode and paths aliases
+    const tsLines = [];
+    try {
+      const tsconfigRaw = await this.fileOps.readFile(path.join(projectRoot, 'tsconfig.json'));
+      // Strip JSONC comments before parsing
+      const stripped = tsconfigRaw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const tsconfig = JSON.parse(stripped);
+      const opts = tsconfig?.compilerOptions ?? {};
+      if (opts.strict)
+        tsLines.push(
+          '- TypeScript `strict: true` is enabled — all generated code MUST compile without implicit `any`, untyped variables, or type errors'
+        );
+      if (opts.paths && Object.keys(opts.paths).length > 0) {
+        const pathAliases = Object.entries(opts.paths)
+          .slice(0, 5)
+          .map(([k, v]) => `${k} → ${Array.isArray(v) ? v[0] : v}`)
+          .join(', ');
+        tsLines.push(`- TypeScript path aliases: ${pathAliases}`);
+      }
+    } catch {
+      /* tsconfig.json unreadable — skip */
+    }
+
+    // Collect 2 existing test file import headers as style examples
+    const importExamples = [];
+    if (language === 'typescript' || language === 'javascript') {
+      try {
+        const testDir = path.join(projectRoot, 'test');
+        const files = await this.fileOps.glob('**/*.test.{ts,js}', {
+          cwd: testDir,
+          absolute: false,
+        });
+        for (const f of files.slice(0, 8)) {
+          if (importExamples.length >= 2) break;
+          try {
+            const raw = await this.fileOps.readFile(path.join(testDir, f));
+            const importBlock = raw
+              .split('\n')
+              .slice(0, 8)
+              .filter(
+                (l) => l.startsWith('import ') || l.startsWith('const ') || l.startsWith('jest.')
+              )
+              .join('\n');
+            if (importBlock) importExamples.push(`// ${f}\n${importBlock}`);
+          } catch {
+            /* skip unreadable file */
+          }
+        }
+      } catch {
+        /* glob failed — skip */
+      }
+    }
+
+    const resolvedFramework =
+      detectedTestFramework ?? TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
+    return {
+      detectedTestFramework,
+      jestConstraints:
+        lines.length > 0
+          ? lines.join('\n')
+          : `- Use standard ${resolvedFramework} idioms for this project`,
+      typescriptConstraints:
+        tsLines.length > 0
+          ? tsLines.join('\n')
+          : '- Ensure all types are explicit; avoid implicit `any`',
+      testImportExamples:
+        importExamples.length > 0
+          ? importExamples.join('\n\n')
+          : '(no examples available — infer from the source file location)',
+    };
+  }
+
+  /**
+   * Run a two-phase validation on generated test files:
+   * 1. TypeScript type-check (tsc --noEmit or npm run type:check)
+   * 2. Live test execution of only the generated files in isolation
+   *
+   * NOTE: executor() throws ExecutionError (with .stdout/.stderr) on non-zero exit.
+   * We catch those throws and extract the output from the error object — never from
+   * a success result — because exit code 0 returns normally and non-zero throws.
+   *
+   * Returns the relative paths of files that failed either phase.
+   * Non-fatal: the caller removes invalid files; the step never throws.
    * @param {string} projectRoot - Absolute project root
    * @param {string[]} generatedFiles - Relative paths of the just-written test files
-   * @returns {Promise<string[]>} Relative paths of files that failed compilation
+   * @returns {Promise<string[]>} Relative paths of files that failed validation
    */
   async _verifyGeneratedTests(projectRoot, generatedFiles) {
     if (!generatedFiles.length) return [];
 
+    const failed = new Set();
+
+    // ── Phase 1: TypeScript type-check ────────────────────────────────────────
+    // executor() throws ExecutionError on non-zero exit; stdout/stderr on the error object.
+    let typecheckCmd = 'npx tsc --noEmit';
     try {
-      // Prefer a project-defined typecheck script; fall back to npx tsc --noEmit.
-      let typecheckCmd = 'npx tsc --noEmit';
-      try {
-        const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
-        const pkg = JSON.parse(pkgRaw);
-        if (pkg?.scripts?.['type:check'] || pkg?.scripts?.['typecheck']) {
-          typecheckCmd = `npm run ${pkg.scripts['type:check'] ? 'type:check' : 'typecheck'}`;
-        }
-      } catch {
-        /* package.json unreadable — use default */
+      const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
+      const pkg = JSON.parse(pkgRaw);
+      if (pkg?.scripts?.['type:check'] || pkg?.scripts?.['typecheck']) {
+        typecheckCmd = `npm run ${pkg.scripts['type:check'] ? 'type:check' : 'typecheck'}`;
       }
-
-      const result = await executor(typecheckCmd, { cwd: projectRoot, ignoreError: true });
-      const output = (result.output || result.stdout || '').toString();
-
-      if ((result.exitCode ?? 0) === 0) return [];
-
-      // Parse which generated files are mentioned in the compiler output.
-      return generatedFiles.filter((f) => output.includes(f));
     } catch {
-      return [];
+      /* package.json unreadable */
     }
+
+    try {
+      await executor(typecheckCmd, { cwd: projectRoot });
+      // exit 0 → all files pass tsc; nothing to flag
+    } catch (tscErr) {
+      const tscOutput = ((tscErr?.stdout ?? '') + (tscErr?.stderr ?? '')).toString();
+      generatedFiles.forEach((f) => {
+        if (tscOutput.includes(f)) failed.add(f);
+      });
+    }
+
+    // ── Phase 2: Live test execution of generated files in isolation ──────────
+    // executor() throws ExecutionError on non-zero exit; extract stdout from the error.
+    let testRunner = null;
+    try {
+      const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
+      const pkg = JSON.parse(pkgRaw);
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (allDeps.vitest) testRunner = 'vitest';
+      else if (allDeps.jest || allDeps['ts-jest']) testRunner = 'jest';
+    } catch {
+      /* skip */
+    }
+
+    if (testRunner) {
+      const filesToTest = generatedFiles.filter((f) => !failed.has(f));
+      const quotedFiles = filesToTest.map((f) => `"${f}"`).join(' ');
+      if (quotedFiles) {
+        const runCmd =
+          testRunner === 'vitest'
+            ? `npx vitest run ${quotedFiles}`
+            : `npx jest --passWithNoTests ${quotedFiles}`;
+        try {
+          await executor(runCmd, { cwd: projectRoot, timeout: 60000 });
+          // exit 0 → all generated tests pass; keep failed set as-is
+        } catch (runErr) {
+          const runOutput = ((runErr?.stdout ?? '') + (runErr?.stderr ?? '')).toString();
+          filesToTest.forEach((f) => {
+            // Match on stem (e.g. "phase4_confirm.test") since vitest prints the full path
+            const stem = path.basename(f, path.extname(f)); // e.g. "phase4_confirm.test"
+            if (runOutput.includes(stem) || runOutput.includes(f)) failed.add(f);
+          });
+          // If we cannot attribute failures to specific files, conservatively flag all
+          if (failed.size === 0) filesToTest.forEach((f) => failed.add(f));
+          logger.warn(
+            `[step_07] ${failed.size} generated test file(s) failed runtime verification and will be removed: ` +
+              [...failed].join(', ')
+          );
+        }
+      }
+    }
+
+    return [...failed];
   }
 
   /**

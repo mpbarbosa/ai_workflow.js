@@ -416,6 +416,12 @@ export function formatConsistencyReport(results) {
   // Version issues
   if (results.versionIssues.length > 0) {
     lines.push('### Version Issues');
+    lines.push(
+      '> **Note:** Version inconsistencies flagged here reflect the current version at step_02 ' +
+        'execution time. step_16 (Version Update) runs later in this workflow and will update ' +
+        'version references in project files — many of these findings will be resolved automatically.'
+    );
+    lines.push('');
     results.versionIssues.slice(0, 10).forEach((issue) => {
       lines.push(`- **${issue.file}** - Found \`${issue.found}\`, expected \`${issue.expected}\``);
     });
