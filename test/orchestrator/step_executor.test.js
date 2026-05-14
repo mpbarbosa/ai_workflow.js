@@ -15,6 +15,7 @@ import {
   buildErrorMessage,
   StepExecutor,
 } from '../../src/orchestrator/step_executor.js';
+import { StepExecutorValidationError } from 'olinda_orchestrator';
 import { ValidationError, SystemError } from '../../src/utils/errors.js';
 
 describe('Step Executor Module', () => {
@@ -136,6 +137,13 @@ describe('Step Executor Module', () => {
 
     test('returns false for ValidationError', () => {
       const error = new ValidationError('Invalid input');
+      const result = shouldRetryStep(error, 0, 3);
+
+      expect(result).toBe(false);
+    });
+
+    test('returns false for olinda_orchestrator validation errors', () => {
+      const error = new StepExecutorValidationError('Invalid input');
       const result = shouldRetryStep(error, 0, 3);
 
       expect(result).toBe(false);

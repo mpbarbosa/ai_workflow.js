@@ -17,6 +17,7 @@ import {
   formatConfigReport,
   buildFileContentsBlock,
   buildStep4QualityPromptContext,
+  buildStep4QualityFallbackNote,
   buildPackageLockPromptSummary,
   summarizeConfigContentForPrompt,
   buildConfigPromptPartitions,
@@ -1031,6 +1032,53 @@ describe('Step 4: Configuration Validation', () => {
       expect(qualityRequest.prompt).toContain('[generated npm lockfile summary]');
     });
 
+    test('records a deterministic evidence-gap quality note when no inline excerpts are available', async () => {
+      let savedContent = '';
+      let executeRequestCount = 0;
+      const aiHelper = {
+        initialize: () => Promise.resolve(true),
+        executeRequest: (_prompt, options = {}) => {
+          executeRequestCount++;
+          if (options.persona === 'code_quality_analyst') {
+            return Promise.resolve({
+              content: 'This should not be used when no excerpts are available.',
+            });
+          }
+
+          return Promise.resolve({
+            content: 'Main config review completed.',
+          });
+        },
+      };
+      const aiCache = {
+        init: () => Promise.resolve(),
+        withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+      };
+
+      mockGitOps.getModifiedFiles = () => Promise.resolve(['package.json']);
+      mockFileOps.readFile = () => Promise.reject(new Error('not found'));
+      mockBacklog.saveStepSummary = (_step, _title, content) => {
+        savedContent = content;
+        return Promise.resolve();
+      };
+
+      analyzer = new Step4ConfigAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        aiHelper,
+        aiCache,
+      });
+
+      await analyzer.execute('/project');
+
+      expect(savedContent).toContain('## Quality Review');
+      expect(savedContent).toContain('**Evidence gap:**');
+      expect(savedContent).toContain('package.json');
+      expect(savedContent).toContain('inject inline excerpts');
+      expect(executeRequestCount).toBe(0);
+    });
+
     test('handles git operation failures gracefully', async () => {
       mockGitOps.getModifiedFiles = () => Promise.reject(new Error('Git error'));
       mockFileOps.glob = () => Promise.resolve(['package.json']);
@@ -1417,6 +1465,12 @@ describe('Step 4: Configuration Validation', () => {
       expect(result).toContain('[truncated');
       expect(result).toContain('5 more chars');
     });
+
+    test('renders empty files with an explicit marker instead of a blank fence', () => {
+      const result = buildFileContentsBlock([{ relativePath: 'empty.yml', content: '' }]);
+      expect(result).toContain('--- empty.yml ---');
+      expect(result).toContain('[empty file]');
+    });
   });
 
   describe('buildPackageLockPromptSummary', () => {
@@ -1461,6 +1515,36 @@ describe('Step 4: Configuration Validation', () => {
       expect(context.qualityScopeNote).toContain(
         'Supplementary file-level quality review scoped to 2 configuration file(s) in this run.'
       );
+    });
+
+    test('reports an unavailable review when candidate files exist but no excerpts are injectable', () => {
+      const context = buildStep4QualityPromptContext([], {
+        candidatePaths: ['package.json', '.github/workflows/ci.yml'],
+      });
+
+      expect(context.reviewUnavailable).toBe(true);
+      expect(context.filesToReview).toBe('package.json, .github/workflows/ci.yml');
+      expect(context.fileContentMap).toContain('(unavailable');
+      expect(context.qualityScopeNote).toContain(
+        'none of the 2 candidate configuration file(s) had inline excerpts available'
+      );
+    });
+  });
+
+  describe('buildStep4QualityFallbackNote', () => {
+    test('builds a deterministic evidence-gap note for missing inline excerpts', () => {
+      const note = buildStep4QualityFallbackNote({
+        candidatePaths: ['package.json', '.github/workflows/ci.yml'],
+        qualityScopeNote:
+          'Supplementary file-level quality review skipped because none of the 2 candidate configuration file(s) had inline excerpts available for prompt injection.',
+        reviewUnavailable: true,
+      });
+
+      expect(note).toContain('**Evidence gap:**');
+      expect(note).toContain('**Affected scope:**');
+      expect(note).toContain('package.json');
+      expect(note).toContain('**.github/workflows**: ci.yml');
+      expect(note).toContain('inject inline excerpts');
     });
   });
 

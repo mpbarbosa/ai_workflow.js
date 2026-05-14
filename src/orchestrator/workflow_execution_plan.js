@@ -166,8 +166,14 @@ export function formatDependencyList(dependencies = []) {
   return `[${dependencies.join(', ')}]`;
 }
 
-function buildLockedDependencyRemediationDetail(stepId, lockedMissing = [], disabledSet = new Set()) {
-  const disabledLockedMissing = lockedMissing.filter((dependencyId) => disabledSet.has(dependencyId));
+function buildLockedDependencyRemediationDetail(
+  stepId,
+  lockedMissing = [],
+  disabledSet = new Set()
+) {
+  const disabledLockedMissing = lockedMissing.filter((dependencyId) =>
+    disabledSet.has(dependencyId)
+  );
 
   if (stepId === 'step_11' && disabledLockedMissing.includes('step_13')) {
     return (
@@ -265,7 +271,9 @@ export function buildWorkflowConfigDependencyOverrideDiagnostic({
   if (!stepEnabled) {
     parts.push('step_enabled=false');
   }
-  parts.push('dependency_comment=missing');
+  parts.push(
+    'dependency_comment=missing (check for typos: dependencyComment, dependency_comments, dep_comment)'
+  );
 
   return parts.join(' | ');
 }
@@ -310,6 +318,55 @@ export function getConfiguredStepsForStage(stage, workflowConfig) {
       : enabledConfiguredStepIds),
     ...mandatoryStageSteps,
   ]);
+}
+
+export function normalizeLegacyWorkflowStageStepDefinitions(workflowConfig) {
+  const configuredStages = workflowConfig?.workflow?.stages;
+  if (!configuredStages || typeof configuredStages !== 'object') {
+    return { workflowConfig, warnings: [] };
+  }
+
+  let normalizedConfig = workflowConfig;
+  let normalizedStages = configuredStages;
+  const warnings = [];
+
+  for (const stage of Object.values(WORKFLOW_STAGES)) {
+    const stageConfig = normalizedStages?.[stage];
+    if (!stageConfig || !Object.prototype.hasOwnProperty.call(stageConfig, 'steps')) {
+      continue;
+    }
+
+    if (!Array.isArray(stageConfig.steps)) {
+      continue;
+    }
+
+    const configuredStepIds = stageConfig.steps.map(normalizeWorkflowConfigStepId).filter(Boolean);
+    const canonicalStepIds = getStepsForStage(stage);
+
+    if (!haveSameDependencySet(configuredStepIds, canonicalStepIds)) {
+      continue;
+    }
+
+    if (normalizedConfig === workflowConfig) {
+      normalizedStages = { ...configuredStages };
+      normalizedConfig = {
+        ...workflowConfig,
+        workflow: {
+          ...workflowConfig.workflow,
+          stages: normalizedStages,
+        },
+      };
+    }
+
+    const nextStageConfig = { ...stageConfig };
+    delete nextStageConfig.steps;
+    normalizedStages[stage] = nextStageConfig;
+    warnings.push(
+      `[WorkflowConfig] Ignoring redundant legacy workflow.stages.${stage}.steps because it exactly matches the canonical ${stage} stage. Remove the 'steps:' key from .workflow-config.yaml to silence this warning.`
+    );
+  }
+
+  return { workflowConfig: normalizedConfig, warnings };
 }
 
 export function validateWorkflowStageStepDefinitions(workflowConfig) {
@@ -399,9 +456,7 @@ export function sanitizeWorkflowConfigDependencies(
     return [...new Set([...retained, ...filteredDefaults, ...requiredDependencies])];
   }
 
-  return deduped.filter(
-    (dependencyId) => !TERMINAL_FINALIZATION_STEP_ORDER.includes(dependencyId)
-  );
+  return deduped.filter((dependencyId) => !TERMINAL_FINALIZATION_STEP_ORDER.includes(dependencyId));
 }
 
 export function validatePlannedStepDependencies(
@@ -477,7 +532,9 @@ export function validatePlannedStepDependencies(
         lockedMissing,
         disabledSet
       );
-      const defaultTerminalBranchMissingSet = new Set(DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []);
+      const defaultTerminalBranchMissingSet = new Set(
+        DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []
+      );
       const absentDefaultTerminalMissing = missingDependencies.filter(
         (depId) => defaultTerminalBranchMissingSet.has(depId) && !disabledSet.has(depId)
       );
@@ -526,7 +583,9 @@ export function formatExecutionPlanDependencies(step = {}, planStepIds = []) {
         );
 
   return dependencies
-    .map((dependencyId) => (planIds.has(dependencyId) ? dependencyId : `${dependencyId} [excluded]`))
+    .map((dependencyId) =>
+      planIds.has(dependencyId) ? dependencyId : `${dependencyId} [excluded]`
+    )
     .join(', ');
 }
 
@@ -631,7 +690,7 @@ export function getMandatoryStepIdsForStage(stage, availableStepIds = []) {
   const availableSet = new Set(availableStepIds);
   const mandatorySteps =
     stage === WORKFLOW_STAGES.FULL
-      ? ['step_16', 'step_17', 'step_0f', 'step_12']
+      ? ['step_17', 'step_0f', 'step_12']
       : ['step_17', 'step_0f', 'step_12'];
   return mandatorySteps.filter((stepId) => availableSet.has(stepId));
 }

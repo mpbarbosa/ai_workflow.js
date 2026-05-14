@@ -53,6 +53,7 @@ import {
 } from './workflow_step_catalog.js';
 import {
   HEALTH_CHECK_CATEGORIES,
+  PRE_FLIGHT_GIT_STASH_REQUIREMENT_MESSAGE,
   detectPreflightPackageManager,
   getPreflightQualityCommands,
   parseTestFailureCount,
@@ -80,6 +81,7 @@ import {
   haveSameDependencySet,
   logEffectiveExecutionPlan,
   normalizeDependencyList,
+  normalizeLegacyWorkflowStageStepDefinitions,
   normalizeProfileFocusStepIds,
   normalizeWorkflowConfigStepId,
   sanitizeWorkflowConfigDependencies,
@@ -100,6 +102,7 @@ export {
   getConfiguredStepsForStage,
   getDisabledWorkflowConfigStepIds,
   validateWorkflowStageStepDefinitions,
+  normalizeLegacyWorkflowStageStepDefinitions,
   filterStepIdsByProfile,
   enforceTerminalStepOrder,
   sanitizeWorkflowConfigDependencies,
@@ -141,6 +144,50 @@ function buildWorkflowFailureRunState(error, fallbackContext = {}) {
   };
 }
 
+function buildPreflightSummary({
+  detectedProfile = null,
+  changeCounts = null,
+  failedPhase = 'preflight',
+  workflowStepsStarted = false,
+  executedSteps = [],
+  executionPlanBuilt = false,
+  failedCommand = null,
+  failureKind = null,
+  message = null,
+  advisoryMessage = null,
+  noAiReviewPromptsIssued = false,
+  dependencyOverrides = null,
+}) {
+  return {
+    timestamp: new Date().toISOString(),
+    detectedProfile,
+    changeCounts,
+    preflightPassed: false,
+    failedPhase,
+    workflowStepsStarted: !!workflowStepsStarted,
+    executionPlanBuilt: !!executionPlanBuilt,
+    executedSteps: Array.isArray(executedSteps) ? executedSteps : [],
+    noAiReviewPromptsIssued: !!noAiReviewPromptsIssued,
+    failedCommand: failedCommand ?? null,
+    failureKind: failureKind ?? null,
+    message: message ?? null,
+    advisoryMessage: advisoryMessage ?? null,
+    dependencyOverrides: Array.isArray(dependencyOverrides) ? dependencyOverrides : null,
+  };
+}
+
+async function writePreflightSummary(logsRunDir, summary) {
+  if (!logsRunDir) {
+    return;
+  }
+
+  const summaryPath = path.join(logsRunDir, 'preflight', 'summary.json');
+  await fs
+    .mkdir(path.dirname(summaryPath), { recursive: true })
+    .then(() => fs.writeFile(summaryPath, JSON.stringify(summary, null, 2), 'utf8'))
+    .catch(() => {});
+}
+
 function logPreflightFailure(qualityChecks) {
   if (qualityChecks.failureKind === 'test-parser-anomaly') {
     logger.error(
@@ -168,6 +215,14 @@ function logPreflightFailure(qualityChecks) {
 
   if (qualityChecks.failureOutput && qualityChecks.failureKind !== 'test-parser-anomaly') {
     logger.error(qualityChecks.failureOutput);
+  }
+  if (qualityChecks.failureKind === 'git-stash-present') {
+    logger.error(
+      'To resolve:\n' +
+        '  git stash show -p   — inspect stash contents\n' +
+        '  git stash pop       — apply and remove the stash\n' +
+        '  git stash drop      — discard without applying'
+    );
   }
   if (qualityChecks.failureArtifact) {
     logger.error(`Full pre-flight failure output saved to: ${qualityChecks.failureArtifact}`);
@@ -413,7 +468,10 @@ export class MainOrchestrator {
   async _ensureProjectWorkflowConfig() {
     const existingConfig = await this._loadProjectWorkflowConfig();
     if (existingConfig) {
-      return existingConfig;
+      const { workflowConfig, warnings } =
+        normalizeLegacyWorkflowStageStepDefinitions(existingConfig);
+      warnings.forEach((warning) => logger.warn(warning));
+      return workflowConfig;
     }
 
     const [techStack, kindResult, topLevelEntries] = await Promise.all([
@@ -452,7 +510,13 @@ export class MainOrchestrator {
   _applyProjectWorkflowOverrides(projectWorkflowConfig = null) {
     const stageStepValidation = validateWorkflowStageStepDefinitions(projectWorkflowConfig);
     if (!stageStepValidation.valid) {
-      throw new Error(stageStepValidation.errors.join('\n\n'));
+      throw attachWorkflowFailureContext(new Error(stageStepValidation.errors.join('\n\n')), {
+        failedPhase: 'preflight_config_validation',
+        workflowStepsStarted: false,
+        executedSteps: [],
+        executionPlanBuilt: false,
+        failedCommand: null,
+      });
     }
 
     const overrides = buildWorkflowConfigStepIndex(projectWorkflowConfig);
@@ -462,6 +526,7 @@ export class MainOrchestrator {
     const previewUpdates = new Map();
     const pendingErrors = [];
     const pendingDiagnostics = [];
+    const allDependencyOverrides = [];
 
     for (const [stepId, override] of Object.entries(overrides)) {
       if (!this.stepRegistry.has(stepId)) {
@@ -495,6 +560,9 @@ export class MainOrchestrator {
           rawConfiguredDependencies,
           canonicalDependencies
         );
+        if (semanticallyOverridesCanonical) {
+          allDependencyOverrides.push({ stepId, commentPresent: !!override.dependencyComment });
+        }
         if (removedDependencies.length > 0) {
           logger.warn(
             `[WorkflowConfig] Removed unsafe dependency override(s) from ${stepId}: ${removedDependencies.join(', ')}`
@@ -611,7 +679,15 @@ export class MainOrchestrator {
           .filter(Boolean),
         'Effective configured workflow step set before dependency override validation failure:'
       );
-      throw new Error(pendingErrors.join('\n\n'));
+      const thrownError = attachWorkflowFailureContext(new Error(pendingErrors.join('\n\n')), {
+        failedPhase: 'preflight_config_validation',
+        workflowStepsStarted: false,
+        executedSteps: [],
+        executionPlanBuilt: false,
+        failedCommand: null,
+      });
+      thrownError.dependencyOverrides = allDependencyOverrides;
+      throw thrownError;
     }
 
     for (const [stepId, updates] of pendingUpdates) {
@@ -987,6 +1063,7 @@ export class MainOrchestrator {
   async execute(context = {}) {
     let workflowExecutionStarted = false;
     let executionPlanBuilt = false;
+    let detectedProfile = null;
 
     try {
       this.startTime = Date.now();
@@ -1025,6 +1102,7 @@ export class MainOrchestrator {
         'Validating .workflow-config.yaml step overrides against canonical workflow order...'
       );
       logger.info('Preflight config validation only — no workflow steps have started yet.');
+      logger.info(PRE_FLIGHT_GIT_STASH_REQUIREMENT_MESSAGE);
       this.registerAllSteps(this.projectWorkflowConfig);
       const configuredDependencyIndex = Object.fromEntries(
         this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
@@ -1059,33 +1137,42 @@ export class MainOrchestrator {
         });
       }
       logger.info('Workflow configuration overrides validated.');
+      if (disabledConfiguredStepIds.length > 0) {
+        const configuredSteps = this.projectWorkflowConfig?.workflow?.steps ?? [];
+        for (const stepId of disabledConfiguredStepIds) {
+          const rawStep = configuredSteps.find(
+            (s) => normalizeWorkflowConfigStepId(s?.id) === stepId
+          );
+          const reason = typeof rawStep?.reason === 'string' ? `: ${rawStep.reason}` : '';
+          logger.info(`[Config] ${stepId} excluded — disabled in .workflow-config.yaml${reason}`);
+        }
+      }
 
       // Detect workflow profile
-      let detectedProfile = await this.profileManager.detectProfile();
-      logger.info(`Profile: ${detectedProfile}`);
+      detectedProfile = await this.profileManager.detectProfile();
+      logger.info(`Preliminary profile selected for preflight: ${detectedProfile}`);
 
       // Health checks
       const healthResults = await this.healthCheck();
       if (!healthResults.passed) {
         const preflightCheck = healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT];
         if (this.logsRunDir) {
-          const preflightSummary = {
-            timestamp: new Date().toISOString(),
-            detectedProfile,
-            changeCounts: this.profileManager?.changeCounts ?? null,
-            preflightPassed: false,
-            failedCommand: preflightCheck?.failedCommand ?? null,
-            failureKind: preflightCheck?.failureKind ?? null,
-            message: preflightCheck?.message ?? null,
-            advisoryMessage: preflightCheck?.advisoryMessage ?? null,
-          };
-          const summaryPath = path.join(this.logsRunDir, 'preflight', 'summary.json');
-          await fs
-            .mkdir(path.dirname(summaryPath), { recursive: true })
-            .then(() =>
-              fs.writeFile(summaryPath, JSON.stringify(preflightSummary, null, 2), 'utf8')
-            )
-            .catch(() => {});
+          await writePreflightSummary(
+            this.logsRunDir,
+            buildPreflightSummary({
+              detectedProfile,
+              changeCounts: this.profileManager?.changeCounts ?? null,
+              failedPhase: 'preflight_health_checks',
+              workflowStepsStarted: false,
+              executionPlanBuilt: false,
+              executedSteps: [],
+              noAiReviewPromptsIssued: true,
+              failedCommand: preflightCheck?.failedCommand ?? null,
+              failureKind: preflightCheck?.failureKind ?? null,
+              message: preflightCheck?.message ?? null,
+              advisoryMessage: preflightCheck?.advisoryMessage ?? null,
+            })
+          );
         }
         throw attachWorkflowFailureContext(new Error('Health checks failed - cannot proceed'), {
           failedPhase: 'preflight_health_checks',
@@ -1095,6 +1182,11 @@ export class MainOrchestrator {
           failedCommand: preflightCheck?.failedCommand,
         });
       }
+
+      logEffectiveExecutionPlan(
+        buildExecutionPlanPreview(stageConfiguredSteps, this.stepRegistry),
+        'Configured workflow step set (preflight passed, subject to profile filtering after merged change detection):'
+      );
 
       // Initialize metrics (creates current_run.json so step_17 can read it)
       await this.metricsCollector.initMetrics();
@@ -1333,9 +1425,36 @@ export class MainOrchestrator {
       return this._finalizeWorkflowRun(workflow, engineResult, commitHistory, headAtWorkflowStart);
     } catch (error) {
       if (!workflowExecutionStarted) {
+        const runState = buildWorkflowFailureRunState(error, {
+          failedPhase: workflowExecutionStarted ? 'workflow_execution' : 'preflight',
+          workflowStepsStarted: workflowExecutionStarted,
+          executedSteps: Object.keys(this.results?.steps || {}),
+          executionPlanBuilt,
+          failedCommand: null,
+        });
+        if (runState.failed_phase !== 'preflight_health_checks') {
+          await writePreflightSummary(
+            this.logsRunDir,
+            buildPreflightSummary({
+              detectedProfile,
+              changeCounts: this.profileManager?.changeCounts ?? null,
+              failedPhase: runState.failed_phase,
+              workflowStepsStarted: runState.workflow_steps_started,
+              executedSteps: runState.executed_steps,
+              executionPlanBuilt: runState.execution_plan_built,
+              failedCommand: runState.failed_command,
+              message: error?.message ?? null,
+              noAiReviewPromptsIssued: true,
+              dependencyOverrides: Array.isArray(error?.dependencyOverrides)
+                ? error.dependencyOverrides
+                : null,
+            })
+          );
+        }
         logger.error(
           `${colors.red}✗ Preflight validation failed before workflow execution (0 steps executed)${colors.reset}`
         );
+        logger.error('No AI review prompts were issued in this run.');
       }
       logger.error(
         `[RunState] ${JSON.stringify(

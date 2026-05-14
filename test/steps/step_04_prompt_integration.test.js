@@ -69,3 +69,37 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(prompt).toContain('.workflow-config.yaml (part 1/2)');
   });
 });
+
+describe('quality_prompt — evidence fallback handling', () => {
+  let aiHelpers;
+
+  beforeAll(async () => {
+    const raw = await fs.readFile(AI_HELPERS_YAML_PATH, 'utf8');
+    aiHelpers = yaml.load(raw);
+  });
+
+  test('task_template and approach explain the evidence-gap fallback contract', () => {
+    const template = aiHelpers.quality_prompt.task_template;
+    const approach = aiHelpers.quality_prompt.approach;
+
+    expect(template).toContain('Evidence Gap');
+    expect(template).toContain('Treat `[empty file]` markers as');
+    expect(approach).toContain('return only an `Evidence Gap` response');
+    expect(approach).toContain('Treat `[empty file]` markers as grounded evidence');
+  });
+
+  test('rendered prompt preserves unavailable-evidence guidance', () => {
+    const prompt = buildYamlStepPrompt(aiHelpers, 'quality_prompt', {
+      files_to_review: 'package.json, .github/workflows/ci.yml',
+      file_content_map:
+        '(unavailable — no inline config excerpts could be prepared for this supplementary review; do not make file-level claims)',
+      quality_scope_note:
+        'Supplementary file-level quality review skipped because none of the 2 candidate configuration file(s) had inline excerpts available for prompt injection.',
+    });
+
+    expect(prompt).toContain('Evidence Gap');
+    expect(prompt).toContain('package.json, .github/workflows/ci.yml');
+    expect(prompt).toContain('do not make file-level claims');
+    expect(prompt).toContain('Treat `[empty file]` markers as');
+  });
+});

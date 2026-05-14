@@ -72,7 +72,44 @@ export function buildDependencyGraph(steps) {
 }
 
 /**
- * Performs topological sort on a dependency graph using Kahn's algorithm
+ * Computes the number of nodes transitively reachable (downstream) from each node.
+ *
+ * Used to prioritise critical-gate steps in topological sort: a step that blocks
+ * many downstream steps should run before a sibling that blocks fewer, reducing
+ * the wall-clock cost of failures detected late in the run.
+ *
+ * @param {Object} graph - Dependency graph from buildDependencyGraph
+ * @returns {Map<string, number>} stepId -> count of transitively reachable steps
+ * @pure
+ */
+export function computeDownstreamCounts(graph) {
+  const counts = new Map();
+  for (const nodeId of graph.nodes.keys()) {
+    const visited = new Set();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      for (const dep of graph.edges.get(current) || []) {
+        if (!visited.has(dep)) {
+          visited.add(dep);
+          queue.push(dep);
+        }
+      }
+    }
+    counts.set(nodeId, visited.size);
+  }
+  return counts;
+}
+
+/**
+ * Performs topological sort on a dependency graph using Kahn's algorithm with
+ * downstream-count priority.
+ *
+ * When multiple steps are simultaneously ready (all dependencies satisfied), the
+ * step with the highest downstream count is scheduled first. This ensures that
+ * critical-gate steps (e.g. Test Execution which blocks 9 downstream steps) are
+ * not delayed behind expensive but non-critical siblings (e.g. Documentation
+ * Updates), minimising wasted work when a gate step fails.
  *
  * @param {Object} graph - Dependency graph from buildDependencyGraph
  * @returns {Array<string>} Ordered step IDs (dependencies before dependents)
@@ -87,28 +124,29 @@ export function buildDependencyGraph(steps) {
 export function topologicalSort(graph) {
   const result = [];
   const inDegree = new Map(graph.inDegree);
-  const queue = [];
+  const downstreamCounts = computeDownstreamCounts(graph);
+  const ready = new Set();
 
-  // Find nodes with no dependencies
+  // Seed: all nodes with no dependencies
   for (const [nodeId, degree] of inDegree.entries()) {
     if (degree === 0) {
-      queue.push(nodeId);
+      ready.add(nodeId);
     }
   }
 
-  // Process queue
-  while (queue.length > 0) {
-    const current = queue.shift();
+  while (ready.size > 0) {
+    // Pick the ready node with the most downstream dependents first
+    const current = [...ready].sort(
+      (a, b) => (downstreamCounts.get(b) || 0) - (downstreamCounts.get(a) || 0)
+    )[0];
+    ready.delete(current);
     result.push(current);
 
-    // Process dependents
-    const dependents = graph.edges.get(current) || [];
-    for (const depId of dependents) {
+    for (const depId of graph.edges.get(current) || []) {
       const newDegree = inDegree.get(depId) - 1;
       inDegree.set(depId, newDegree);
-
       if (newDegree === 0) {
-        queue.push(depId);
+        ready.add(depId);
       }
     }
   }

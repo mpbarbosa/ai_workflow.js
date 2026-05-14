@@ -88,6 +88,18 @@ describe('preflight_quality_runner', () => {
     expect(classifyPreflightFailure(normalOutput)).toBe('command-failure');
   });
 
+  test('classifyPreflightFailure returns environment for sh exit-127 not-found output', () => {
+    expect(classifyPreflightFailure('sh: 1: jest: not found')).toBe('environment');
+  });
+
+  test('classifyPreflightFailure returns environment for bash command-not-found output', () => {
+    expect(classifyPreflightFailure('jest: command not found')).toBe('environment');
+  });
+
+  test('classifyPreflightFailure returns environment for zsh command-not-found output', () => {
+    expect(classifyPreflightFailure('command not found: jest')).toBe('environment');
+  });
+
   test('buildEnvironmentRemediationHint includes fix for EACCES with detected path', () => {
     const output = "Error: EACCES: permission denied, rmdir '/project/coverage/lcov-report'";
     const hint = buildEnvironmentRemediationHint(output);
@@ -100,13 +112,25 @@ describe('preflight_quality_runner', () => {
     expect(hint).toContain('not found');
   });
 
+  test('buildEnvironmentRemediationHint suggests npm install for sh not-found output', () => {
+    const hint = buildEnvironmentRemediationHint('sh: 1: jest: not found');
+    expect(hint).toContain('jest');
+    expect(hint).toContain('npm install');
+  });
+
+  test('buildEnvironmentRemediationHint suggests npm install for generic not-found output', () => {
+    const hint = buildEnvironmentRemediationHint('some tool: not found');
+    expect(hint).toContain('npm install');
+  });
+
   test('runPreflightQualitySuites classifies EACCES crash as environment failure', async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-env-'));
     const projectRoot = path.join(tempRoot, 'project');
     const workflowDir = path.join(tempRoot, '.ai_workflow');
     const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
 
-    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
     await fs.writeFile(
       path.join(projectRoot, 'package.json'),
       JSON.stringify({
@@ -142,7 +166,8 @@ describe('preflight_quality_runner', () => {
     const workflowDir = path.join(tempRoot, '.ai_workflow');
     const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
 
-    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
     await fs.writeFile(
       path.join(projectRoot, 'package.json'),
       JSON.stringify({
@@ -174,7 +199,8 @@ describe('preflight_quality_runner', () => {
     const workflowDir = path.join(tempRoot, '.ai_workflow');
     const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
 
-    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
     await fs.writeFile(
       path.join(projectRoot, 'package.json'),
       JSON.stringify(
@@ -217,6 +243,117 @@ describe('preflight_quality_runner', () => {
     await fs.rm(tempRoot, { recursive: true, force: true });
   });
 
+  test('runPreflightQualitySuites classifies exit-127 not-found as environment failure', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-exit127-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(projectRoot, { recursive: true });
+    // Simulate a project that has node_modules/.bin so the guard passes,
+    // but the test script itself exits 127 with a "not found" message.
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'exit127-fixture',
+        version: '1.0.0',
+        scripts: {
+          test: `node -e "process.stderr.write('sh: 1: jest: not found\\n'); process.exit(127)"`,
+        },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: { tests: 0 },
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.advisory).toBe(false);
+    expect(result.failureKind).toBe('environment');
+    expect(result.message).toContain('Environment error blocked test runner');
+    expect(result.message).toContain('jest');
+    expect(result.message).toContain('npm install');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites returns environment error when node_modules is absent', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-nomodules-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'no-modules-fixture',
+        version: '1.0.0',
+        scripts: { test: 'jest' },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: null,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.advisory).toBe(false);
+    expect(result.failureKind).toBe('environment');
+    expect(result.message).toContain('node_modules not found');
+    expect(result.message).toContain('npm install');
+    expect(result.failedCommand).toBeNull();
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites returns environment error when node_modules/.bin is empty', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-emptybin-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'empty-bin-fixture',
+        version: '1.0.0',
+        scripts: { test: 'jest' },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: null,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.advisory).toBe(false);
+    expect(result.failureKind).toBe('environment');
+    expect(result.message).toContain('node_modules/.bin is empty');
+    expect(result.message).toContain('npm install');
+    expect(result.failedCommand).toBeNull();
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
   test('runPreflightQualitySuites fails when git stash entries are present', async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-stash-'));
     const projectRoot = path.join(tempRoot, 'project');
@@ -245,6 +382,7 @@ describe('preflight_quality_runner', () => {
     expect(result.failureKind).toBe('git-stash-present');
     expect(result.stashCount).toBe(1);
     expect(result.message).toContain('Clear stashed assets');
+    expect(result.failureArtifact).toBe(path.join(logsRunDir, 'preflight', 'git-stash.log'));
     expect(result.commands).toEqual([
       {
         name: 'git-stash',
@@ -253,7 +391,142 @@ describe('preflight_quality_runner', () => {
         stashCount: 1,
       },
     ]);
+    await expect(fs.readFile(result.failureArtifact, 'utf8')).resolves.toContain('fixture stash');
+    // stash show --stat output should be appended so users can triage pop vs. drop
+    expect(result.failureOutput).toContain('fixture stash');
 
     await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites writes both baseline fields atomically on success', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-baseline-atomic-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+    const baselinePath = path.join(workflowDir, 'preflight_baseline.json');
+
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'baseline-atomic-fixture',
+        version: '1.0.0',
+        scripts: {
+          lint: 'node -e "process.exit(0)"',
+          test: 'node -e "process.exit(0)"',
+        },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: { tests: 0 },
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(true);
+
+    const baseline = JSON.parse(await fs.readFile(baselinePath, 'utf8'));
+    expect(baseline.testFailureCount).toBe(0);
+    expect(baseline.lintErrorCount).toBe(0);
+    expect(typeof baseline.updatedAt).toBe('string');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites classifies EACCES build output as environment failure', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-build-eacces-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'build-eacces-fixture',
+        version: '1.0.0',
+        scripts: {
+          build: `node -e "process.stderr.write('error TS5033: Could not write file dist/index.js: EACCES: permission denied, mkdir dist\\n'); process.exit(2)"`,
+        },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: null,
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.advisory).toBe(false);
+    expect(result.failureKind).toBe('environment');
+    expect(result.message).toContain('Environment error blocked build');
+    expect(result.message).toContain('Fix:');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  test('runPreflightQualitySuites detects non-writable dist/ before running build', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-dist-perm-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
+
+    const distPath = path.join(projectRoot, 'dist');
+    const buildMarkerPath = path.join(projectRoot, 'build-ran');
+    await fs.mkdir(distPath, { recursive: true });
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'dist-perm-fixture',
+        version: '1.0.0',
+        scripts: {
+          build: `node -e "require('fs').writeFileSync('${buildMarkerPath.replaceAll('\\', '\\\\')}', 'ran')"`,
+        },
+      }),
+      'utf8'
+    );
+
+    const originalAccess = fs.access.bind(fs);
+    const accessSpy = jest.spyOn(fs, 'access').mockImplementation(async (targetPath, mode) => {
+      if (targetPath === distPath) {
+        const error = new Error(`EACCES: permission denied, access '${distPath}'`);
+        error.code = 'EACCES';
+        throw error;
+      }
+
+      return originalAccess(targetPath, mode);
+    });
+
+    try {
+      const result = await runPreflightQualitySuites({
+        projectRoot,
+        workflowDir,
+        logsRunDir,
+        changeCounts: null,
+        logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.failureKind).toBe('environment');
+      expect(result.message).toContain('dist/');
+      expect(result.message).toContain('not writable');
+      await expect(fs.stat(buildMarkerPath)).rejects.toThrow();
+    } finally {
+      accessSpy.mockRestore();
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });

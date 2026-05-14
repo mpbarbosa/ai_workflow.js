@@ -337,7 +337,11 @@ export function buildAsyncFileContentsBlock(entries) {
   return entries
     .map(({ relativePath, sourcePath, content }) => {
       const ext = (sourcePath || relativePath).split('.').pop() ?? '';
-      return `### \`${relativePath}\`\n\`\`\`${ext}\n${content}\n\`\`\``;
+      const numbered = String(content ?? '')
+        .split('\n')
+        .map((line, i) => `${String(i + 1).padStart(4, ' ')} ${line}`)
+        .join('\n');
+      return `### \`${relativePath}\`\n\`\`\`${ext}\n${numbered}\n\`\`\``;
     })
     .join('\n\n');
 }
@@ -389,7 +393,7 @@ export function formatAsyncPerfReport(aiContent, scores) {
  * @returns {boolean}
  */
 export function hasAsyncPatterns(content) {
-  return /\b(async|await|Promise|fetch|axios|setTimeout|setInterval|addEventListener|removeEventListener)\b|\.then\s*\(|\.catch\s*\(/i.test(
+  return /\b(async|await|Promise|fetch|axios|setTimeout|setInterval|addEventListener|removeEventListener|watchPosition|clearWatch|subscribe|unsubscribe|observe|disconnect|dispose|destroy|close)\b|\.then\s*\(|\.catch\s*\(/i.test(
     String(content ?? '')
   );
 }
@@ -706,8 +710,8 @@ export class Step20AsyncPerfReview {
                   : '',
               partition_scope_note:
                 partitionsToAnalyze.length > 1
-                  ? `This request covers ${partition.scopePaths.length} of ${readableRuntimeCount} readable runtime JavaScript/TypeScript files in the current async-performance review run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
-                  : `This request contains the full readable runtime JavaScript/TypeScript scope for this run (${readableRuntimeCount} file(s)).`,
+                  ? `This request covers ${partition.scopePaths.length} of ${readableRuntimeCount} runtime JavaScript/TypeScript files that contained detectable async patterns in this review run (${runtimeFiles.length - readableRuntimeCount} runtime file(s) were excluded by the async-pattern filter and are not shown; their resource-lifecycle code may still be relevant to Memory Leak and Resource Cleanup dimensions). Entries labeled "(part X/Y)" are sequential chunks of oversized files split across multiple prompt logs.`
+                  : `This request covers all ${readableRuntimeCount} runtime JavaScript/TypeScript file(s) that contained detectable async patterns for this run. ${runtimeFiles.length - readableRuntimeCount} additional runtime file(s) were excluded by the async-pattern filter and are not shown here; they may contain resource-lifecycle code relevant to Memory Leak and Resource Cleanup dimensions.`,
               project_name: options.projectName ?? path.basename(projectRoot),
               project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
               project_kind: resolvedProjectKind,
@@ -716,8 +720,8 @@ export class Step20AsyncPerfReview {
               test_framework: testFramework,
               source_file_count:
                 partitionsToAnalyze.length > 1
-                  ? `${readableRuntimeCount} total (${partition.scopePaths.length} covered in this request)`
-                  : String(readableRuntimeCount),
+                  ? `${runtimeFiles.length} total runtime (${readableRuntimeCount} with async patterns; ${partition.scopePaths.length} covered in this request)`
+                  : `${runtimeFiles.length} total runtime (${readableRuntimeCount} with async patterns)`,
               modified_count: String(readableRuntimeCount),
               file_paths:
                 filePathsContext ||

@@ -130,17 +130,18 @@ describe('Step 17: Workflow Summary - Pure Functions', () => {
   });
 
   describe('normalizeRuntimeStepResults', () => {
-    test('maps workflow engine results to summary step results', () => {
+    test('maps workflow engine results to summary step results, converting ms to seconds', () => {
+      // Runtime step results carry duration in milliseconds; formatDuration expects seconds.
       expect(
         normalizeRuntimeStepResults([
-          { stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 100 },
+          { stepId: 'step_00', stepName: 'Pre-Analysis', success: true, duration: 5000 },
           { stepId: 'step_08', stepName: 'Test Execution', success: true, skipped: true },
-          { stepId: 'step_10', stepName: 'Code Quality', success: false, duration: 50 },
+          { stepId: 'step_10', stepName: 'Code Quality', success: false, duration: 30000 },
         ])
       ).toEqual([
-        expect.objectContaining({ stepId: 'step_00', status: 'success', duration: 100 }),
+        expect.objectContaining({ stepId: 'step_00', status: 'success', duration: 5 }),
         expect.objectContaining({ stepId: 'step_08', status: 'skipped', duration: 0 }),
-        expect.objectContaining({ stepId: 'step_10', status: 'failed', duration: 50 }),
+        expect.objectContaining({ stepId: 'step_10', status: 'failed', duration: 30 }),
       ]);
     });
   });
