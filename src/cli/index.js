@@ -24,6 +24,7 @@ import { configCommand } from './commands/config.js';
 import { cleanCommand } from './commands/clean.js';
 import { deployCommand } from './commands/deploy.js';
 import { fixLogIssuesCommand } from './commands/fix_log_issues.js';
+import { validateCommand } from './commands/validate.js';
 
 // Package information
 const VERSION = '1.6.3';
@@ -181,7 +182,13 @@ export function createProgram() {
   // Config command
   program
     .command('config <action> [args...]')
-    .description('Manage workflow configuration (show, validate, get, set)')
+    .description('Manage workflow configuration (show, validate, get, set, fix-deps)')
+    .option(
+      '--mode <mode>',
+      'fix-deps mode: comment (default) | restore | remove-disabled',
+      'comment'
+    )
+    .option('--dry-run', 'Preview fix-deps changes without writing to disk', false)
     .action(async (action, args, options) => {
       const globalOpts = program.opts();
       await configCommand(action, args, { ...globalOpts, ...options });
@@ -214,6 +221,23 @@ export function createProgram() {
     .action(async (options) => {
       const globalOpts = program.opts();
       await deployCommand({ ...globalOpts, ...options });
+    });
+
+  // Validate command — config validation + health checks without executing steps
+  program
+    .command('validate')
+    .description(
+      'Run preflight validation (config + health checks) without executing workflow steps. ' +
+        'Use this to diagnose .workflow-config.yaml errors and git-stash issues quickly.'
+    )
+    .option('--config', 'Config validation phase only (skip health checks)', false)
+    .option('--health', 'Health-check phase only (skip config validation)', false)
+    .option('--stage <stage>', 'Stage to validate against (quick, medium, full)', 'full')
+    .option('--project-root <path>', 'Project root directory')
+    .option('--workflow-dir <path>', 'Workflow directory', '.ai_workflow')
+    .action(async (options) => {
+      const globalOpts = program.opts();
+      await validateCommand({ ...globalOpts, ...options });
     });
 
   // Fix log issues command

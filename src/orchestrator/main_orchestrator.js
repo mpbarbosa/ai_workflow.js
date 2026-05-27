@@ -45,6 +45,7 @@ import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import {
   DEFAULT_TERMINAL_BRANCH_DEPENDENCIES,
+  ORDER_LOCKED_CANONICAL_DEPENDENCIES,
   WORKFLOW_STAGES,
   TERMINAL_FINALIZATION_STEP_ORDER,
   enforceTerminalStepOrder,
@@ -69,6 +70,7 @@ import {
   buildWorkflowConfigDependencyOverrideDiagnostic,
   buildWorkflowConfigDependencyOverrideError,
   buildWorkflowConfigStepIndex,
+  classifyDependencyOverrideSeverity,
   detectWorkflowConfigStructure,
   filterProfileFocusStepIdsForContext,
   filterStepIdsByProfile,
@@ -211,6 +213,9 @@ function logPreflightFailure(qualityChecks) {
     logger.error(
       `${colors.red}✗${colors.reset} Pre-flight quality suites failed: ${qualityChecks.failedCommand}`
     );
+    if (qualityChecks.firstFailingTest) {
+      logger.error(`First failing test: ${qualityChecks.firstFailingTest}`);
+    }
   }
 
   if (qualityChecks.failureOutput && qualityChecks.failureKind !== 'test-parser-anomaly') {
@@ -569,13 +574,33 @@ export class MainOrchestrator {
           );
         }
         if (addedDependencies.length > 0) {
-          const defaultTerminalAbsent = (DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []).filter(
-            (depId) => addedDependencies.includes(depId) && !disabledConfigStepIds.includes(depId)
+          // P2: Distinguish between enabled vs disabled terminal branch prerequisites so the
+          // advisory gives the correct remediation action in each case.
+          // - ENABLED steps absent from config.dependencies → add them explicitly to suppress advisory
+          // - DISABLED steps absent from config        → list them with 'enabled: false' to suppress re-injection
+          const allTerminalAbsent = (DEFAULT_TERMINAL_BRANCH_DEPENDENCIES[stepId] || []).filter(
+            (depId) => addedDependencies.includes(depId)
           );
-          const absentHint =
-            defaultTerminalAbsent.length > 0
-              ? ` ${defaultTerminalAbsent.join(', ')} is a default terminal branch prerequisite absent from your config — add it with 'enabled: false' to suppress this re-injection.`
-              : '';
+          const enabledTerminalAbsent = allTerminalAbsent.filter(
+            (depId) => !disabledConfigStepIds.includes(depId)
+          );
+          const disabledTerminalAbsent = allTerminalAbsent.filter((depId) =>
+            disabledConfigStepIds.includes(depId)
+          );
+          const hintParts = [];
+          if (enabledTerminalAbsent.length > 0) {
+            hintParts.push(
+              `${enabledTerminalAbsent.join(', ')} is a default terminal branch prerequisite absent from your config —` +
+                ` add it explicitly to ${stepId}.dependencies to suppress this advisory.`
+            );
+          }
+          if (disabledTerminalAbsent.length > 0) {
+            hintParts.push(
+              `${disabledTerminalAbsent.join(', ')} is a disabled default terminal branch prerequisite absent from your config —` +
+                ` add it with 'enabled: false' to suppress this re-injection.`
+            );
+          }
+          const absentHint = hintParts.length > 0 ? ` ${hintParts.join(' ')}` : '';
           logger.warn(
             `[WorkflowConfig] Canonical dependency enforcement adjusted ${stepId}: requested ${formatDependencyList(rawConfiguredDependencies)}; effective ${formatDependencyList(sanitizedDependencies)}. Added prerequisite(s): ${formatDependencyList(addedDependencies)}.${absentHint}`
           );
@@ -620,6 +645,28 @@ export class MainOrchestrator {
             ...(existingStep?.metadata || {}),
             dependencyComment: override.dependencyComment,
           };
+
+          // P1: Detect when dependency_comment describes early/parallel behaviour that
+          // canonical enforcement has negated by injecting a locked prerequisite.
+          // Example: "kicked off early from step_00" but step_08 was re-injected as a
+          // locked prerequisite, meaning the step actually runs after the full pipeline.
+          const lockedDepsAdded = addedDependencies.filter((depId) =>
+            (ORDER_LOCKED_CANONICAL_DEPENDENCIES[stepId] || []).includes(depId)
+          );
+          if (
+            lockedDepsAdded.length > 0 &&
+            /\b(early|fast signal|parallel from|kicked off early|independent parallel|provides fast)\b/i.test(
+              override.dependencyComment
+            )
+          ) {
+            logger.warn(
+              `[WorkflowConfig] COMMENT_MISMATCH: ${stepId}.dependency_comment claims early or parallel ` +
+                `execution, but canonical enforcement added locked prerequisite(s) ${formatDependencyList(lockedDepsAdded)} ` +
+                `that anchor this step later in the pipeline. ` +
+                `Update dependency_comment to reflect the actual effective execution order ` +
+                `(includes locked chain: ${formatDependencyList(lockedDepsAdded)}).`
+            );
+          }
         }
       }
       if (override.phase) {
@@ -651,6 +698,59 @@ export class MainOrchestrator {
           '[WorkflowConfig] Dependency override validation failed. Raw vs effective dependency diagnostics:'
         );
         pendingDiagnostics.forEach((diagnostic) => logger.error(diagnostic));
+
+        // Triage summary: group violations by severity so operators fix the most dangerous first
+        const severityCounts = { CORRECTNESS: 0, STRUCTURAL: 0, DOCUMENTATION: 0, NOISE: 0 };
+        const severityExamples = { CORRECTNESS: [], STRUCTURAL: [], DOCUMENTATION: [], NOISE: [] };
+        for (const { stepId, commentPresent } of allDependencyOverrides) {
+          if (commentPresent) continue;
+          const step = this.stepRegistry.get(stepId);
+          const existingStep = step || {};
+          const canonicalDeps = Array.isArray(existingStep?.metadata?.canonicalDependencies)
+            ? existingStep.metadata.canonicalDependencies
+            : existingStep?.dependencies || [];
+          const override =
+            (buildWorkflowConfigStepIndex(projectWorkflowConfig) || {})[stepId] || {};
+          const rawDeps = normalizeDependencyList(override.dependencies || []);
+          const sanitized = sanitizeWorkflowConfigDependencies(stepId, rawDeps, canonicalDeps, {
+            disabledStepIds: disabledConfigStepIds,
+          });
+          const removed = rawDeps.filter((d) => !sanitized.includes(d));
+          const severity = classifyDependencyOverrideSeverity({
+            stepId,
+            stepEnabled: override.enabled !== false,
+            canonicalDependencies: canonicalDeps,
+            rawConfiguredDependencies: rawDeps,
+            removedDependencies: removed,
+          });
+          severityCounts[severity]++;
+          if (severityExamples[severity].length < 3) severityExamples[severity].push(stepId);
+        }
+        const lines = ['[WorkflowConfig] Triage summary — fix in this order:'];
+        if (severityCounts.CORRECTNESS > 0) {
+          lines.push(
+            `  [CORRECTNESS] ${severityCounts.CORRECTNESS} step(s): locked chain violations or unsafe cycles (e.g. ${severityExamples.CORRECTNESS.join(', ')})`
+          );
+        }
+        if (severityCounts.STRUCTURAL > 0) {
+          lines.push(
+            `  [STRUCTURAL]  ${severityCounts.STRUCTURAL} step(s): non-locked chain bypasses (e.g. ${severityExamples.STRUCTURAL.join(', ')})`
+          );
+        }
+        if (severityCounts.DOCUMENTATION > 0) {
+          lines.push(
+            `  [DOCUMENTATION] ${severityCounts.DOCUMENTATION} step(s): only additions, just need dependency_comment (e.g. ${severityExamples.DOCUMENTATION.join(', ')})`
+          );
+        }
+        if (severityCounts.NOISE > 0) {
+          lines.push(
+            `  [NOISE]       ${severityCounts.NOISE} disabled step(s): remove 'dependencies:' key to silence (e.g. ${severityExamples.NOISE.join(', ')})`
+          );
+        }
+        lines.push(
+          "  Quick fix: run 'ai-workflow config fix-deps' to add placeholder dependency_comment to all overrides"
+        );
+        logger.error(lines.join('\n'));
       }
       if (disabledConfigStepIds.length > 0) {
         logger.info(
@@ -758,6 +858,109 @@ export class MainOrchestrator {
     }
 
     return results;
+  }
+
+  /**
+   * Run only the preflight phases without executing any workflow steps.
+   * Designed for `ai-workflow validate` — provides sub-second feedback on
+   * .workflow-config.yaml errors and git-stash / environment health issues
+   * without building an execution plan or launching any step handlers.
+   *
+   * @param {Object} [options]
+   * @param {boolean} [options.configValidation=true]  Run config validation phase
+   * @param {boolean} [options.healthChecks=true]      Run health-check phase (git stash, lint, test)
+   * @returns {Promise<{configPassed: boolean, healthPassed: boolean}>}
+   * @throws {Error} Enriched with workflowFailureContext when a phase fails
+   */
+  async runPreflight(options = {}) {
+    const runConfig = options.configValidation !== false;
+    const runHealth = options.healthChecks !== false;
+
+    try {
+      await fs.access(this.projectRoot);
+    } catch {
+      throw new Error(`Project root does not exist: ${this.projectRoot}`);
+    }
+
+    // Set up logsRunDir so preflight artifact writing (git-stash.log, summary.json) works.
+    if (!this.logsRunDir) {
+      this.logsRunDir = path.join(this.workflowDir, 'logs', this.configManager.workflowRunId);
+    }
+
+    let configPassed = true;
+    let healthPassed = true;
+
+    if (runConfig) {
+      this.projectWorkflowConfig = await this._ensureProjectWorkflowConfig();
+      logger.info(
+        'Validating .workflow-config.yaml step overrides against canonical workflow order...'
+      );
+      logger.info('Preflight config validation only — no workflow steps have started yet.');
+      logger.info(PRE_FLIGHT_GIT_STASH_REQUIREMENT_MESSAGE);
+      this.registerAllSteps(this.projectWorkflowConfig);
+
+      const disabledConfiguredStepIds = getDisabledWorkflowConfigStepIds(
+        this.projectWorkflowConfig
+      );
+      const configuredDependencyIndex = Object.fromEntries(
+        this.stepRegistry.list().map((step) => [step.id, step.dependencies || []])
+      );
+      const stageConfiguredSteps = getConfiguredStepsForStage(
+        this.stage,
+        this.projectWorkflowConfig
+      );
+      const stepsWithDependencyComment = new Set(
+        (this.projectWorkflowConfig?.workflow?.steps || [])
+          .filter((s) => typeof s?.dependency_comment === 'string' && s.dependency_comment.trim())
+          .map((s) => normalizeWorkflowConfigStepId(s?.id))
+          .filter(Boolean)
+      );
+      const configuredPlanValidation = validatePlannedStepDependencies(
+        stageConfiguredSteps,
+        configuredDependencyIndex,
+        getStepsForStage(this.stage),
+        { disabledStepIds: disabledConfiguredStepIds, stepsWithDependencyComment }
+      );
+      if (!configuredPlanValidation.valid) {
+        throw attachWorkflowFailureContext(new Error(configuredPlanValidation.errors.join('\n')), {
+          failedPhase: 'preflight_config_validation',
+          workflowStepsStarted: false,
+          executedSteps: [],
+          executionPlanBuilt: false,
+          failedCommand: null,
+        });
+      }
+      logger.info('Workflow configuration overrides validated.');
+    }
+
+    if (runHealth) {
+      if (!this.projectWorkflowConfig) {
+        this.projectWorkflowConfig = await this._ensureProjectWorkflowConfig();
+        this.registerAllSteps(this.projectWorkflowConfig);
+      }
+      // Best-effort profile detection for change-count context in advisory logic.
+      try {
+        await this.profileManager.detectProfile();
+      } catch {
+        // Non-critical — health checks proceed without change-count context.
+      }
+      const healthResults = await this.healthCheck();
+      if (!healthResults.passed) {
+        const preflightCheck = healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT];
+        throw attachWorkflowFailureContext(
+          new Error(preflightCheck?.message || 'Health checks failed — cannot proceed'),
+          {
+            failedPhase: 'preflight_health_checks',
+            workflowStepsStarted: false,
+            executedSteps: [],
+            executionPlanBuilt: false,
+            failedCommand: preflightCheck?.failedCommand ?? null,
+          }
+        );
+      }
+    }
+
+    return { configPassed, healthPassed };
   }
 
   async _runPreflightQualitySuites(projectRoot, changeCounts = null) {
