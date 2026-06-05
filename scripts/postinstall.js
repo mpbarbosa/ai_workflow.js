@@ -2,9 +2,12 @@
 /**
  * postinstall.js
  *
- * Patches installed packages to fix missing ESM builds / missing exports maps.
+ * Patches installed packages to fix missing builds / missing exports maps.
  *
  * Patches applied:
+ *  1. olinda_orchestrator — GitHub tarball omits dist/, but package.json points
+ *     main/types there. We build dist/ locally with the root TypeScript compiler.
+ *
  *  1. olinda_shell_interface.js — declares dist/esm/ in exports but only ships dist/src/ (CJS).
  *     Node.js can load named CJS exports from ESM, so we redirect import conditions to dist/src/.
  *
@@ -31,6 +34,22 @@ function writePkg(pkgPath, pkg) {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
 }
 
+function getTscBin(nodeModulesPath) {
+  const tscBin = join(nodeModulesPath, 'typescript', 'bin', 'tsc');
+  if (!existsSync(tscBin)) {
+    throw new Error(`postinstall: missing TypeScript compiler at ${tscBin}`);
+  }
+
+  return tscBin;
+}
+
+function runTscProject(tscBin, cwd, project) {
+  childProcess.execFileSync(process.execPath, [tscBin, '--project', project], {
+    cwd,
+    stdio: 'pipe',
+  });
+}
+
 function ensureOlindaUtilsBuild(nodeModulesPath) {
   const pkgDir = join(nodeModulesPath, 'olinda_utils.js');
   const pkgPath = join(pkgDir, 'package.json');
@@ -44,25 +63,34 @@ function ensureOlindaUtilsBuild(nodeModulesPath) {
     return;
   }
 
-  const tscBin = join(nodeModulesPath, 'typescript', 'bin', 'tsc');
-  if (!existsSync(tscBin)) {
-    throw new Error(`postinstall: missing TypeScript compiler at ${tscBin}`);
-  }
-
-  childProcess.execFileSync(process.execPath, [tscBin, '--project', 'tsconfig.json'], {
-    cwd: pkgDir,
-    stdio: 'pipe',
-  });
-  childProcess.execFileSync(process.execPath, [tscBin, '--project', 'tsconfig.esm.json'], {
-    cwd: pkgDir,
-    stdio: 'pipe',
-  });
+  const tscBin = getTscBin(nodeModulesPath);
+  runTscProject(tscBin, pkgDir, 'tsconfig.json');
+  runTscProject(tscBin, pkgDir, 'tsconfig.esm.json');
 
   const esmPkgPath = join(pkgDir, 'dist', 'esm', 'package.json');
   mkdirSync(dirname(esmPkgPath), { recursive: true });
   writeFileSync(esmPkgPath, '{"type":"module"}\n', 'utf8');
 
   console.log('postinstall: built olinda_utils.js dist/ artifacts (src + esm)');
+}
+
+function ensureOlindaOrchestratorBuild(nodeModulesPath) {
+  const pkgDir = join(nodeModulesPath, 'olinda_orchestrator');
+  const pkgPath = join(pkgDir, 'package.json');
+  if (!readPkg(pkgPath)) {
+    return;
+  }
+
+  const cjsEntry = join(pkgDir, 'dist', 'index.js');
+  const dtsEntry = join(pkgDir, 'dist', 'index.d.ts');
+  if (existsSync(cjsEntry) && existsSync(dtsEntry)) {
+    return;
+  }
+
+  const tscBin = getTscBin(nodeModulesPath);
+  runTscProject(tscBin, pkgDir, 'tsconfig.json');
+
+  console.log('postinstall: built olinda_orchestrator dist/ artifacts');
 }
 
 /**
@@ -73,6 +101,7 @@ function ensureOlindaUtilsBuild(nodeModulesPath) {
  */
 export function patchAll(nodeModulesPath = join(__dirname, '..', 'node_modules')) {
   ensureOlindaUtilsBuild(nodeModulesPath);
+  ensureOlindaOrchestratorBuild(nodeModulesPath);
 
   // --- Patch 1: olinda_shell_interface.js ---
   {

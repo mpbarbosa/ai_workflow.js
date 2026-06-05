@@ -1253,6 +1253,33 @@ export class Step8TestExecutor {
           const promptScope = validationScriptExecution
             ? 'validation script only'
             : 'automated test suite only';
+
+          // Detect test files written by step_07 in this workflow run (untracked by git).
+          // Injecting these into the prompt lets the AI correctly attribute suite failures
+          // to workflow-generated artifacts rather than pre-existing project problems.
+          let workflowGeneratedTestsNote = '';
+          try {
+            const gitOut = await this.executor(
+              'git status --short -- "test/**" "tests/**" "spec/**" 2>/dev/null || true',
+              { cwd: projectRoot, ignoreError: true }
+            );
+            const gitLines = (gitOut?.output ?? gitOut?.stdout ?? '').toString().split('\n');
+            const newTestFiles = gitLines
+              .filter((l) => l.startsWith('?? '))
+              .map((l) => l.slice(3).trim())
+              .filter((f) => /\.(test|spec)\.[jt]sx?$/.test(f));
+            if (newTestFiles.length > 0) {
+              workflowGeneratedTestsNote =
+                `IMPORTANT WORKFLOW CONTEXT: The following test file(s) were written by ` +
+                `step_07 (Test Generation) earlier in this workflow run and did NOT exist before: ` +
+                newTestFiles.join(', ') +
+                `. If any of these files appear in the failing suite list, the root cause is ` +
+                `step_07 test generation (wrong framework, bad source detection, or invalid code), ` +
+                `NOT a pre-existing project defect. Flag this as a workflow-internal issue.`;
+            }
+          } catch {
+            /* git unavailable or no test dirs — skip */
+          }
           const promptExecutionSummary = noRuntimeEvidenceFailure
             ? executionError
               ? `The workflow could not capture any runtime evidence in ${duration}ms because command execution failed before the runner produced usable output: ${executionError}`
@@ -1276,12 +1303,15 @@ export class Step8TestExecutor {
                   ? `validation command completed without reporting test cases (exit code ${testResult.exitCode})`
                   : `runner reported no test files (exit code ${testResult.exitCode})`)
               : (testResult.output ?? '').slice(0, 2000) || 'none';
-          const failedTestList =
+          const rawFailedList =
             validationScriptExecution && !anyFailure
               ? 'none — validation-script run did not report named test cases'
               : anyFailure
                 ? (testResult.output ?? '').slice(0, 1000)
                 : 'none';
+          const failedTestList = workflowGeneratedTestsNote
+            ? `${workflowGeneratedTestsNote}\n\n${rawFailedList}`
+            : rawFailedList;
 
           const prompt = await buildStepPromptWithFallback({
             buildPrompt: async () => {

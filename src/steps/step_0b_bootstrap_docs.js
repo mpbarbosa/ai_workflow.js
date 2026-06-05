@@ -203,16 +203,25 @@ export function determinePrimaryLanguage(extensionCounts) {
  */
 export function parseAiDocResponse(responseText) {
   const results = [];
-  const sectionRegex = /^## (.+?)\s*$/gm;
-  const contentBlockRegex = /### Content:[^\n]*\n```(?:\w+)?\n([\s\S]*?)\n```/;
 
-  let match;
+  // Build section positions while ignoring ## headers inside fenced code blocks.
+  // The naive global regex matched ## section headers *inside* generated content
+  // (e.g. "## Features" inside a README block), which truncated section boundaries
+  // mid-content and left the closing fence outside the section text, causing every
+  // contentBlockRegex match to fail.
   const sections = [];
-  while ((match = sectionRegex.exec(responseText)) !== null) {
-    const rawName = match[1].trim().replace(/[`*]/g, '');
-    sections.push({ filename: rawName, index: match.index });
+  let inFence = false;
+  let pos = 0;
+  for (const line of responseText.split('\n')) {
+    if (/^```/.test(line)) inFence = !inFence;
+    if (!inFence) {
+      const m = /^## (.+?)\s*$/.exec(line);
+      if (m) sections.push({ filename: m[1].trim().replace(/[`*]/g, ''), index: pos });
+    }
+    pos += line.length + 1; // +1 for the \n stripped by split
   }
 
+  const contentBlockRegex = /### Content:[^\n]*\n```(?:\w+)?\n([\s\S]*?)\n```/;
   for (let i = 0; i < sections.length; i++) {
     const start = sections[i].index;
     const end = sections[i + 1]?.index ?? responseText.length;
@@ -284,7 +293,7 @@ export function buildTechnicalWriterPrompt(context) {
           : '';
 
         const outputFormat = `\n\n**OUTPUT FORMAT — REQUIRED** (responses not matching this schema are discarded):\nFor each file to generate:\n\n## <relative/path/to/file.md>\n### Content:\n\`\`\`markdown\n(full file content — no truncation)\n\`\`\`\n\nIf no documentation is needed respond with exactly:\nNO ACTION NEEDED — <one-sentence reason>`;
-        return `${twPrompt.role_prefix.trimEnd()}${behavioralGuidelines}\n${taskText.trimEnd()}\n\n**Documentation Gaps Identified**:\n${missingList}\n\nPlease generate documentation for the identified gaps, prioritizing critical files first.${outputFormat}`;
+        return `${twPrompt.role_prefix.trimEnd()}${behavioralGuidelines}\n${taskText.trimEnd()}\n\n**Documentation Gaps Identified** (confirmed by automated analysis — necessity evaluation already complete):\n${missingList}\n\nGenerate the files listed above. Begin the response with the first \`## filename\` block — do not write any evaluation narrative, preamble, or section headers before it.${outputFormat}`;
       }
     } catch {
       // fall through to inline template
@@ -704,6 +713,23 @@ export class Step0bBootstrapDocs {
               // run re-evaluates instead of silently skipping the identified gap.
               if (!response.content.includes('ACTION NEEDED')) {
                 await this.stateCache.persist(docEntries, cacheResult.fingerprint);
+              }
+              // If critical files were identified as missing but none were written,
+              // surface this as a failure rather than silently succeeding.
+              if (categorized.critical.length > 0) {
+                this.logger.warn(
+                  `Step 0b: ${categorized.critical.length} critical gap(s) identified but 0 files written — response parser may have failed`
+                );
+                return {
+                  success: false,
+                  degraded: true,
+                  reason: 'critical_gaps_unresolved',
+                  missingDocs,
+                  categorized,
+                  stats,
+                  generated,
+                  duration: Date.now() - startTime,
+                };
               }
             } else {
               // Files were generated — next run must re-evaluate

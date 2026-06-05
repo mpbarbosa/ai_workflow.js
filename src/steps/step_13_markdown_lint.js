@@ -456,6 +456,16 @@ export class Step13MarkdownLint {
 
     const projectRoot = context.projectRoot || process.cwd();
 
+    // Respect linting.md_linter: "none" in .workflow-config.yaml — if the project
+    // explicitly opts out of markdown linting, skip rather than running mdl anyway.
+    const configuredLinter = context.workflowConfig?.linting?.md_linter;
+    if (configuredLinter === 'none') {
+      this.logger.info(
+        'Step 13: md_linter set to "none" in .workflow-config.yaml — skipping mdl run'
+      );
+      return { success: true, skipped: true, reason: 'md_linter_disabled' };
+    }
+
     try {
       // Phase 1: Enumerate markdown files
       const markdownFiles = await this._enumerateMarkdownFiles(projectRoot);

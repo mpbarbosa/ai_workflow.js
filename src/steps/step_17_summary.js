@@ -103,7 +103,8 @@ export function normalizeRuntimeStepResults(stepResults = []) {
     status: step.skipped ? 'skipped' : step.success === false ? 'failed' : 'success',
     startTime: step.startTime || step.start_time || 0,
     endTime: step.endTime || step.end_time || 0,
-    duration: step.duration || 0,
+    // Runtime step results carry duration in ms; formatDuration expects seconds.
+    duration: (step.duration || 0) / 1000,
     timestamp: step.timestamp || '',
   }));
 }

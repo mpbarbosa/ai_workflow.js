@@ -335,11 +335,14 @@ Use `workflow.steps` to override the generated canonical step set, not to invent
 
 - `workflow.stages.<stage>.enabled` is supported for stage toggles.
 - Do **not** use `workflow.stages.<stage>.steps` to redefine a stage. Execution planning ignores stage-scoped step lists and derives the plan from `workflow.steps` plus the canonical stage rules.
+- If a legacy `workflow.stages.<stage>.steps` array exactly matches the canonical stage, ai_workflow.js ignores it in memory and logs a warning. Drifted stage arrays still fail preflight and must be removed or rewritten as `workflow.steps` enable/disable overrides.
 - Every step entry must declare an `id`.
 - Preserve the canonical dependencies by default.
 - Reordering the same dependency set is normalized back to canonical order and does not require `dependency_comment`.
 - If you intentionally change the dependency set, add `dependency_comment` explaining why.
 - **Disabled steps are not exempt.** A step entry with `enabled: false` and a non-canonical `dependencies` list still requires `dependency_comment`. If the step will never execute, the simplest fix is to remove the `dependencies` key entirely — canonical dependencies apply but never run.
+- **Completeness check — do this before saving the file:** After writing any dependency override, scan the entire `workflow.steps` list and confirm that _every_ step whose `dependencies` differ from the canonical defaults has a non-empty `dependency_comment`. A single missing comment blocks the run. If you are generating this config with an AI assistant, instruct it to perform this pass before returning the result.
+- **`dependency_comment` field name is snake_case.** The field must be spelled exactly `dependency_comment`. Common misspellings that are silently ignored: `dependencyComment`, `dependency_comments`, `dep_comment`. If preflight reports `dependency_comment=missing` for a step you believe you annotated, verify the field name first.
 - Keep each `dependency_comment` evidence-bound to the repository. Before claiming that tests, linting, or another prerequisite branch is unavailable, verify that conclusion against the visible `tech_stack` commands, config values, and project scripts.
 - `dependency_comment` documents an allowed override; it does **not** bypass locked prerequisite edges such as `step_09 <- step_08`, `step_10 <- step_09`, `step_11 <- step_13`, `step_0f <- step_17`, or `step_12 <- step_0f`.
 - If you disable a step, disable or rewire every enabled dependent step too; selected steps cannot depend on excluded prerequisites.

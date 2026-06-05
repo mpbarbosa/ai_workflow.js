@@ -368,6 +368,60 @@ describe('Step 0b: Bootstrap Documentation', () => {
       expect(results).toHaveLength(1);
       expect(results[0].content).toContain('# Contributing');
     });
+
+    test('parses all sections when content contains inner ## headers', () => {
+      // The naive global sectionRegex matched ## headers inside document content,
+      // truncating section boundaries mid-content and causing all matches to fail.
+      const response = [
+        '## README.md',
+        '### Content:',
+        '```markdown',
+        '# My Project',
+        '',
+        '## Features',
+        '',
+        '- Feature one',
+        '',
+        '## Getting Started',
+        '',
+        'Clone this repo.',
+        '```',
+        '',
+        '---',
+        '',
+        '## CHANGELOG.md',
+        '### Content:',
+        '```markdown',
+        '# Changelog',
+        '```',
+      ].join('\n');
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(2);
+      expect(results[0].filename).toBe('README.md');
+      expect(results[0].content).toContain('## Features');
+      expect(results[0].content).toContain('## Getting Started');
+      expect(results[1].filename).toBe('CHANGELOG.md');
+    });
+
+    test('parses content with indented nested code fences', () => {
+      const response = [
+        '## docs/GETTING_STARTED.md',
+        '### Content:',
+        '```markdown',
+        '# Getting Started',
+        '',
+        '1. **Clone the repository:**',
+        '   ```sh',
+        '   git clone https://example.com/repo.git',
+        '   ```',
+        '2. Copy the guides.',
+        '```',
+      ].join('\n');
+      const results = parseAiDocResponse(response);
+      expect(results).toHaveLength(1);
+      expect(results[0].filename).toBe('docs/GETTING_STARTED.md');
+      expect(results[0].content).toContain('git clone');
+    });
   });
 
   // ========================================================================

@@ -142,12 +142,12 @@ export function determineAlertSeverity(metrics, thresholds) {
  * generateAlertMessage('db-query', { duration: 6000, memory: { heapUsed: 25 } }, 'warning')
  * // Returns: "[WARNING] Operation 'db-query' took 6.0s (memory: 25MB)"
  */
-export function generateAlertMessage(operationId, metrics, severity) {
+export function generateAlertMessage(operationId, metrics, _severity) {
   if (!operationId || !metrics) {
     return '';
   }
 
-  const parts = [`[${severity.toUpperCase()}] Operation '${operationId}'`];
+  const parts = [`[PERF] Operation '${operationId}'`];
 
   if (metrics.duration !== undefined) {
     parts.push(`took ${formatDuration(metrics.duration)}`);
@@ -418,13 +418,8 @@ export class PerformanceMonitor {
 
     this.alerts.push(alert);
 
-    // Log based on severity
     if (!this._silent) {
-      if (severity === ALERT_SEVERITY.CRITICAL) {
-        logger.error(alert.message);
-      } else {
-        logger.warn(alert.message);
-      }
+      logger.warn(alert.message);
     }
 
     return alert;

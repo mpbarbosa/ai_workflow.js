@@ -503,6 +503,17 @@ export class Step6TestReviewer {
             `Reviewing partition ${partition.index + 1}/${partition.total} (${partition.files.length} files): ${partition.label}`
           );
 
+          // Warn when this run covers a small fraction of the corpus — downstream steps
+          // (especially step_07 test generation) should not treat a single-partition review
+          // as comprehensive test quality signal.
+          if (partition.total > 4) {
+            logger.warn(
+              `[step_06] Low partition coverage: reviewed 1/${partition.total} partitions this run ` +
+                `(${Math.round((1 / partition.total) * 100)}% of test corpus). ` +
+                `step_07 test-gap decisions are based on incomplete review evidence.`
+            );
+          }
+
           // Load and prioritize file contents for the current partition
           const artifacts = await loadArtifacts(partition.files, options.modifiedFiles ?? [], {
             projectRoot,

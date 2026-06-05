@@ -71,23 +71,21 @@ export const WORKFLOW_PROFILES = {
  * @constant
  */
 export const PROFILE_PATTERNS = {
-  docs_only: [
-    /\.md$/i,
-    /^docs\//,
-    /^README/i,
-    /^CHANGELOG/i,
-    /^LICENSE/i,
-    /^CONTRIBUTING/i,
-  ],
+  docs_only: [/\.md$/i, /^docs\//, /^README/i, /^CHANGELOG/i, /^LICENSE/i, /^CONTRIBUTING/i],
   code_changes: [
-    /^src\/.+\.js$/,
+    /^src\/.+\.[jt]sx?$/,
     /^src\/.+\.mjs$/,
     /^src\/.+\.sh$/,
-    /^lib\/.+\.js$/,
-    /\.js$/,
+    /^lib\/.+\.[jt]sx?$/,
+    /\.[jt]sx?$/,
     /\.mjs$/,
   ],
-  test_changes: [/^test\/.+\.js$/, /_test\.js$/, /\.test\.js$/, /^tests\//],
+  test_changes: [
+    /^tests?\/.+\.[jt]sx?$/,
+    /_test\.[jt]sx?$/,
+    /\.test\.[jt]sx?$/,
+    /\.spec\.[jt]sx?$/,
+  ],
   infrastructure: [
     /\.ya?ml$/,
     /^\.github\//,
@@ -359,7 +357,7 @@ export class WorkflowProfileManager {
       }
     }
 
-    logger.info('Detecting workflow profile based on changes...');
+    logger.info('Detecting preliminary workflow profile from git status...');
 
     // Get changed files
     let changedFiles = [];
@@ -399,9 +397,9 @@ export class WorkflowProfileManager {
     // Select profile
     this.currentProfile = selectProfile(this.changeCounts);
 
-    logger.info(`Detected profile: ${this.currentProfile}`);
+    logger.info(`Preliminary profile from git status: ${this.currentProfile}`);
     logger.info(
-      `  Changed files: ${this.changeCounts.total} ` +
+      `  Preliminary changed files from git status: ${this.changeCounts.total} ` +
         `(docs: ${this.changeCounts.docs}, code: ${this.changeCounts.code}, ` +
         `tests: ${this.changeCounts.tests}, infra: ${this.changeCounts.infrastructure}, ` +
         `other: ${this.changeCounts.other})`

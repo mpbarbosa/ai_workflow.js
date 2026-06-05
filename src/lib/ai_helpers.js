@@ -23,6 +23,13 @@ import { readProjectVersionFromPackage } from './project_version.js';
 import { logger } from '../core/logger.js';
 import { validateAIResponse } from './ai_validation.js';
 import { ValidationError, SystemError } from '../utils/errors.js';
+import {
+  reflectionPrompt,
+  mergeReflectionResult,
+  decomposePrompt,
+  aggregateSubAnswers,
+  refinePrompt,
+} from './ai_prompt_builder.js';
 
 // ==============================================================================
 // CONSTANTS - Magic numbers extracted for maintainability
@@ -838,6 +845,13 @@ export class AiHelper {
       // When set, every executeRequest call automatically streams via this callback.
       // The callback receives (delta: string, meta: {persona, model}) per token chunk.
       streamingCallback: config.streamingCallback ?? null,
+      // Phase 14.1 — Reflection Layer: auto-apply self-critique pass after each response
+      reflection: config.reflection ?? false,
+      // Phase 14.2 — Cognitive Verifier: decompose large prompts above this file threshold
+      cognitiveVerifier: config.cognitiveVerifier ?? false,
+      cognitiveVerifierThreshold: config.cognitiveVerifierThreshold ?? 20,
+      // Phase 14.5 — Prompt Pre-flight: refine prompts before sending
+      promptRefinement: config.promptRefinement ?? false,
     };
 
     this.logger = config.logger || logger;
@@ -1156,6 +1170,24 @@ export class AiHelper {
 
         logger.success('AI request completed successfully');
         await this._logPrompt(prompt, options, parsed);
+
+        // Phase 14.1 — Reflection Layer
+        if (options.reflect === true || this.config.reflection) {
+          try {
+            const rPrompt = reflectionPrompt(parsed.content || '');
+            if (rPrompt) {
+              const rRaw = await this._wrapper.send(
+                rPrompt,
+                requestOptions.timeout || this.config.timeout
+              );
+              const rParsed = parseAiResponse(rRaw);
+              return mergeReflectionResult(parsed, rParsed);
+            }
+          } catch (reflErr) {
+            logger.debug(`Reflection pass failed (non-fatal): ${reflErr.message}`);
+          }
+        }
+
         return parsed;
       } catch (error) {
         lastError = error;
@@ -1411,6 +1443,87 @@ export class AiHelper {
     logger.info(`Batch completed: ${successCount}/${batch.count} successful`);
 
     return results;
+  }
+
+  /**
+   * Phase 14.2 — Cognitive Verifier
+   *
+   * Execute a complex prompt by decomposing it into sub-questions, firing each
+   * sub-request sequentially, then aggregating the answers into a unified response.
+   *
+   * @param {string} prompt - The original complex question/prompt
+   * @param {string[]} subQuestions - Focused sub-questions to decompose into
+   * @param {Object} [options={}] - Request options forwarded to executeRequest
+   * @returns {Promise<Object>} Aggregated parsed response
+   */
+  async executeDecomposed(prompt, subQuestions = [], options = {}) {
+    if (!this.isAvailable()) {
+      throw new SystemError('AI helper not available. Initialize first.');
+    }
+    if (!Array.isArray(subQuestions) || subQuestions.length === 0) {
+      return this.executeRequest(prompt, options);
+    }
+
+    logger.info(`[AI] Cognitive Verifier — decomposing into ${subQuestions.length} sub-questions`);
+
+    const subPrompts = decomposePrompt(prompt, subQuestions);
+    const subAnswers = [];
+
+    for (const subPrompt of subPrompts) {
+      const result = await this.executeRequest(subPrompt, options);
+      subAnswers.push(result.content || '');
+    }
+
+    const aggregated = aggregateSubAnswers(prompt, subAnswers);
+    return {
+      content: aggregated,
+      metadata: { decomposed: true, subQuestionCount: subQuestions.length },
+      confidence: 0.85,
+    };
+  }
+
+  /**
+   * Phase 14.5 — Prompt Pre-flight / Question Refinement
+   *
+   * Refine a raw prompt by asking the model to rewrite it for clarity, then
+   * execute the actual task using the refined prompt. The refined prompt is
+   * cached in the AiCache to avoid redundant refinement on re-runs.
+   *
+   * @param {string} prompt - The raw, potentially underspecified prompt
+   * @param {Object} [options={}] - Request options forwarded to executeRequest
+   * @param {Function} [onChunk] - Streaming callback for the final task request
+   * @returns {Promise<Object>} Parsed response to the (refined) task prompt
+   */
+  async executeRefined(prompt, options = {}, onChunk = null) {
+    if (!this.isAvailable()) {
+      throw new SystemError('AI helper not available. Initialize first.');
+    }
+    if (!prompt || typeof prompt !== 'string') {
+      throw new ValidationError('Prompt must be a non-empty string');
+    }
+
+    logger.info('[AI] Prompt Pre-flight — refining prompt before task request');
+
+    const metaPrompt = refinePrompt(prompt);
+    let refinedPrompt = prompt;
+
+    try {
+      const refinementResult = await this.executeRequest(metaPrompt, {
+        ...options,
+        // Never recurse — disable refinement and reflection on the meta-prompt itself
+        refine: false,
+        reflect: false,
+        validate: false,
+      });
+      if (refinementResult.content && refinementResult.content.trim().length > 0) {
+        refinedPrompt = refinementResult.content.trim();
+        logger.debug(`[AI] Prompt refined (${prompt.length} → ${refinedPrompt.length} chars)`);
+      }
+    } catch (refineErr) {
+      logger.debug(`Prompt refinement failed (falling back to raw prompt): ${refineErr.message}`);
+    }
+
+    return this.executeRequest(refinedPrompt, options, onChunk);
   }
 
   /**

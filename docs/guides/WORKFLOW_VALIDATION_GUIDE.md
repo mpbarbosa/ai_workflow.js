@@ -1,13 +1,6 @@
 # Workflow Execution Validation Guide
 
-<<<<<<< HEAD
 **Version:** 1.9.11
-=======
-**Version:** 1.9.11
-
-> > > > > > > a4c4d4d (chore(workflow): update docs and metrics [skip ci])
-> > > > > > > **Last Updated:** 2026-02-21
-> > > > > > > **Applies to:** ai_workflow.js v1.2.0+
 
 This guide documents the process for validating a workflow execution run. It was formalized from the analysis of run `workflow_20260220_210720` and is designed to be reusable for future validations.
 

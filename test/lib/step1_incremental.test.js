@@ -504,24 +504,24 @@ describe('Step 1 Incremental Processing', () => {
         expect(hash).toBeNull();
       });
 
-      // [BUG FIX 9a42860] ENOENT must log at debug level, not warn
-      // Deleted files are a valid git state (e.g. after `git rm`) — not a warning condition
-      test('[BUG FIX] ENOENT for missing file logs debug, not warn', async () => {
+      // Files listed in key_docs / eligible_docs that no longer exist on disk should
+      // surface an actionable warning so stale config entries are visible to operators.
+      test('ENOENT for missing file logs warn with actionable message', async () => {
         const { logger } = await import('../../src/core/logger.js');
         const debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
         const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
 
         await processor.calculateFileHash('/definitely/does/not/exist/file.js');
 
+        const enoentWarnCalls = warnSpy.mock.calls.filter((args) =>
+          args[0]?.includes('not found on disk')
+        );
         const enoentDebugCalls = debugSpy.mock.calls.filter((args) =>
           args[0]?.includes('no longer exists')
         );
-        const enoentWarnCalls = warnSpy.mock.calls.filter(
-          (args) => args[0]?.includes('no longer exists') || args[0]?.includes('Failed to read')
-        );
 
-        expect(enoentDebugCalls.length).toBeGreaterThan(0); // must log at debug
-        expect(enoentWarnCalls).toHaveLength(0); // must NOT log at warn
+        expect(enoentWarnCalls.length).toBeGreaterThan(0); // must log at warn
+        expect(enoentDebugCalls).toHaveLength(0); // must NOT log old debug message
 
         debugSpy.mockRestore();
         warnSpy.mockRestore();

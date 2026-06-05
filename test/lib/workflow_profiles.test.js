@@ -66,10 +66,27 @@ describe('Workflow Profiles', () => {
         expect(matchesPattern('app.mjs', patterns)).toBe(true);
       });
 
+      test('matches TypeScript files for code pattern', () => {
+        const patterns = PROFILE_PATTERNS.code_changes;
+        expect(matchesPattern('src/index.ts', patterns)).toBe(true);
+        expect(matchesPattern('src/auth/login.tsx', patterns)).toBe(true);
+        expect(matchesPattern('lib/utils.ts', patterns)).toBe(true);
+      });
+
       test('matches test files for test pattern', () => {
         const patterns = PROFILE_PATTERNS.test_changes;
         expect(matchesPattern('test/unit.test.js', patterns)).toBe(true);
         expect(matchesPattern('app_test.js', patterns)).toBe(true);
+      });
+
+      test('matches TypeScript test files for test pattern', () => {
+        const patterns = PROFILE_PATTERNS.test_changes;
+        expect(matchesPattern('test/unit.test.ts', patterns)).toBe(true);
+        expect(matchesPattern('test/domain/entities/GeoPositionError.test.ts', patterns)).toBe(
+          true
+        );
+        expect(matchesPattern('tests/auth.spec.ts', patterns)).toBe(true);
+        expect(matchesPattern('src/auth_test.ts', patterns)).toBe(true);
       });
 
       test('matches config files for infrastructure pattern', () => {
@@ -114,6 +131,28 @@ describe('Workflow Profiles', () => {
 
         expect(counts.tests).toBe(2);
         expect(counts.code).toBe(0);
+        expect(counts.total).toBe(2);
+      });
+
+      test('categorizes TypeScript test files as tests, not other', () => {
+        const files = [
+          'test/domain/entities/GeoPositionError.test.ts',
+          'test/domain/entities/GeoPositionOptions.test.ts',
+          'test/infrastructure/providers/BrowserGeolocationProvider.test.ts',
+        ];
+        const counts = categorizeChanges(files);
+
+        expect(counts.tests).toBe(3);
+        expect(counts.other).toBe(0);
+        expect(counts.total).toBe(3);
+      });
+
+      test('categorizes TypeScript source files as code, not other', () => {
+        const files = ['src/auth.ts', 'src/components/Login.tsx'];
+        const counts = categorizeChanges(files);
+
+        expect(counts.code).toBe(2);
+        expect(counts.other).toBe(0);
         expect(counts.total).toBe(2);
       });
 

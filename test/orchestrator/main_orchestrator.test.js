@@ -10,6 +10,7 @@ import {
   buildWorkflowConfigStepIndex,
   getConfiguredStepsForStage,
   getDisabledWorkflowConfigStepIds,
+  normalizeLegacyWorkflowStageStepDefinitions,
   validateWorkflowStageStepDefinitions,
   filterStepIdsByProfile,
   enforceTerminalStepOrder,
@@ -223,7 +224,6 @@ describe('Main Orchestrator - Pure Functions', () => {
         'step_00',
         'step_01',
         'step_14',
-        'step_16',
         'step_17',
         'step_0f',
         'step_12',
@@ -314,6 +314,36 @@ describe('Main Orchestrator - Pure Functions', () => {
       expect(validation.errors[0]).toContain('workflow.stages.full.steps');
       expect(validation.errors[0]).toContain('does not control execution order');
       expect(validation.errors[0]).toContain('workflow.steps');
+    });
+
+    test('strips redundant canonical workflow.stages step lists in memory', () => {
+      const workflowConfig = {
+        workflow: {
+          stages: {
+            quick: {
+              enabled: true,
+              steps: getStepsForStage(WORKFLOW_STAGES.QUICK),
+            },
+            full: {
+              enabled: true,
+              steps: getStepsForStage(WORKFLOW_STAGES.FULL),
+            },
+          },
+        },
+      };
+
+      const { workflowConfig: normalizedConfig, warnings } =
+        normalizeLegacyWorkflowStageStepDefinitions(workflowConfig);
+
+      expect(normalizedConfig).not.toBe(workflowConfig);
+      expect(normalizedConfig.workflow.stages.quick).toEqual({ enabled: true });
+      expect(normalizedConfig.workflow.stages.full).toEqual({ enabled: true });
+      expect(workflowConfig.workflow.stages.quick.steps).toEqual(
+        getStepsForStage(WORKFLOW_STAGES.QUICK)
+      );
+      expect(warnings).toHaveLength(2);
+      expect(warnings[0]).toContain('workflow.stages.quick.steps');
+      expect(warnings[1]).toContain('workflow.stages.full.steps');
     });
   });
 
@@ -3077,16 +3107,30 @@ describe('Main Orchestrator - Integration Tests', () => {
       // Override healthCheck to return failure
       orch.healthCheck = async () => ({ passed: false, checks: {} });
       const result = await orch.execute({});
-      const logContent = await fs.readFile(
-        path.join(localTestDir, 'logs', orch.configManager.workflowRunId, 'workflow.log'),
-        'utf8'
+      const runDir = path.join(localTestDir, 'logs', orch.configManager.workflowRunId);
+      const logContent = await fs.readFile(path.join(runDir, 'workflow.log'), 'utf8');
+      const preflightSummary = JSON.parse(
+        await fs.readFile(path.join(runDir, 'preflight', 'summary.json'), 'utf8')
       );
       expect(result.success).toBe(false);
       expect(result.error).toContain('Health checks failed');
+      expect(logContent).not.toContain(
+        'Configured workflow step set (preflight passed, subject to profile filtering after merged change detection):'
+      );
+      expect(logContent).toContain('Preliminary profile selected for preflight: full_validation');
       expect(logContent).toContain('"failed_phase":"preflight_health_checks"');
       expect(logContent).toContain('"workflow_steps_started":false');
       expect(logContent).toContain('"execution_plan_built":false');
+      expect(logContent).toContain('No AI review prompts were issued in this run.');
       expect(logContent).toContain('✗ Workflow terminated before completion');
+      expect(preflightSummary).toMatchObject({
+        preflightPassed: false,
+        failedPhase: 'preflight_health_checks',
+        workflowStepsStarted: false,
+        executionPlanBuilt: false,
+        executedSteps: [],
+        noAiReviewPromptsIssued: true,
+      });
     });
 
     test('execute logs parser-anomaly evidence for blocking preflight failures', async () => {
@@ -3163,6 +3207,7 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(logContent).toContain(
         '✗ Preflight validation failed before workflow execution (0 steps executed)'
       );
+      expect(logContent).toContain('No AI review prompts were issued in this run.');
       expect(preflightSpy).not.toHaveBeenCalled();
       expect(detectProfileSpy).not.toHaveBeenCalled();
       expect(logContent).toContain(
@@ -3172,7 +3217,13 @@ describe('Main Orchestrator - Integration Tests', () => {
         'Preflight config validation only — no workflow steps have started yet.'
       );
       expect(logContent).toContain(
+        'Pre-flight requirement: git stash list must be empty before ai_workflow.js can proceed.'
+      );
+      expect(logContent).toContain(
         'Loading canonical workflow step definitions for preflight validation (execution has not started)...'
+      );
+      expect(logContent).not.toContain(
+        'Configured workflow step set (preflight passed, subject to profile filtering after merged change detection):'
       );
       expect(logContent).toContain(
         '[WorkflowConfig] Dependency override validation failed. Raw vs effective dependency diagnostics:'
@@ -3188,7 +3239,9 @@ describe('Main Orchestrator - Integration Tests', () => {
       );
       expect(logContent).not.toContain('Pre-flight quality suites passed');
       expect(logContent).not.toContain('All health checks passed');
-      expect(logContent).not.toContain('Profile: full_validation');
+      expect(logContent).not.toContain(
+        'Preliminary profile selected for preflight: full_validation'
+      );
       expect(logContent).not.toContain('Starting workflow execution...');
     });
 
@@ -3267,6 +3320,18 @@ describe('Main Orchestrator - Integration Tests', () => {
         path.join(localTestDir, 'logs', orch.configManager.workflowRunId, 'workflow.log'),
         'utf8'
       );
+      const preflightSummary = JSON.parse(
+        await fs.readFile(
+          path.join(
+            localTestDir,
+            'logs',
+            orch.configManager.workflowRunId,
+            'preflight',
+            'summary.json'
+          ),
+          'utf8'
+        )
+      );
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('workflow.stages.full.steps');
@@ -3275,6 +3340,12 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(logContent).toContain(
         '✗ Preflight validation failed before workflow execution (0 steps executed)'
       );
+      expect(logContent).toContain('No AI review prompts were issued in this run.');
+      expect(preflightSummary.failedPhase).toBe('preflight_config_validation');
+      expect(preflightSummary.workflowStepsStarted).toBe(false);
+      expect(preflightSummary.executionPlanBuilt).toBe(false);
+      expect(preflightSummary.noAiReviewPromptsIssued).toBe(true);
+      expect(preflightSummary.message).toContain('workflow.stages.full.steps');
       expect(preflightSpy).not.toHaveBeenCalled();
       expect(detectProfileSpy).not.toHaveBeenCalled();
     });

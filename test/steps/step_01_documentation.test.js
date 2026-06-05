@@ -1124,6 +1124,27 @@ doc_analysis_prompt:
       expect(result.match(/Run `npm test`/g)).toHaveLength(1);
     });
 
+    test('deduplicates repeated convention content before injecting it into prompts', async () => {
+      const repeated = ['## CONTRIBUTING', '', '- Run `npm test`'].join('\n');
+      const mockFileOps = {
+        readFile: (path) => {
+          if (path.endsWith('/.github/copilot-instructions.md')) {
+            return Promise.resolve('# Copilot Instructions\n- Keep docs aligned.');
+          }
+          if (path.endsWith('/CONTRIBUTING.md')) {
+            return Promise.resolve(`${repeated}\n\n---\n\n${repeated}`);
+          }
+          return Promise.reject(new Error('ENOENT'));
+        },
+      };
+
+      const result = await readProjectConventions(mockFileOps, '/project');
+
+      expect(result).toContain('### .github/copilot-instructions.md');
+      expect(result).toContain('### .github/CONTRIBUTING.md');
+      expect(result.match(/Run `npm test`/g)).toHaveLength(1);
+    });
+
     test('returns empty string when no authority docs are present', async () => {
       const mockFileOps = {
         readFile: () => Promise.reject(new Error('ENOENT')),

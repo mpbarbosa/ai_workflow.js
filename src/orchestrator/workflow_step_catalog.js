@@ -141,13 +141,17 @@ const STEP_EXECUTOR_LOADERS = Object.freeze({
       ({ DocumentationOptimizer }) => DocumentationOptimizer
     ),
   step_03: () =>
-    import('../steps/step_03_script_refs.js').then(({ Step3ScriptAnalyzer }) => Step3ScriptAnalyzer),
+    import('../steps/step_03_script_refs.js').then(
+      ({ Step3ScriptAnalyzer }) => Step3ScriptAnalyzer
+    ),
   step_04: () =>
     import('../steps/step_04_config_validation.js').then(
       ({ Step4ConfigAnalyzer }) => Step4ConfigAnalyzer
     ),
   step_05: () =>
-    import('../steps/step_05_directory.js').then(({ Step5DirectoryAnalyzer }) => Step5DirectoryAnalyzer),
+    import('../steps/step_05_directory.js').then(
+      ({ Step5DirectoryAnalyzer }) => Step5DirectoryAnalyzer
+    ),
   step_06: () =>
     import('../steps/step_06_test_review.js').then(({ Step6TestReviewer }) => Step6TestReviewer),
   step_07: () =>
@@ -163,7 +167,9 @@ const STEP_EXECUTOR_LOADERS = Object.freeze({
       ({ Step10CodeQualityAnalyzer }) => Step10CodeQualityAnalyzer
     ),
   step_11: () =>
-    import('../steps/step_11_context.js').then(({ Step11ContextAnalyzer }) => Step11ContextAnalyzer),
+    import('../steps/step_11_context.js').then(
+      ({ Step11ContextAnalyzer }) => Step11ContextAnalyzer
+    ),
   step_11_5: () =>
     import('../steps/step_11_5_aws_lbs_validation.js').then(
       ({ Step11_5AwsLbsValidator }) => Step11_5AwsLbsValidator
@@ -177,13 +183,19 @@ const STEP_EXECUTOR_LOADERS = Object.freeze({
       ({ Step12GitFinalization }) => Step12GitFinalization
     ),
   step_13: () =>
-    import('../steps/step_13_markdown_lint.js').then(({ Step13MarkdownLint }) => Step13MarkdownLint),
+    import('../steps/step_13_markdown_lint.js').then(
+      ({ Step13MarkdownLint }) => Step13MarkdownLint
+    ),
   step_14: () =>
-    import('../steps/step_14_prompt_engineer.js').then(({ Step14PromptEngineer }) => Step14PromptEngineer),
+    import('../steps/step_14_prompt_engineer.js').then(
+      ({ Step14PromptEngineer }) => Step14PromptEngineer
+    ),
   step_15: () =>
     import('../steps/step_15_ux_analysis.js').then(({ Step15UxAnalysis }) => Step15UxAnalysis),
   step_16: () =>
-    import('../steps/step_16_version_update.js').then(({ Step16VersionUpdate }) => Step16VersionUpdate),
+    import('../steps/step_16_version_update.js').then(
+      ({ Step16VersionUpdate }) => Step16VersionUpdate
+    ),
   step_17: () =>
     import('../steps/step_17_summary.js').then(({ WorkflowSummary }) => WorkflowSummary),
   step_18: () =>
@@ -197,7 +209,9 @@ const STEP_EXECUTOR_LOADERS = Object.freeze({
       ({ Step20AsyncPerfReview }) => Step20AsyncPerfReview
     ),
   step_21: () =>
-    import('../steps/step_21_doc_consolidation.js').then(({ DocConsolidationStep }) => DocConsolidationStep),
+    import('../steps/step_21_doc_consolidation.js').then(
+      ({ DocConsolidationStep }) => DocConsolidationStep
+    ),
   step_22: () =>
     import('../steps/step_22_accessibility_review.js').then(
       ({ Step22AccessibilityReview }) => Step22AccessibilityReview
@@ -303,7 +317,6 @@ export function getCanonicalWorkflowSteps() {
       description: 'Execute test suite',
       handler: STEP_EXECUTOR_LOADERS.step_08,
       dependencies: ['step_07'],
-      critical: false,
     },
     {
       id: 'step_09',
@@ -379,8 +392,7 @@ export function getCanonicalWorkflowSteps() {
     {
       id: 'step_19',
       name: 'TypeScript Review',
-      description:
-        'AI-powered TypeScript review using the "Strider" TypeScript Developer persona',
+      description: 'AI-powered TypeScript review using the "Strider" TypeScript Developer persona',
       handler: STEP_EXECUTOR_LOADERS.step_19,
       dependencies: ['step_18'],
     },

@@ -35,14 +35,6 @@
 
 set -euo pipefail
 
-DOCKER_HOST_NPM_VERSION=$(npm --version)
-echo "Detected host npm version: ${DOCKER_HOST_NPM_VERSION}"
-if [[ "${DOCKER_HOST_NPM_VERSION%%.*}" -lt 7 ]]; then
-  echo "Warning: Detected npm version ${DOCKER_HOST_NPM_VERSION} is older than 7. This script is designed to work with npm 7 or later. Please upgrade npm to avoid potential issues with peer dependencies and lockfile formats."
-fi
-DOCKER_NPM_VERSION="${DOCKER_NPM_VERSION:-${DOCKER_HOST_NPM_VERSION:-11.14.0}}"
-echo "Using npm version ${DOCKER_NPM_VERSION} inside Docker (can be overridden with DOCKER_NPM_VERSION env var)"
-
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 # shellcheck source=scripts/colors.sh
@@ -87,10 +79,10 @@ PACKAGE_VERSION="$(node -p "require('./package.json').version")"
 
 # Determine the Jest config to use
 if [[ "${RUN_E2E}" == "true" ]]; then
-  JEST_CONFIG="--config jest.integration.config.json"
+  JEST_ARGS=(--runInBand --config jest.integration.config.json)
   SUITE_LABEL="E2E / Integration Tests"
 else
-  JEST_CONFIG=""
+  JEST_ARGS=(--runInBand)
   SUITE_LABEL="Full Test Suite"
 fi
 
@@ -139,11 +131,10 @@ echo ""
 # while another worker's dynamic imports are still queued, producing:
 #   ReferenceError: Cannot access 'X' before initialization (after environment torn down)
 # Running serially in a single process eliminates that race entirely.
-JEST_ARGS="--runInBand ${JEST_CONFIG}"
 if [[ ${#EXTRA_JEST_ARGS[@]} -gt 0 ]]; then
-  JEST_ARGS+=" ${EXTRA_JEST_ARGS[*]}"
+  JEST_ARGS+=("${EXTRA_JEST_ARGS[@]}")
 fi
-TEST_CMD="npm test -- ${JEST_ARGS}"
+CONTAINER_CMD=(npm test -- "${JEST_ARGS[@]}")
 
 # If --coverage was requested, mount the host coverage/ directory so the report
 # is available after the container exits.
@@ -163,7 +154,7 @@ docker run \
   -e CI=true \
   "${DOCKER_VOLUME_ARGS[@]}" \
   "${IMAGE_NAME}" \
-  bash -c "${TEST_CMD} && npm install --global npm@${DOCKER_NPM_VERSION} && npm ci && npm test -- ${JEST_ARGS}"
+  "${CONTAINER_CMD[@]}"
 TEST_EXIT_CODE=$?
 set -e
 

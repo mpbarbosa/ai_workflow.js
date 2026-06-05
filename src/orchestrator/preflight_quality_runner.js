@@ -19,7 +19,9 @@ const PRE_FLIGHT_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 const PRE_FLIGHT_FAILURE_OUTPUT_TAIL_LINES = 20;
 const PRE_FLIGHT_GIT_STASH_COMMAND = 'git stash list';
 const PRE_FLIGHT_GIT_STASH_CHECK_NAME = 'git-stash';
-const OS_ERROR_PATTERN = /EACCES|ENOENT|EPERM|EBUSY|EMFILE|permission denied/i;
+export const PRE_FLIGHT_GIT_STASH_REQUIREMENT_MESSAGE =
+  'Pre-flight requirement: git stash list must be empty before ai_workflow.js can proceed.';
+const OS_ERROR_PATTERN = /EACCES|ENOENT|EPERM|EBUSY|EMFILE|permission denied|not found/i;
 const NOT_A_GIT_REPOSITORY_PATTERN = /not a git repository/i;
 const TEST_RESULT_LINE_PATTERNS = [
   /^Test Suites:/i,
@@ -102,6 +104,15 @@ export function buildEnvironmentRemediationHint(output) {
   }
   if (/ENOENT/i.test(output)) {
     return 'Fix: a required file or directory was not found — check your project setup.';
+  }
+  if (/not found/i.test(output)) {
+    const toolMatch = output.match(
+      /sh:\s+\d+:\s+(\S+):\s+not found|(\S+):\s+not found|command not found:\s+(\S+)/i
+    );
+    const tool = toolMatch?.[1] ?? toolMatch?.[2] ?? toolMatch?.[3] ?? null;
+    return tool
+      ? `Fix: "${tool}" was not found — run npm install (or the appropriate package manager) to install dependencies.`
+      : 'Fix: a required tool was not found — run npm install to install project dependencies.';
   }
   return 'Fix: resolve the environment-level error preventing the test runner from starting.';
 }
@@ -309,12 +320,33 @@ async function writePreflightLintBaseline(workflowDir, lintErrorCount) {
   }
 }
 
+// Single read-merge-write so concurrent callers cannot interleave partial updates.
+async function writePreflightBaselineFields(workflowDir, fields) {
+  try {
+    await fs.mkdir(workflowDir, { recursive: true });
+    const baselinePath = path.join(workflowDir, 'preflight_baseline.json');
+    let existing = {};
+    try {
+      existing = JSON.parse(await fs.readFile(baselinePath, 'utf8'));
+    } catch {
+      /* ok — first write */
+    }
+    await fs.writeFile(
+      baselinePath,
+      JSON.stringify({ ...existing, ...fields, updatedAt: new Date().toISOString() }),
+      'utf8'
+    );
+  } catch {
+    // Non-critical — baseline is best-effort
+  }
+}
+
 function parseLintErrorCount(output) {
   const match = output.match(/(\d+)\s+error/);
   return match ? parseInt(match[1], 10) : null;
 }
 
-async function runGitStashPreflightCheck(projectRoot, logger) {
+async function runGitStashPreflightCheck(projectRoot, logsRunDir, logger) {
   logger.info(
     `Running pre-flight quality suite: ${PRE_FLIGHT_GIT_STASH_COMMAND} (cwd: ${projectRoot})`
   );
@@ -342,6 +374,38 @@ async function runGitStashPreflightCheck(projectRoot, logger) {
       };
     }
 
+    let stashStatOutput = '';
+    try {
+      const statResult = await executorModule('git stash show --stat', {
+        cwd: projectRoot,
+        shell: true,
+        timeout: 10_000,
+      });
+      stashStatOutput = [statResult?.stdout, statResult?.stderr]
+        .filter((v) => typeof v === 'string' && v.trim())
+        .join('\n')
+        .trim();
+    } catch {
+      // Non-critical — show --stat is best-effort triage context
+    }
+
+    const failureOutput = stashStatOutput
+      ? `${stashDetails.entries.join('\n')}\n\nStash contents (git stash show --stat):\n${stashStatOutput}`
+      : stashDetails.entries.join('\n');
+
+    let failureArtifact = null;
+    let failureArtifactError = null;
+    try {
+      failureArtifact = await writePreflightFailureArtifact(
+        logsRunDir,
+        PRE_FLIGHT_GIT_STASH_CHECK_NAME,
+        PRE_FLIGHT_GIT_STASH_COMMAND,
+        failureOutput
+      );
+    } catch (artifactError) {
+      failureArtifactError = artifactError.message;
+    }
+
     return {
       skipped: false,
       result: {
@@ -356,9 +420,11 @@ async function runGitStashPreflightCheck(projectRoot, logger) {
         hasForceExitWarning: false,
         skipped: false,
         failedCommand: PRE_FLIGHT_GIT_STASH_COMMAND,
-        failureOutput: stashDetails.entries.join('\n'),
+        failureOutput,
         failureKind: 'git-stash-present',
         stashCount: stashDetails.count,
+        failureArtifact,
+        failureArtifactError,
         message:
           `Pre-flight rule failed: found ${stashDetails.count} git stash ` +
           `entr${stashDetails.count === 1 ? 'y' : 'ies'}. Clear stashed assets before running the workflow.`,
@@ -408,7 +474,7 @@ export async function runPreflightQualitySuites({
   logger,
 }) {
   const results = [];
-  const stashCheck = await runGitStashPreflightCheck(projectRoot, logger);
+  const stashCheck = await runGitStashPreflightCheck(projectRoot, logsRunDir, logger);
   if (stashCheck.result) {
     results.push(stashCheck.result);
   }
@@ -462,8 +528,71 @@ export async function runPreflightQualitySuites({
       )
     : commands;
 
+  const nodeModulesBin = path.join(projectRoot, 'node_modules', '.bin');
+  let nodeModulesBinEntries;
+  try {
+    nodeModulesBinEntries = await fs.readdir(nodeModulesBin);
+  } catch {
+    nodeModulesBinEntries = null;
+  }
+  if (nodeModulesBinEntries === null || nodeModulesBinEntries.length === 0) {
+    const reason =
+      nodeModulesBinEntries === null
+        ? 'node_modules not found — dependencies are not installed'
+        : 'node_modules/.bin is empty — dependencies are not fully installed';
+    return {
+      passed: false,
+      advisory: false,
+      advisoryMessage: null,
+      hasForceExitWarning: false,
+      skipped: false,
+      packageManager,
+      commands: results,
+      failedCommand: null,
+      failureOutput: reason,
+      failureKind: 'environment',
+      failureArtifact: null,
+      failureArtifactError: null,
+      message: `Environment error: ${reason} — run ${packageManager} install before the workflow.`,
+    };
+  }
+
   for (const suite of suitesToRun) {
     logger.info(`Running pre-flight quality suite: ${suite.command} (cwd: ${projectRoot})`);
+
+    if (suite.name === 'build') {
+      const distPath = path.join(projectRoot, 'dist');
+      let distWriteBlocked = false;
+      try {
+        await fs.access(distPath, fs.constants.W_OK);
+      } catch (err) {
+        if (err.code === 'EACCES' || err.code === 'EPERM') {
+          distWriteBlocked = true;
+        }
+      }
+      if (distWriteBlocked) {
+        const hint = buildEnvironmentRemediationHint(
+          `EACCES: permission denied, mkdir '${distPath}'`
+        );
+        results.push({ ...suite, passed: false, exitCode: 1 });
+        return {
+          passed: false,
+          advisory: false,
+          advisoryMessage: null,
+          hasForceExitWarning: false,
+          skipped: false,
+          packageManager,
+          commands: results,
+          failedCommand: suite.command,
+          failureOutput: `dist/ is not writable by the current user`,
+          failureKind: 'environment',
+          failureArtifact: null,
+          failureArtifactError: null,
+          message: `Environment error: dist/ exists but is not writable — ${hint}`,
+        };
+      }
+    }
+
     try {
       const cmdOutput = await executorModule(suite.command, {
         cwd: projectRoot,
@@ -633,6 +762,27 @@ export async function runPreflightQualitySuites({
         }
       }
 
+      if (suite.name === 'build') {
+        const envFailureKind = classifyPreflightFailure(fullFailureOutput);
+        if (envFailureKind === 'environment') {
+          return {
+            passed: false,
+            advisory: false,
+            advisoryMessage: null,
+            hasForceExitWarning,
+            skipped: false,
+            packageManager,
+            commands: results,
+            failedCommand: suite.command,
+            failureOutput,
+            failureKind: 'environment',
+            failureArtifact,
+            failureArtifactError,
+            message: `Environment error blocked build (${suite.command}). ${buildEnvironmentRemediationHint(fullFailureOutput)}`,
+          };
+        }
+      }
+
       return {
         passed: false,
         advisory,
@@ -651,10 +801,7 @@ export async function runPreflightQualitySuites({
     }
   }
 
-  await Promise.all([
-    writePreflightBaseline(workflowDir, 0),
-    writePreflightLintBaseline(workflowDir, 0),
-  ]);
+  await writePreflightBaselineFields(workflowDir, { testFailureCount: 0, lintErrorCount: 0 });
 
   return {
     passed: true,

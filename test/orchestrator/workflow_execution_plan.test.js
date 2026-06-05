@@ -49,7 +49,7 @@ describe('workflow_execution_plan', () => {
           ],
         },
       })
-    ).toEqual(['step_00', 'step_01', 'step_14', 'step_16', 'step_17', 'step_0f', 'step_12']);
+    ).toEqual(['step_00', 'step_01', 'step_14', 'step_17', 'step_0f', 'step_12']);
   });
 
   test('filters profile focus steps by project context', () => {
@@ -69,6 +69,8 @@ describe('workflow_execution_plan', () => {
     );
 
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('step_11 depends on step(s) excluded from the execution plan');
+    expect(result.errors[0]).toContain(
+      'step_11 depends on step(s) excluded from the execution plan'
+    );
   });
 });

@@ -360,7 +360,9 @@ export class Step1IncrementalProcessor {
       return calculateContentHash(content, this.config.hashAlgorithm, this.config.encoding);
     } catch (error) {
       if (error.code === 'ENOENT') {
-        logger.debug(`Step1: File no longer exists (skip): ${filePath}`);
+        logger.warn(
+          `Step1: ${filePath} listed in key_docs or eligible_docs but not found on disk — remove stale entry from .workflow-config.yaml`
+        );
       } else {
         logger.warn(`Step1: Failed to read file ${filePath}: ${error.message}`);
       }
