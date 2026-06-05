@@ -259,7 +259,7 @@ describe('Step 0: Pre-Analysis', () => {
       const analysis = {
         commitsAhead: 3,
         modifiedFiles: 10,
-        changeScope: 'full-stack',
+        changeScope: 'all-categories',
         fileCounts: { documentation: 2, test: 3, source: 4, config: 1 },
       };
 
@@ -267,7 +267,7 @@ describe('Step 0: Pre-Analysis', () => {
 
       expect(summary).toContain('Commits ahead: 3');
       expect(summary).toContain('Modified files: 10');
-      expect(summary).toContain('Change scope: full-stack');
+      expect(summary).toContain('Change scope: all-categories');
       expect(summary).toContain('Documentation: 2 files');
       expect(summary).toContain('Tests: 3 files');
       expect(summary).toContain('Source: 4 files');
@@ -331,7 +331,7 @@ describe('Step 0: Pre-Analysis', () => {
       const analysis = {
         commitsAhead: 5,
         modifiedFiles: 12,
-        changeScope: 'full-stack',
+        changeScope: 'all-categories',
         fileCounts: { documentation: 3, test: 4, source: 4, config: 1 },
       };
 
@@ -339,7 +339,7 @@ describe('Step 0: Pre-Analysis', () => {
 
       expect(content).toContain('**Commits Ahead:** 5');
       expect(content).toContain('**Modified Files:** 12');
-      expect(content).toContain('**Change Scope:** full-stack');
+      expect(content).toContain('**Change Scope:** all-categories');
       expect(content).toContain('- Documentation: 3');
       expect(content).toContain('- Tests: 4');
       expect(content).toContain('- Source: 4');

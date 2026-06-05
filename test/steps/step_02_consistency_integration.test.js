@@ -252,7 +252,7 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
 
     test('detects version mismatches across multiple files', async () => {
       await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ version: '3.0.0' }));
-      await writeFile(path.join(tempDir, 'README.md'), '# Project v1.0.0\n');
+      await writeFile(path.join(tempDir, 'README.md'), 'Current version: 1.0.0\n');
       await writeFile(path.join(tempDir, 'CHANGELOG.md'), '## Release 2.0.0\n');
 
       const { stub } = buildBacklogStub();
@@ -260,7 +260,8 @@ describe('Integration: Step2ConsistencyAnalyzer', () => {
 
       const result = await analyzer.execute(tempDir);
 
-      expect(result.versionIssues.length).toBeGreaterThanOrEqual(2);
+      expect(result.versionIssues).toHaveLength(1);
+      expect(result.versionIssues[0].file).toContain('README.md');
     });
 
     test('accepts v-prefixed version matching package.json', async () => {

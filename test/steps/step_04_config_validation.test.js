@@ -20,6 +20,7 @@ import {
   buildStep4QualityFallbackNote,
   buildPackageLockPromptSummary,
   summarizeConfigContentForPrompt,
+  findCrossConfigConsistencyIssues,
   buildConfigPromptPartitions,
   selectConfigPromptPartitions,
   assessPromptEvidence,
@@ -69,6 +70,12 @@ describe('Step 4: Configuration Validation', () => {
     test('rejects non-config files', () => {
       expect(isConfigFile('src/index.js')).toBe(false);
       expect(isConfigFile('README.md')).toBe(false);
+    });
+
+    test('rejects generated test artifacts that only look like config files', () => {
+      expect(isConfigFile('test-results.unit.json')).toBe(false);
+      expect(isConfigFile('test-results/jest-summary.json')).toBe(false);
+      expect(isConfigFile('playwright-report/report.json')).toBe(false);
     });
   });
 
@@ -688,7 +695,7 @@ describe('Step 4: Configuration Validation', () => {
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(true);
-      expect(result.filesChecked).toBe(2);
+      expect(result.filesChecked).toBe(3);
     });
 
     test('replaces generated ai_helpers.yaml with workflow config files for validation and AI reporting', async () => {
@@ -844,7 +851,7 @@ describe('Step 4: Configuration Validation', () => {
 
       expect(seenPrompts).toHaveLength(2);
       expect(seenPrompts[0]).toContain('- Partition: 1/2');
-      expect(seenPrompts[1]).toContain('.workflow-config.yaml (part 3/3)');
+      expect(seenPrompts[1]).toMatch(/\.workflow-config\.yaml \(part \d+\/\d+\)/);
       expect(seenPrompts.join('\n')).not.toContain('[truncated');
       expect(savedContent).toContain('### Partition 1 of 2');
       expect(savedContent).toContain('### Partition 2 of 2');
@@ -1087,7 +1094,7 @@ describe('Step 4: Configuration Validation', () => {
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(true);
-      expect(result.filesChecked).toBe(1);
+      expect(result.filesChecked).toBe(2);
     });
 
     // Bug A regression: .ai_cache files from git must be excluded
@@ -1099,7 +1106,7 @@ describe('Step 4: Configuration Validation', () => {
       const result = await analyzer.execute('/project');
 
       expect(result.success).toBe(true);
-      expect(result.filesChecked).toBe(1); // only package.json
+      expect(result.filesChecked).toBe(2); // package.json plus inferred lockfile
     });
 
     // Bug B regression: git paths are resolved to absolute before readFile
@@ -1193,7 +1200,50 @@ describe('Step 4: Configuration Validation', () => {
         expect(gitCallCount).toHaveLength(1);
       });
 
-      test('excludes package-lock.json when it is absent from the declared list', async () => {
+      test('injects package.json companion files when they exist on disk', async () => {
+        let promptSeen = '';
+        const aiHelper = {
+          initialize: () => Promise.resolve(true),
+          executeRequest: (prompt) => {
+            promptSeen = prompt;
+            return Promise.resolve({ content: 'package.json looks good.' });
+          },
+        };
+        const aiCache = {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_stepId, _fileContents, fn) => fn(),
+        };
+        mockFileOps.readFile = (filePath) => {
+          if (filePath.endsWith('package.json')) {
+            return Promise.resolve(
+              '{"name":"test","version":"1.0.0","engines":{"node":">=20.19.0"}}'
+            );
+          }
+          if (filePath.endsWith('package-lock.json')) {
+            return Promise.resolve('{"name":"test","version":"1.0.0","lockfileVersion":3}');
+          }
+          if (filePath.endsWith('.nvmrc')) {
+            return Promise.resolve('20.19.0\n');
+          }
+          return Promise.reject(new Error(`unexpected: ${filePath}`));
+        };
+
+        analyzer = new Step4ConfigAnalyzer({
+          fileOps: mockFileOps,
+          backlog: mockBacklog,
+          gitOps: mockGitOps,
+          aiHelper,
+          aiCache,
+        });
+
+        const result = await analyzer.execute('/project', { configFiles: ['package.json'] });
+
+        expect(result.success).toBe(true);
+        expect(promptSeen).toContain('package-lock.json');
+        expect(promptSeen).toContain('.nvmrc');
+      });
+
+      test('keeps declared package.json scope unchanged when companion files are absent', async () => {
         let promptSeen = '';
         const aiHelper = {
           initialize: () => Promise.resolve(true),
@@ -1223,6 +1273,7 @@ describe('Step 4: Configuration Validation', () => {
 
         expect(result.success).toBe(true);
         expect(promptSeen).not.toContain('package-lock.json');
+        expect(promptSeen).not.toContain('.nvmrc');
       });
     });
   });
@@ -1561,14 +1612,322 @@ describe('Step 4: Configuration Validation', () => {
     });
   });
 
+  describe('findCrossConfigConsistencyIssues', () => {
+    test('detects package/workflow version and markdown-lint drift deterministically', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              version: '0.15.0-alpha',
+              scripts: {
+                'lint:md':
+                  'markdownlint --config .markdownlint.json "**/*.md" --ignore node_modules',
+              },
+              devDependencies: {
+                'markdownlint-cli': '^0.48.0',
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.workflow-config.yaml',
+          content: [
+            'project:',
+            '  version: "0.12.3-alpha"',
+            'workflow:',
+            '  steps:',
+            '    - id: step_13',
+            '      description: "Lint docs with markdownlint-cli2"',
+            'linting:',
+            '  md_linter: "markdownlint-cli2"',
+          ].join('\n'),
+        },
+      ]);
+
+      expect(issues.map((issue) => issue.message)).toEqual(
+        expect.arrayContaining([
+          '.workflow-config.yaml project.version "0.12.3-alpha" does not match package.json version "0.15.0-alpha".',
+          '.workflow-config.yaml linting.md_linter "markdownlint-cli2" does not match the package.json lint:md tool "markdownlint-cli".',
+          '.workflow-config.yaml linting.md_linter "markdownlint-cli2" is not present in package.json devDependencies.',
+          'step_13 markdown-lint description references "markdownlint-cli2", but package.json lint:md uses "markdownlint-cli".',
+        ])
+      );
+    });
+
+    test('returns no cross-config issues when related config sources are aligned', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              version: '0.15.0-alpha',
+              scripts: {
+                'lint:md':
+                  'markdownlint --config .markdownlint.json "**/*.md" --ignore node_modules',
+              },
+              devDependencies: {
+                'markdownlint-cli': '^0.48.0',
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.workflow-config.yaml',
+          content: [
+            'project:',
+            '  version: "0.15.0-alpha"',
+            'workflow:',
+            '  steps:',
+            '    - id: step_13',
+            '      description: "Lint docs with markdownlint-cli"',
+            'linting:',
+            '  md_linter: "markdownlint-cli"',
+          ].join('\n'),
+        },
+      ]);
+
+      expect(issues).toEqual([]);
+    });
+
+    test('detects visible CI coverage-threshold drift against package.json deterministically', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              jest: {
+                coverageThreshold: {
+                  global: {
+                    statements: 65,
+                    branches: 69,
+                    functions: 55,
+                    lines: 65,
+                  },
+                },
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.github/workflows/copilot-coding-agent.yml',
+          content: [
+            'name: Copilot Coding Agent',
+            'jobs:',
+            '  verify:',
+            '    steps:',
+            '      - run: |',
+            '          echo "✅ Coverage thresholds passed"',
+            '          echo "Statements: ≥68%, Branches: ≥73%, Functions: ≥57%, Lines: ≥68%"',
+          ].join('\n'),
+        },
+      ]);
+
+      expect(issues.map((issue) => issue.message)).toContain(
+        '.github/workflows/copilot-coding-agent.yml coverage-threshold summary "Statements: ≥68%, Branches: ≥73%, Functions: ≥57%, Lines: ≥68%" does not match package.json jest.coverageThreshold.global "Statements: ≥65%, Branches: ≥69%, Functions: ≥55%, Lines: ≥65%".'
+      );
+    });
+
+    test('does not invent CI coverage issues when no workflow excerpt is visible', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              jest: {
+                coverageThreshold: {
+                  global: {
+                    statements: 65,
+                    branches: 69,
+                    functions: 55,
+                    lines: 65,
+                  },
+                },
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ]);
+
+      expect(issues).toEqual([]);
+    });
+
+    test('does not invent CI coverage issues when workflow excerpt lacks threshold summary', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              jest: {
+                coverageThreshold: {
+                  global: {
+                    statements: 65,
+                    branches: 69,
+                    functions: 55,
+                    lines: 65,
+                  },
+                },
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.github/workflows/copilot-coding-agent.yml',
+          content: [
+            'name: Copilot Coding Agent',
+            'jobs:',
+            '  verify:',
+            '    steps:',
+            '      - run: npm run test:coverage',
+          ].join('\n'),
+        },
+      ]);
+
+      expect(issues).toEqual([]);
+    });
+
+    test('does not report CI coverage drift when the visible summary matches package.json', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              jest: {
+                coverageThreshold: {
+                  global: {
+                    statements: 65,
+                    branches: 69,
+                    functions: 55,
+                    lines: 65,
+                  },
+                },
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.github/workflows/copilot-coding-agent.yml',
+          content: [
+            'name: Copilot Coding Agent',
+            'jobs:',
+            '  verify:',
+            '    steps:',
+            '      - run: |',
+            '          echo "Statements: ≥65%, Branches: ≥69%, Functions: ≥55%, Lines: ≥65%"',
+          ].join('\n'),
+        },
+      ]);
+
+      expect(issues).toEqual([]);
+    });
+
+    test('detects package-lock version drift against package.json deterministically', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify({ version: '0.28.8-alpha' }, null, 2),
+        },
+        {
+          relativePath: 'package-lock.json',
+          content: JSON.stringify(
+            {
+              name: 'demo',
+              version: '0.27.3-alpha',
+              lockfileVersion: 3,
+              packages: {
+                '': {
+                  name: 'demo',
+                  version: '0.27.3-alpha',
+                },
+              },
+            },
+            null,
+            2
+          ),
+        },
+      ]);
+
+      expect(issues.map((issue) => issue.message)).toContain(
+        'package-lock.json version "0.27.3-alpha" does not match package.json version "0.28.8-alpha".'
+      );
+    });
+
+    test('accepts node version files that satisfy package.json engines.node', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              engines: {
+                node: '>=20.19.0',
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.nvmrc',
+          content: '20.19.0\n',
+        },
+      ]);
+
+      expect(issues).toEqual([]);
+    });
+
+    test('detects node version files that fall outside package.json engines.node', () => {
+      const issues = findCrossConfigConsistencyIssues([
+        {
+          relativePath: 'package.json',
+          content: JSON.stringify(
+            {
+              engines: {
+                node: '>=20.19.0',
+              },
+            },
+            null,
+            2
+          ),
+        },
+        {
+          relativePath: '.node-version',
+          content: '20.18.0\n',
+        },
+      ]);
+
+      expect(issues.map((issue) => issue.message)).toContain(
+        '.node-version version "20.18.0" does not satisfy package.json engines.node ">=20.19.0".'
+      );
+    });
+  });
+
   describe('buildConfigPromptPartitions', () => {
-    test('splits oversized entries into labeled parts and groups them into prompt-safe partitions', () => {
+    test('splits oversized YAML entries on top-level boundaries before falling back to smaller slices', () => {
       const partitions = buildConfigPromptPartitions(
         [
           { relativePath: 'package.json', content: '{"name":"demo"}' },
           {
             relativePath: '.workflow-config.yaml',
-            content: 'workflow:\n' + '  note: "' + 'x'.repeat(MAX_PROMPT_ENTRY_CHARS + 1000) + '"',
+            content: [
+              'project:',
+              '  name: "demo"',
+              'workflow:',
+              `  note: "${'x'.repeat(MAX_PROMPT_ENTRY_CHARS - 300)}"`,
+              'linting:',
+              `  md_linter: "${'y'.repeat(MAX_PROMPT_ENTRY_CHARS - 300)}"`,
+            ].join('\n'),
           },
         ],
         MAX_PROMPT_ENTRY_CHARS + 500,
@@ -1579,12 +1938,45 @@ describe('Step 4: Configuration Validation', () => {
       expect(partitions[0].entries[0].relativePath).toBe('package.json');
       expect(partitions[0].entries[1].relativePath).toContain('.workflow-config.yaml (part 1/2)');
       expect(partitions[1].entries[0].relativePath).toContain('.workflow-config.yaml (part 2/2)');
+      expect(partitions[0].entries[1].introNote).toContain('not a standalone document');
+      expect(partitions[0].entries[1].outroNote).toContain('continues in part 2/2');
+      expect(partitions[1].entries[0].outroNote).toContain('Earlier parts of this file');
       expect(partitions[0].scopePaths).toEqual(['package.json', '.workflow-config.yaml']);
+      expect(partitions[0].entries[1].content).toContain('workflow:');
+      expect(
+        partitions
+          .flatMap((partition) => partition.entries)
+          .some((entry) => entry.content.includes('linting:'))
+      ).toBe(true);
+    });
+
+    test('falls back to line-safe slicing when a single YAML block still exceeds the prompt budget', () => {
+      const partitions = buildConfigPromptPartitions(
+        [
+          {
+            relativePath: '.workflow-config.yaml',
+            content: [
+              'workflow:',
+              `  note: "${'x'.repeat(MAX_PROMPT_ENTRY_CHARS * 2 + 1200)}"`,
+            ].join('\n'),
+          },
+        ],
+        MAX_PROMPT_ENTRY_CHARS + 500,
+        MAX_PROMPT_ENTRY_CHARS
+      );
+
+      const relativePaths = partitions.flatMap((partition) =>
+        partition.entries.map((entry) => entry.relativePath)
+      );
+
+      expect(relativePaths[0]).toMatch(/\.workflow-config\.yaml \(part 1\/\d+\)/);
+      expect(relativePaths.at(-1)).toMatch(/\.workflow-config\.yaml \(part \d+\/\d+\)/);
+      expect(relativePaths.length).toBeGreaterThan(1);
     });
   });
 
   describe('selectConfigPromptPartitions', () => {
-    test('scopes AI review to modified config files when deterministic validation found no issues', () => {
+    test('keeps baseline configs alongside modified files when deterministic validation found no issues', () => {
       const { promptPartitions, scopeNote } = selectConfigPromptPartitions(
         [
           { relativePath: 'package.json', content: '{"name":"demo"}' },
@@ -1597,8 +1989,11 @@ describe('Step 4: Configuration Validation', () => {
       );
 
       expect(promptPartitions).toHaveLength(1);
-      expect(promptPartitions[0].scopePaths).toEqual(['.github/workflows/test.yml']);
-      expect(scopeNote).toContain('scoped to 1 modified configuration file');
+      expect(promptPartitions[0].scopePaths).toEqual([
+        'package.json',
+        '.github/workflows/test.yml',
+      ]);
+      expect(scopeNote).toBe('');
     });
 
     test('caps oversized AI prompt runs while keeping deterministic validation authoritative', () => {

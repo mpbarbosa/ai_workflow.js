@@ -430,7 +430,10 @@ describe('Step 1 Parallel Processing', () => {
         expect(results.success).toBe(false);
         expect(results.errors).toEqual(
           expect.arrayContaining([
-            expect.objectContaining({ error: 'AI analysis incomplete', category: DOC_CATEGORIES.README }),
+            expect.objectContaining({
+              error: 'AI analysis incomplete',
+              category: DOC_CATEGORIES.README,
+            }),
           ])
         );
       });
@@ -484,6 +487,26 @@ describe('Step 1 Parallel Processing', () => {
         expect(timeoutTask).toBeDefined();
         expect(aborted).toBe(true);
       }, 10000); // 10s test timeout
+
+      test('extends the timeout when the validator reports progress', async () => {
+        const files = ['README.md'];
+        const progressiveTimeout = new Step1ParallelProcessor({ timeout: 50 });
+
+        const results = await progressiveTimeout.validate(
+          files,
+          async (_category, _categoryFiles, ctx) => {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            ctx.heartbeat();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            ctx.heartbeat();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            return {};
+          }
+        );
+
+        expect(results.success).toBe(true);
+        expect(progressiveTimeout.tasks[0].status).toBe(TASK_STATUS.COMPLETED);
+      });
 
       test('returns empty results for no files', async () => {
         const validator = async () => ({});

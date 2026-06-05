@@ -29,6 +29,7 @@ import {
   AI_HELPERS_PATH,
   loadResolvedAiHelpers,
 } from '../lib/ai_prompt_builder.js';
+import { formatValidationGateNotice } from '../lib/ai_validation.js';
 import yaml from 'js-yaml';
 
 // ============================================================================
@@ -1250,6 +1251,11 @@ export class Step8TestExecutor {
           const promptCoverageThreshold = formatPromptCoverageThreshold(
             configuredCoverageThreshold
           );
+          const hasIncompleteEvidence =
+            noRuntimeEvidenceFailure ||
+            noTestsFound ||
+            validationScriptExecution ||
+            /^(?:unavailable|inconclusive)\b/i.test(coverageGapsText);
           const promptScope = validationScriptExecution
             ? 'validation script only'
             : 'automated test suite only';
@@ -1357,9 +1363,17 @@ export class Step8TestExecutor {
           });
           const cacheKey = `step_08|${language}|${testResults.passed ?? 0}|${testResults.failed ?? 0}|${coverageGaps.length}`;
           const aiResult = await this.aiCache.withCache(prompt, cacheKey, () =>
-            this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+            this.aiHelper.executeRequest(prompt, {
+              persona: 'test_engineer',
+              responseType: 'test_review',
+              validationContext: { hasIncompleteEvidence },
+            })
           );
-          const aiContent = aiResult?.content ?? '';
+          const aiValidationWarnings = aiResult?.validation?.warnings ?? [];
+          const aiContent =
+            aiValidationWarnings.length > 0
+              ? formatValidationGateNotice(aiResult.validation, { subject: 'AI test analysis' })
+              : (aiResult?.content ?? '');
 
           // Supplementary: e2e test engineering analysis — only for frontend/browser projects.
           // Library and API projects have no UI, so browser-based E2E tests are not applicable.
@@ -1382,9 +1396,19 @@ export class Step8TestExecutor {
               if (e2ePrompt) {
                 const e2eKey = `step_08_e2e|${language}|${testResults.passed ?? 0}`;
                 const e2eResult = await this.aiCache.withCache(e2ePrompt, e2eKey, () =>
-                  this.aiHelper.executeRequest(e2ePrompt, { persona: 'test_engineer' })
+                  this.aiHelper.executeRequest(e2ePrompt, {
+                    persona: 'test_engineer',
+                    responseType: 'test_review',
+                    validationContext: { hasIncompleteEvidence },
+                  })
                 );
-                e2eContent = e2eResult?.content ?? '';
+                const e2eValidationWarnings = e2eResult?.validation?.warnings ?? [];
+                e2eContent =
+                  e2eValidationWarnings.length > 0
+                    ? formatValidationGateNotice(e2eResult.validation, {
+                        subject: 'AI E2E test analysis',
+                      })
+                    : (e2eResult?.content ?? '');
               }
             } catch {
               /* optional */

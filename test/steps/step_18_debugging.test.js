@@ -3,7 +3,10 @@
 import { jest } from '@jest/globals';
 import {
   detectDebugPersona,
+  filterDebugEntriesForPersona,
   formatDebuggingReport,
+  hasAsyncDebugSurface,
+  isReexportOnlyDebugModule,
   prioritizeDebugSourceFiles,
   readProjectContextFile,
   scoreDebugSourceFile,
@@ -30,6 +33,16 @@ describe('detectDebugPersona', () => {
       'callback();',
       'doSomething().then(() => {});',
     ];
+    expect(detectDebugPersona(files)).toBe('async_flow_debugger_prompt');
+  });
+
+  it('detects callback and timer driven async surfaces as async flow', () => {
+    const files = [
+      'navigator.geolocation.getCurrentPosition(success, error, options);',
+      'setTimeout(() => window.open(url), 100);',
+      'const observer = new MutationObserver(() => handleChange());',
+    ];
+
     expect(detectDebugPersona(files)).toBe('async_flow_debugger_prompt');
   });
 
@@ -73,6 +86,56 @@ describe('detectDebugPersona', () => {
   it('handles null/undefined input gracefully', () => {
     expect(detectDebugPersona(null)).toBe('observer_pattern_debugger_prompt');
     expect(detectDebugPersona(undefined)).toBe('observer_pattern_debugger_prompt');
+  });
+});
+
+describe('async debugging surface helpers', () => {
+  it('recognizes non-promise browser async surfaces', () => {
+    expect(
+      hasAsyncDebugSurface(
+        'navigator.geolocation.getCurrentPosition(success, error); setTimeout(() => update(), 50);'
+      )
+    ).toBe(true);
+    expect(hasAsyncDebugSurface('window.addEventListener("click", onClick);')).toBe(true);
+    expect(hasAsyncDebugSurface('const observer = new MutationObserver(cb);')).toBe(true);
+  });
+
+  it('identifies re-export only modules as low-signal debug files', () => {
+    const shim = [
+      'export { AwsGeocoder, AwsGeocoder as default } from "https://cdn.example.com/index.js";',
+      'export type { AwsAddress } from "https://cdn.example.com/index.js";',
+    ].join('\n');
+
+    expect(isReexportOnlyDebugModule(shim)).toBe(true);
+    expect(isReexportOnlyDebugModule('export function run() { return fetch("/api"); }')).toBe(
+      false
+    );
+  });
+
+  it('filters async prompt inputs down to executable async surfaces', () => {
+    const entries = [
+      {
+        relativePath: 'src/services/AwsGeocoder.ts',
+        content:
+          'export { AwsGeocoder, AwsGeocoder as default } from "https://cdn.example.com/index.js";',
+      },
+      {
+        relativePath: 'src/utils/logger.js',
+        content: 'export function log(message) { console.log(message); }',
+      },
+      {
+        relativePath: 'src/utils/maps-integration.js',
+        content:
+          'window.addEventListener("message", handler); setTimeout(() => window.open(url), 100);',
+      },
+    ];
+
+    expect(filterDebugEntriesForPersona('async_flow_debugger_prompt', entries)).toEqual([
+      entries[2],
+    ]);
+    expect(filterDebugEntriesForPersona('observer_pattern_debugger_prompt', entries)).toEqual(
+      entries
+    );
   });
 });
 
@@ -151,6 +214,15 @@ describe('debug source prioritization', () => {
     );
   });
 
+  it('scores implementation async surfaces above barrel and type-only files', () => {
+    expect(scoreDebugSourceFile('src/infrastructure/providers/AwsGeocoder.ts')).toBeGreaterThan(
+      scoreDebugSourceFile('src/infrastructure/providers/index.ts')
+    );
+    expect(scoreDebugSourceFile('src/application/services/GeolocationService.ts')).toBeGreaterThan(
+      scoreDebugSourceFile('src/application/dtos/GetCurrentPositionOutput.ts')
+    );
+  });
+
   it('prioritizes runtime source files while preserving order within the same tier', () => {
     const prioritized = prioritizeDebugSourceFiles([
       'eslint.config.js',
@@ -168,6 +240,27 @@ describe('debug source prioritization', () => {
       'eslint.config.js',
       'examples/demo.js',
       'tests/e2e/app.test.js',
+    ]);
+  });
+
+  it('pushes barrel files behind implementation files in the same source tree', () => {
+    const prioritized = prioritizeDebugSourceFiles([
+      'src/application/index.ts',
+      'src/application/dtos/GetCurrentPositionOutput.ts',
+      'src/application/services/GeolocationService.ts',
+      'src/infrastructure/providers/index.ts',
+      'src/infrastructure/providers/AwsGeocoder.ts',
+    ]);
+
+    expect(prioritized.indexOf('src/application/services/GeolocationService.ts')).toBeLessThan(
+      prioritized.indexOf('src/application/index.ts')
+    );
+    expect(prioritized.indexOf('src/infrastructure/providers/AwsGeocoder.ts')).toBeLessThan(
+      prioritized.indexOf('src/infrastructure/providers/index.ts')
+    );
+    expect(prioritized.slice(0, 2)).toEqual([
+      'src/application/services/GeolocationService.ts',
+      'src/infrastructure/providers/AwsGeocoder.ts',
     ]);
   });
 });
@@ -405,7 +498,7 @@ describe('Step18Debugging', () => {
 
     const result = await step.execute('/project/root');
     expect(result.success).toBe(true);
-    expect(result.filesAnalyzed.length).toBe(2);
+    expect(result.filesAnalyzed.length).toBe(0);
     expect(result.aiContent).toBe('');
     expect(result.report).toContain('_No AI analysis available._');
   });
@@ -491,6 +584,30 @@ describe('Step18Debugging', () => {
     ]);
   });
 
+  it('drops low-signal files from async prompt analysis when executable async surfaces exist', async () => {
+    mockFileOps.readFile
+      .mockRejectedValueOnce(new Error('ENOENT'))
+      .mockResolvedValueOnce(
+        'export { AwsGeocoder, AwsGeocoder as default } from "https://cdn.example.com/index.js";'
+      )
+      .mockResolvedValueOnce('export function log(message) { console.log(message); }')
+      .mockResolvedValueOnce(
+        'navigator.geolocation.getCurrentPosition(success, error); setTimeout(() => window.open(url), 100);'
+      );
+    mockAiHelper.initialize.mockResolvedValue(false);
+
+    const result = await step.execute('/project/root', {
+      sourceFiles: [
+        'src/services/AwsGeocoder.ts',
+        'src/utils/logger.js',
+        'src/utils/maps-integration.js',
+      ],
+    });
+
+    expect(result.personaKey).toBe('async_flow_debugger_prompt');
+    expect(result.filesAnalyzed).toEqual(['src/utils/maps-integration.js']);
+  });
+
   it('handles missing options.sourceFiles and uses _discoverSourceFiles', async () => {
     mockFileOps.glob.mockResolvedValue(['file1.js', 'file2.js']);
     mockFileOps.readFile.mockResolvedValue('async function run() {}');
@@ -501,6 +618,7 @@ describe('Step18Debugging', () => {
   });
 
   it('uses options.sourceFiles if provided', async () => {
+    mockFileOps.readFile.mockResolvedValue('const value = 1;');
     mockAiHelper.initialize.mockResolvedValue(false);
     const result = await step.execute('/project/root', {
       sourceFiles: ['custom1.js', 'custom2.js'],

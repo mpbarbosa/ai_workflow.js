@@ -252,6 +252,41 @@ describe('Integration: Step4ConfigAnalyzer – venv exclusion and tech stack con
 
       expect(relPaths.some((p) => p.startsWith('.venv/'))).toBe(false);
     });
+
+    test('keeps canonical baseline configs in scope while excluding generated test artifacts', async () => {
+      await writeFile(tempDir, 'package.json', '{}');
+      await writeFile(tempDir, 'tsconfig.json', '{"compilerOptions":{}}');
+      await writeFile(tempDir, 'eslint.config.js', 'export default [];');
+      await writeFile(tempDir, '.workflow-config.yaml', 'project:\n  name: demo\n');
+      await writeFile(tempDir, 'test-results.unit.json', '{"success":false}');
+
+      const gitModified = [
+        path.join(tempDir, '.workflow-config.yaml'),
+        path.join(tempDir, 'test-results.unit.json'),
+      ];
+
+      const analyzer = new Step4ConfigAnalyzer({
+        fileOps: buildRealFileOps(),
+        gitOps: gitOpsReturning(gitModified),
+        aiHelper: { initialize: () => Promise.resolve(false) },
+        aiCache: passthroughAiCache,
+        backlog: buildBacklogStub(),
+        techStack: buildTechStackStub({ primaryLanguage: 'javascript' }),
+      });
+
+      const configFiles = await analyzer.discoverConfigFiles(tempDir);
+      const relPaths = configFiles.map((f) => path.relative(tempDir, f)).sort();
+
+      expect(relPaths).toEqual(
+        expect.arrayContaining([
+          '.workflow-config.yaml',
+          'eslint.config.js',
+          'package.json',
+          'tsconfig.json',
+        ])
+      );
+      expect(relPaths).not.toContain('test-results.unit.json');
+    });
   });
 
   // =========================================================================

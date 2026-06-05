@@ -15,6 +15,7 @@ import {
   normalizeFilePath,
   validateFileReferences,
   findRepoRootMatch,
+  findRelatedDocCandidates,
   formatConsistencyReport,
   partitionFiles,
   buildPartitionContext,
@@ -74,8 +75,8 @@ describe('Step 2: Consistency Analysis', () => {
       expect(extractVersions(content)).toContain('1.2.3');
     });
 
-    test('extracts multiple versions', () => {
-      const content = 'Upgraded from 1.0.0 to 2.0.0';
+    test('extracts multiple versions from current-version prose', () => {
+      const content = 'Version 2.0.0 replaces version 1.0.0';
       const versions = extractVersions(content);
       expect(versions).toContain('1.0.0');
       expect(versions).toContain('2.0.0');
@@ -87,17 +88,27 @@ describe('Step 2: Consistency Analysis', () => {
     });
 
     test('extracts prerelease versions', () => {
-      const content = 'Try 1.0.0-beta.1 now';
+      const content = 'Version 1.0.0-beta.1 is available now';
       expect(extractVersions(content)).toContain('1.0.0-beta.1');
     });
 
     test('removes duplicates', () => {
-      const content = '1.0.0 and 1.0.0 again';
+      const content = 'Version 1.0.0 and version 1.0.0 again';
       expect(extractVersions(content)).toHaveLength(1);
     });
 
     test('handles content with no versions', () => {
       const content = 'No versions here';
+      expect(extractVersions(content)).toHaveLength(0);
+    });
+
+    test('ignores changelog-style release headings', () => {
+      const content = '## Release 1.2.3';
+      expect(extractVersions(content)).toHaveLength(0);
+    });
+
+    test('ignores historical since markers', () => {
+      const content = '**Since:** 0.9.0-alpha';
       expect(extractVersions(content)).toHaveLength(0);
     });
   });
@@ -322,6 +333,30 @@ describe('Step 2: Consistency Analysis', () => {
     });
   });
 
+  describe('findRelatedDocCandidates', () => {
+    const docFiles = [
+      '/project/docs/developer/PROJECT_STRUCTURE.md',
+      '/project/docs/developer/DEVELOPER_GUIDE.md',
+      '/project/docs/api/BRAZILIAN_STANDARD_ADDRESS.md',
+      '/project/tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md',
+    ];
+
+    test('finds exact-basename matches elsewhere in the repo', () => {
+      expect(findRelatedDocCandidates('docs/PROJECT_STRUCTURE.md', docFiles, '/project')).toEqual([
+        'docs/developer/PROJECT_STRUCTURE.md',
+      ]);
+    });
+
+    test('finds likely rename or move candidates by token overlap', () => {
+      expect(findRelatedDocCandidates('BRAZILIAN_ADDRESS.md', docFiles, '/project')).toContain(
+        'docs/api/BRAZILIAN_STANDARD_ADDRESS.md'
+      );
+      expect(
+        findRelatedDocCandidates('README_MUNICIPIO_BAIRRO_DISPLAY.md', docFiles, '/project')
+      ).toContain('tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md');
+    });
+  });
+
   // ========================================================================
   // PURE FUNCTIONS - Reporting
   // ========================================================================
@@ -443,6 +478,23 @@ describe('Step 2: Consistency Analysis', () => {
       });
     });
 
+    test('matches absolute flagged source paths against relative AI references', () => {
+      const flaggedItems = [
+        '/home/mpb/Documents/GitHub/guia_js/docs/guides/REFERENTIAL_TRANSPARENCY.md:699 → ../docs/INDEX.md',
+      ];
+      const aiResponse = [
+        '#### Reference: docs/guides/REFERENTIAL_TRANSPARENCY.md:699 → ../docs/INDEX.md',
+        '- **Status:** Confirmed Broken',
+      ].join('\n');
+
+      expect(summarizeBrokenLinkAssessments(flaggedItems, aiResponse)).toEqual({
+        totalCandidates: 1,
+        confirmed: 1,
+        falsePositive: 0,
+        unverified: 0,
+      });
+    });
+
     test('downgrades confirmed statuses that rely only on visible-file-list absence', () => {
       const flaggedItems = ['docs/README.md:155 → ./E2E_TEST_SCENARIO_MUNICIPIO_BAIRRO.md'];
       const aiResponse = [
@@ -467,6 +519,14 @@ describe('Step 2: Consistency Analysis', () => {
           'docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)'
         )
       ).toBe('docs/api/steps/step_02_consistency.md:396 → docs/README.md');
+    });
+
+    test('strips related-doc hints from prompt-formatted references', () => {
+      expect(
+        normalizeBrokenLinkReference(
+          'docs/testing/TESTING.md:49 → README_MUNICIPIO_BAIRRO_DISPLAY.md (related repo docs: tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md)'
+        )
+      ).toBe('docs/testing/TESTING.md:49 → README_MUNICIPIO_BAIRRO_DISPLAY.md');
     });
   });
 
@@ -889,7 +949,7 @@ describe('Step 2: Consistency Analysis', () => {
           repoRootMatch: 'docs/README.md',
         },
       ];
-      const { brokenRefsList, flaggedRefs } = buildPartitionContext(
+      const { brokenRefsList, flaggedRefs, flaggedRefPrompts } = buildPartitionContext(
         ['docs/api/steps/step_02_consistency.md'],
         hintedLinks,
         0,
@@ -900,6 +960,36 @@ describe('Step 2: Consistency Analysis', () => {
         'docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)'
       );
       expect(flaggedRefs).toEqual(['docs/api/steps/step_02_consistency.md:396 → docs/README.md']);
+      expect(flaggedRefPrompts).toEqual([
+        'docs/api/steps/step_02_consistency.md:396 → docs/README.md (existing repo path: docs/README.md)',
+      ]);
+    });
+
+    test('includes related-doc hints in prompt text but keeps raw flagged refs separate', () => {
+      const hintedLinks = [
+        {
+          file: 'docs/testing/TESTING.md',
+          line: 49,
+          link: 'README_MUNICIPIO_BAIRRO_DISPLAY.md',
+          relatedDocCandidates: ['tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md'],
+        },
+      ];
+      const { brokenRefsList, flaggedRefs, flaggedRefPrompts } = buildPartitionContext(
+        ['docs/testing/TESTING.md'],
+        hintedLinks,
+        0,
+        1
+      );
+
+      expect(brokenRefsList).toContain(
+        'docs/testing/TESTING.md:49 → README_MUNICIPIO_BAIRRO_DISPLAY.md (related repo docs: tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md)'
+      );
+      expect(flaggedRefs).toEqual([
+        'docs/testing/TESTING.md:49 → README_MUNICIPIO_BAIRRO_DISPLAY.md',
+      ]);
+      expect(flaggedRefPrompts).toEqual([
+        'docs/testing/TESTING.md:49 → README_MUNICIPIO_BAIRRO_DISPLAY.md (related repo docs: tests/integration/MUNICIPIO_BAIRRO_TEST_EXPANSION.md)',
+      ]);
     });
 
     test('returns "none" when no broken links match partition', () => {
@@ -1200,6 +1290,24 @@ Fix: Create the file or update the link.
       expect(result.reason).toBe('ungrounded_confirmed_status');
     });
 
+    test('returns adequate=false when absolute flagged items are confirmed only by visible-list absence', () => {
+      const absoluteFlaggedItems = [
+        '/home/mpb/Documents/GitHub/guia_js/docs/misc/README.md:23 → ../workflows/README.md',
+      ];
+      const response = `
+#### Reference: docs/misc/README.md:23 → ../workflows/README.md (existing repo path: .github/workflows/README.md)
+- **Status**: Confirmed Broken
+- **Root Cause**: The target is not present in the visible file list for this partition.
+      `.repeat(4);
+
+      const result = validateAiResponseQuality(response, absoluteFlaggedItems, {
+        requireGroundedNoIssueResponse: true,
+      });
+
+      expect(result.adequate).toBe(false);
+      expect(result.reason).toBe('ungrounded_confirmed_status');
+    });
+
     test('coverage reflects partial addressing', () => {
       const response = 'Only mentions ./.github/TDD_GUIDE.md but not the other. '.repeat(10);
       const result = validateAiResponseQuality(response, flaggedItems);
@@ -1321,22 +1429,24 @@ Fix: Create the file or update the link.
 
       // Simulate withFileChangeGuard: first call hits AI, subsequent calls with same
       // fileContents return cached result.
-      let storedHash = null;
-      let storedResponse = null;
+      const storedEntries = new Map();
       mockAiCache = {
         init: () => Promise.resolve(),
-        invalidateFileChangeGuard: async () => {
-          storedHash = null;
-          storedResponse = null;
+        invalidateFileChangeGuard: async (stepId) => {
+          if (!stepId) {
+            storedEntries.clear();
+            return;
+          }
+          storedEntries.delete(stepId);
         },
-        withFileChangeGuard: async (_stepId, fileContents, fn) => {
+        withFileChangeGuard: async (stepId, fileContents, fn) => {
           const hash = [...fileContents].sort().join('|');
-          if (hash === storedHash && storedResponse !== null) {
-            return storedResponse;
+          const cached = storedEntries.get(stepId);
+          if (hash === cached?.hash && cached.response !== undefined) {
+            return cached.response;
           }
           const result = await fn();
-          storedHash = hash;
-          storedResponse = result;
+          storedEntries.set(stepId, { hash, response: result });
           return result;
         },
       };
@@ -1375,6 +1485,26 @@ Fix: Create the file or update the link.
       expect(aiCallCount).toBeGreaterThan(countAfterFirst); // new AI call issued
     });
 
+    test('calls AI again for unchanged partition files when repo-wide inventory changes', async () => {
+      const partitionOneDocs = Array.from({ length: 25 }, (_, index) => `docs/doc-${index + 1}.md`);
+      let extraDoc = 'docs/zzz-outside-partition.md';
+
+      mockFileOps.glob = () => Promise.resolve([...partitionOneDocs, extraDoc]);
+      mockFileOps.readFile = (file) => Promise.resolve(`# ${file}\n`);
+
+      await analyzer.execute('/project');
+      const countAfterFirst = aiCallCount;
+
+      await analyzer.execute('/project');
+      expect(aiCallCount).toBe(countAfterFirst);
+
+      extraDoc = 'docs/aaa-outside-partition-renamed.md';
+
+      await analyzer.execute('/project');
+
+      expect(aiCallCount).toBeGreaterThan(countAfterFirst + 1);
+    });
+
     test('invalidates cached 0%-coverage AI responses and re-analyzes', async () => {
       let invalidateCount = 0;
       mockAiCache.invalidateFileChangeGuard = async () => {
@@ -1408,9 +1538,7 @@ Fix: Create the file or update the link.
       mockAiCache.withFileChangeGuard = async (_stepId, _fileContents, fn) => fn();
       mockFileOps.glob = () => Promise.resolve([DOC_FILE]);
       mockFileOps.readFile = (file) =>
-        Promise.resolve(
-          file === DOC_FILE ? '# Project\n\nSee [API guide](docs/api.md)\n' : ''
-        );
+        Promise.resolve(file === DOC_FILE ? '# Project\n\nSee [API guide](docs/api.md)\n' : '');
       // First call returns a response that mentions only 1 out of many flagged refs
       // (simulating 13% coverage); second call returns a fully grounded response.
       mockAiHelper.executeRequest = () => {
@@ -1427,6 +1555,39 @@ Fix: Create the file or update the link.
 
       // Low-coverage cached response (below 30% threshold) must be invalidated
       expect(invalidateCount).toBeGreaterThanOrEqual(1);
+    });
+
+    test('includes the repo-wide inventory hash entry on retry cache keys', async () => {
+      const cacheCalls = [];
+      mockAiCache.invalidateFileChangeGuard = async () => {};
+      mockAiCache.withFileChangeGuard = async (stepId, fileContents, fn) => {
+        cacheCalls.push({ stepId, fileContents: [...fileContents] });
+        return fn();
+      };
+      mockFileOps.glob = () => Promise.resolve([DOC_FILE, 'docs/reference.md']);
+      mockFileOps.readFile = (file) =>
+        Promise.resolve(
+          file === DOC_FILE ? '# Project\n\nSee [Guide](docs/missing.md)\n' : '# Reference\n'
+        );
+      mockAiHelper.executeRequest = () => {
+        aiCallCount += 1;
+        return Promise.resolve({
+          content:
+            aiCallCount === 1
+              ? 'Generic reply with no grounded broken-link analysis.'
+              : 'README.md:3 → docs/missing.md is broken and should be fixed.',
+        });
+      };
+
+      await analyzer.execute('/project');
+
+      expect(cacheCalls).toHaveLength(2);
+      expect(cacheCalls[1].stepId).toContain('_retry1');
+      expect(
+        cacheCalls[1].fileContents.some((entry) =>
+          entry.startsWith('__repo_wide_doc_inventory__:Repo-wide markdown inventory contains ')
+        )
+      ).toBe(true);
     });
   });
 });

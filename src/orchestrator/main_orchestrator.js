@@ -1043,6 +1043,16 @@ export class MainOrchestrator {
         this.configManager?.getConfig?.()?.project_description ||
         this.configManager?.getConfig?.()?.project?.description ||
         path.basename(this.projectRoot),
+      targetAudience:
+        context.targetAudience ||
+        this.projectWorkflowConfig?.project?.target_audience ||
+        this.configManager?.getConfig?.()?.project?.target_audience ||
+        null,
+      designSystemStatus:
+        context.designSystemStatus ||
+        this.projectWorkflowConfig?.project?.design_system ||
+        this.configManager?.getConfig?.()?.project?.design_system ||
+        null,
       alternatives: this.alternatives,
       preflightCheck: healthResults.checks[HEALTH_CHECK_CATEGORIES.PREFLIGHT] || null,
       resumeCommandHint: 'ai-workflow resume --latest',
@@ -1052,6 +1062,7 @@ export class MainOrchestrator {
         .map((step) => step.id),
       allowFinalizeOnFailure: this.allowFinalizeOnFailure,
       configFiles: this.projectWorkflowConfig?.structure?.config_files ?? null,
+      uiDirs: this.projectWorkflowConfig?.structure?.ui_dirs ?? null,
     };
   }
 

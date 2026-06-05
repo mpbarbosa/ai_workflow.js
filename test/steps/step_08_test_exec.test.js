@@ -719,7 +719,9 @@ describe('Step 8: Test Execution', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(loggerInfoSpy).not.toHaveBeenCalledWith(expect.stringContaining('silent exit here points'));
+      expect(loggerInfoSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('silent exit here points')
+      );
     });
 
     test('[BUG FIX] treats 0 tests found as success=true (warning, not critical failure)', async () => {
@@ -1093,8 +1095,66 @@ describe('Step 8: Test Execution', () => {
 
       expect(result.success).toBe(true);
       expect(savedSummaries).toHaveLength(2);
+      expect(executor.aiHelper.executeRequest).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          persona: 'test_engineer',
+          responseType: 'test_review',
+          validationContext: expect.any(Object),
+        })
+      );
       expect(savedSummaries.at(-1)).toContain('## AI Recommendations\n\nAI says hi');
       expect(savedSummaries.at(-1)).not.toContain('## E2E Test Engineering Analysis');
+    });
+
+    test('replaces unsupported AI clean-bill summaries with a validation notice', async () => {
+      const savedSummaries = [];
+      mockBacklog.saveStepSummary = jest.fn(async (_step, _title, summary) => {
+        savedSummaries.push(summary);
+      });
+      mockFileOps.readFile = async (targetPath) => {
+        if (targetPath === '/project/package.json') {
+          return JSON.stringify({ scripts: { test: 'jest' } });
+        }
+        if (targetPath === AI_HELPERS_PATH) {
+          return readFileSync(AI_HELPERS_PATH, 'utf8');
+        }
+        throw new Error(`Unexpected readFile path: ${targetPath}`);
+      };
+
+      executor = new Step8TestExecutor({
+        executor: mockExecutor,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        techStack: mockTechStack,
+        aiHelper: {
+          initialize: jest.fn(() => Promise.resolve(true)),
+          executeRequest: jest.fn(() =>
+            Promise.resolve({
+              content: 'Coverage meets the stated threshold.',
+              validation: {
+                warnings: [
+                  'Unsupported positive summary for test review: "Coverage meets the stated threshold" should be cited or marked inconclusive',
+                ],
+              },
+            })
+          ),
+        },
+        aiCache: {
+          init: jest.fn(() => Promise.resolve()),
+          withCache: jest.fn(async (_prompt, _cacheKey, runner) => runner()),
+        },
+      });
+
+      const result = await executor.execute('/project');
+
+      expect(result.success).toBe(true);
+      expect(savedSummaries.at(-1)).toContain(
+        'AI test analysis was rejected by validation because it made unsupported success claims without enough cited evidence.'
+      );
+      expect(savedSummaries.at(-1)).toContain(
+        'Unsupported positive summary for test review: "Coverage meets the stated threshold" should be cited or marked inconclusive'
+      );
     });
 
     test('skips AI analysis for silent custom npm validation commands with no runtime evidence', async () => {

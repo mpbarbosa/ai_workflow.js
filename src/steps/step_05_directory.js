@@ -75,7 +75,17 @@ export const CATEGORY_DIRS = {
 /**
  * Files that should remain in project root
  */
-export const ROOT_ALLOWED_FILES = ['README.md', 'CHANGELOG.md'];
+export const ROOT_ALLOWED_FILES = [
+  'README.md',
+  'CHANGELOG.md',
+  'CONTRIBUTING.md',
+  'CLAUDE.md',
+  'AGENTS.md',
+  'ROADMAP.md',
+  'SECURITY.md',
+  'CODE_OF_CONDUCT.md',
+  'SUPPORT.md',
+];
 
 /**
  * Directories to exclude from validation (checked against individual path segments)
@@ -116,9 +126,11 @@ export const EXCLUDED_DIR_PATHS = [
  * Documentation files that define the repo structure for directory validation.
  */
 export const DIRECTORY_VALIDATION_DOC_FILES = [
+  'docs/INDEX.md',
+  'docs/ARCHITECTURE.md',
+  '.github/SKILLS.md',
   'README.md',
   'INDEX.md',
-  'docs/ARCHITECTURE.md',
   'docs/CONTRIBUTING.md',
   '.github/copilot-instructions.md',
 ];
@@ -129,6 +141,7 @@ export const DIRECTORY_VALIDATION_DOC_FILES = [
  */
 export const AUTHORITATIVE_CONFIG_FILES = [
   '.workflow-config.yaml',
+  'package.json',
   'vitest.config.js',
   'vitest.config.ts',
   'vitest.config.mjs',
@@ -356,75 +369,266 @@ export function buildDirectoryDocumentationExcerpts(docFiles, directories = [], 
   );
   const headingPattern =
     /^#{1,6}\s+(directory structure|project structure|architecture|documentation|repository layout|core library structure|folder structure)\b/i;
+  const prioritizedDocFiles = [...docFiles].sort((left, right) => {
+    const priorityDiff =
+      getDirectoryValidationDocPriority(left?.path) -
+      getDirectoryValidationDocPriority(right?.path);
+    if (priorityDiff !== 0) return priorityDiff;
+    return String(left?.path ?? '').localeCompare(String(right?.path ?? ''));
+  });
+  const perDocumentLimit = Math.max(1600, Math.floor(maxChars / 2));
+  const excerptSections = prioritizedDocFiles.map(({ path: filePath, content }) => {
+    const lines = String(content ?? '').split('\n');
+    if (lines.length === 0) return `### ${filePath}`;
 
-  const excerpt = docFiles
-    .map(({ path: filePath, content }) => {
-      const lines = String(content ?? '').split('\n');
-      if (lines.length === 0) return `### ${filePath}`;
-
-      /** @type {Array<{start: number, end: number}>} */
-      const windows = [];
-      const addWindow = (start, end) => {
-        const bounded = {
-          start: Math.max(0, start),
-          end: Math.min(lines.length - 1, end),
-        };
-        if (bounded.start > bounded.end) return;
-        const previous = windows[windows.length - 1];
-        if (previous && bounded.start <= previous.end + 1) {
-          previous.end = Math.max(previous.end, bounded.end);
-          return;
-        }
-        windows.push(bounded);
+    /** @type {Array<{start: number, end: number}>} */
+    const windows = [];
+    const addWindow = (start, end) => {
+      const bounded = {
+        start: Math.max(0, start),
+        end: Math.min(lines.length - 1, end),
       };
+      if (bounded.start > bounded.end) return;
+      const previous = windows[windows.length - 1];
+      if (previous && bounded.start <= previous.end + 1) {
+        previous.end = Math.max(previous.end, bounded.end);
+        return;
+      }
+      windows.push(bounded);
+    };
 
-      addWindow(0, Math.min(lines.length - 1, 59));
+    addWindow(0, Math.min(lines.length - 1, 59));
 
-      lines.forEach((line, index) => {
-        const normalizedLine = line.toLowerCase();
-        const mentionsDirectory =
-          headingPattern.test(line) ||
-          Array.from(tokenSet).some((token) => normalizedLine.includes(token));
-        if (mentionsDirectory) {
-          addWindow(index - 3, index + 6);
-        }
-      });
+    lines.forEach((line, index) => {
+      const normalizedLine = line.toLowerCase();
+      const isStructureHeading = headingPattern.test(line);
+      const mentionsDirectory =
+        isStructureHeading || Array.from(tokenSet).some((token) => normalizedLine.includes(token));
+      if (mentionsDirectory) {
+        addWindow(index - 3, index + (isStructureHeading ? 28 : 6));
+      }
+    });
 
-      const excerptLines = [];
-      windows.forEach((window, index) => {
-        const previous = windows[index - 1];
-        if (previous && window.start > previous.end + 1) {
-          excerptLines.push('... [excerpt omitted]');
-        }
-        excerptLines.push(...lines.slice(window.start, window.end + 1));
-      });
+    const excerptLines = [];
+    windows.forEach((window, index) => {
+      const previous = windows[index - 1];
+      if (previous && window.start > previous.end + 1) {
+        excerptLines.push('... [excerpt omitted]');
+      }
+      excerptLines.push(...lines.slice(window.start, window.end + 1));
+    });
 
-      return `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
-    })
-    .join('\n\n---\n\n');
+    let section = `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
+    if (section.length > perDocumentLimit) {
+      section = section.slice(0, perDocumentLimit).trimEnd() + '\n... [excerpt truncated]';
+    }
+    return section;
+  });
 
-  if (excerpt.length <= maxChars) return excerpt;
-  return excerpt.slice(0, maxChars) + '\n... [truncated]';
+  const separator = '\n\n---\n\n';
+  const result = [];
+  let usedChars = 0;
+
+  for (const section of excerptSections) {
+    const prefix = result.length > 0 ? separator : '';
+    const remaining = maxChars - usedChars - prefix.length;
+    if (remaining <= 0) break;
+
+    if (section.length <= remaining) {
+      result.push(section);
+      usedChars += prefix.length + section.length;
+      continue;
+    }
+
+    result.push(section.slice(0, remaining).trimEnd() + '\n... [truncated]');
+    break;
+  }
+
+  return result.join(separator);
 }
 
 /**
- * Build prompt context from authoritative config files, each shown in full.
- * Unlike documentation excerpts these are never truncated; callers are
- * responsible for only passing small, structurally critical files.
+ * Build full documentation-file context for directory analysis without clipping
+ * file contents. The AI prompt can then review the entire visible source set
+ * instead of selected windows.
+ *
+ * @pure
+ * @param {Array<{path: string, content: string}>} docFiles - Documentation files
+ * @returns {string} Concatenated full-file markdown content
+ */
+export function buildDirectoryDocumentationContext(docFiles, maxTotalChars = 20_000) {
+  if (!Array.isArray(docFiles) || docFiles.length === 0) return '';
+
+  const sorted = [...docFiles].sort((left, right) => {
+    const priorityDiff =
+      getDirectoryValidationDocPriority(left?.path) -
+      getDirectoryValidationDocPriority(right?.path);
+    if (priorityDiff !== 0) return priorityDiff;
+    return String(left?.path ?? '').localeCompare(String(right?.path ?? ''));
+  });
+
+  const blocks = [];
+  let remaining = maxTotalChars;
+  for (const { path: filePath, content } of sorted) {
+    if (remaining <= 0) break;
+    const raw = String(content ?? '').trimEnd();
+    const truncated = raw.length > remaining ? raw.slice(0, remaining) + '\n... [truncated]' : raw;
+    blocks.push(`### ${filePath}\n${truncated}`);
+    remaining -= truncated.length;
+  }
+  return blocks.join('\n\n---\n\n');
+}
+
+function normalizePromptPath(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '/')
+    .replace(/^\.?\//, '')
+    .replace(/\/+$/, '');
+}
+
+function getDirectoryValidationDocPriority(filePath) {
+  const normalized = normalizePromptPath(filePath).toLowerCase();
+  const exactPriority = new Map([
+    ['docs/index.md', 0],
+    ['docs/architecture.md', 1],
+    ['.github/skills.md', 2],
+    ['readme.md', 3],
+    ['index.md', 4],
+    ['docs/contributing.md', 5],
+    ['.github/copilot-instructions.md', 6],
+  ]);
+
+  if (exactPriority.has(normalized)) {
+    return exactPriority.get(normalized);
+  }
+
+  if (/(^|\/)(readme|index)\.md$/i.test(normalized)) {
+    return 7;
+  }
+
+  return 8;
+}
+
+function expandDirectoryAncestors(directoryPath) {
+  const normalized = normalizePromptPath(directoryPath);
+  if (!normalized || normalized === '.') {
+    return [];
+  }
+
+  const segments = normalized.split('/').filter(Boolean);
+  const ancestors = [];
+  for (let index = 0; index < segments.length; index += 1) {
+    ancestors.push(segments.slice(0, index + 1).join('/'));
+  }
+  return ancestors;
+}
+
+/**
+ * Build a prompt-safe directory inventory that prioritizes config-defined paths
+ * and makes truncation explicit so the AI can distinguish partial scope from
+ * confirmed absence.
+ *
+ * @pure
+ * @param {string[]} existingDirs
+ * @param {Object|null} config
+ * @param {number} [limit=Infinity]
+ * @returns {string}
+ */
+export function buildPromptDirectoryTree(existingDirs, config, limit = Number.POSITIVE_INFINITY) {
+  const normalizedExistingDirs = [
+    ...new Set((existingDirs ?? []).map(normalizePromptPath).filter(Boolean)),
+  ];
+  if (normalizedExistingDirs.length === 0) {
+    return 'none';
+  }
+
+  const existingDirSet = new Set(normalizedExistingDirs);
+  const sortedExistingDirs = [...normalizedExistingDirs].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  const structure = config?.structure ?? {};
+  const prioritySeeds = [
+    ...(structure.source_dirs ?? []),
+    ...(structure.src_dirs ?? []),
+    ...(structure.test_dirs ?? []),
+    ...(structure.docs_dirs ?? []),
+    ...(structure.ui_dirs ?? []),
+    ...(structure.css_dirs ?? []),
+  ];
+
+  const priorityDirs = [
+    ...new Set(
+      prioritySeeds
+        .flatMap((candidate) => expandDirectoryAncestors(candidate))
+        .filter((candidate) => existingDirSet.has(candidate))
+    ),
+  ].sort((left, right) => {
+    const depthDiff = left.split('/').length - right.split('/').length;
+    return depthDiff !== 0 ? depthDiff : left.localeCompare(right);
+  });
+
+  const topLevelDirs = sortedExistingDirs.filter((dir) => !dir.includes('/'));
+  const orderedDirs = [];
+  const seen = new Set();
+
+  const addUnique = (dirList) => {
+    for (const dir of dirList) {
+      if (!dir || seen.has(dir)) continue;
+      seen.add(dir);
+      orderedDirs.push(dir);
+    }
+  };
+
+  addUnique(priorityDirs);
+  addUnique(topLevelDirs);
+  addUnique(sortedExistingDirs);
+
+  if (!Number.isFinite(limit)) {
+    return orderedDirs.join('\n');
+  }
+
+  const visibleDirs = orderedDirs.slice(0, limit);
+  const hiddenCount = orderedDirs.length - visibleDirs.length;
+  if (hiddenCount > 0) {
+    visibleDirs.push(
+      `... [truncated: ${hiddenCount} additional directories not shown; total ${orderedDirs.length}]`
+    );
+  }
+
+  return visibleDirs.join('\n');
+}
+
+/**
+ * Build prompt context from authoritative config files.
+ * Each file is capped at maxCharsPerFile to prevent token overflow on large projects.
  *
  * @pure
  * @param {Array<{path: string, content: string}>} configFiles
+ * @param {number} [maxCharsPerFile=8000]
  * @returns {string} Fenced-code blocks, one per file, separated by blank lines
  */
-export function buildAuthoritativeConfigContext(configFiles) {
+export function buildAuthoritativeConfigContext(configFiles, maxCharsPerFile = 8_000) {
   if (!Array.isArray(configFiles) || configFiles.length === 0) return '';
   return configFiles
     .map(({ path: filePath, content }) => {
       const ext = String(filePath).split('.').pop() ?? '';
-      const lang = ext === 'yaml' || ext === 'yml' ? 'yaml' : 'js';
-      return `### ${filePath}\n\`\`\`${lang}\n${String(content ?? '').trimEnd()}\n\`\`\``;
+      const lang = ext === 'yaml' || ext === 'yml' ? 'yaml' : ext === 'json' ? 'json' : 'js';
+      const raw = String(content ?? '').trimEnd();
+      const body =
+        raw.length > maxCharsPerFile ? raw.slice(0, maxCharsPerFile) + '\n... [truncated]' : raw;
+      return `### ${filePath}\n\`\`\`${lang}\n${body}\n\`\`\``;
     })
     .join('\n\n');
+}
+
+const DIRECTORY_PROMPT_INCOMPLETE_EVIDENCE_PATTERN =
+  /\.\.\. \[(?:truncated(?::|])|excerpt truncated])/i;
+
+export function hasIncompleteDirectoryPromptEvidence(parts) {
+  const values = Array.isArray(parts) ? parts : [parts];
+  return values.some((part) =>
+    DIRECTORY_PROMPT_INCOMPLETE_EVIDENCE_PATTERN.test(String(part ?? ''))
+  );
 }
 
 // ============================================================================
@@ -572,7 +776,13 @@ export class Step5DirectoryAnalyzer {
   async collectDocumentationFiles(projectRoot, existingDirs = []) {
     const candidatePaths = [
       ...DIRECTORY_VALIDATION_DOC_FILES,
-      ...existingDirs.map((dir) => path.posix.join(String(dir).replace(/\\/g, '/'), 'README.md')),
+      ...existingDirs.flatMap((dir) => {
+        const normalizedDir = normalizePromptPath(dir);
+        if (!normalizedDir) return [];
+        return ['README.md', 'INDEX.md'].map((fileName) =>
+          path.posix.join(normalizedDir, fileName)
+        );
+      }),
     ];
     const seen = new Set();
     const documentationFiles = [];
@@ -694,18 +904,21 @@ export class Step5DirectoryAnalyzer {
                     .map((i) => `- [${i.type}] ${i.directory}: ${i.message}`)
                     .join('\n')
                 : 'No issues detected';
-            const dirTree =
-              (structureResults.existingDirs ?? []).length > 0
-                ? structureResults.existingDirs.slice(0, 50).join('\n')
-                : 'none';
+            let loadedConfig;
+            try {
+              loadedConfig = await this.config.load(projectRoot);
+            } catch {
+              loadedConfig = null;
+            }
+            const dirTree = buildPromptDirectoryTree(
+              structureResults.existingDirs ?? [],
+              loadedConfig,
+              300
+            );
             const documentationFiles = structureResults.documentationFiles ?? [];
             const authConfigFiles = await this.collectAuthoritativeConfigFiles(projectRoot);
             const configContext = buildAuthoritativeConfigContext(authConfigFiles);
-            const docContext = buildDirectoryDocumentationExcerpts(
-              documentationFiles,
-              structureResults.existingDirs ?? [],
-              2500
-            );
+            const docContext = buildDirectoryDocumentationContext(documentationFiles);
             return buildYamlStepPrompt(parsedYaml, 'step5_directory_prompt', {
               project_name: projectRoot,
               project_description: options.projectDescription || '',
@@ -720,7 +933,7 @@ export class Step5DirectoryAnalyzer {
               structure_issues_content: issueLines,
               dir_tree: dirTree,
               config_context: configContext || 'No authoritative config files found.',
-              doc_context: docContext || 'No documentation excerpts available.',
+              doc_context: docContext || 'No documentation files available.',
               language_specific_directory_standards: directoryStandards,
             });
           },
@@ -741,8 +954,15 @@ export class Step5DirectoryAnalyzer {
             ({ path: docPath, content }) => `doc:${docPath}:${content}`
           ),
         ];
+        const promptValidationContext = {
+          hasIncompleteEvidence: hasIncompleteDirectoryPromptEvidence(prompt),
+        };
         const aiResult = await this.aiCache.withFileChangeGuard('step_05', cacheEntries, () =>
-          this.aiHelper.executeRequest(prompt, { persona: 'architecture_reviewer' })
+          this.aiHelper.executeRequest(prompt, {
+            persona: 'architecture_reviewer',
+            responseType: 'directory_review',
+            validationContext: promptValidationContext,
+          })
         );
         const aiContent = aiResult?.content ?? '';
 

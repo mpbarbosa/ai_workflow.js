@@ -54,6 +54,8 @@ describe('error_resilience_prompt — config correctness', () => {
     expect(template).toContain('{project_name}');
     expect(template).toContain('{primary_language}');
     expect(template).toContain('{file_content_map}');
+    expect(template).toContain('emit no finding entries');
+    expect(template).toContain('Do not invent pseudo-findings');
   });
 });
 

@@ -39,7 +39,11 @@ describe('isStep10GeneratedArtifactPath', () => {
   it('detects generated artifact paths', () => {
     expect(isStep10GeneratedArtifactPath('dist/main.js')).toBe(true);
     expect(isStep10GeneratedArtifactPath('node_modules/foo.js')).toBe(true);
+    expect(isStep10GeneratedArtifactPath('docs/api/assets/navigation.js')).toBe(true);
+    expect(isStep10GeneratedArtifactPath('docs/api/html/classes/GeoPosition.html')).toBe(true);
+    expect(isStep10GeneratedArtifactPath('docs/api-generated/scripts/linenumber.js')).toBe(true);
     expect(isStep10GeneratedArtifactPath('assets/js/app.js')).toBe(true);
+    expect(isStep10GeneratedArtifactPath('public/v1/assets/main-Bn4g5hbK.js')).toBe(true);
     expect(isStep10GeneratedArtifactPath('src/app.min.js')).toBe(true);
     expect(isStep10GeneratedArtifactPath('src/app.js')).toBe(false);
   });
@@ -52,6 +56,8 @@ describe('isStep10CodeReviewableFile', () => {
   });
   it('returns false for generated artifact paths', () => {
     expect(isStep10CodeReviewableFile('dist/main.js')).toBe(false);
+    expect(isStep10CodeReviewableFile('docs/api/assets/navigation.js')).toBe(false);
+    expect(isStep10CodeReviewableFile('docs/api-generated/scripts/linenumber.js')).toBe(false);
   });
   it('returns true for reviewable extensions', () => {
     expect(isStep10CodeReviewableFile('src/foo.js')).toBe(true);
@@ -114,9 +120,7 @@ describe('buildPromptFileEntries', () => {
   it('returns single entry for small file', () => {
     const files = { 'src/a.js': 'abc' };
     const result = buildPromptFileEntries(files, { maxCharsPerEntry: 10 });
-    expect(result).toEqual([
-      { displayPath: 'src/a.js', sourcePath: 'src/a.js', excerpt: 'abc' },
-    ]);
+    expect(result).toEqual([{ displayPath: 'src/a.js', sourcePath: 'src/a.js', excerpt: 'abc' }]);
   });
   it('splits large file into multiple entries', () => {
     const files = { 'src/a.js': 'a'.repeat(25) };
@@ -150,7 +154,7 @@ describe('buildCodePromptSlices', () => {
       maxEntriesPerSlice: 2,
     });
     expect(slices.length).toBeGreaterThan(1);
-    slices.forEach(slice => {
+    slices.forEach((slice) => {
       expect(slice.entries.length).toBeLessThanOrEqual(2);
       const totalChars = slice.entries.reduce((sum, e) => sum + e.excerpt.length, 0);
       expect(totalChars).toBeLessThanOrEqual(1200);

@@ -726,6 +726,12 @@ describe(`Integration: Step 1 prompt correctness — ${KIND}`, () => {
       expect(result.mismatches).toContain('1.2.3');
     });
 
+    test('checkVersionReferences: ignores historical since metadata', () => {
+      const result = checkVersionReferences('Since: 1.2.3', '2.0.0');
+      expect(result.hasMismatches).toBe(false);
+      expect(result.mismatches).toHaveLength(0);
+    });
+
     test('checkVersionReferences: no mismatch when version matches exactly', () => {
       const result = checkVersionReferences('Release 1.0.0', '1.0.0');
       expect(result.hasMismatches).toBe(false);

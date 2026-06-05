@@ -26,6 +26,7 @@ import {
   buildPartitionFilePathsContext,
   buildReviewFileContentsBlock,
   buildReviewPromptPartitions,
+  buildSplitFileCoverage,
   MAX_PROMPT_ENTRY_CHARS,
   MAX_PROMPT_PARTITION_CHARS,
   MAX_PROMPT_ENTRIES_PER_PARTITION,
@@ -48,6 +49,14 @@ const PARTITION_SUFFIX_RE = /\s+\(part \d+\/\d+\)$/i;
 const PERFORMANCE_FILE_REFERENCE_RE = /\b[\w./-]+\.[cm]?[jt]sx?\b/g;
 const PERFORMANCE_REVIEW_EXTENSIONS = ['.js', '.mjs', '.cjs', '.ts', '.tsx'];
 const PERFORMANCE_REVIEW_EXCLUDES = ['node_modules', 'dist', 'build', 'coverage', '.git'];
+const PERFORMANCE_GENERATED_PATH_PATTERNS = [
+  /(^|\/)(dist|build|out|coverage|node_modules|vendor|\.next|\.nuxt|\.svelte-kit|\.cache|\.parcel-cache|\.ai_workflow)(\/|$)/,
+  /(^|\/)docs\/api(\/|$)/,
+  /(^|\/)docs\/api-generated(\/|$)/,
+  /(^|\/)public\/v[^/]+\/assets(\/|$)/,
+  /(^|\/)assets\/js(\/|$)/,
+  /\.min\.js$/i,
+];
 
 // ============================================================================
 // PURE FUNCTIONS
@@ -75,11 +84,14 @@ export function isPerformanceReviewTarget(filePath) {
   const normalized = String(filePath ?? '').replace(/\\/g, '/');
   const isTestFile =
     TEST_FILE_PATH_PATTERN.test(normalized) || TEST_FILE_NAME_PATTERN.test(normalized);
+  const isGeneratedArtifact = PERFORMANCE_GENERATED_PATH_PATTERNS.some((pattern) =>
+    pattern.test(normalized.toLowerCase())
+  );
 
   return (
     /\.[cm]?[jt]sx?$/i.test(normalized) &&
     !/\.d\.ts$/i.test(normalized) &&
-    !normalized.startsWith('.ai_workflow/') &&
+    !isGeneratedArtifact &&
     !isTestFile
   );
 }
@@ -253,6 +265,69 @@ export function formatPerfReport(aiContent, scores) {
   return lines.join('\n');
 }
 
+export function buildPerformanceConsolidationPrompt({
+  projectName,
+  projectDescription,
+  buildSystem,
+  totalFileCount,
+  readableFileCount,
+  completeSplitEntries = [],
+  incompleteSplitSourcePaths = [],
+  partitionAnalyses = [],
+}) {
+  const fullyCoveredSplitList =
+    completeSplitEntries.length > 0
+      ? completeSplitEntries.map((entry) => `- ${entry.relativePath}`).join('\n')
+      : '- None';
+  const incompleteSplitList =
+    incompleteSplitSourcePaths.length > 0
+      ? incompleteSplitSourcePaths.map((filePath) => `- ${filePath}`).join('\n')
+      : '- None';
+  const fullSplitFileBlock =
+    completeSplitEntries.length > 0
+      ? buildReviewFileContentsBlock(
+          completeSplitEntries.map((entry) => ({
+            relativePath: entry.relativePath,
+            sourcePath: entry.relativePath,
+            content: entry.content,
+          }))
+        )
+      : '_No fully covered split files are available for file-level consolidation._';
+
+  return [
+    '**Role**: You are a Senior JavaScript/TypeScript Performance Engineer.',
+    '',
+    '**Task**: Consolidate the partition findings below into one folder-scoped performance review.',
+    '',
+    '**Consolidation context:**',
+    `- Project: ${projectName}`,
+    `- Project Summary: ${projectDescription}`,
+    '- Primary Language: JavaScript/TypeScript',
+    `- Build System: ${buildSystem}`,
+    `- Source Files Considered: ${totalFileCount}`,
+    `- Readable Source Files Analyzed: ${readableFileCount}`,
+    '- Fully covered split files (all parts were analyzed):',
+    fullyCoveredSplitList,
+    '- Split files that remain incomplete in this run:',
+    incompleteSplitList,
+    '',
+    '**Rules:**',
+    '- Preserve only findings supported by the partition analyses and the fully covered split-file excerpts below.',
+    '- You may promote a conclusion to a file-scoped verdict only for files listed under "Fully covered split files".',
+    '- Do not introduce findings for files that are not mentioned below.',
+    '- Remove duplicate partition boilerplate, repeated tables, and overlapping recommendations.',
+    '- If the evidence is still insufficient, say so plainly.',
+    '',
+    '**Required output:** Produce one consolidated performance review with the same structure used in the partition reviews.',
+    '',
+    '**Partition findings:**',
+    partitionAnalyses.join('\n\n') || '_No partition findings were available._',
+    '',
+    '**Fully covered split-file contents:**',
+    fullSplitFileBlock,
+  ].join('\n');
+}
+
 // ============================================================================
 // STEP CONTRACT
 // ============================================================================
@@ -403,6 +478,7 @@ export class Step23PerfReview extends ReviewStepBase {
           }
 
           const aiSections = [];
+          const validPartitionAnalyses = [];
 
           for (let i = 0; i < partitionsToAnalyze.length; i++) {
             const partition = partitionsToAnalyze[i];
@@ -486,6 +562,11 @@ export class Step23PerfReview extends ReviewStepBase {
             }
 
             if (partitionContent) {
+              validPartitionAnalyses.push(
+                total > 1
+                  ? `#### Partition ${i + 1} of ${total}\n\n${partitionContent}`
+                  : partitionContent
+              );
               aiSections.push(
                 total > 1
                   ? `#### Partition ${i + 1} of ${total}\n\n${partitionContent}`
@@ -495,6 +576,52 @@ export class Step23PerfReview extends ReviewStepBase {
           }
 
           aiContent = aiSections.join('\n\n');
+
+          if (validPartitionAnalyses.length > 0 && partitionsToAnalyze.length > 1) {
+            const splitCoverage = buildSplitFileCoverage(
+              partitionsToAnalyze.flatMap((partition) => partition.entries)
+            );
+            const completeSplitEntries = fileEntries.filter((entry) =>
+              splitCoverage.completeSplitSourcePaths.includes(entry.relativePath)
+            );
+
+            try {
+              const consolidationPrompt = buildPerformanceConsolidationPrompt({
+                projectName: options.projectName ?? path.basename(projectRoot),
+                projectDescription: options.projectDescription ?? 'JavaScript/TypeScript project',
+                buildSystem,
+                totalFileCount: relativeFiles.length,
+                readableFileCount: fileEntries.length,
+                completeSplitEntries,
+                incompleteSplitSourcePaths: splitCoverage.incompleteSplitSourcePaths,
+                partitionAnalyses: validPartitionAnalyses,
+              });
+              const consolidationCacheContext =
+                `step_23:performance_engineer:consolidated:partitions:${partitionsToAnalyze.length}` +
+                `:fullSplits:${splitCoverage.completeSplitSourcePaths.join(',') || 'none'}` +
+                `:signals:${scores.totalIssues}`;
+              const consolidatedResult = await this.aiCache.withCache(
+                consolidationPrompt,
+                consolidationCacheContext,
+                () =>
+                  this.aiHelper.executeRequest(consolidationPrompt, {
+                    persona: 'performance_engineer',
+                  })
+              );
+              const consolidatedContent =
+                typeof consolidatedResult === 'string'
+                  ? consolidatedResult
+                  : (consolidatedResult?.content ?? '');
+
+              if (consolidatedContent) {
+                aiContent = consolidatedContent;
+              }
+            } catch (consolidationError) {
+              logger.warn(
+                `[step_23] Performance review consolidation skipped — ${consolidationError.message}`
+              );
+            }
+          }
         } catch (promptError) {
           logger.warn(`Step 23: AI analysis skipped — ${promptError.message}`);
         }

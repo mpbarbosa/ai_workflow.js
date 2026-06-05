@@ -40,6 +40,19 @@ describe('async_perf_engineer_prompt — evidence scoping', () => {
     expect(approach).toContain('scoped to the visible excerpt/partition');
   });
 
+  test('task guidance forbids issue rows for non-findings', () => {
+    const taskTemplate = aiHelpers.async_perf_engineer_prompt.task_template;
+    const approach = aiHelpers.async_perf_engineer_prompt.approach;
+
+    expect(taskTemplate).toContain('Do not emit `Issue:` bullets for valid patterns');
+    expect(approach).toContain(
+      'do not present that observation as an `Issue`, `Fix`, recommendation, or summary-table issue row'
+    );
+    expect(aiHelpers.async_perf_engineer_prompt.output_format).toContain(
+      '[Prioritised list of actionable next steps]'
+    );
+  });
+
   test('rendered prompt keeps runtime-scope guardrails alongside test-heavy excerpts', () => {
     const prompt = buildYamlStepPrompt(aiHelpers, 'async_perf_engineer_prompt', {
       partition_header: '[Partition 1 of 1 — test/config-only sample]',
@@ -66,6 +79,35 @@ describe('async_perf_engineer_prompt — evidence scoping', () => {
     expect(prompt).toContain('Valid test idioms');
     expect(prompt).toContain('no production async-performance findings are supported');
     expect(prompt).toContain('await expect(run()).rejects.toThrow');
+  });
+
+  test('rendered prompt explicitly forces inconclusive leak and cleanup dimensions for partial runtime coverage', () => {
+    const prompt = buildYamlStepPrompt(aiHelpers, 'async_perf_engineer_prompt', {
+      partition_header: '[Partition 1 of 2 — partial runtime coverage sample]',
+      project_name: 'guia_js',
+      project_summary: 'tourist guide SPA',
+      project_kind: 'frontend_spa',
+      primary_language: 'javascript',
+      build_system: 'npm',
+      test_framework: 'jest',
+      source_file_count:
+        '10 total runtime (3 readable with async patterns; 1 covered in this request)',
+      modified_count: '3',
+      file_paths: ['src/utils/maps-integration.ts'].join('\n'),
+      partition_scope_note:
+        'This request covers 1 of 3 readable runtime JavaScript/TypeScript file(s) that contained detectable async patterns in this review run. 7 additional runtime file(s) were excluded by the async-pattern filter and are not shown here. Treat coverage as partial, include the warning "⚠️ Coverage may be partial — not all source files were provided", and mark Memory Leaks and Resource Cleanup as inconclusive unless every lifecycle path needed for a claim is fully visible in the listed excerpts.',
+      file_content_block: [
+        '### `src/utils/maps-integration.ts`',
+        '```ts',
+        'observer.observe(node, { childList: true });',
+        '```',
+      ].join('\n'),
+    });
+
+    expect(prompt).toContain('Generated build artifacts and generated documentation assets');
+    expect(prompt).toContain('docs/api/**');
+    expect(prompt).toContain('MUST mark those two dimensions as inconclusive');
+    expect(prompt).toContain('⚠️ Coverage may be partial — not all source files were provided');
   });
 
   test('rendered prompt warns against whole-file verdicts for split excerpts', () => {
@@ -95,5 +137,40 @@ describe('async_perf_engineer_prompt — evidence scoping', () => {
     expect(prompt).toContain('src/loader.ts (part 1/4)');
     expect(prompt).toContain('do not issue a whole-file clean bill of health');
     expect(prompt).toContain('scoped to the visible excerpt/partition');
+  });
+
+  test('rendered prompt carries non-finding guardrails and output format keeps status-only summaries', () => {
+    const prompt = buildYamlStepPrompt(aiHelpers, 'async_perf_engineer_prompt', {
+      partition_header: '',
+      project_name: 'guia_js',
+      project_summary: 'tourist guide SPA',
+      project_kind: 'frontend_spa',
+      primary_language: 'javascript',
+      build_system: 'npm',
+      test_framework: 'jest',
+      source_file_count: '1 total runtime (1 with async patterns)',
+      modified_count: '1',
+      file_paths: ['src/app.ts'].join('\n'),
+      partition_scope_note:
+        'This request covers all 1 readable runtime JavaScript/TypeScript file(s).',
+      file_content_block: [
+        '### `src/app.ts`',
+        '```ts',
+        'window.addEventListener("hashchange", scheduleRouteHandling);',
+        '```',
+      ].join('\n'),
+    });
+
+    expect(prompt).toContain('If an observation concludes the current code is valid');
+    expect(prompt).toContain('Do not emit `Issue:` bullets for valid patterns');
+    expect(aiHelpers.async_perf_engineer_prompt.output_format).toContain(
+      '> **Status:** ✅ No issues | ⚠️ Minor issues (MEDIUM/LOW) | ❌ Significant issues (CRITICAL/HIGH)'
+    );
+    expect(aiHelpers.async_perf_engineer_prompt.output_format).toContain(
+      '| Dimension | Status | Issue Count |'
+    );
+    expect(aiHelpers.async_perf_engineer_prompt.output_format).toContain(
+      '[Prioritised list of actionable next steps]'
+    );
   });
 });

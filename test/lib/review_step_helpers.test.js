@@ -52,6 +52,7 @@ const {
   buildReviewPromptPartitions,
   buildReviewFileContentsBlock,
   buildPartitionFilePathsContext,
+  buildSplitFileCoverage,
   runPartitionedAiResponses,
   runPartitionedAiAnalysis,
 } = await import('../../src/lib/review_step_helpers.js');
@@ -139,6 +140,49 @@ describe('review_step_helpers', () => {
       expect(buildPartitionFilePathsContext([], 5)).toBe('');
       expect(buildPartitionFilePathsContext(null, 5)).toBe('');
       expect(buildPartitionFilePathsContext([{ foo: 'bar' }], 5)).toBe('');
+    });
+  });
+
+  describe('buildSplitFileCoverage', () => {
+    it('identifies fully covered and incomplete split files', () => {
+      const coverage = buildSplitFileCoverage([
+        { relativePath: 'src/app.ts (part 1/2)', sourcePath: 'src/app.ts' },
+        { relativePath: 'src/app.ts (part 2/2)', sourcePath: 'src/app.ts' },
+        { relativePath: 'src/large.ts (part 1/3)', sourcePath: 'src/large.ts' },
+        { relativePath: 'src/other.ts', sourcePath: 'src/other.ts' },
+      ]);
+
+      expect(coverage.completeSplitSourcePaths).toEqual(['src/app.ts']);
+      expect(coverage.incompleteSplitSourcePaths).toEqual(['src/large.ts']);
+      expect(coverage.splitFileCoverage).toEqual([
+        {
+          sourcePath: 'src/app.ts',
+          totalParts: 2,
+          partsSeen: [1, 2],
+          complete: true,
+        },
+        {
+          sourcePath: 'src/large.ts',
+          totalParts: 3,
+          partsSeen: [1],
+          complete: false,
+        },
+      ]);
+    });
+
+    it('returns empty coverage for invalid or unsplit entries', () => {
+      expect(buildSplitFileCoverage(null)).toEqual({
+        splitFileCoverage: [],
+        completeSplitSourcePaths: [],
+        incompleteSplitSourcePaths: [],
+      });
+      expect(
+        buildSplitFileCoverage([{ relativePath: 'src/app.ts', sourcePath: 'src/app.ts' }])
+      ).toEqual({
+        splitFileCoverage: [],
+        completeSplitSourcePaths: [],
+        incompleteSplitSourcePaths: [],
+      });
     });
   });
 

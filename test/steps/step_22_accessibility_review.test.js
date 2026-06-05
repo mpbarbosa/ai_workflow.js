@@ -16,6 +16,7 @@ import {
   scoreAccessibilityIssues,
   splitAccessibilityPromptEntry,
   formatAccessibilityReport,
+  buildAccessibilityConsolidationPrompt,
   MAX_PROMPT_ENTRY_CHARS,
   STEP_DEFINITION,
   Step22AccessibilityReview,
@@ -85,6 +86,12 @@ describe('step_22_accessibility_review - Pure Functions', () => {
       expect(isAccessibilityReviewTarget('docs/api/html/classes/AiCache.html')).toBe(false);
       expect(isAccessibilityReviewTarget('docs/api/html/assets/style.css')).toBe(false);
     });
+
+    test('rejects unit-test paths and test-style filenames', () => {
+      expect(isAccessibilityReviewTarget('__tests__/components/App.test.vue')).toBe(false);
+      expect(isAccessibilityReviewTarget('test/components/App.test.vue')).toBe(false);
+      expect(isAccessibilityReviewTarget('src/components/App.spec.tsx')).toBe(false);
+    });
   });
 
   describe('filterAccessibilityReviewTargets', () => {
@@ -96,6 +103,7 @@ describe('step_22_accessibility_review - Pure Functions', () => {
           '.ai_workflow/logs/run.html',
           'docs/api/html/classes/AiCache.html',
           'src/App.tsx',
+          'test/components/App.test.vue',
           'README.md',
         ])
       ).toEqual(['src/index.html', 'src/App.tsx']);
@@ -268,6 +276,28 @@ describe('step_22_accessibility_review - Pure Functions', () => {
         'src/file3.html',
       ]);
       expect(partitions[1].scopePaths).toEqual(['src/file4.html']);
+    });
+
+    describe('buildAccessibilityConsolidationPrompt', () => {
+      test('includes partition findings and fully covered split-file context', () => {
+        const prompt = buildAccessibilityConsolidationPrompt({
+          projectName: 'demo',
+          projectDescription: 'UI application',
+          framework: 'react',
+          totalFileCount: 6,
+          readableFileCount: 4,
+          completeSplitEntries: [
+            { relativePath: 'src/App.tsx', content: 'export function App() { return null; }\n' },
+          ],
+          incompleteSplitSourcePaths: ['src/Modal.tsx'],
+          partitionAnalyses: ['#### Partition 1 of 2\n\nAccessibility findings'],
+        });
+
+        expect(prompt).toContain('Consolidate the partition findings below');
+        expect(prompt).toContain('src/App.tsx');
+        expect(prompt).toContain('src/Modal.tsx');
+        expect(prompt).toContain('Accessibility findings');
+      });
     });
   });
 
@@ -736,6 +766,65 @@ describe('Step22AccessibilityReview - Wrapper', () => {
     expect(promptArg).toContain('vue');
   });
 
+  test('infers framework from package.json when none is provided', async () => {
+    const aiHelper = makeAiHelper('findings');
+    const fileOps = {
+      listDirectoryRecursive: jest.fn().mockResolvedValue(['src/index.html']),
+      readFile: jest.fn().mockImplementation((p) => {
+        if (p.endsWith('ai_helpers.yaml') || p.includes('ai_helpers')) {
+          return Promise.resolve(
+            'accessibility_review_prompt:\n' +
+              '  role_ref: accessibility_expert\n' +
+              '  task_template: |\n' +
+              '    Framework: {framework}\n' +
+              '    **File Contents (sampled source excerpts):**\n' +
+              '    {file_content_block}\n' +
+              '  approach: "review approach"'
+          );
+        }
+        if (p.endsWith('prompt_roles.yaml') || p.includes('prompt_roles')) {
+          return Promise.resolve('roles: {}');
+        }
+        if (p.endsWith('package.json')) {
+          return Promise.resolve(JSON.stringify({ dependencies: { vue: '^3.5.0' } }));
+        }
+        return Promise.resolve('<main><h1>Hello</h1></main>');
+      }),
+    };
+    const step = new Step22AccessibilityReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    await step.execute('/project');
+
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(promptArg).toContain('Framework: vue');
+    expect(promptArg).not.toContain('Framework: vanilla');
+  });
+
+  test('excludes test artifacts from modified-file accessibility scope', async () => {
+    const aiHelper = makeAiHelper('findings');
+    const step = new Step22AccessibilityReview({
+      fileOps: makeFileOps(['src/ignored-full-scan.html'], '<button aria-label="Close">X</button>'),
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+    });
+
+    const result = await step.execute('/project', {
+      modifiedFiles: ['test/components/App.test.vue', '/project/src/App.vue'],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.fileCount).toBe(1);
+    const [promptArg] = aiHelper.executeRequest.mock.calls[0];
+    expect(promptArg).toContain('src/App.vue');
+    expect(promptArg).not.toContain('test/components/App.test.vue');
+  });
+
   test('prompt scopes file paths to the current partition request', async () => {
     const files = Array.from({ length: 25 }, (_, i) => `src/page${i}.html`);
     const aiHelper = makeAiHelper('findings');
@@ -782,7 +871,8 @@ describe('Step22AccessibilityReview - Wrapper', () => {
       executeRequest: jest
         .fn()
         .mockResolvedValueOnce({ content: 'partition one findings' })
-        .mockResolvedValueOnce({ content: 'partition two findings' }),
+        .mockResolvedValueOnce({ content: 'partition two findings' })
+        .mockResolvedValueOnce({ content: 'consolidated accessibility findings' }),
     };
     const step = new Step22AccessibilityReview({
       fileOps: makeFileOps(files, '<button aria-label="Close">X</button>\n'),
@@ -793,15 +883,16 @@ describe('Step22AccessibilityReview - Wrapper', () => {
 
     const result = await step.execute('/project');
 
-    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(3);
     expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
     expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
+    expect(aiHelper.executeRequest.mock.calls[2][0]).toContain(
+      'Consolidate the partition findings below'
+    );
     expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
       'split across multiple prompt logs to avoid truncated code excerpts'
     );
-    expect(result.report).toContain('#### Partition 1 of 2');
-    expect(result.report).toContain('partition one findings');
-    expect(result.report).toContain('partition two findings');
+    expect(result.report).toContain('consolidated accessibility findings');
   });
 
   test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {

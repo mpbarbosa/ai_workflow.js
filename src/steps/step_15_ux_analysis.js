@@ -265,15 +265,24 @@ export function groupUiFilesByType(files) {
   return groups;
 }
 
-/**
- * Select the most informative UI files for content sampling.
- * Prioritizes HTML files (highest accessibility/usability signal) then CSS.
- * @param {Array<string>} uiFiles - All discovered UI file paths
- * @param {Object} fileGroups - UI files grouped by type from groupUiFilesByType
- * @param {number} [maxFiles=10] - Maximum number of files to select
- * @returns {Array<string>} - Selected file paths in priority order
- */
-export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
+function normalizeUiDir(dir) {
+  if (typeof dir !== 'string') return '';
+  return dir.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+}
+
+function getUiDirRank(filePath, uiDirs = []) {
+  const normalizedFile = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
+  for (let i = 0; i < uiDirs.length; i += 1) {
+    const normalizedDir = normalizeUiDir(uiDirs[i]);
+    if (!normalizedDir) continue;
+    if (normalizedFile === normalizedDir || normalizedFile.startsWith(`${normalizedDir}/`)) {
+      return i;
+    }
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+function selectKeyFilesByTypePriority(uiFiles, fileGroups, maxFiles = 10) {
   const htmlFiles = fileGroups.html || [];
   const cssFiles = fileGroups.css || [];
   const frameworkFiles = uiFiles.filter((file) =>
@@ -293,6 +302,68 @@ export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10) {
 
   const frameworkFallback = frameworkFiles.filter((file) => !selected.includes(file));
   return [...selected, ...frameworkFallback.slice(0, remainingSlots)].slice(0, maxFiles);
+}
+
+/**
+ * Select the most informative UI files for content sampling.
+ * Prioritizes HTML files (highest accessibility/usability signal) then CSS.
+ * @param {Array<string>} uiFiles - All discovered UI file paths
+ * @param {Object} fileGroups - UI files grouped by type from groupUiFilesByType
+ * @param {number} [maxFiles=10] - Maximum number of files to select
+ * @param {Array<string>} [uiDirs=[]] - Configured primary UI directories
+ * @returns {Array<string>} - Selected file paths in priority order
+ */
+export function selectKeyFiles(uiFiles, fileGroups, maxFiles = 10, uiDirs = []) {
+  if (!Array.isArray(uiDirs) || uiDirs.length === 0) {
+    return selectKeyFilesByTypePriority(uiFiles, fileGroups, maxFiles);
+  }
+
+  const prioritizedUiFiles = uiFiles.filter(
+    (file) => getUiDirRank(file, uiDirs) !== Number.POSITIVE_INFINITY
+  );
+  if (prioritizedUiFiles.length === 0) {
+    return selectKeyFilesByTypePriority(uiFiles, fileGroups, maxFiles);
+  }
+
+  const fallbackUiFiles = uiFiles.filter(
+    (file) => getUiDirRank(file, uiDirs) === Number.POSITIVE_INFINITY
+  );
+  const prioritizedSelection = selectKeyFilesByTypePriority(
+    prioritizedUiFiles,
+    groupUiFilesByType(prioritizedUiFiles),
+    maxFiles
+  );
+  const remainingSlots = maxFiles - prioritizedSelection.length;
+
+  if (remainingSlots <= 0) {
+    return prioritizedSelection;
+  }
+
+  const fallbackSelection = selectKeyFilesByTypePriority(
+    fallbackUiFiles,
+    groupUiFilesByType(fallbackUiFiles),
+    remainingSlots
+  ).filter((file) => !prioritizedSelection.includes(file));
+
+  return [...prioritizedSelection, ...fallbackSelection].slice(0, maxFiles);
+}
+
+export function resolveUxTargetAudience(context = {}, isTui = false) {
+  const explicitAudience =
+    context.targetAudience || context.target_audience || context.workflowTargetAudience;
+  if (typeof explicitAudience === 'string' && explicitAudience.trim()) {
+    return explicitAudience.trim();
+  }
+  return isTui ? 'Terminal application users' : 'End users';
+}
+
+export function resolveUxDesignSystemStatus(context = {}, isTui = false) {
+  const explicitDesignSystem =
+    context.designSystemStatus || context.design_system || context.workflowDesignSystemStatus;
+  if (typeof explicitDesignSystem === 'string' && explicitDesignSystem.trim()) {
+    return explicitDesignSystem.trim();
+  }
+  return isTui ? 'Ink/React TUI primitives' : 'Not specified in workflow metadata';
 }
 
 // ============================================================================
@@ -808,7 +879,7 @@ export class Step15UxAnalysis {
       // prioritises HTML/CSS which don't exist in a TUI project.
       const fileGroups = groupUiFilesByType(uiFiles);
       const fileSample = uiFiles.slice(0, 20);
-      const keyFiles = isTui ? fileSample : selectKeyFiles(uiFiles, fileGroups);
+      const keyFiles = isTui ? fileSample : selectKeyFiles(uiFiles, fileGroups, 10, context.uiDirs);
       this.logger.info(
         `${colors.blue}Phase 2:${colors.reset} Reading ${keyFiles.length} key files for AI grounding...`
       );
@@ -837,8 +908,8 @@ export class Step15UxAnalysis {
             project_name: path.basename(this.projectRoot),
             project_description: context.projectDescription || context.description || '',
             project_kind: projectType,
-            target_audience: context.targetAudience || 'Terminal application users',
-            design_system_status: context.designSystemStatus || 'Ink/React TUI primitives',
+            target_audience: resolveUxTargetAudience(context, true),
+            design_system_status: resolveUxDesignSystemStatus(context, true),
             modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
           });
           if (tuiPrompt) {
@@ -859,8 +930,8 @@ export class Step15UxAnalysis {
             project_description: context.projectDescription || context.description || '',
             file_count: String(uiFiles.length),
             project_type: projectType,
-            target_audience: context.targetAudience || 'Application developers',
-            design_system_status: context.designSystemStatus || '',
+            target_audience: resolveUxTargetAudience(context, false),
+            design_system_status: resolveUxDesignSystemStatus(context, false),
             modified_count: String(context.modifiedFiles?.length ?? uiFiles.length),
           });
           if (uiUxPrompt) {
@@ -911,18 +982,7 @@ export class Step15UxAnalysis {
           fileCount: uiFiles.length,
         };
       }
-      const rawAnalysisResult = await this.performAnalysis(prompt);
-      const evidenceValidation = validateUxAnalysisEvidenceHandling(
-        rawAnalysisResult,
-        fileContents
-      );
-      if (!evidenceValidation.adequate) {
-        this.logger.warn(`Step 15: UX analysis response normalized — ${evidenceValidation.reason}`);
-      }
-      const analysisResult = normalizeUxAnalysisResponseForEvidence(
-        rawAnalysisResult,
-        evidenceValidation
-      );
+      const analysisResult = await this.performAnalysis(prompt, fileContents);
 
       // Phase 5: Parse results
       const issueCounts = parseUxAnalysisResult(analysisResult);
@@ -1033,10 +1093,25 @@ export class Step15UxAnalysis {
   /**
    * Perform AI-powered UX analysis using ux_analyst persona
    * @param {string} prompt - Analysis prompt for AI
+   * @param {Array<{file: string, content: string}>} [fileContents=[]] - Visible UI snippets
    * @returns {Promise<string>} - AI analysis result (markdown)
    */
-  async performAnalysis(prompt) {
-    const response = await this.aiHelper.executeRequest(prompt, { persona: 'ux_analyst' });
+  async performAnalysis(prompt, fileContents = []) {
+    const response = await this.aiHelper.executeRequest(prompt, {
+      persona: 'ux_analyst',
+      responseContentNormalizer: (responseContent) => {
+        const evidenceValidation = validateUxAnalysisEvidenceHandling(
+          responseContent,
+          fileContents
+        );
+        if (!evidenceValidation.adequate) {
+          this.logger.warn(
+            `Step 15: UX analysis response normalized — ${evidenceValidation.reason}`
+          );
+        }
+        return normalizeUxAnalysisResponseForEvidence(responseContent, evidenceValidation);
+      },
+    });
     return response?.content ?? '';
   }
 }

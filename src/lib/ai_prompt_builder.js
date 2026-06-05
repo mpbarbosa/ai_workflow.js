@@ -736,7 +736,7 @@ ${docList}
 
 Treat the files in "Documentation to review" as the only documentation edit targets. Use changed files strictly as supporting evidence for whether those scoped documentation targets need updates.
 
-Treat markdown documentation outside docs/ as misplaced unless the file is README.md or CHANGELOG.md. When visible evidence shows a scoped documentation file lives at the project root and is not one of those two exceptions, propose moving it into docs/ or the appropriate docs/ subdirectory instead of normalizing new root-level docs.
+Treat markdown documentation outside docs/ as misplaced unless the file is a conventional root-level documentation file such as README.md, CHANGELOG.md, CONTRIBUTING.md, CLAUDE.md, AGENTS.md, ROADMAP.md, SECURITY.md, CODE_OF_CONDUCT.md, or SUPPORT.md. When visible evidence shows a scoped documentation file lives at the project root and matches one of those root-level conventions, treat that location as valid rather than proposing a move into docs/.
 
   A "specific edit" means a concrete before/after text change tied to a file path — NOT a vague suggestion like "consider updating X". Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If no edits are needed, state "No updates required" with a one-line reason only when the visible file contents support that conclusion. If the prompt does not include the actual content or diff for a scoped file, respond with "Unavailable" or "Inconclusive" for that file instead of "No updates required". If the provided evidence is tangential to the scoped documentation target, respond with "Not applicable" instead of "No updates required".
 
@@ -770,20 +770,22 @@ export function buildConsistencyPrompt(options) {
   const {
     docDirectory,
     docFiles = [],
+    repoWideDocFiles = [],
     scanResults = {},
     projectInfo = {},
     fileContents = '',
+    expectedVersion = '',
   } = options;
 
   const role = `You are a senior technical documentation specialist and information architect reviewing the human-readable documentation of a software project. Your expertise covers documentation quality assurance, technical writing standards, and cross-reference validation across project artefacts such as README files, architecture documents, changelogs, and API references.
 
 **Critical Behavioral Guidelines**:
-- ONLY report issues that are verifiable from the provided file list and scan results below
+- ONLY report issues that are verifiable from the provided file list, repo-wide markdown inventory, and scan results below
 - Do NOT fabricate file paths, line numbers, or references not present in the provided context
 - Do NOT invent issues about file content you have not been shown
 - The programmatic scan already covers broken links and version mismatches definitively — do not duplicate those findings
 - Do NOT claim overall consistency against package manifests, scripts, build steps, or source files unless that supporting evidence is explicitly visible in the provided context
-- When supporting evidence is missing, label conclusions as limited or inconclusive rather than inferring compliance
+- When supporting evidence is missing, label conclusions as limited or inconclusive, state exactly which evidence is missing, and do not infer compliance
 - Focus exclusively on semantic issues requiring human-readable understanding: terminology inconsistencies, ambiguous cross-references, example inconsistencies
 - If the scan found 0 issues and you have no evidence of semantic problems, say so explicitly rather than inventing issues`;
 
@@ -793,6 +795,13 @@ export function buildConsistencyPrompt(options) {
   const versionCount = scanResults.versionIssues?.length ?? 0;
   const totalIssues = scanResults.totalIssues ?? 0;
   const primaryLanguage = projectInfo.language || projectInfo.primary_language || '';
+  const repoWideInventorySection =
+    repoWideDocFiles.length > 0
+      ? `\n\n**Repo-wide markdown inventory (existence evidence only — not content evidence):**\n- The workflow discovered ${repoWideDocFiles.length} markdown file(s) across the repository.\n- Treat this inventory as authoritative only for whether a markdown file path exists somewhere in the repo.\n- A path missing from the current partition file list but present in this repo-wide inventory is **not** a missing document; it is outside this partition and may still be the intended target.\n${buildFileListContext(repoWideDocFiles)}`
+      : '';
+  const canonicalVersionSection = expectedVersion
+    ? `\n- Canonical package version detected by the workflow: ${expectedVersion}\n- Compare this canonical version only against visible current-state package/document version claims or version badges; do not treat historical markers such as \`Since:\`, \`Upstream package version:\`, or \`Documentation snapshot:\` as package-version mismatches.\n- If a visible current-state version claim differs from the canonical version, do not conclude "No version mismatch detected" unless the same visible excerpt clearly frames the document as archival or historical rather than current-state guidance.\n- Treat cues such as "Status: Archived", "Status: Deprecated", "Historical", "Archived document", archive-style paths, or explicit "as of <date>" snapshot framing as historical drift indicators when they are visible.`
+    : '';
   const fileContentsSection = fileContents
     ? `\n\n**Provided file contents and excerpts**:\n${fileContents}\n- Some excerpts may be truncated, omitted, or unavailable. Treat those markers as hard evidence limits: cite only the visible text, and mark any partition-wide or file-wide conclusion that depends on omitted content as limited or inconclusive.`
     : '\n\n**Provided file contents and excerpts**:\n(unavailable — if a conclusion requires exact wording, examples, headings, or inline code blocks, mark it unavailable or inconclusive rather than claiming success)';
@@ -823,15 +832,15 @@ those comparisons as limited or inconclusive.
 - Files checked: ${fileCount}
 - Broken file references: ${brokenCount} (already reported)
 - Version mismatches: ${versionCount} (already reported)
-- Total programmatic issues: ${totalIssues}
+- Total programmatic issues: ${totalIssues}${canonicalVersionSection}
 
 **Documentation files found:**
-${fileList}${fileContentsSection}`;
+${fileList}${repoWideInventorySection}${fileContentsSection}`;
 
   const approach = `**Your task — supplement the programmatic scan with semantic analysis:**
 1. **Terminology Consistency**: Flag terms used interchangeably that should be standardised (e.g. service names, API names, tool versions)
 2. **Example Consistency**: Identify if code examples use different conventions across files (env vars vs hardcoded values, variable naming)
-3. **Cross-Reference Clarity**: Identify ambiguous or missing cross-references between the files listed above; also flag markdown tables, numbered lists, or inline links that reference a documentation file by path or name that does not appear in the provided file list (treat as documentation gaps, not broken links)
+3. **Cross-Reference Clarity**: Identify ambiguous or missing cross-references between the files listed above; only flag markdown tables, numbered lists, or inline links as missing-documentation gaps when the referenced documentation path or filename is absent from both the provided file list and the repo-wide markdown inventory (treat those as documentation gaps, not broken links)
 4. **Version Badge Discrepancies**: When files contain version badges (e.g., \`![version](https://img.shields.io/badge/version-X.Y.Z-...)\`), compare the embedded version against authoritative sources in context (e.g., \`package.json\`); flag only if an explicit mismatch is detectable — do not flag badges whose version cannot be verified
 5. **Structured Reporting**: Organise only genuine issues by severity (Critical > High > Medium > Low)
 
@@ -840,15 +849,25 @@ ${fileList}${fileContentsSection}`;
 - Describe the specific inconsistency without fabricating line numbers
 - Provide a concrete fix
 - Classify a broken-reference candidate as "Unverified From Visible Context" when the target
-  is absent from the provided file list and there is no explicit repo-path hint or visible
+  is absent from both the provided file list and the repo-wide markdown inventory and there is no explicit repo-path hint or visible
   target excerpt proving what happened; do not mark those items as "Confirmed Broken" based
   only on partition-local visibility
+- Treat any \`(existing repo path: ...)\` hint as grounded repo evidence of a likely relative-path
+  mistake or scan-resolution issue, including on focused retry prompts
+- Treat any \`(related repo docs: ...)\` hint as grounded repo evidence that similarly named markdown files exist elsewhere in the repository; investigate rename/move/path drift before calling the target missing
+- Treat any \`(existing repo path: ...)\` hint as proof that the raw target is not simply missing, but
+  not automatically as the final replacement path; when the visible link label, nearby visible docs,
+  or source-directory context point to a more plausible destination, recommend that exact
+  source-relative correction instead of a repo-root shortcut
+- When a visible mismatch is clearly explained by archive/deprecation/snapshot framing, classify it as **Expected Historical Drift** and lower its priority instead of reporting it as a current-state defect
+- For every limited or inconclusive conclusion, state exactly which missing file, excerpt, or authoritative source prevented confirmation
 
 If no semantic issues are apparent from the provided context, respond with: "No additional issues found beyond the programmatic scan." Do not replace that with broader claims like "all documentation is consistent" unless the visible file contents support that conclusion directly.
 - Do not treat a documented command as mismatched merely because its executable name does not appear in the visible markdown file list. Commands may refer to external CLIs, package-manager binaries, or tools outside the listed docs; only flag a command mismatch when visible manifests, scripts, or file contents contradict the documented usage.
 - Do not claim that no version numbers or badges are present unless the relevant in-scope files or excerpts needed to support that absence are actually visible in the prompt or already established by the programmatic scan.
 - Do not claim heading, list, or code-fence consistency across files unless the exact supporting headings, list items, or fenced blocks are visible for each compared file; otherwise keep the claim scoped to the visible excerpts or mark it inconclusive.
 - Do not claim missing-documentation, missing-cross-reference, or stub-level checks passed merely because a file name appears in the file list; require visible file content or mark the check inconclusive.
+- Do not classify a referenced documentation file as missing merely because it is absent from the current partition file list when the repo-wide markdown inventory shows it exists elsewhere in the repository.
 - Unlabelled fenced blocks are not automatically inconsistent; only report a code-block language-tag issue when the exact visible block and a visible project convention support that conclusion.
 - Do not write negative pass findings such as "No visible inconsistencies", "No evidence of mismatched terminology", or "No missing cross-references detected" unless the exact compared artifacts are visibly supported; otherwise phrase the remaining check as limited or inconclusive.
 - If you use the exact sentence "No additional issues found beyond the programmatic scan.", do not append unsupported pass claims after it; either stop there or keep any remaining checks explicitly limited or inconclusive.
@@ -867,6 +886,7 @@ If key evidence is missing for a requested comparison, say so explicitly and mar
  * @param {string} [options.framework] - Programming language (e.g. "typescript")
  * @param {string} [options.testFramework] - Test runner/framework (e.g. "jest", "pytest")
  * @param {string} [options.testCommand] - Command to run tests (e.g. "npm test")
+ * @param {string} [options.scopedTestCommand] - Best-matching command for the scoped files
  * @param {string} [options.coverageCommand] - Command to run coverage (e.g. "npm run test:coverage")
  * @param {Object} [options.projectInfo] - Project information
  * @returns {string} Test review prompt
@@ -877,6 +897,7 @@ export function buildTestReviewPrompt(options) {
     framework = '',
     testFramework = '',
     testCommand = '',
+    scopedTestCommand = '',
     coverageCommand = '',
     projectInfo = {},
   } = options;
@@ -884,6 +905,7 @@ export function buildTestReviewPrompt(options) {
   const lang = typeof framework === 'string' ? framework.trim() : '';
   const runner = typeof testFramework === 'string' ? testFramework.trim() : '';
   const testCmd = typeof testCommand === 'string' ? testCommand.trim() : '';
+  const scopedCmd = typeof scopedTestCommand === 'string' ? scopedTestCommand.trim() : '';
   const covCmd = typeof coverageCommand === 'string' ? coverageCommand.trim() : '';
 
   const effectiveFramework = runner || lang;
@@ -903,14 +925,29 @@ export function buildTestReviewPrompt(options) {
 - Treat any named test command as repository-level context unless the visible prompt evidence proves it executes the scoped files; if compatibility is not shown, say that command compatibility is unverified
 - Do not claim CI stability, performance health, repository-wide test quality, or cross-file mock hygiene unless that evidence is shown directly in the prompt
 - Do not write unsupported positive summaries such as "all mocks are restored", "no performance issues", or "no major anti-patterns" unless the exact supporting file sections are visible and cited
+- Do not pad the review with praise-only observations, repeated "keep doing this" advice, or generic filler; if a category has no concrete issue, say "No concrete issue confirmed from the visible evidence" and move on
+- Do not infer mock hygiene from module-reset or module-mocking APIs alone; \`jest.resetModules()\`, \`jest.unstable_mockModule()\`, or similar setup does not by itself prove mock call history was cleared between tests
+- Do not call an async reroute, retry, race-condition, cancellation, or failure-handling scenario "happy path only" merely because the visible assertions eventually pass
+- Do not recommend library-specific helpers or matchers such as \`.toHaveTextContent\` unless the visible prompt evidence shows that library in imports, configuration, or package metadata
 - When recommending a concrete rewrite, include a short before/after example only when both snippets are grounded in visible code; otherwise describe the change without fabricating code`;
 
   const testList = buildFileListContext(testFiles);
 
   const taskFrameworkLabel = runner ? (lang ? `${runner} (${lang})` : runner) : lang;
   const taskFrameworkContext = taskFrameworkLabel ? ` using ${taskFrameworkLabel}` : '';
-  const commandsNote = testCmd
-    ? `\nRepository-default test command: \`${testCmd}\`${covCmd ? `; coverage command: \`${covCmd}\`` : ''}. Treat this as context, not proof that every listed file runs under that command. If compatibility is not visible, state that it is unverified.`
+  const effectiveScopedCmd = scopedCmd || testCmd;
+  const commandSegments = [];
+  if (effectiveScopedCmd) {
+    commandSegments.push(`Best-matching scoped test command: \`${effectiveScopedCmd}\``);
+  }
+  if (testCmd && testCmd !== effectiveScopedCmd) {
+    commandSegments.push(`repository-default test command: \`${testCmd}\``);
+  }
+  if (covCmd) {
+    commandSegments.push(`coverage command: \`${covCmd}\``);
+  }
+  const commandsNote = commandSegments.length
+    ? `\n${commandSegments.join('; ')}. Treat named commands as context, not proof that every listed file runs under them. If compatibility is not visible, state that it is unverified.`
     : '';
 
   const task = `Review test quality and coverage — including assertion quality, edge cases, error handling, and test isolation — for these discovered test files and test-related artifacts${taskFrameworkContext}:
@@ -930,6 +967,14 @@ If a listed file is declarative YAML/JSON/HCL or another test-adjacent artifact 
 - Cite \`file:line\` whenever the relevant line is visible
 - If you suggest rewriting code, include a short before/after example only when both snippets come from visible code or a directly grounded edit of that code
 - If evidence is truncated, do not convert missing execution-risk, CI, or mock-hygiene evidence into positive pass statements
+- For execution-risk findings without direct support, use wording such as "inconclusive from the visible evidence" instead of "safe for CI" or "no execution risks"
+- Keep summaries prioritized: confirmed issues first, minor cleanup second, and omit generic praise unless it directly supports a recommendation
+
+**Forbidden Claim Patterns**:
+- Bad: "Mocks are reset per test because \`jest.resetModules()\` is used." Good: "Module state is reset with \`jest.resetModules()\`, but mock-call cleanup is not visible in the excerpt."
+- Bad: "Only the happy path is tested." when the visible test exercises reroute, retry, failure, or race-handling behavior. Good: describe the visible scenario precisely.
+- Bad: "Use \`.toHaveTextContent\`" when DOM Testing Library or jest-dom is not visible in the prompt. Good: keep matcher advice framework-native unless the library is shown.
+- Bad: "No execution risks" or "safe for CI" without direct evidence. Good: "Execution risk is inconclusive from the visible evidence."
 
 **Focus**: Assertion quality, edge cases, error handling, test isolation, and maintainability`;
 

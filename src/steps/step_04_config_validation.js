@@ -8,6 +8,12 @@
 
 import path from 'path';
 import yaml from 'js-yaml';
+import {
+  clean as cleanSemver,
+  coerce as coerceSemver,
+  satisfies as satisfiesSemver,
+  validRange,
+} from 'semver';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
@@ -38,6 +44,9 @@ export const EXCLUDE_DIRS = [
   'dist',
   'build',
   'coverage',
+  'test-results',
+  'playwright-report',
+  '.nyc_output',
   '.ai_cache',
   '.ai_workflow',
   '.olinda',
@@ -55,6 +64,8 @@ export const CONFIG_PATTERNS = {
   toml: /\.toml$/,
   ini: /\.ini$/,
   env: /^\.env(\.\w+)?$/,
+  jsConfig:
+    /^(eslint\.config\.(js|cjs|mjs)|\.eslintrc(\.(js|cjs|mjs))?|jest\.config\.(js|cjs|mjs|ts)|vite\.config\.(js|cjs|mjs|ts)|vitest\.config\.(js|cjs|mjs|ts)|rollup\.config\.(js|cjs|mjs|ts)|tailwind\.config\.(js|cjs|mjs|ts)|babel\.config\.(js|cjs|mjs|ts))$/,
   docker: /^(Dockerfile|\.dockerignore|docker-compose.*\.ya?ml)$/,
   ci: /\.(github\/workflows\/.*\.ya?ml|\.circleci\/config\.yml|\.gitlab-ci\.yml|Jenkinsfile)$/,
   editor: /^(\.editorconfig|\.nvmrc|\.node-version|\.mdlrc)$/,
@@ -72,6 +83,126 @@ export const GENERATED_CONFIG_REPLACEMENTS = {
     '.workflow-config.yaml',
   ],
 };
+
+/**
+ * Generated artifacts that may look like config files but should not be sent to
+ * the configuration specialist. They are derived outputs rather than
+ * authoritative configuration sources.
+ */
+export const GENERATED_CONFIG_ARTIFACT_PATTERNS = [
+  /(^|\/)test-results\//i,
+  /(^|\/)playwright-report\//i,
+  /(^|\/)\.nyc_output\//i,
+  /(^|\/)test-results\.[^/]+\.json$/i,
+  /(^|\/)(coverage|test)-summary\.json$/i,
+  /(^|\/)junit[^/]*\.xml$/i,
+  /\.tsbuildinfo$/i,
+];
+
+const BASELINE_CONFIG_GLOBS = [
+  'package.json',
+  '**/package.json',
+  '.workflow-config.yaml',
+  '**/.workflow-config.yaml',
+  '.workflow-config.yml',
+  '**/.workflow-config.yml',
+  '.workflow_core/.workflow-config.yaml',
+  '**/.workflow_core/.workflow-config.yaml',
+  'tsconfig*.json',
+  '**/tsconfig*.json',
+  'jsconfig*.json',
+  '**/jsconfig*.json',
+  'eslint.config.js',
+  '**/eslint.config.js',
+  'eslint.config.cjs',
+  '**/eslint.config.cjs',
+  'eslint.config.mjs',
+  '**/eslint.config.mjs',
+  '.eslintrc',
+  '**/.eslintrc',
+  '.eslintrc.json',
+  '**/.eslintrc.json',
+  '.eslintrc.yaml',
+  '**/.eslintrc.yaml',
+  '.eslintrc.yml',
+  '**/.eslintrc.yml',
+  '.eslintrc.js',
+  '**/.eslintrc.js',
+  '.eslintrc.cjs',
+  '**/.eslintrc.cjs',
+  '.eslintrc.mjs',
+  '**/.eslintrc.mjs',
+  'jest.config.js',
+  '**/jest.config.js',
+  'jest.config.cjs',
+  '**/jest.config.cjs',
+  'jest.config.mjs',
+  '**/jest.config.mjs',
+  'jest.config.ts',
+  '**/jest.config.ts',
+  'vite.config.js',
+  '**/vite.config.js',
+  'vite.config.cjs',
+  '**/vite.config.cjs',
+  'vite.config.mjs',
+  '**/vite.config.mjs',
+  'vite.config.ts',
+  '**/vite.config.ts',
+  'vitest.config.js',
+  '**/vitest.config.js',
+  'vitest.config.cjs',
+  '**/vitest.config.cjs',
+  'vitest.config.mjs',
+  '**/vitest.config.mjs',
+  'vitest.config.ts',
+  '**/vitest.config.ts',
+  'rollup.config.js',
+  '**/rollup.config.js',
+  'rollup.config.cjs',
+  '**/rollup.config.cjs',
+  'rollup.config.mjs',
+  '**/rollup.config.mjs',
+  'rollup.config.ts',
+  '**/rollup.config.ts',
+  'tailwind.config.js',
+  '**/tailwind.config.js',
+  'tailwind.config.cjs',
+  '**/tailwind.config.cjs',
+  'tailwind.config.mjs',
+  '**/tailwind.config.mjs',
+  'tailwind.config.ts',
+  '**/tailwind.config.ts',
+  'babel.config.js',
+  '**/babel.config.js',
+  'babel.config.cjs',
+  '**/babel.config.cjs',
+  'babel.config.mjs',
+  '**/babel.config.mjs',
+  'babel.config.ts',
+  '**/babel.config.ts',
+  '.editorconfig',
+  '**/.editorconfig',
+  '.nvmrc',
+  '**/.nvmrc',
+  '.node-version',
+  '**/.node-version',
+  'Dockerfile',
+  '**/Dockerfile',
+  'Dockerfile.*',
+  '**/Dockerfile.*',
+  'docker-compose.yml',
+  '**/docker-compose.yml',
+  'docker-compose.yaml',
+  '**/docker-compose.yaml',
+  'docker-compose.*.yml',
+  '**/docker-compose.*.yml',
+  'docker-compose.*.yaml',
+  '**/docker-compose.*.yaml',
+  '.github/workflows/*.yml',
+  '**/.github/workflows/*.yml',
+  '.github/workflows/*.yaml',
+  '**/.github/workflows/*.yaml',
+];
 
 /**
  * Secret patterns to detect
@@ -136,7 +267,11 @@ export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
  * @returns {boolean} True if configuration file
  */
 export function isConfigFile(filePath) {
-  const fileName = filePath.split('/').pop();
+  const normalizedPath = normalizeConfigPath(filePath);
+  if (isGeneratedConfigArtifactPath(normalizedPath)) {
+    return false;
+  }
+  const fileName = normalizedPath.split('/').pop();
 
   return Object.values(CONFIG_PATTERNS).some((pattern) => {
     if (pattern instanceof RegExp) {
@@ -153,12 +288,17 @@ export function isConfigFile(filePath) {
  * @returns {string} Configuration type (json, yaml, etc.)
  */
 export function getConfigType(filePath) {
-  const fileName = filePath.split('/').pop();
+  const normalizedPath = normalizeConfigPath(filePath);
+  if (isGeneratedConfigArtifactPath(normalizedPath)) {
+    return 'unknown';
+  }
+  const fileName = normalizedPath.split('/').pop();
 
   // Check most specific patterns first
   const priorityOrder = [
     'ci',
     'docker',
+    'jsConfig',
     'editor',
     'git',
     'make',
@@ -181,6 +321,41 @@ export function getConfigType(filePath) {
 
 function normalizeConfigPath(filePath) {
   return String(filePath ?? '').replace(/\\/g, '/');
+}
+
+function isGeneratedConfigArtifactPath(filePath) {
+  const normalizedPath = normalizeConfigPath(filePath);
+  return GENERATED_CONFIG_ARTIFACT_PATTERNS.some((pattern) => pattern.test(normalizedPath));
+}
+
+function isPathInExcludedDir(filePath) {
+  const normalizedPath = normalizeConfigPath(filePath);
+  return EXCLUDE_DIRS.some((dir) => normalizedPath.split('/').includes(dir));
+}
+
+function isBaselineConfigPath(filePath) {
+  const normalizedPath = normalizeConfigPath(filePath);
+  const fileName = normalizedPath.split('/').pop() ?? '';
+  return (
+    fileName === 'package.json' ||
+    /^tsconfig.*\.json$/i.test(fileName) ||
+    /^jsconfig.*\.json$/i.test(fileName) ||
+    /^eslint\.config\.(js|cjs|mjs)$/i.test(fileName) ||
+    /^\.eslintrc(\.(json|ya?ml|js|cjs|mjs))?$/i.test(fileName) ||
+    /^jest\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    /^vite\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    /^vitest\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    /^rollup\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    /^tailwind\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    /^babel\.config\.(js|cjs|mjs|ts)$/i.test(fileName) ||
+    ['.editorconfig', '.nvmrc', '.node-version', 'Dockerfile'].includes(fileName) ||
+    /^Dockerfile\./.test(fileName) ||
+    /^docker-compose(\..+)?\.ya?ml$/i.test(fileName) ||
+    normalizedPath === '.workflow-config.yaml' ||
+    normalizedPath === '.workflow-config.yml' ||
+    normalizedPath === '.workflow_core/.workflow-config.yaml' ||
+    /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(normalizedPath)
+  );
 }
 
 function getGeneratedConfigReplacementPaths(filePath) {
@@ -434,6 +609,359 @@ export function checkConfigBestPractices(content, type) {
   return issues;
 }
 
+function parseJsonConfigForConsistency(content) {
+  try {
+    return JSON.parse(stripJsonComments(content));
+  } catch {
+    return null;
+  }
+}
+
+function parseYamlConfigForConsistency(content) {
+  try {
+    return yaml.load(content);
+  } catch {
+    return null;
+  }
+}
+
+function detectMarkdownLintToolFromScript(script) {
+  const command = String(script ?? '');
+  if (/\bmarkdownlint-cli2\b/.test(command)) {
+    return 'markdownlint-cli2';
+  }
+  if (/\bmarkdownlint\b/.test(command)) {
+    return 'markdownlint-cli';
+  }
+  return null;
+}
+
+function parseGlobalCoverageThreshold(packageJson) {
+  const globalThreshold = packageJson?.jest?.coverageThreshold?.global;
+  if (!globalThreshold || typeof globalThreshold !== 'object') {
+    return null;
+  }
+
+  const metrics = ['statements', 'branches', 'functions', 'lines'];
+  const parsed = {};
+  for (const metric of metrics) {
+    const value = globalThreshold[metric];
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    parsed[metric] = Number(value);
+  }
+
+  return parsed;
+}
+
+/**
+ * Parse the narrow human-readable coverage-threshold echo emitted by some CI workflows.
+ *
+ * This intentionally only matches the visible `Statements: ≥N%, Branches: ≥N%,
+ * Functions: ≥N%, Lines: ≥N%` summary pattern.
+ *
+ * @param {string} content - Workflow file content
+ * @returns {{statements: number, branches: number, functions: number, lines: number}|null}
+ */
+function parseWorkflowCoverageThresholdEcho(content) {
+  const text = String(content ?? '');
+  const extractMetric = (label) => {
+    const match = text.match(new RegExp(`${label}:\\s*≥\\s*(\\d+)%`, 'i'));
+    return match ? Number.parseInt(match[1], 10) : null;
+  };
+
+  const parsed = {
+    statements: extractMetric('Statements'),
+    branches: extractMetric('Branches'),
+    functions: extractMetric('Functions'),
+    lines: extractMetric('Lines'),
+  };
+
+  return Object.values(parsed).every(Number.isInteger) ? parsed : null;
+}
+
+function formatCoverageThresholdSummary(thresholds) {
+  if (!thresholds) return '';
+  return `Statements: ≥${thresholds.statements}%, Branches: ≥${thresholds.branches}%, Functions: ≥${thresholds.functions}%, Lines: ≥${thresholds.lines}%`;
+}
+
+function parseLockfileConfigForConsistency(content) {
+  const parsed = parseJsonConfigForConsistency(content);
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const rootPackage =
+    parsed.packages && typeof parsed.packages === 'object' && parsed.packages !== null
+      ? parsed.packages['']
+      : null;
+
+  return {
+    version:
+      typeof parsed.version === 'string'
+        ? parsed.version
+        : typeof rootPackage?.version === 'string'
+          ? rootPackage.version
+          : null,
+  };
+}
+
+function parseNodeVersionFileForConsistency(content) {
+  const firstMeaningfulLine = String(content ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line && !line.startsWith('#'));
+
+  if (!firstMeaningfulLine) {
+    return null;
+  }
+
+  const cleaned =
+    cleanSemver(firstMeaningfulLine) ?? cleanSemver(coerceSemver(firstMeaningfulLine));
+  return typeof cleaned === 'string' ? cleaned : null;
+}
+
+function normalizePartitionChunk(chunk) {
+  return chunk.endsWith('\n') ? chunk.slice(0, -1) : chunk;
+}
+
+function splitTextOnLineBoundaries(content, maxEntryChars) {
+  const normalizedContent = String(content ?? '');
+  const lines = normalizedContent.split(/(?<=\n)/);
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const line of lines) {
+    if (line.length > maxEntryChars) {
+      if (currentChunk) {
+        chunks.push(normalizePartitionChunk(currentChunk));
+        currentChunk = '';
+      }
+
+      for (let index = 0; index < line.length; index += maxEntryChars) {
+        chunks.push(normalizePartitionChunk(line.slice(index, index + maxEntryChars)));
+      }
+      continue;
+    }
+
+    if (currentChunk.length > 0 && currentChunk.length + line.length > maxEntryChars) {
+      chunks.push(normalizePartitionChunk(currentChunk));
+      currentChunk = '';
+    }
+
+    currentChunk += line;
+  }
+
+  if (currentChunk) {
+    chunks.push(normalizePartitionChunk(currentChunk));
+  }
+
+  return chunks.filter(Boolean);
+}
+
+function splitYamlOnStructureBoundaries(content, maxEntryChars) {
+  const normalizedContent = String(content ?? '');
+  const lines = normalizedContent.split('\n');
+  const chunks = [];
+  let currentLines = [];
+
+  const flushCurrent = () => {
+    if (currentLines.length === 0) return;
+    const chunk = currentLines.join('\n');
+    if (chunk.length <= maxEntryChars) {
+      chunks.push(chunk);
+    } else {
+      chunks.push(...splitTextOnLineBoundaries(chunk, maxEntryChars));
+    }
+    currentLines = [];
+  };
+
+  for (const line of lines) {
+    const startsTopLevelKey = /^[^\s#][^:]*:\s*(?:#.*)?$/.test(line);
+    const candidateChunk = [...currentLines, line].join('\n');
+
+    if (
+      startsTopLevelKey &&
+      currentLines.length > 0 &&
+      currentLines.join('\n').length > 0 &&
+      candidateChunk.length > maxEntryChars
+    ) {
+      flushCurrent();
+    }
+
+    currentLines.push(line);
+  }
+
+  flushCurrent();
+  return chunks.filter(Boolean);
+}
+
+function splitPromptContent(relativePath, content, maxEntryChars) {
+  const normalizedPath = String(relativePath ?? '').replace(/\\/g, '/');
+  if (/\.ya?ml$/i.test(normalizedPath)) {
+    return splitYamlOnStructureBoundaries(content, maxEntryChars);
+  }
+
+  return splitTextOnLineBoundaries(content, maxEntryChars);
+}
+
+/**
+ * Check deterministic cross-file consistency for related configuration sources.
+ *
+ * @pure
+ * @param {Array<{relativePath: string, content: string}>} fileEntries - Visible config files
+ * @returns {Object[]} Array of best-practice issues
+ */
+export function findCrossConfigConsistencyIssues(fileEntries) {
+  const entries = Array.isArray(fileEntries) ? fileEntries : [];
+  const issues = [];
+  const seenMessages = new Set();
+  const addIssue = (message) => {
+    if (!message || seenMessages.has(message)) {
+      return;
+    }
+    seenMessages.add(message);
+    issues.push({
+      type: CONFIG_ISSUE_TYPE.INVALID_VALUE,
+      message,
+    });
+  };
+
+  const normalizedEntries = entries.map((entry) => ({
+    relativePath: normalizeConfigPath(entry?.relativePath ?? ''),
+    content: String(entry?.content ?? ''),
+  }));
+
+  const packageEntry =
+    normalizedEntries.find((entry) => entry.relativePath === 'package.json') ??
+    normalizedEntries.find((entry) => entry.relativePath.endsWith('/package.json'));
+  const lockfileEntry =
+    normalizedEntries.find((entry) => /(^|\/)npm-shrinkwrap\.json$/i.test(entry.relativePath)) ??
+    normalizedEntries.find((entry) => /(^|\/)package-lock\.json$/i.test(entry.relativePath));
+  const nodeVersionEntry =
+    normalizedEntries.find((entry) => /(^|\/)\.nvmrc$/i.test(entry.relativePath)) ??
+    normalizedEntries.find((entry) => /(^|\/)\.node-version$/i.test(entry.relativePath));
+  const workflowEntry =
+    normalizedEntries.find(
+      (entry) =>
+        entry.relativePath === '.workflow-config.yaml' ||
+        entry.relativePath === '.workflow-config.yml'
+    ) ??
+    normalizedEntries.find((entry) => /(^|\/)\.workflow-config\.ya?ml$/i.test(entry.relativePath));
+  const ciWorkflowEntries = normalizedEntries.filter((entry) =>
+    /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(entry.relativePath)
+  );
+
+  const packageJson = packageEntry?.content
+    ? parseJsonConfigForConsistency(packageEntry.content)
+    : null;
+  const lockfileJson = lockfileEntry?.content
+    ? parseLockfileConfigForConsistency(lockfileEntry.content)
+    : null;
+  const nodeVersion = nodeVersionEntry?.content
+    ? parseNodeVersionFileForConsistency(nodeVersionEntry.content)
+    : null;
+  const workflowConfig = workflowEntry?.content
+    ? parseYamlConfigForConsistency(workflowEntry.content)
+    : null;
+
+  const packageVersion = packageJson?.version;
+  const lockfileVersion = lockfileJson?.version;
+  const workflowVersion = workflowConfig?.project?.version;
+  const packageNodeEngine =
+    typeof packageJson?.engines?.node === 'string' ? packageJson.engines.node.trim() : null;
+  if (
+    typeof packageVersion === 'string' &&
+    typeof workflowVersion === 'string' &&
+    packageVersion !== workflowVersion
+  ) {
+    addIssue(
+      `.workflow-config.yaml project.version "${workflowVersion}" does not match package.json version "${packageVersion}".`
+    );
+  }
+
+  if (
+    typeof packageVersion === 'string' &&
+    typeof lockfileVersion === 'string' &&
+    lockfileVersion !== packageVersion
+  ) {
+    addIssue(
+      `${lockfileEntry.relativePath} version "${lockfileVersion}" does not match package.json version "${packageVersion}".`
+    );
+  }
+
+  if (
+    packageNodeEngine &&
+    typeof nodeVersion === 'string' &&
+    validRange(packageNodeEngine) &&
+    !satisfiesSemver(nodeVersion, packageNodeEngine, { includePrerelease: true })
+  ) {
+    addIssue(
+      `${nodeVersionEntry.relativePath} version "${nodeVersion}" does not satisfy package.json engines.node "${packageNodeEngine}".`
+    );
+  }
+
+  const packageLintMdScript = packageJson?.scripts?.['lint:md'];
+  const packageLintTool = detectMarkdownLintToolFromScript(packageLintMdScript);
+  const workflowLintTool =
+    typeof workflowConfig?.linting?.md_linter === 'string'
+      ? workflowConfig.linting.md_linter
+      : null;
+
+  if (packageLintTool && workflowLintTool && workflowLintTool !== packageLintTool) {
+    addIssue(
+      `.workflow-config.yaml linting.md_linter "${workflowLintTool}" does not match the package.json lint:md tool "${packageLintTool}".`
+    );
+  }
+
+  if (
+    workflowLintTool &&
+    packageJson?.devDependencies &&
+    !Object.prototype.hasOwnProperty.call(packageJson.devDependencies, workflowLintTool)
+  ) {
+    addIssue(
+      `.workflow-config.yaml linting.md_linter "${workflowLintTool}" is not present in package.json devDependencies.`
+    );
+  }
+
+  const markdownLintStep = Array.isArray(workflowConfig?.workflow?.steps)
+    ? workflowConfig.workflow.steps.find((step) => step?.id === 'step_13')
+    : null;
+  const markdownLintDescription =
+    typeof markdownLintStep?.description === 'string' ? markdownLintStep.description : '';
+  if (
+    packageLintTool &&
+    markdownLintDescription &&
+    /markdownlint-cli2/.test(markdownLintDescription) &&
+    packageLintTool !== 'markdownlint-cli2'
+  ) {
+    addIssue(
+      `step_13 markdown-lint description references "markdownlint-cli2", but package.json lint:md uses "${packageLintTool}".`
+    );
+  }
+
+  const packageCoverageThreshold = parseGlobalCoverageThreshold(packageJson);
+  if (packageCoverageThreshold) {
+    const packageCoverageSummary = formatCoverageThresholdSummary(packageCoverageThreshold);
+    for (const entry of ciWorkflowEntries) {
+      const workflowCoverageThreshold = parseWorkflowCoverageThresholdEcho(entry.content);
+      if (!workflowCoverageThreshold) {
+        continue;
+      }
+
+      const workflowCoverageSummary = formatCoverageThresholdSummary(workflowCoverageThreshold);
+      if (workflowCoverageSummary !== packageCoverageSummary) {
+        addIssue(
+          `${entry.relativePath} coverage-threshold summary "${workflowCoverageSummary}" does not match package.json jest.coverageThreshold.global "${packageCoverageSummary}".`
+        );
+      }
+    }
+  }
+
+  return issues;
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Reporting
 // ============================================================================
@@ -548,7 +1076,7 @@ export function groupConfigFilesList(relPaths) {
 export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_CHARS) {
   if (!fileEntries || fileEntries.length === 0) return '';
   return fileEntries
-    .map(({ relativePath, content }) => {
+    .map(({ relativePath, content, introNote = '', outroNote = '' }) => {
       const normalizedContent =
         typeof content === 'string' && content.trim().length > 0 ? content : '[empty file]';
       const trimmed =
@@ -556,7 +1084,16 @@ export function buildFileContentsBlock(fileEntries, maxChars = MAX_FILE_CONTENT_
           ? normalizedContent.slice(0, maxChars) +
             `\n... [truncated — ${normalizedContent.length - maxChars} more chars]`
           : normalizedContent;
-      return `--- ${relativePath} ---\n\`\`\`\n${trimmed}\n\`\`\``;
+      return [
+        `--- ${relativePath} ---`,
+        introNote ? `> ${introNote}` : '',
+        '```',
+        trimmed,
+        '```',
+        outroNote ? `> ${outroNote}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
     })
     .join('\n\n');
 }
@@ -754,15 +1291,22 @@ function splitPromptEntry(entry, maxEntryChars = MAX_PROMPT_ENTRY_CHARS) {
     ];
   }
 
-  const totalParts = Math.ceil(preparedContent.length / maxEntryChars);
+  const chunks = splitPromptContent(entry.relativePath, preparedContent, maxEntryChars);
+  const totalParts = chunks.length;
   const parts = [];
   for (let i = 0; i < totalParts; i++) {
-    const start = i * maxEntryChars;
-    const end = start + maxEntryChars;
+    const partNumber = i + 1;
     parts.push({
-      relativePath: `${entry.relativePath} (part ${i + 1}/${totalParts})`,
+      relativePath: `${entry.relativePath} (part ${partNumber}/${totalParts})`,
       sourcePath: entry.relativePath,
-      content: preparedContent.slice(start, end),
+      content: chunks[i],
+      introNote: `Sequential slice notice: this is part ${partNumber}/${totalParts} of ${entry.relativePath}. It is not a standalone document; do not claim standalone syntax or schema validity for this slice alone.`,
+      outroNote:
+        partNumber < totalParts
+          ? `This file continues in part ${partNumber + 1}/${totalParts}; keep any conclusion limited to the visible slice(s).`
+          : totalParts > 1
+            ? `Earlier parts of this file were provided separately; keep any conclusion limited to the visible slice(s).`
+            : '',
     });
   }
   return parts;
@@ -834,12 +1378,50 @@ export function selectConfigPromptPartitions(
   let scopedEntries = entries;
   let scopeNote = '';
   if (totalIssues === 0 && normalizedModifiedFiles.size > 0) {
-    const modifiedEntries = entries.filter((entry) =>
-      normalizedModifiedFiles.has(String(entry.relativePath || '').replace(/\\/g, '/'))
+    const promptCompanionPaths = new Set();
+    if (normalizedModifiedFiles.has('package.json')) {
+      for (const companionPath of [
+        'package-lock.json',
+        'npm-shrinkwrap.json',
+        '.nvmrc',
+        '.node-version',
+      ]) {
+        const hasCompanion = entries.some(
+          (entry) => String(entry.relativePath || '').replace(/\\/g, '/') === companionPath
+        );
+        if (hasCompanion) {
+          promptCompanionPaths.add(companionPath);
+        }
+      }
+    }
+    const modifiedEntries = entries.filter((entry) => {
+      const normalizedPath = String(entry.relativePath || '').replace(/\\/g, '/');
+      return (
+        normalizedModifiedFiles.has(normalizedPath) || promptCompanionPaths.has(normalizedPath)
+      );
+    });
+    const protectedBaselineEntries = entries.filter((entry) =>
+      isBaselineConfigPath(String(entry.relativePath || '').replace(/\\/g, '/'))
     );
-    if (modifiedEntries.length > 0 && modifiedEntries.length < entries.length) {
-      scopedEntries = modifiedEntries;
-      scopeNote = `AI review scoped to ${modifiedEntries.length} modified configuration file(s) because deterministic validation found no confirmed issues.`;
+    const scopedByPath = new Map();
+    for (const entry of [...protectedBaselineEntries, ...modifiedEntries]) {
+      scopedByPath.set(entry.relativePath, entry);
+    }
+    const prioritizedEntries = [...scopedByPath.values()];
+    if (prioritizedEntries.length > 0 && prioritizedEntries.length < entries.length) {
+      scopedEntries = prioritizedEntries;
+      const companionOnlyCount = Math.max(0, promptCompanionPaths.size);
+      const baselineOnlyCount = Math.max(
+        0,
+        prioritizedEntries.length - modifiedEntries.length - companionOnlyCount
+      );
+      scopeNote =
+        baselineOnlyCount > 0 || companionOnlyCount > 0
+          ? `AI review scoped to ${normalizedModifiedFiles.size} modified configuration file(s)` +
+            `${companionOnlyCount > 0 ? ` plus ${companionOnlyCount} inferred companion file(s)` : ''}` +
+            `${baselineOnlyCount > 0 ? ` plus ${baselineOnlyCount} baseline configuration file(s)` : ''}` +
+            ' because deterministic validation found no confirmed issues.'
+          : `AI review scoped to ${normalizedModifiedFiles.size} modified configuration file(s) because deterministic validation found no confirmed issues.`;
     }
   }
 
@@ -1309,6 +1891,7 @@ export class Step4ConfigAnalyzer {
           ? options.configFiles
           : null;
       let configFiles = await this.discoverConfigFiles(projectRoot, declaredFiles);
+      configFiles = await this.inferCompanionConfigFiles(projectRoot, configFiles);
       configFiles = await this.resolveConfigFilesForValidation(projectRoot, configFiles);
       if (configFiles.length === 0) {
         logger.info('No configuration files found - skipping validation');
@@ -1351,6 +1934,18 @@ export class Step4ConfigAnalyzer {
         bestPracticeIssues.push(...issues);
       }
 
+      const relPaths = configFiles.map((f) => path.relative(projectRoot, f));
+      const fileEntries = [];
+      for (let i = 0; i < configFiles.length; i++) {
+        try {
+          const content = await this.fileOps.readFile(configFiles[i]);
+          fileEntries.push({ relativePath: relPaths[i], content });
+        } catch {
+          /* skip unreadable files */
+        }
+      }
+      bestPracticeIssues.push(...findCrossConfigConsistencyIssues(fileEntries));
+
       logger.info(`Best practices: ${bestPracticeIssues.length} issue(s)`);
 
       // Phase 5: Generate report
@@ -1386,17 +1981,6 @@ export class Step4ConfigAnalyzer {
           /* tech stack detection is optional */
         }
 
-        // Read file contents so the AI can actually analyze them
-        const relPaths = configFiles.map((f) => path.relative(projectRoot, f));
-        const fileEntries = [];
-        for (let i = 0; i < configFiles.length; i++) {
-          try {
-            const content = await this.fileOps.readFile(configFiles[i]);
-            fileEntries.push({ relativePath: relPaths[i], content });
-          } catch {
-            /* skip unreadable files */
-          }
-        }
         const parsedYaml = await loadResolvedAiHelpers(this.fileOps).catch(() => null);
         const { promptPartitions, scopeNote: promptScopeNote } = selectConfigPromptPartitions(
           fileEntries,
@@ -1634,41 +2218,59 @@ ${filesContentBlock}`,
       return declaredFiles.map((f) => (path.isAbsolute(f) ? f : path.resolve(projectRoot, f)));
     }
 
+    const discoveredFiles = new Map();
+    const addCandidate = (filePath) => {
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(projectRoot, filePath);
+      const relativePath = normalizeConfigPath(path.relative(projectRoot, absolutePath));
+      if (!relativePath || relativePath.startsWith('..')) return;
+      if (!isConfigFile(relativePath)) return;
+      if (isPathInExcludedDir(relativePath)) return;
+      discoveredFiles.set(relativePath, absolutePath);
+    };
+
     try {
       const changedFiles = await this.gitOps.getModifiedFiles();
-      const configChanged = changedFiles
-        .filter(
-          (file) => isConfigFile(file) && !EXCLUDE_DIRS.some((dir) => file.split('/').includes(dir))
-        )
-        .map((file) => (path.isAbsolute(file) ? file : path.resolve(projectRoot, file)));
-      if (configChanged.length > 0) {
-        return configChanged;
+      for (const file of changedFiles) {
+        addCandidate(file);
       }
     } catch {
-      // Git unavailable; fall through to glob scan
+      // Git unavailable; continue with baseline discovery
     }
 
-    // Fallback: scan common config files (clean working tree or git error)
-    const patterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
-
-    const files = [];
-    for (const pattern of patterns) {
+    for (const pattern of BASELINE_CONFIG_GLOBS) {
       try {
         const found = await this.fileOps.glob(pattern, {
           cwd: projectRoot,
           ignore: EXCLUDE_DIRS.map((dir) => `**/${dir}/**`),
         });
-        files.push(
-          ...found
-            .filter((f) => isConfigFile(f))
-            .map((f) => (path.isAbsolute(f) ? f : path.resolve(projectRoot, f)))
-        );
+        for (const file of found) {
+          addCandidate(file);
+        }
       } catch {
         // Pattern not found, continue
       }
     }
 
-    return [...new Set(files)];
+    if (discoveredFiles.size === 0) {
+      const fallbackPatterns = ['**/*.json', '**/*.yaml', '**/*.yml', '**/.env*', '**/Dockerfile'];
+      for (const pattern of fallbackPatterns) {
+        try {
+          const found = await this.fileOps.glob(pattern, {
+            cwd: projectRoot,
+            ignore: EXCLUDE_DIRS.map((dir) => `**/${dir}/**`),
+          });
+          for (const file of found) {
+            addCandidate(file);
+          }
+        } catch {
+          // Pattern not found, continue
+        }
+      }
+    }
+
+    return [...discoveredFiles.values()];
   }
 
   async resolveConfigFilesForValidation(projectRoot, configFiles) {
@@ -1716,6 +2318,67 @@ ${filesContentBlock}`,
       }
 
       addResolvedFile(absolutePath);
+    }
+
+    return resolvedFiles;
+  }
+
+  async inferCompanionConfigFiles(projectRoot, configFiles) {
+    const resolvedFiles = [];
+    const seen = new Set();
+
+    const addResolvedFile = (filePath) => {
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(projectRoot, filePath);
+      const relativePath = normalizeConfigPath(path.relative(projectRoot, absolutePath));
+      if (!relativePath || relativePath.startsWith('..') || seen.has(relativePath)) {
+        return;
+      }
+      seen.add(relativePath);
+      resolvedFiles.push(absolutePath);
+    };
+
+    const canReadFile = async (relativePath) => {
+      const absolutePath = path.resolve(projectRoot, relativePath);
+      try {
+        await this.fileOps.readFile(absolutePath);
+        return absolutePath;
+      } catch {
+        return null;
+      }
+    };
+
+    for (const filePath of configFiles) {
+      addResolvedFile(filePath);
+    }
+
+    const packageFile = resolvedFiles.find((filePath) =>
+      normalizeConfigPath(path.relative(projectRoot, filePath)).endsWith('package.json')
+    );
+    if (!packageFile) {
+      return resolvedFiles;
+    }
+
+    const packageContent = await this.fileOps.readFile(packageFile).catch(() => null);
+    const packageJson = packageContent ? parseJsonConfigForConsistency(packageContent) : null;
+
+    for (const companionPath of ['npm-shrinkwrap.json', 'package-lock.json']) {
+      const readableCompanion = await canReadFile(companionPath);
+      if (readableCompanion) {
+        addResolvedFile(readableCompanion);
+        break;
+      }
+    }
+
+    if (typeof packageJson?.engines?.node === 'string') {
+      for (const companionPath of ['.nvmrc', '.node-version']) {
+        const readableCompanion = await canReadFile(companionPath);
+        if (readableCompanion) {
+          addResolvedFile(readableCompanion);
+          break;
+        }
+      }
     }
 
     return resolvedFiles;

@@ -390,6 +390,173 @@ export function countSections(content, expectedSections) {
   };
 }
 
+const TEST_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS = [
+  /\bsafe for ci\b/i,
+  /\bci-safe\b/i,
+  /\bno execution risks?\b/i,
+  /\bno execution-risk issues?\b/i,
+  /\bno ci issues?\b/i,
+  /\bno visible non-deterministic patterns?\b/i,
+  /\bno slow operations?\b/i,
+  /\bno performance issues?\b/i,
+  /\ball mocks are restored\b/i,
+  /\bmocks are reset per test\b/i,
+  /\bcoverage (?:meets|met|passes|passed)(?: or exceeds)?(?: the)?(?: stated| configured)? threshold\b/i,
+  /\ball expected suites ran\b/i,
+  /\bacross unit,\s*integration,\s*(?:and\s*)?e2e\b/i,
+  /\bci\/cd(?: pipeline)? is already robust\b/i,
+];
+
+const TEST_REVIEW_HEDGING_PATTERN =
+  /\binconclusive\b|\bunverified\b|\blimited\b|\bnot (?:visible|shown)\b|\bfrom the visible evidence\b|\bvisible evidence does not show\b|\bcannot confirm\b|\bnot enough evidence\b/i;
+const FILE_LINE_CITATION_PATTERN =
+  /(?:^|[\s`(])(?:[A-Za-z0-9_./-]+\.[A-Za-z0-9_-]+:\d+(?:-\d+)?)(?=$|[\s`),.;])/;
+const TYPESCRIPT_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS = [
+  /\ball other files in the sample are type-safe(?: and idiomatic)?\b/i,
+  /\bthe remaining sampled files are type-safe\b/i,
+  /\bthe rest of the sample is clean\b/i,
+  /\bno other actionable issues found\b/i,
+  /\bno other type safety issues found\b/i,
+];
+const DIRECTORY_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS = [
+  /\ball required directories(?:\/files)? are present(?: and match their documented purpose)?\b/i,
+  /\ball major directories are (?:described|documented)\b/i,
+  /\bdirectory structure matches documented architecture\b/i,
+  /\bno critical architectural violations detected\b/i,
+  /\bno architectural violations detected\b/i,
+  /\bno misplaced config(?:uration)? or build files detected\b/i,
+];
+const TYPESCRIPT_FILE_CITATION_PATTERN =
+  /(?:^|[\s`(])(?:[A-Za-z0-9_./-]+\.(?:d\.ts|[cm]?tsx?)(?::\d+(?:-\d+)?)?)(?=$|[\s`),.;])/;
+
+function detectUnsupportedTestReviewSummaries(response) {
+  if (!response || typeof response !== 'string') {
+    return [];
+  }
+
+  const warnings = [];
+
+  for (const pattern of TEST_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS) {
+    for (const match of response.matchAll(
+      new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+    )) {
+      const index = match.index ?? 0;
+      const windowStart = Math.max(0, index - 160);
+      const windowEnd = Math.min(response.length, index + match[0].length + 160);
+      const surrounding = response.slice(windowStart, windowEnd);
+
+      if (TEST_REVIEW_HEDGING_PATTERN.test(surrounding)) {
+        continue;
+      }
+
+      if (FILE_LINE_CITATION_PATTERN.test(surrounding)) {
+        continue;
+      }
+
+      warnings.push(
+        `Unsupported positive summary for test review: "${match[0]}" should be cited or marked inconclusive`
+      );
+    }
+  }
+
+  return [...new Set(warnings)];
+}
+
+function detectUnsupportedTypescriptReviewSummaries(response, validationContext = {}) {
+  if (!response || typeof response !== 'string' || !validationContext.hasIncompleteEvidence) {
+    return [];
+  }
+
+  const warnings = [];
+
+  for (const pattern of TYPESCRIPT_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS) {
+    for (const match of response.matchAll(
+      new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+    )) {
+      const index = match.index ?? 0;
+      const windowStart = Math.max(0, index - 160);
+      const windowEnd = Math.min(response.length, index + match[0].length + 160);
+      const surrounding = response.slice(windowStart, windowEnd);
+
+      if (TEST_REVIEW_HEDGING_PATTERN.test(surrounding)) {
+        continue;
+      }
+
+      if (
+        FILE_LINE_CITATION_PATTERN.test(surrounding) ||
+        TYPESCRIPT_FILE_CITATION_PATTERN.test(surrounding)
+      ) {
+        continue;
+      }
+
+      warnings.push(
+        `Unsupported positive summary for typescript review: "${match[0]}" should be cited or marked inconclusive when evidence coverage is incomplete`
+      );
+    }
+  }
+
+  return [...new Set(warnings)];
+}
+
+function detectUnsupportedDirectoryReviewSummaries(response, validationContext = {}) {
+  if (!response || typeof response !== 'string' || !validationContext.hasIncompleteEvidence) {
+    return [];
+  }
+
+  const warnings = [];
+
+  for (const pattern of DIRECTORY_REVIEW_UNSUPPORTED_SUMMARY_PATTERNS) {
+    for (const match of response.matchAll(
+      new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+    )) {
+      const index = match.index ?? 0;
+      const windowStart = Math.max(0, index - 160);
+      const windowEnd = Math.min(response.length, index + match[0].length + 160);
+      const surrounding = response.slice(windowStart, windowEnd);
+
+      if (TEST_REVIEW_HEDGING_PATTERN.test(surrounding)) {
+        continue;
+      }
+
+      if (
+        FILE_LINE_CITATION_PATTERN.test(surrounding) ||
+        TYPESCRIPT_FILE_CITATION_PATTERN.test(surrounding)
+      ) {
+        continue;
+      }
+
+      warnings.push(
+        `Unsupported positive summary for directory review: "${match[0]}" should be cited or marked inconclusive when evidence coverage is incomplete`
+      );
+    }
+  }
+
+  return [...new Set(warnings)];
+}
+
+export function formatValidationGateNotice(validation, options = {}) {
+  const { subject = 'AI analysis' } = options;
+  const warnings = Array.isArray(validation?.warnings)
+    ? validation.warnings.filter((warning) => typeof warning === 'string' && warning.trim())
+    : [];
+
+  const header =
+    `${subject} was rejected by validation because it made unsupported success claims ` +
+    `without enough cited evidence.`;
+
+  if (warnings.length === 0) {
+    return `${header}\n\nUse explicit citations or mark unsupported dimensions as inconclusive/unavailable.`;
+  }
+
+  return [
+    header,
+    '',
+    ...warnings.map((warning) => `- ${warning}`),
+    '',
+    'Revise the analysis so any unsupported scope, coverage, or CI conclusions are marked inconclusive/unavailable.',
+  ].join('\n');
+}
+
 // ==============================================================================
 // FALLBACK STRATEGIES
 // ==============================================================================
@@ -556,6 +723,8 @@ export function validateAIResponse(response, options = {}) {
     expectedSections = [],
     confidenceThreshold = 60,
     fallbackThresholds = {},
+    responseType = 'generic',
+    validationContext = {},
   } = options;
 
   // Validate response
@@ -564,6 +733,16 @@ export function validateAIResponse(response, options = {}) {
     expectedSections,
   });
 
+  const responseWarnings =
+    responseType === 'test_review'
+      ? detectUnsupportedTestReviewSummaries(response)
+      : responseType === 'typescript_review'
+        ? detectUnsupportedTypescriptReviewSummaries(response, validationContext)
+        : responseType === 'directory_review'
+          ? detectUnsupportedDirectoryReviewSummaries(response, validationContext)
+          : [];
+  validationResult.warnings.push(...responseWarnings);
+
   // Analyze content quality
   const quality = analyzeContentQuality(response);
 
@@ -571,7 +750,7 @@ export function validateAIResponse(response, options = {}) {
   const sections = countSections(response, expectedSections);
 
   // Calculate confidence score
-  const confidence = calculateConfidenceScore({
+  const baseConfidence = calculateConfidenceScore({
     responseLength: response?.length || 0,
     expectedSections: sections.expected,
     foundSections: sections.found,
@@ -579,6 +758,8 @@ export function validateAIResponse(response, options = {}) {
     errorCount: validationResult.errors.length,
     warningCount: validationResult.warnings.length,
   });
+  const confidencePenalty = Math.min(responseWarnings.length * 12, 36);
+  const confidence = Math.max(0, baseConfidence - confidencePenalty);
 
   // Get confidence level
   const level = getConfidenceLevel(confidence);

@@ -24,8 +24,18 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(template).toContain('compact summary of a generated');
     expect(template).toContain('lockfile or other oversized');
     expect(template).toContain('do not infer, search for, or include any other files');
-    expect(template).toContain('never use the exact');
+    expect(template).toContain('do not claim full-file validation');
     expect(template).toContain('"All configuration files validated successfully"');
+    expect(template).toContain('Deterministic syntax/schema validation has already run');
+    expect(template).toContain('do not treat that slice as a standalone');
+    expect(template).toContain('omit it instead of emitting a');
+    expect(template).toContain('severity/recommendation pair that only says no action is needed');
+    expect(template).toContain('only when both files are explicitly in scope');
+    expect(template).toContain('recommending review of that unseen file');
+    expect(template).toContain('Do not cite a previous partition, another partition');
+    expect(template).toContain(
+      'semver ranges such as `^`, `~`, `x`, or inequalities are ranges, not pinned versions'
+    );
   });
 
   test('approach constrains praise and freshness claims to visible evidence', () => {
@@ -38,8 +48,13 @@ describe('configuration_specialist_prompt — partition handling', () => {
     expect(approach).toContain(
       'Limit any "no issues found" wording to the visible excerpt(s) only'
     );
-    expect(approach).toContain('keep conclusions partition-local');
-    expect(approach).toContain('list each visible step ID');
+    expect(approach).toContain(
+      'Scope any "no issues found" wording to "no issues found in this partition"'
+    );
+    expect(approach).toContain('Do not draw cross-partition conclusions');
+    expect(approach).toContain(
+      'Do not describe caret (`^`), tilde (`~`), x-ranges, or inequality ranges as pinned'
+    );
   });
 
   test('rendered prompt preserves partition guidance alongside split file labels', () => {
@@ -84,8 +99,18 @@ describe('quality_prompt — evidence fallback handling', () => {
 
     expect(template).toContain('Evidence Gap');
     expect(template).toContain('Treat `[empty file]` markers as');
+    expect(template).toContain('success: false');
+    expect(template).toContain('Explicit Failure Signals');
     expect(approach).toContain('return only an `Evidence Gap` response');
     expect(approach).toContain('Treat `[empty file]` markers as grounded evidence');
+    expect(approach).toContain('Do not end with "no action required"');
+    expect(approach).toContain('omit it instead of adding a "no issues"');
+    expect(approach).toContain(
+      'Do not cite prior partitions, other partitions, or unseen earlier excerpts as evidence'
+    );
+    expect(approach).toContain(
+      'Do not describe semver ranges such as `^1.2.3` or `~1.2.3` as pinned'
+    );
   });
 
   test('rendered prompt preserves unavailable-evidence guidance', () => {

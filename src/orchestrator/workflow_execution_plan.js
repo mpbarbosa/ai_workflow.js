@@ -241,6 +241,46 @@ export function buildWorkflowConfigDependencyOverrideError({
   );
 }
 
+/**
+ * Classify the severity of a dependency override for triage display.
+ * Returns one of: CORRECTNESS | STRUCTURAL | DOCUMENTATION | NOISE
+ *
+ * - CORRECTNESS: locked canonical prerequisites bypassed or unsafe forward refs removed
+ * - STRUCTURAL:  non-locked canonical deps removed (chain bypass / parallelism change)
+ * - DOCUMENTATION: only additions; canonical chain preserved — just needs dependency_comment
+ * - NOISE:       step is disabled; no execution impact
+ */
+export function classifyDependencyOverrideSeverity({
+  stepId,
+  stepEnabled = true,
+  canonicalDependencies = [],
+  rawConfiguredDependencies = [],
+  removedDependencies = [],
+}) {
+  if (!stepEnabled) {
+    return 'NOISE';
+  }
+  // Unsafe forward refs were removed by the runtime — correctness issue
+  if (removedDependencies.length > 0) {
+    return 'CORRECTNESS';
+  }
+  // Which canonical deps are absent from the raw configured list?
+  const missingFromRaw = canonicalDependencies.filter(
+    (depId) => !rawConfiguredDependencies.includes(depId)
+  );
+  if (missingFromRaw.length > 0) {
+    // If any missing dep is in the hard-locked set, it's a correctness violation
+    const lockedForStep = ORDER_LOCKED_CANONICAL_DEPENDENCIES[stepId] || [];
+    const hasLockedMissing = missingFromRaw.some((depId) => lockedForStep.includes(depId));
+    if (hasLockedMissing) {
+      return 'CORRECTNESS';
+    }
+    return 'STRUCTURAL';
+  }
+  // Only additions (deps added on top of canonical) — just needs documentation
+  return 'DOCUMENTATION';
+}
+
 export function buildWorkflowConfigDependencyOverrideDiagnostic({
   stepId,
   stepName,
@@ -253,8 +293,17 @@ export function buildWorkflowConfigDependencyOverrideDiagnostic({
 }) {
   const stepLabel =
     typeof stepName === 'string' && stepName.trim().length > 0 ? `${stepId} (${stepName})` : stepId;
+
+  const severity = classifyDependencyOverrideSeverity({
+    stepId,
+    stepEnabled,
+    canonicalDependencies,
+    rawConfiguredDependencies,
+    removedDependencies,
+  });
+
   const parts = [
-    `[WorkflowConfig] Invalid dependency override for ${stepLabel}`,
+    `[WorkflowConfig] [${severity}] Invalid dependency override for ${stepLabel}`,
     `canonical=${formatDependencyList(canonicalDependencies)}`,
     `raw=${formatDependencyList(rawConfiguredDependencies)}`,
   ];
@@ -344,6 +393,37 @@ export function normalizeLegacyWorkflowStageStepDefinitions(workflowConfig) {
     const canonicalStepIds = getStepsForStage(stage);
 
     if (!haveSameDependencySet(configuredStepIds, canonicalStepIds)) {
+      // Check whether the configured list is a strict subset of canonical steps.
+      // This is the most common drift scenario: the canonical stage gained new steps
+      // after this config was written, turning a formerly-valid exact-match list into
+      // a mismatch.  Treat it as a legacy filter attempt — strip the steps key and
+      // emit an advisory so the run proceeds rather than hard-blocking.
+      const canonicalSet = new Set(canonicalStepIds);
+      const isSubset = configuredStepIds.every((id) => canonicalSet.has(id));
+      if (!isSubset) {
+        continue; // genuinely invalid — leave for validateWorkflowStageStepDefinitions
+      }
+
+      if (normalizedConfig === workflowConfig) {
+        normalizedStages = { ...configuredStages };
+        normalizedConfig = {
+          ...workflowConfig,
+          workflow: {
+            ...workflowConfig.workflow,
+            stages: normalizedStages,
+          },
+        };
+      }
+
+      const subsetStageConfig = { ...stageConfig };
+      delete subsetStageConfig.steps;
+      normalizedStages[stage] = subsetStageConfig;
+      warnings.push(
+        `[WorkflowConfig] workflow.stages.${stage}.steps is a subset of the canonical ${stage} stage ` +
+          `and has been ignored — stage step lists do not control execution order. ` +
+          `Remove the 'steps:' key from workflow.stages.${stage} to silence this advisory. ` +
+          `To exclude individual steps, set 'enabled: false' on the relevant entries under workflow.steps.`
+      );
       continue;
     }
 
@@ -376,6 +456,9 @@ export function validateWorkflowStageStepDefinitions(workflowConfig) {
   }
 
   const errors = [];
+  // Collect mismatch violations separately so they can be consolidated into one
+  // message when multiple stages share the same root cause.
+  const mismatchedStages = [];
 
   for (const stage of Object.values(WORKFLOW_STAGES)) {
     const stageConfig = configuredStages?.[stage];
@@ -397,13 +480,51 @@ export function validateWorkflowStageStepDefinitions(workflowConfig) {
       continue;
     }
 
+    mismatchedStages.push({ stage, configuredStepIds, canonicalStepIds });
+  }
+
+  if (mismatchedStages.length === 1) {
+    // Single offending stage: emit the full per-stage diagnostic with migration example.
+    const { stage, configuredStepIds, canonicalStepIds } = mismatchedStages[0];
+    const migrationExample = configuredStepIds
+      .map((id) => `      - id: ${id}\n        enabled: false  # excluded from all stages`)
+      .join('\n');
     errors.push(
       `[WorkflowConfig] workflow.stages.${stage}.steps does not control execution order and must not redefine the ${stage} stage. ` +
         'Execution planning derives from workflow.steps plus canonical stage rules. ' +
         `Configured stage steps: ${formatDependencyList(configuredStepIds)}. ` +
         `Canonical ${stage} stage steps: ${formatDependencyList(canonicalStepIds)}. ` +
         `Remove the 'steps:' key from workflow.stages.${stage} entirely — only 'enabled: true|false' is supported here. ` +
-        `To disable individual steps, set 'enabled: false' on the relevant entries under workflow.steps.`
+        `To disable individual steps, set 'enabled: false' on the relevant entries under workflow.steps. ` +
+        `Equivalent migration for the steps currently listed under stages.${stage}:\n` +
+        `  workflow:\n` +
+        `    steps:\n` +
+        `${migrationExample}`
+    );
+  } else if (mismatchedStages.length > 1) {
+    // Multiple stages share the same root cause: emit one consolidated message.
+    const stageNames = mismatchedStages.map(({ stage }) => stage).join(', ');
+    const perStageDetail = mismatchedStages
+      .map(
+        ({ stage, configuredStepIds, canonicalStepIds }) =>
+          `  ${stage}: configured ${formatDependencyList(configuredStepIds)} — canonical ${formatDependencyList(canonicalStepIds)}`
+      )
+      .join('\n');
+    const allConfiguredIds = [
+      ...new Set(mismatchedStages.flatMap(({ configuredStepIds }) => configuredStepIds)),
+    ];
+    const migrationExample = allConfiguredIds
+      .map((id) => `      - id: ${id}\n        enabled: false  # excluded from all stages`)
+      .join('\n');
+    errors.push(
+      `[WorkflowConfig] workflow.stages.{${stageNames}} all define 'steps:' which is not supported and will not control execution order. ` +
+        `Remove the 'steps:' key from all ${mismatchedStages.length} stage blocks — only 'enabled: true|false' is supported per stage. ` +
+        `To exclude individual steps, set 'enabled: false' on the relevant entries under workflow.steps.\n` +
+        `Stage details:\n${perStageDetail}\n` +
+        `Equivalent migration (deduplicated across all ${mismatchedStages.length} stages):\n` +
+        `  workflow:\n` +
+        `    steps:\n` +
+        `${migrationExample}`
     );
   }
 

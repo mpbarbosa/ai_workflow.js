@@ -20,14 +20,16 @@ import { STEP_KIND } from './step_contract.js';
 import { logger } from '../core/logger.js';
 import { filterReviewTargets, loadReadableReviewFiles } from '../lib/review_prompt_scope.js';
 import { loadResolvedAiHelpers, buildYamlStepPrompt } from '../lib/ai_prompt_builder.js';
+import { detectFrameworksFromPackageJson } from '../lib/tech_stack.js';
 import {
   buildPartitionFilePathsContext,
   buildReviewFileContentsBlock,
   buildReviewPromptPartitions,
+  buildSplitFileCoverage,
   MAX_PROMPT_ENTRY_CHARS,
   MAX_PROMPT_ENTRIES_PER_PARTITION,
   MAX_PROMPT_PARTITION_CHARS,
-  runPartitionedAiAnalysis,
+  runPartitionedAiResponses,
   splitReviewPromptEntry,
 } from '../lib/review_step_helpers.js';
 import { ReviewStepBase } from '../lib/review_step_base.js';
@@ -51,6 +53,9 @@ const GENERATED_ACCESSIBILITY_PATH_PREFIXES = [
   'jsdoc/',
   'lcov-report/',
 ];
+const NON_RUNTIME_ACCESSIBILITY_PATH_PATTERN =
+  /(^|\/)(?:test|tests|__tests__|__mocks__|fixtures?|cypress|e2e)(\/|$)/i;
+const TEST_FILE_SUFFIX_PATTERN = /\.(?:test|spec)\.(?:html?|css|vue|[jt]sx?)$/i;
 const IMG_TAG_PATTERN = /<img\b/gi;
 const IMG_ALT_PATTERN = /<img\b[^>]*\balt=/gi;
 const ONCLICK_PATTERN = /\bonclick\s*=/gi;
@@ -89,6 +94,8 @@ export function isAccessibilityReviewTarget(filePath) {
 
   return (
     /\.(html?|vue|[jt]sx|css)$/i.test(normalized) &&
+    !NON_RUNTIME_ACCESSIBILITY_PATH_PATTERN.test(normalized) &&
+    !TEST_FILE_SUFFIX_PATTERN.test(normalized) &&
     !GENERATED_ACCESSIBILITY_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))
   );
 }
@@ -195,6 +202,86 @@ export function scoreAccessibilityIssues(fileContents) {
   };
 }
 
+function normalizeFrameworkLabel(framework) {
+  if (typeof framework !== 'string') {
+    return null;
+  }
+
+  const normalized = framework.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === 'vue.js') return 'vue';
+  if (normalized === 'next.js') return 'next';
+  if (normalized === 'nuxt.js') return 'nuxt';
+  if (normalized === 'gatsby.js') return 'gatsby';
+  if (normalized === 'angular') return 'angular';
+  if (normalized === 'svelte') return 'svelte';
+  if (normalized === 'react') return 'react';
+  if (normalized === 'vue') return 'vue';
+  if (normalized === 'vanilla js') return 'vanilla';
+  return normalized;
+}
+
+async function resolveAccessibilityFramework({
+  projectRoot,
+  options = {},
+  fileOps,
+  relativeFiles = [],
+}) {
+  const explicitFramework = normalizeFrameworkLabel(
+    options.framework ??
+      options.config?.tech_stack?.framework ??
+      options.config?.techStack?.framework ??
+      options.projectFramework
+  );
+  if (explicitFramework) {
+    return explicitFramework;
+  }
+
+  try {
+    const packageJsonRaw = await fileOps.readFile(path.join(projectRoot, 'package.json'));
+    const packageJson = JSON.parse(packageJsonRaw);
+    const detectedFrameworks = detectFrameworksFromPackageJson(packageJson);
+    const preferredFrontendPackages = [
+      'next',
+      'nuxt',
+      'gatsby',
+      'vue',
+      'react',
+      '@angular/core',
+      'svelte',
+    ];
+    const frontendFramework = preferredFrontendPackages.find((pkg) =>
+      detectedFrameworks.some((framework) => framework?.package === pkg)
+    );
+
+    if (frontendFramework === '@angular/core') {
+      return 'angular';
+    }
+
+    if (frontendFramework) {
+      return normalizeFrameworkLabel(frontendFramework);
+    }
+  } catch {
+    // Fall back to file-based inference when package.json is unavailable or invalid.
+  }
+
+  const normalizedFiles = (Array.isArray(relativeFiles) ? relativeFiles : []).map((file) =>
+    String(file ?? '')
+      .replace(/\\/g, '/')
+      .toLowerCase()
+  );
+
+  if (normalizedFiles.some((file) => file.endsWith('.vue'))) return 'vue';
+  if (normalizedFiles.some((file) => file.endsWith('.svelte'))) return 'svelte';
+  if (normalizedFiles.some((file) => file.endsWith('.tsx') || file.endsWith('.jsx')))
+    return 'react';
+
+  return 'unknown';
+}
+
 /**
  * Format the AI response and heuristic scores into a markdown summary block
  * suitable for saving to the backlog.
@@ -227,6 +314,68 @@ export function formatAccessibilityReport(aiContent, scores) {
     aiContent || '_No AI analysis available._',
   ];
   return lines.join('\n');
+}
+
+export function buildAccessibilityConsolidationPrompt({
+  projectName,
+  projectDescription,
+  framework,
+  totalFileCount,
+  readableFileCount,
+  completeSplitEntries = [],
+  incompleteSplitSourcePaths = [],
+  partitionAnalyses = [],
+}) {
+  const fullyCoveredSplitList =
+    completeSplitEntries.length > 0
+      ? completeSplitEntries.map((entry) => `- ${entry.relativePath}`).join('\n')
+      : '- None';
+  const incompleteSplitList =
+    incompleteSplitSourcePaths.length > 0
+      ? incompleteSplitSourcePaths.map((filePath) => `- ${filePath}`).join('\n')
+      : '- None';
+  const fullSplitFileBlock =
+    completeSplitEntries.length > 0
+      ? buildReviewFileContentsBlock(
+          completeSplitEntries.map((entry) => ({
+            relativePath: entry.relativePath,
+            sourcePath: entry.relativePath,
+            content: entry.content,
+          }))
+        )
+      : '_No fully covered split files are available for file-level consolidation._';
+
+  return [
+    '**Role**: You are a Senior Accessibility Engineer specializing in WCAG 2.1 AA/AAA reviews.',
+    '',
+    '**Task**: Consolidate the partition findings below into one folder-scoped accessibility review.',
+    '',
+    '**Consolidation context:**',
+    `- Project: ${projectName}`,
+    `- Project Summary: ${projectDescription}`,
+    `- Framework: ${framework}`,
+    `- HTML/UI Files Considered: ${totalFileCount}`,
+    `- Readable HTML/UI Files Analyzed: ${readableFileCount}`,
+    '- Fully covered split files (all parts were analyzed):',
+    fullyCoveredSplitList,
+    '- Split files that remain incomplete in this run:',
+    incompleteSplitList,
+    '',
+    '**Rules:**',
+    '- Preserve only findings supported by the partition analyses and the fully covered split-file excerpts below.',
+    '- You may promote a conclusion to a file-scoped verdict only for files listed under "Fully covered split files".',
+    '- Do not introduce findings for files that are not mentioned below.',
+    '- Remove duplicate partition boilerplate, repeated checklists, and overlapping remediation guidance.',
+    '- If the evidence is still insufficient, say so plainly.',
+    '',
+    '**Required output:** Produce one consolidated accessibility review with the same structure used in the partition reviews.',
+    '',
+    '**Partition findings:**',
+    partitionAnalyses.join('\n\n') || '_No partition findings were available._',
+    '',
+    '**Fully covered split-file contents:**',
+    fullSplitFileBlock,
+  ].join('\n');
 }
 
 // ============================================================================
@@ -298,6 +447,13 @@ export class Step22AccessibilityReview extends ReviewStepBase {
         logger.info(`Step 22: Analyzing ${relativeFiles.length} HTML/UI files`);
       }
 
+      const resolvedFramework = await resolveAccessibilityFramework({
+        projectRoot,
+        options,
+        fileOps: this.fileOps,
+        relativeFiles,
+      });
+
       const { fileContents, fileEntries } = await loadReadableReviewFiles(
         this.fileOps,
         projectRoot,
@@ -333,7 +489,8 @@ export class Step22AccessibilityReview extends ReviewStepBase {
             );
           }
 
-          aiContent = await runPartitionedAiAnalysis({
+          const partitionAnalyses = [];
+          const partitionResult = await runPartitionedAiResponses({
             partitions: partitionsToAnalyze,
             buildPrompt: (partition, { index: i, total }) => {
               const filePathsContext = buildPartitionFilePathsContext(partition.entries);
@@ -349,7 +506,7 @@ export class Step22AccessibilityReview extends ReviewStepBase {
                     : `This request contains the full readable HTML/UI scope for this run (${fileEntries.length} readable file(s)).`,
                 project_name: options.projectName ?? path.basename(projectRoot),
                 project_description: options.projectDescription ?? 'Web application',
-                framework: options.framework ?? 'vanilla',
+                framework: resolvedFramework,
                 source_file_count:
                   total > 1
                     ? `${relativeFiles.length} total (${partition.scopePaths.length} covered in this request)`
@@ -361,12 +518,70 @@ export class Step22AccessibilityReview extends ReviewStepBase {
                   '_No readable file excerpts were available in the current context window._',
               });
             },
-            buildCacheKey: (_partition, { index: i, total }) =>
-              `step_22:accessibility_expert:part:${i + 1}/${total}:signals:${scores.totalIssues}`,
-            persona: 'accessibility_expert',
-            aiCache: this.aiCache,
-            aiHelper: this.aiHelper,
+            executePartition: async (_partition, { index: i, total }, prompt) => {
+              const response = await this.aiCache.withCache(
+                prompt,
+                `step_22:accessibility_expert:part:${i + 1}/${total}:signals:${scores.totalIssues}`,
+                () => this.aiHelper.executeRequest(prompt, { persona: 'accessibility_expert' })
+              );
+              const responseContent = response?.content ?? response?.text ?? response ?? '';
+              if (responseContent) {
+                partitionAnalyses.push(
+                  total > 1
+                    ? `#### Partition ${i + 1} of ${total}\n\n${responseContent}`
+                    : responseContent
+                );
+              }
+              return response;
+            },
+            extractContent: (response) => response?.content ?? response?.text ?? response ?? '',
           });
+          aiContent = partitionResult.content;
+
+          if (partitionResult.content && partitionsToAnalyze.length > 1) {
+            const splitCoverage = buildSplitFileCoverage(
+              partitionsToAnalyze.flatMap((partition) => partition.entries)
+            );
+            const completeSplitEntries = fileEntries.filter((entry) =>
+              splitCoverage.completeSplitSourcePaths.includes(entry.relativePath)
+            );
+            const partitionAnalyses = partitionResult.content
+              .split(/\n\n(?=#### Partition \d+ of \d+\n\n)/)
+              .filter(Boolean);
+
+            try {
+              const consolidationPrompt = buildAccessibilityConsolidationPrompt({
+                projectName: options.projectName ?? path.basename(projectRoot),
+                projectDescription: options.projectDescription ?? 'Web application',
+                framework: resolvedFramework,
+                totalFileCount: relativeFiles.length,
+                readableFileCount: fileEntries.length,
+                completeSplitEntries,
+                incompleteSplitSourcePaths: splitCoverage.incompleteSplitSourcePaths,
+                partitionAnalyses,
+              });
+              const consolidatedResult = await this.aiCache.withCache(
+                consolidationPrompt,
+                `step_22:accessibility_expert:consolidated:partitions:${partitionsToAnalyze.length}:fullSplits:${splitCoverage.completeSplitSourcePaths.join(',') || 'none'}:signals:${scores.totalIssues}`,
+                () =>
+                  this.aiHelper.executeRequest(consolidationPrompt, {
+                    persona: 'accessibility_expert',
+                  })
+              );
+              const consolidatedContent =
+                typeof consolidatedResult === 'string'
+                  ? consolidatedResult
+                  : (consolidatedResult?.content ?? '');
+
+              if (consolidatedContent) {
+                aiContent = consolidatedContent;
+              }
+            } catch (consolidationError) {
+              logger.warn(
+                `[step_22] Accessibility review consolidation skipped — ${consolidationError.message}`
+              );
+            }
+          }
         } catch (promptError) {
           logger.warn(`Step 22: AI analysis skipped — ${promptError.message}`);
         }

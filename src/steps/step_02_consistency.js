@@ -19,6 +19,7 @@ import {
   buildProjectKindPrompt,
   MAX_CHARS_TOTAL_CONTENTS,
 } from '../lib/ai_prompt_builder.js';
+import { extractCurrentVersionReferences } from '../lib/version_reference_scanner.js';
 import { getPrimaryLanguage } from '../lib/tech_stack.js';
 import {
   buildStepDependencies,
@@ -113,15 +114,7 @@ export function validateSemver(version) {
  * @returns {string[]} Array of version strings found
  */
 export function extractVersions(content) {
-  const versionPattern = /v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[a-zA-Z0-9.-]+)?/g;
-  const matches = content.match(versionPattern) || [];
-  return [...new Set(matches)]; // Remove duplicates
-}
-
-function stripUrlsForVersionCheck(content) {
-  return content
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$1')
-    .replace(/https?:\/\/\S+/gi, '');
+  return extractCurrentVersionReferences(content);
 }
 
 /**
@@ -343,6 +336,91 @@ export function findRepoRootMatch(filePath, existingFiles, projectRoot) {
   return path.relative(projectRoot, candidate).replaceAll(path.sep, '/');
 }
 
+const DOC_MATCH_STOP_WORDS = new Set([
+  'readme',
+  'guide',
+  'docs',
+  'doc',
+  'documentation',
+  'index',
+  'test',
+  'tests',
+]);
+
+function normalizeDocMatchToken(token) {
+  if (!token) return '';
+  return token
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '')
+    .replace(/(?:ments?|ers?|ings?|ions?|tion|ed|s)$/u, '');
+}
+
+function extractDocMatchTokens(filePath) {
+  const sanitized = String(filePath ?? '').split('#')[0];
+  const basename = path.basename(sanitized, path.extname(sanitized));
+  return basename
+    .split(/[^A-Za-z0-9]+/u)
+    .map((token) => normalizeDocMatchToken(token))
+    .filter((token) => token && !DOC_MATCH_STOP_WORDS.has(token));
+}
+
+/**
+ * Suggest repo-relative markdown files whose names indicate a likely rename/move.
+ *
+ * @pure
+ * @param {string} filePath - Raw link target from markdown
+ * @param {string[]} docFiles - Absolute markdown file paths discovered in the repo
+ * @param {string} projectRoot - Absolute project root
+ * @param {number} [maxResults=3] - Maximum suggestions to return
+ * @returns {string[]} Repo-relative markdown candidates
+ */
+export function findRelatedDocCandidates(filePath, docFiles, projectRoot, maxResults = 3) {
+  if (!filePath || !Array.isArray(docFiles) || docFiles.length === 0 || !projectRoot) {
+    return [];
+  }
+
+  const target = String(filePath).split('#')[0];
+  const targetBase = path.basename(target).toLowerCase();
+  const targetStem = path.basename(target, path.extname(target)).toLowerCase();
+  const targetTokens = extractDocMatchTokens(target);
+  const targetTokenSet = new Set(targetTokens);
+
+  const scored = [];
+  for (const docFile of docFiles) {
+    const repoRelative = path.relative(projectRoot, docFile).replaceAll(path.sep, '/');
+    const candidateBase = path.basename(repoRelative).toLowerCase();
+    const candidateStem = path.basename(repoRelative, path.extname(repoRelative)).toLowerCase();
+    const candidateTokens = extractDocMatchTokens(repoRelative);
+    const overlap = candidateTokens.filter((token) => targetTokenSet.has(token)).length;
+    const exactBase = candidateBase === targetBase;
+    const exactStem = candidateStem === targetStem;
+    const singleStrongToken =
+      targetTokens.length === 1 &&
+      targetTokens[0].length >= 6 &&
+      candidateTokens.includes(targetTokens[0]);
+
+    if (!exactBase && !exactStem && overlap < 2 && !singleStrongToken) {
+      continue;
+    }
+
+    const score =
+      (exactBase ? 100 : 0) +
+      (exactStem ? 90 : 0) +
+      overlap * 10 -
+      Math.abs(candidateTokens.length - targetTokens.length);
+
+    scored.push({ repoRelative, score });
+  }
+
+  return scored
+    .sort(
+      (left, right) =>
+        right.score - left.score || left.repoRelative.localeCompare(right.repoRelative)
+    )
+    .slice(0, maxResults)
+    .map(({ repoRelative }) => repoRelative);
+}
+
 /**
  * Remove prompt-only hint suffixes from a broken-link reference so comparisons
  * stay stable even when prompt context adds extra grounding details.
@@ -354,7 +432,53 @@ export function findRepoRootMatch(filePath, existingFiles, projectRoot) {
 export function normalizeBrokenLinkReference(reference) {
   return String(reference ?? '')
     .trim()
-    .replace(/\s+\(existing repo path: [^)]+\)$/u, '');
+    .replace(/(?:\s+\((?:existing repo path|related repo docs): [^)]+\))+$/u, '');
+}
+
+function normalizeBrokenLinkSourcePath(sourcePath) {
+  return String(sourcePath ?? '')
+    .trim()
+    .replaceAll('\\', '/');
+}
+
+function parseBrokenLinkReference(reference) {
+  const normalized = normalizeBrokenLinkReference(reference);
+  const [rawSourceWithLine, ...targetParts] = normalized.split(' → ');
+  const sourceWithLine = rawSourceWithLine?.trim() ?? '';
+  const target = targetParts.join(' → ').trim();
+  const lineMatch = sourceWithLine.match(/^(.*?):(\d+)$/u);
+  const sourcePath = lineMatch ? lineMatch[1] : sourceWithLine;
+  const line = lineMatch ? lineMatch[2] : '';
+
+  return {
+    normalized,
+    sourcePath: normalizeBrokenLinkSourcePath(sourcePath),
+    line,
+    target,
+  };
+}
+
+function brokenLinkSourcePathsMatch(leftPath, rightPath) {
+  if (!leftPath || !rightPath) {
+    return leftPath === rightPath;
+  }
+
+  return (
+    leftPath === rightPath ||
+    leftPath.endsWith(`/${rightPath}`) ||
+    rightPath.endsWith(`/${leftPath}`)
+  );
+}
+
+function areBrokenLinkReferencesEquivalent(left, right) {
+  const parsedLeft = parseBrokenLinkReference(left);
+  const parsedRight = parseBrokenLinkReference(right);
+
+  return (
+    parsedLeft.line === parsedRight.line &&
+    parsedLeft.target === parsedRight.target &&
+    brokenLinkSourcePathsMatch(parsedLeft.sourcePath, parsedRight.sourcePath)
+  );
 }
 
 // ============================================================================
@@ -568,7 +692,7 @@ export function buildCompactDirectoryTree(fileSet, projectRoot) {
  * @param {number} totalParts - Total number of partitions
  * @param {number} [totalDocCount=0] - Total markdown files in the project (used for the
  *   completeness note shown to the AI; 0 suppresses the "X of Y" preamble)
- * @returns {{ docFilesList: string, brokenRefsList: string, header: string, flaggedRefs: string[] }}
+ * @returns {{ docFilesList: string, brokenRefsList: string, header: string, flaggedRefs: string[], flaggedRefPrompts: string[] }}
  */
 export function buildPartitionContext(
   partFiles,
@@ -600,9 +724,15 @@ export function buildPartitionContext(
     if (seenPairs.has(raw)) continue;
     seenPairs.add(raw);
 
-    const prompt = issue.repoRootMatch
-      ? `${raw} (existing repo path: ${issue.repoRootMatch})`
-      : raw;
+    const hints = [];
+    if (issue.repoRootMatch) {
+      hints.push(`existing repo path: ${issue.repoRootMatch}`);
+    }
+    if (Array.isArray(issue.relatedDocCandidates) && issue.relatedDocCandidates.length > 0) {
+      hints.push(`related repo docs: ${issue.relatedDocCandidates.join('; ')}`);
+    }
+
+    const prompt = hints.length > 0 ? `${raw} (${hints.join(') (')})` : raw;
     pairRecords.push({ raw, prompt });
   }
 
@@ -613,6 +743,7 @@ export function buildPartitionContext(
       ? `, ... and ${pairRecords.length - MAX_ISSUES_PER_PROMPT} more`
       : '';
   const flaggedRefs = cappedPairs.map((item) => item.raw);
+  const flaggedRefPrompts = cappedPairs.map((item) => item.prompt);
   const brokenRefsList =
     cappedPairs.length > 0 ? cappedPairs.map((item) => item.prompt).join(', ') + suffix : 'none';
 
@@ -621,7 +752,80 @@ export function buildPartitionContext(
       ? `[Partition ${partIndex + 1} of ${totalParts} — analyse ONLY the files listed below]`
       : '';
 
-  return { docFilesList, brokenRefsList, header, flaggedRefs };
+  return { docFilesList, brokenRefsList, header, flaggedRefs, flaggedRefPrompts };
+}
+
+/**
+ * Build a compact evidence block that gives every partition the canonical package
+ * version even when package.json itself is not visible in the partition excerpts.
+ *
+ * @pure
+ * @param {string} expectedVersion - Canonical package version detected by the workflow
+ * @param {Object[]} [versionIssues=[]] - Programmatic version mismatches already found
+ * @returns {string} Evidence block for prompt context
+ */
+export function buildCanonicalVersionEvidence(expectedVersion, versionIssues = []) {
+  if (!expectedVersion) {
+    return 'Canonical package version was not available to the workflow for this run.';
+  }
+
+  const mismatchCount = Array.isArray(versionIssues) ? versionIssues.length : 0;
+  return [
+    `Canonical package version detected by the workflow: ${expectedVersion}`,
+    mismatchCount > 0
+      ? `Programmatic version scan already found ${mismatchCount} documentation mismatch(es) against that version.`
+      : 'Programmatic version scan did not find any documentation mismatch against that version.',
+    'If a visible markdown excerpt contains an explicit version string, compare it against this canonical version before calling the version check inconclusive.',
+  ].join('\n');
+}
+
+/**
+ * Build a repo-wide markdown inventory block for prompt grounding.
+ *
+ * @pure
+ * @param {string[]} relDocFiles - Repo-relative markdown paths
+ * @param {number} [maxEntries=250] - Maximum paths to inline
+ * @returns {string} Inventory block
+ */
+export function buildRepoWideDocInventory(relDocFiles, maxEntries = 250) {
+  if (!Array.isArray(relDocFiles) || relDocFiles.length === 0) {
+    return 'Repo-wide markdown inventory unavailable for this run.';
+  }
+
+  const normalized = Array.from(
+    new Set(relDocFiles.map((f) => String(f ?? '').trim()).filter(Boolean))
+  ).sort();
+  const shown = normalized.slice(0, maxEntries);
+  const overflow =
+    normalized.length > shown.length
+      ? `\n- ... and ${normalized.length - shown.length} more markdown path(s)`
+      : '';
+
+  return (
+    [
+      `Repo-wide markdown inventory contains ${normalized.length} file(s).`,
+      'Use this list only to confirm whether a markdown path exists somewhere in the repository.',
+      'If a target is outside the current partition but appears here, do not treat it as a missing document.',
+      ...shown.map((file) => `- ${file}`),
+    ].join('\n') + overflow
+  );
+}
+
+/**
+ * Prefix a partition prompt with an attempt marker so prompt logs can distinguish
+ * the initial request from focused retries.
+ *
+ * @pure
+ * @param {string} prompt - Prompt body
+ * @param {number} attempt - 1-based attempt number
+ * @returns {string} Prompt with a single attempt marker at the top
+ */
+export function withPromptAttempt(prompt, attempt) {
+  const body = String(prompt ?? '').replace(
+    /^\*\*Prompt attempt for this partition:\*\*\s+\d+\n\n/u,
+    ''
+  );
+  return `**Prompt attempt for this partition:** ${attempt}\n\n${body}`;
 }
 
 // ============================================================================
@@ -666,9 +870,6 @@ function extractReferenceAssessmentBlocks(aiResponse = '') {
 
 function isUngroundedConfirmedAssessment(block) {
   if (!AI_REFERENCE_STATUS_PATTERNS.confirmed.test(block?.statusText ?? '')) {
-    return false;
-  }
-  if (/\(existing repo path: [^)]+\)$/iu.test(block?.rawReference ?? '')) {
     return false;
   }
   return UNGROUNDED_CONFIRMED_RE.test(block?.body ?? '');
@@ -743,11 +944,12 @@ export function validateAiResponseQuality(aiResponse, flaggedItems, options = {}
     return { adequate: true, reason: 'no_items_to_cover', coverage: 1 };
   }
 
-  const normalizedFlaggedItems = new Set(
-    flaggedItems.map((item) => normalizeBrokenLinkReference(item))
-  );
+  const normalizedFlaggedItems = flaggedItems.map((item) => normalizeBrokenLinkReference(item));
   const hasUngroundedConfirmedAssessment = extractReferenceAssessmentBlocks(aiResponse).some(
-    (block) => normalizedFlaggedItems.has(block.reference) && isUngroundedConfirmedAssessment(block)
+    (block) =>
+      normalizedFlaggedItems.some((item) =>
+        areBrokenLinkReferencesEquivalent(item, block.reference)
+      ) && isUngroundedConfirmedAssessment(block)
   );
 
   if (hasUngroundedConfirmedAssessment) {
@@ -790,18 +992,24 @@ export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
     ),
   ];
   const assessmentMap = new Map();
+  const assessmentEntries = [];
 
   for (const block of extractReferenceAssessmentBlocks(aiResponse)) {
+    const reference = normalizeBrokenLinkReference(block.reference);
+    let status = 'unverified';
+
     if (isUngroundedConfirmedAssessment(block)) {
-      assessmentMap.set(block.reference, 'unverified');
+      status = 'unverified';
     } else if (AI_REFERENCE_STATUS_PATTERNS.confirmed.test(block.statusText)) {
-      const reference = normalizeBrokenLinkReference(block.reference);
-      assessmentMap.set(reference, 'confirmed');
+      status = 'confirmed';
     } else if (AI_REFERENCE_STATUS_PATTERNS.falsePositive.test(block.statusText)) {
-      assessmentMap.set(block.reference, 'false_positive');
+      status = 'false_positive';
     } else if (AI_REFERENCE_STATUS_PATTERNS.unverified.test(block.statusText)) {
-      assessmentMap.set(block.reference, 'unverified');
+      status = 'unverified';
     }
+
+    assessmentMap.set(reference, status);
+    assessmentEntries.push({ reference, status });
   }
 
   const summary = {
@@ -812,7 +1020,11 @@ export function summarizeBrokenLinkAssessments(flaggedItems, aiResponse = '') {
   };
 
   for (const item of normalizedFlaggedItems) {
-    const status = assessmentMap.get(item) || 'unverified';
+    const status =
+      assessmentMap.get(item) ||
+      assessmentEntries.find((entry) => areBrokenLinkReferencesEquivalent(entry.reference, item))
+        ?.status ||
+      'unverified';
     if (status === 'confirmed') {
       summary.confirmed += 1;
     } else if (status === 'false_positive') {
@@ -1027,6 +1239,11 @@ export class Step2ConsistencyAnalyzer {
         const tsSourceCount = await countTypeScriptSourceFiles(this.fileOps, projectRoot);
 
         const aiParts = [];
+        const canonicalVersionEvidence = buildCanonicalVersionEvidence(
+          expectedVersion,
+          versionIssues
+        );
+        const repoWideDocInventory = buildRepoWideDocInventory(relDocFiles);
         brokenLinkAssessment = {
           totalCandidates: 0,
           confirmed: 0,
@@ -1036,13 +1253,8 @@ export class Step2ConsistencyAnalyzer {
         const degradedWarnings = [];
         for (let i = 0; i < totalParts; i++) {
           const partFiles = partitions[i];
-          const { docFilesList, brokenRefsList, header, flaggedRefs } = buildPartitionContext(
-            partFiles,
-            brokenLinks,
-            i,
-            totalParts,
-            docFiles.length
-          );
+          const { docFilesList, brokenRefsList, header, flaggedRefs, flaggedRefPrompts } =
+            buildPartitionContext(partFiles, brokenLinks, i, totalParts, docFiles.length);
           const { fileContentsSection, fileHashEntries } = await buildPartitionFileContents(
             this.fileOps,
             projectRoot,
@@ -1059,12 +1271,15 @@ export class Step2ConsistencyAnalyzer {
                 change_scope: SCOPE_DESCRIPTIONS[options.scope] || options.scope || '',
                 doc_count: String(docFiles.length),
                 ts_source_count: tsSourceCount,
+                expected_version: expectedVersion || 'not available',
                 modified_count: `${partFiles.length} (files are batched in groups of ≤${PARTITION_SIZE} to stay within AI context limits)`,
                 broken_refs_content: brokenRefsList,
                 doc_files: docFilesList,
                 file_contents:
                   fileContentsSection || '(no readable markdown file contents were available)',
                 directory_tree: directoryTree,
+                canonical_version_evidence: canonicalVersionEvidence,
+                repo_wide_doc_inventory: repoWideDocInventory,
               });
               if (prompt && roleOverride) {
                 prompt = `[Project-Kind Role: ${roleOverride}]\n\n${prompt}`;
@@ -1092,10 +1307,14 @@ export class Step2ConsistencyAnalyzer {
                 description: options.projectDescription || '',
               },
               fileContents: fileContentsSection,
+              expectedVersion,
+              repoWideDocFiles: relDocFiles,
             });
             if (header) prompt = `${header}\n\n${prompt}`;
             if (archiveContext) prompt = `${prompt}\n\n${archiveContext}`;
           }
+
+          prompt = withPromptAttempt(prompt, 1);
 
           // Safety cap: hard-truncate if still over limit
           if (prompt.length > MAX_PROMPT_CHARS) {
@@ -1106,14 +1325,20 @@ export class Step2ConsistencyAnalyzer {
           }
 
           // Build file-content hash entries from the actual doc files in this partition.
-          // Scanning results (broken refs, version issues) are fully derived from file
-          // content, so hashing file content captures all meaningful prompt inputs.
+          // Also include the repo-wide markdown inventory because the prompt uses it as
+          // existence evidence for files that are outside the current partition.
+          // Without this synthetic entry, cache hits can preserve stale "missing doc"
+          // judgments when only out-of-partition markdown paths change.
           // Use 'documentation_expert' persona: Step 2 performs documentation consistency
           // analysis (cross-references, version sync, terminology), not code quality review.
           // The YAML prompt template (step2_consistency_prompt) also defines a documentation
           // specialist role — both layers must agree to avoid misleading prompt logs.
           const cacheStepId = `step_02_part${i}of${totalParts}`;
-          let aiResult = await this.aiCache.withFileChangeGuard(cacheStepId, fileHashEntries, () =>
+          const cacheHashEntries = [
+            ...fileHashEntries,
+            `__repo_wide_doc_inventory__:${repoWideDocInventory}`,
+          ];
+          let aiResult = await this.aiCache.withFileChangeGuard(cacheStepId, cacheHashEntries, () =>
             this.aiHelper.executeRequest(prompt, { persona: 'documentation_expert' })
           );
           let aiContent = aiResult?.content ?? '';
@@ -1129,9 +1354,28 @@ export class Step2ConsistencyAnalyzer {
               `[step_02] Partition ${i + 1}: invalidated cached AI response` +
                 ` (reason=${quality.reason}, coverage=${(quality.coverage * 100).toFixed(0)}%). Re-running partition analysis.`
             );
-            aiResult = await this.aiHelper.executeRequest(prompt, {
-              persona: 'documentation_expert',
+            // Build a focused retry prompt that lists only the un-addressed broken refs,
+            // so the model cannot skip them by focusing on file-content issues instead.
+            const unaddressed = partitionBrokenRefs.filter((item) => {
+              const target = item.includes(' → ') ? item.split(' → ')[1].trim() : item;
+              return !aiContent.includes(target);
             });
+            const promptByRawReference = new Map(
+              partitionBrokenRefs.map((item, index) => [item, flaggedRefPrompts[index] || item])
+            );
+            const retryBasePrompt = withPromptAttempt(prompt, 2);
+            const retryPrompt =
+              unaddressed.length > 0
+                ? `${retryBasePrompt}\n\n---\n**RETRY FOCUS**: The following broken-reference candidates were NOT addressed in the previous response. You MUST output a "### Reference:" analysis block for EACH entry below before writing anything else. Preserve any \`(existing repo path: ...)\` hints exactly as written below because they are grounded evidence of a likely relative-path mistake or scan-resolution issue, not a guess.\n\n${unaddressed.map((r) => `- ${promptByRawReference.get(r) || r}`).join('\n')}`
+                : retryBasePrompt;
+            aiResult = await this.aiCache.withFileChangeGuard(
+              `${cacheStepId}_retry1`,
+              cacheHashEntries,
+              () =>
+                this.aiHelper.executeRequest(retryPrompt, {
+                  persona: 'documentation_expert',
+                })
+            );
             aiContent = aiResult?.content ?? '';
             quality = validateAiResponseQuality(aiContent, partitionBrokenRefs, {
               requireGroundedNoIssueResponse: true,
@@ -1326,7 +1570,7 @@ export class Step2ConsistencyAnalyzer {
     for (const file of docFiles) {
       try {
         const content = await this.fileOps.readFile(file);
-        const versions = extractVersions(stripUrlsForVersionCheck(content));
+        const versions = extractVersions(content);
 
         if (versions.length > 0) {
           fileVersions.push({ file, versions });
@@ -1449,6 +1693,7 @@ export class Step2ConsistencyAnalyzer {
         const issues = validateFileReferences(links, existingFiles, file).map((issue) => ({
           ...issue,
           repoRootMatch: findRepoRootMatch(issue.link, existingFiles, projectRoot),
+          relatedDocCandidates: findRelatedDocCandidates(issue.link, docFiles, projectRoot),
         }));
         allIssues.push(...issues);
       } catch {

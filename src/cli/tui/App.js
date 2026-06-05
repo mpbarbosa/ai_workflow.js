@@ -195,6 +195,8 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
 
   // Derive Copilot SDK execution status for StatusBadge in StepsPanel.
   // Priority: error > done > streaming > loading > idle
+  const currentStepName = currentStepId ? (steps[currentStepId]?.name ?? null) : null;
+
   const copilotStatus = lastError
     ? 'error'
     : isComplete
@@ -233,6 +235,8 @@ export function App({ orchestrator, stage, version = '1.6.3', verbose = false, o
       total: totalSteps,
       projectRoot: orchestrator?.projectRoot || process.cwd(),
       projectVersion,
+      currentStepId,
+      currentStepName,
     }),
     React.createElement(
       Box,

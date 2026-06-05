@@ -31,6 +31,10 @@ describe('accessibility_review_prompt — evidence scoping', () => {
     expect(approach).toContain('unavailable or inconclusive');
     expect(approach).toContain('source/test files rather than rendered HTML/CSS output');
     expect(approach).toContain('conflicting version numbers');
+    expect(approach).toContain('actionable finding');
+    expect(approach).toContain('include it again in any summary or conclusion');
+    expect(approach).toContain('confirmed live issues');
+    expect(approach).toContain('expected historical drift');
     expect(approach).toContain('terminal/native UI source');
     expect(approach).toContain('Do not infer `<main>`, `<nav>`, or any other semantic landmark');
     expect(approach).toContain('Missing focus management, focus order, or focus-visible logic');
@@ -39,6 +43,7 @@ describe('accessibility_review_prompt — evidence scoping', () => {
     expect(approach).toContain(
       'includes a `prefers-reduced-motion` guard or a `:focus-visible` rule'
     );
+    expect(approach).toContain('Do not end with a broad positive assessment');
     expect(approach).toContain('No issues detected in the visible excerpts');
   });
 

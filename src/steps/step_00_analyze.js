@@ -28,7 +28,7 @@ export const CHANGE_SCOPE = {
   TESTS_ONLY: 'tests-only',
   SOURCE_CODE: 'source-code',
   CONFIGURATION: 'configuration',
-  FULL_STACK: 'full-stack',
+  FULL_STACK: 'all-categories',
   CODE_AND_TESTS: 'code-and-tests',
   CODE_AND_DOCS: 'code-and-docs',
   MIXED_CHANGES: 'mixed-changes',

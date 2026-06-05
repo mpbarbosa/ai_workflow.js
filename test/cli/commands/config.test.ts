@@ -48,7 +48,7 @@ describe('Config Command - Pure Functions', (): void => {
       const result = validateConfigAction('delete', []);
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
-        'Invalid action: delete. Valid actions: show, validate, get, set'
+        'Invalid action: delete. Valid actions: show, validate, get, set, fix-deps'
       );
     });
 

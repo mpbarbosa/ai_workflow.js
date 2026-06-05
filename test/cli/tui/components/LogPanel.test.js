@@ -1,6 +1,6 @@
 /**
  * @file LogPanel.test.js
- * @description Tests for LogPanel — scrollable live log display
+ * @description Tests for LogPanel — cybernetic-themed live log display
  */
 
 import { jest } from '@jest/globals';
@@ -46,7 +46,7 @@ describe('LogPanel Component', () => {
   it('renders "Waiting for output…" when logs are empty', () => {
     const { lastFrame } = render(React.createElement(LogPanel, { logs: [], width: 40, height: 5 }));
     expect(lastFrame()).toContain('Waiting for output…');
-    expect(lastFrame()).toContain('LIVE LOG');
+    expect(lastFrame()).toContain('LIVE_LOGS');
   });
 
   it('renders log entries with timestamps', () => {
@@ -63,12 +63,25 @@ describe('LogPanel Component', () => {
     expect(lastFrame()).toContain('Normal log');
   });
 
+  it('renders [OK]/[BUSY]/[ERR] badges for different log prefixes', () => {
+    const logs = [
+      makeLog('→ Starting: something', '12:00:01'),
+      makeLog('✓ Completed: something', '12:00:02'),
+      makeLog('✗ Failed: something', '12:00:03'),
+      makeLog('⊘ Skipped: something', '12:00:04'),
+    ];
+    const { lastFrame } = render(React.createElement(LogPanel, { logs, width: 70, height: 12 }));
+    expect(lastFrame()).toContain('[ BUSY ]');
+    expect(lastFrame()).toContain('[ OK ]');
+    expect(lastFrame()).toContain('[ ERR ]');
+  });
+
   it('shows scroll indicator when scrolled up', async () => {
     const logs = Array.from({ length: 10 }, (_, i) => makeLog(`Log ${i + 1}`, `12:0${i}:00`));
     const { stdin, lastFrame } = render(
       React.createElement(LogPanel, { logs, width: 40, height: 5 })
     );
-    stdin.write('\u001b[A'); // up arrow (escape sequence — needs async flush)
+    stdin.write('[A');
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
     expect(lastFrame()).toContain('↑');
@@ -79,22 +92,20 @@ describe('LogPanel Component', () => {
     const { stdin, lastFrame } = render(
       React.createElement(LogPanel, { logs, width: 40, height: 5, isFocused: false })
     );
-    stdin.write('\u001b[A');
-    expect(lastFrame()).not.toContain('↑ 1 more line');
+    stdin.write('[A');
+    expect(lastFrame()).not.toContain('↑ 1 more');
   });
 
   it('renders with minimum msgWidth gracefully', () => {
     const logs = [makeLog('Short log', '12:03:00')];
     const { lastFrame } = render(React.createElement(LogPanel, { logs, width: 15, height: 5 }));
-    expect(lastFrame()).toContain('LIVE LOG');
+    expect(lastFrame()).toContain('LIVE_LOGS');
   });
 
   it('renders only maxVisible logs', () => {
     const logs = Array.from({ length: 10 }, (_, i) => makeLog(`Log ${i + 1}`, `12:0${i}:00`));
     const { lastFrame } = render(React.createElement(LogPanel, { logs, width: 40, height: 5 }));
-    // Always shows latest entries
     expect(lastFrame()).toContain('Log 10');
-    // 'Log 1 ' with trailing space/bracket distinguishes it from 'Log 10'
     expect(lastFrame()).not.toContain('Log 1 ');
     expect(lastFrame()).not.toContain('Log 2');
   });
@@ -110,7 +121,7 @@ describe('LogPanel Component', () => {
     const { stdin, lastFrame } = render(
       React.createElement(LogPanel, { logs, width: 40, height: 5 })
     );
-    stdin.write('k'); // k scrolls up in LogPanel
+    stdin.write('k');
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
     expect(lastFrame()).toContain('↑');
@@ -121,8 +132,14 @@ describe('LogPanel Component', () => {
     const { stdin, lastFrame } = render(
       React.createElement(LogPanel, { logs, width: 40, height: 5 })
     );
-    stdin.write('\u001b[A'); // scroll up first
-    stdin.write('g'); // jump to bottom
+    stdin.write('[A');
+    stdin.write('g');
     expect(lastFrame()).not.toContain('↑ ');
+  });
+
+  it('renders RECV_OK and CONNECTED status indicators', () => {
+    const { lastFrame } = render(React.createElement(LogPanel, { logs: [], width: 60, height: 5 }));
+    expect(lastFrame()).toContain('RECV_OK');
+    expect(lastFrame()).toContain('CONNECTED');
   });
 });

@@ -14,6 +14,7 @@ import {
   isScriptDocumented,
   buildDocCoverageMap,
   buildDocumentationExcerpts,
+  buildDocumentationContext,
   formatDocCoverageMap,
   formatScriptReport,
   SCRIPT_ISSUE_TYPE,
@@ -146,6 +147,20 @@ describe('Step 3: Script Reference Validation', () => {
       expect(refs).toContain('scripts/deploy.sh');
       expect(refs.every((r) => !r.startsWith(')'))).toBe(true);
     });
+
+    test('preserves dot-directory script references', () => {
+      const content = 'Run `./.github/scripts/deploy.sh` before release';
+      const refs = extractScriptReferences(content);
+
+      expect(refs).toContain('.github/scripts/deploy.sh');
+    });
+
+    test('preserves parent-relative script references for external prerequisites', () => {
+      const content = 'Requires `../mpbarbosa_site/shell_scripts/sync_to_staging.sh`';
+      const refs = extractScriptReferences(content);
+
+      expect(refs).toContain('../mpbarbosa_site/shell_scripts/sync_to_staging.sh');
+    });
   });
 
   describe('validateScriptReferences', () => {
@@ -170,6 +185,22 @@ describe('Step 3: Script Reference Validation', () => {
     test('normalizes paths with ./', () => {
       const references = ['./build.sh'];
       const existing = new Set(['build.sh']);
+
+      const issues = validateScriptReferences(references, existing);
+      expect(issues).toHaveLength(0);
+    });
+
+    test('matches dot-directory references without dropping the leading dot', () => {
+      const references = ['.github/scripts/check-version-consistency.sh'];
+      const existing = new Set(['.github/scripts/check-version-consistency.sh']);
+
+      const issues = validateScriptReferences(references, existing);
+      expect(issues).toHaveLength(0);
+    });
+
+    test('ignores parent-relative script references that point outside the repo', () => {
+      const references = ['../mpbarbosa_site/shell_scripts/sync_to_staging.sh'];
+      const existing = new Set(['scripts/build.sh']);
 
       const issues = validateScriptReferences(references, existing);
       expect(issues).toHaveLength(0);
@@ -297,6 +328,17 @@ describe('Step 3: Script Reference Validation', () => {
       expect(match).toEqual({
         type: SCRIPT_DOC_MATCH_TYPE.BASENAME_ONLY,
         reference: 'build.sh',
+      });
+    });
+
+    test('treats a root-level script filename as an exact repository-relative path', () => {
+      const match = getScriptDocumentationMatch(
+        'cdn-delivery.sh',
+        'Run `cdn-delivery.sh` after the release tag is pushed'
+      );
+      expect(match).toEqual({
+        type: SCRIPT_DOC_MATCH_TYPE.EXACT_PATH,
+        reference: 'cdn-delivery.sh',
       });
     });
   });
@@ -497,6 +539,86 @@ describe('Step 3: Script Reference Validation', () => {
       expect(excerpt).toContain('scripts/validate.sh');
       expect(excerpt).toContain('... [excerpt omitted]');
     });
+
+    describe('buildDocumentationContext', () => {
+      test('returns full file content when the loaded docs fit within the prompt budget', () => {
+        const docContext = buildDocumentationContext(
+          [
+            {
+              path: 'README.md',
+              content: ['# Project', '## Automation Scripts', '- `scripts/setup.sh`'].join('\n'),
+            },
+            {
+              path: 'scripts/README.md',
+              content: ['# Scripts', 'Use `bash scripts/setup.sh` to bootstrap.'].join('\n'),
+            },
+          ],
+          ['scripts/setup.sh'],
+          4_000
+        );
+
+        expect(docContext.isPartial).toBe(false);
+        expect(docContext.content).toContain('### README.md');
+        expect(docContext.content).toContain('### scripts/README.md');
+        expect(docContext.content).toContain('Use `bash scripts/setup.sh` to bootstrap.');
+        expect(docContext.content).not.toContain('... [truncated]');
+      });
+
+      test('falls back to excerpt mode when full file content would exceed the prompt budget', () => {
+        const lines = Array.from({ length: 300 }, (_, index) => `Line ${index + 1}`);
+        lines[210] = '## Automation Scripts';
+        lines[211] = '- `scripts/deploy.sh`';
+
+        const docContext = buildDocumentationContext(
+          [{ path: 'README.md', content: lines.join('\n') }],
+          ['scripts/deploy.sh'],
+          900
+        );
+
+        expect(docContext.isPartial).toBe(true);
+        expect(docContext.content).toContain('### README.md');
+        expect(docContext.content).toContain('scripts/deploy.sh');
+        expect(docContext.content).toContain('... [excerpt omitted]');
+      });
+    });
+
+    test('prioritizes relevant docs so later matching guides survive tight prompt budgets', () => {
+      const docFiles = [
+        {
+          path: 'README.md',
+          content: [
+            '# Project',
+            '## Automation Scripts',
+            '- `scripts/deploy.sh`',
+            '- `cdn-delivery.sh`',
+          ].join('\n'),
+        },
+        {
+          path: 'docs/API.md',
+          content: Array.from({ length: 240 }, (_, index) => `API line ${index + 1}`).join('\n'),
+        },
+        {
+          path: 'docs/DOCKER_TESTING.md',
+          content: [
+            '# Docker Testing Guide',
+            '## Shell script walkthrough',
+            '`scripts/run-tests-docker.sh` is a convenience wrapper with three steps.',
+            'bash scripts/run-tests-docker.sh -- --coverage',
+          ].join('\n'),
+        },
+      ];
+
+      const excerpt = buildDocumentationExcerpts(
+        docFiles,
+        ['scripts/deploy.sh', 'cdn-delivery.sh', 'scripts/run-tests-docker.sh'],
+        1_200
+      );
+
+      expect(excerpt).toContain('### README.md');
+      expect(excerpt).toContain('### docs/DOCKER_TESTING.md');
+      expect(excerpt).toContain('scripts/run-tests-docker.sh');
+      expect(excerpt).not.toContain('API line 240');
+    });
   });
 
   // ========================================================================
@@ -571,6 +693,24 @@ describe('Step 3: Script Reference Validation', () => {
       expect(result.success).toBe(true);
       expect(result.scriptsFound).toBe(2);
       expect(result.totalIssues).toBe(0);
+    });
+
+    test('loads docker testing docs into the extra documentation set when present', async () => {
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('/docs/DOCKER_TESTING.md')) {
+          return Promise.resolve('# Docker Testing\nUse `scripts/run-tests-docker.sh`.');
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      const docs = await analyzer.loadExtraDocs('/project');
+
+      expect(docs).toEqual([
+        {
+          path: 'docs/DOCKER_TESTING.md',
+          content: '# Docker Testing\nUse `scripts/run-tests-docker.sh`.',
+        },
+      ]);
     });
 
     test('detects missing references', async () => {

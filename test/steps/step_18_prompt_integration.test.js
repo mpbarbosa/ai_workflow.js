@@ -32,6 +32,28 @@ describe('async_flow_debugger_prompt — evidence scoping', () => {
     expect(approach).toContain('Timing evidence unavailable from static source excerpts');
   });
 
+  test('approach expands async detection beyond promises and fetch calls', () => {
+    const approach = aiHelpers.async_flow_debugger_prompt.approach;
+
+    expect(approach).toContain('MutationObserver');
+    expect(approach).toContain('navigator.geolocation');
+    expect(approach).toContain('window.open');
+    expect(approach).toContain(
+      'Patterns Present: none — visible files have no executable async surface; analysis skipped.'
+    );
+  });
+
+  test('network guidance only requires recovery logic when the code promises recovery', () => {
+    const expertise = aiHelpers.async_flow_debugger_prompt.specific_expertise;
+    const approach = aiHelpers.async_flow_debugger_prompt.approach;
+
+    expect(expertise).toContain(
+      'Missing recovery only when surrounding code claims retry/fallback'
+    );
+    expect(approach).toContain('Only flag missing retry/fallback/proxy logic');
+    expect(approach).toContain('intentional error propagation rather than a bug');
+  });
+
   test('output format keeps durations conditional on explicit timing evidence', () => {
     const outputFormat = aiHelpers.async_flow_debugger_prompt.output_format;
 
@@ -39,5 +61,9 @@ describe('async_flow_debugger_prompt — evidence scoping', () => {
       'Duration if explicit timing evidence is visible; otherwise unavailable'
     );
     expect(outputFormat).toContain('runtime timing validation is unavailable from this request');
+    expect(outputFormat).toContain('Event Sequence');
+    expect(outputFormat).toContain(
+      'Patterns Present: none — visible files have no executable async surface; analysis skipped.'
+    );
   });
 });

@@ -12,6 +12,8 @@ import {
   parseAiResponse,
   parseErrorResponse,
   extractActionableIssueSignals,
+  normalizeErrorResilienceSummary,
+  normalizePromptResponseContent,
   formatBatchRequests,
   calculateRetryDelay,
   shouldRetry,
@@ -174,6 +176,17 @@ describe('AI Helpers Module - Pure Functions', () => {
         expect(result.type).toBe('rate_limit');
         expect(result.retryable).toBe(true);
       });
+    });
+
+    test('detects tool-message ordering errors as retryable conversation state', () => {
+      const error = new Error(
+        "CAPIError: 400 Invalid parameter: messages with role 'tool' must be a response to a preceeding message with 'tool_calls'."
+      );
+
+      const result = parseErrorResponse(error);
+
+      expect(result.type).toBe('conversation_state');
+      expect(result.retryable).toBe(true);
     });
 
     test('detects CLI not found (ENOENT) errors', () => {
@@ -503,6 +516,50 @@ describe('AI Helpers Module - Pure Functions', () => {
       ).toEqual([]);
     });
 
+    test('ignores async no-pattern responses that only report unavailable timing validation', () => {
+      const response = [
+        '**Async Flow Analysis**',
+        '',
+        'Patterns Present: none',
+        '',
+        '**Validation:**',
+        'Runtime timing validation is unavailable from this request.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores non-actionable validation guidance after an explicit no-issue verdict', () => {
+      const response = [
+        '**Issue Identified:**',
+        'None found in the provided code.',
+        '',
+        '**Validation:**',
+        'Runtime timing validation is unavailable from this request (static source only).',
+        'Behavior should be validated with tests that simulate concurrent calls, throttling, and error conditions.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores async execution and event summaries when no issue block is present', () => {
+      const response = [
+        '**Async Flow Analysis**',
+        '',
+        '**Execution Chain:**',
+        '1. `init()` sets up error handlers and schedules route handling - SUCCESS/FAILED',
+        '',
+        '**Event Sequence:**',
+        '1. `announceState` creates a live region, then uses `setTimeout` to remove it after 1s',
+        '',
+        '**Validation:**',
+        'Runtime timing validation is unavailable from this request; only static source analysis performed.',
+        'No confirmed async issues in the visible excerpts.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
     test('captures verdict-style specific edits and their supporting reason lines', () => {
       const response = [
         'README.md',
@@ -575,6 +632,280 @@ describe('AI Helpers Module - Pure Functions', () => {
       ].join('\n');
 
       expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores self-negating issue bullets that describe valid async patterns', () => {
+      const response = [
+        '## Response',
+        '',
+        '- **Issue:** In `init()`, a `Promise.race` is used with two new Promises. This is a valid pattern for event+timeout, not an anti-pattern.',
+        '- **Issue:** All async functions contain at least one `await`. No unnecessary async overhead detected.',
+        '- **Issue:** The use of `new Promise` in `Promise.race` is justified for event+timeout coordination.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('ignores style-only async refactor recommendations in issue sections and summary rows', () => {
+      const response = [
+        '## Prioritized Recommendations',
+        '',
+        '1. **Refactor to async/await for clarity** (LOW): Convert `.then()`/`.catch()` chains for better readability and stack trace clarity.',
+        '',
+        '## Summary Table',
+        '',
+        '| File | Issue Type | Severity | Impact |',
+        '| public/service-worker.js | Use async/await for clarity | LOW | Improves readability and stack trace clarity |',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+
+    test('keeps file-specific inconclusive verdicts when they include an actionable file reference', () => {
+      const response = [
+        '**Inconclusive**',
+        'Reason: `src/config/runtime.ts` was not included, so the timeout fallback cannot be verified.',
+        'Recommend reviewing `src/config/runtime.ts` before approving the prompt response.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([
+        '**Inconclusive**',
+        'Reason: `src/config/runtime.ts` was not included, so the timeout fallback cannot be verified.',
+        'Recommend reviewing `src/config/runtime.ts` before approving the prompt response.',
+      ]);
+    });
+
+    test('dedupes quoted nested bullet variants of the same actionable signal', () => {
+      const response = [
+        '- "- Update `docs/ARCHITECTURE.md` and the linked `docs/architecture/` reference docs for architecture or layout changes."',
+        '- Update `docs/ARCHITECTURE.md` and the linked `docs/architecture/` reference docs for architecture or layout changes.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([
+        '- "- Update `docs/ARCHITECTURE.md` and the linked `docs/architecture/` reference docs for architecture or layout changes."',
+      ]);
+    });
+
+    test('flags Jest prompts that target .test.vue files and use Vitest APIs in the response', () => {
+      const prompt = [
+        '**Source file**: `src/components/BottomNav.vue`',
+        '**Test file to write**: `test/components/BottomNav.test.vue`',
+        '**Language / framework**: Jest',
+      ].join('\n');
+      const response = [
+        '```vue',
+        '<script lang="ts">',
+        "import { vi } from '@jest/globals';",
+        "vi.mock('vue-router', () => ({ useRoute: vi.fn() }));",
+        "describe('BottomNav.vue', () => {});",
+        '</script>',
+        '```',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([
+        '- Target test path `test/components/BottomNav.test.vue` uses `.test.vue`; prefer a Jest-discoverable module filename such as `.vue.test.ts` or `.test.ts`.',
+        '- Response uses Vitest APIs (`vi.*` / `vitest`) even though the prompt requires Jest idioms.',
+        '- Response is formatted as a Vue SFC (` ```vue ` / `<script>`) instead of a plain test module.',
+      ]);
+    });
+
+    test('flags forbidden suppressions and placeholder mock comments in step-07 responses', () => {
+      const prompt = [
+        '**Source file**: `src/composables/useLocationSnapshot.ts`',
+        '**Test file to write**: `__tests__/composables/useLocationSnapshot.test.ts`',
+        '**Language / framework**: Jest',
+        '- Passes TypeScript strict-mode compilation without `@ts-expect-error` suppressions for type errors',
+      ].join('\n');
+      const response = [
+        '```ts',
+        '// @ts-expect-error: test helper',
+        '// Add any other required fields if present in real CachedLocationSnapshot',
+        'describe("useLocationSnapshot", () => {});',
+        '```',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([
+        '- Response uses `@ts-expect-error` even though the prompt forbids type-error suppressions.',
+        '- Response includes placeholder comments that admit a guessed mock shape or incomplete lifecycle coverage.',
+      ]);
+    });
+
+    test('drops step-03 generic doc-gap claims and invented command examples when evidence is partial', () => {
+      const prompt = [
+        '**Script Documentation Coverage:**',
+        '(shows which documentation files reference each script)',
+        'scripts/deploy.sh: documented in [scripts/README.md]',
+        '... [truncated]',
+        '',
+        '**Documentation Excerpts (partial — first ~80 lines per file, may be truncated):**',
+        'Treat these excerpts as partial evidence.',
+        "Recommendation examples must preserve the script's visible interface.",
+        'Use `(no visible example)` instead of inventing a command or flag.',
+        '**Usage**: `./scripts/deploy.sh [-h|--help]`',
+      ].join('\n');
+      const response = [
+        '### Summary Table',
+        '',
+        '| File/Location | Issue Type | Severity | Impact |',
+        '|---------------|------------|----------|--------|',
+        '| Coverage Map | Documentation coverage map is truncated; full coverage unconfirmed | Medium | Review hidden entries before claiming exhaustive counts |',
+        '| README.md, scripts/README.md | Missing usage examples for some scripts | High | Add `./scripts/deploy.sh --env=prod` |',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([
+        '| File/Location | Issue Type | Severity | Impact |',
+        '| Coverage Map | Documentation coverage map is truncated; full coverage unconfirmed | Medium | Review hidden entries before claiming exhaustive counts |',
+      ]);
+    });
+
+    test('drops step-04 partition caveats, no-op security bullets, and out-of-scope follow-up suggestions', () => {
+      const prompt = [
+        '### Configuration Files in Scope',
+        '**Root**: package.json (part 1/2), package.json (part 2/2)',
+        '',
+        '> **Note:**',
+        '> - Deterministic syntax/schema validation has already run on the full in-scope configuration files before this prompt was generated.',
+      ].join('\n');
+      const response = [
+        '- **File:** package.json',
+        '- **Severity:** CRITICAL',
+        '- **Issue:** No exposed secrets or hardcoded credentials found in the visible content.',
+        '- **Recommendation:** No action needed for secrets in this partition.',
+        '- **Impact:** No immediate security risk detected in this partition.',
+        '- **File:** package.json',
+        '- **Severity:** HIGH',
+        '- **Issue:** The file is split into two parts; full-file syntax validity cannot be confirmed from the partition alone.',
+        '- **Recommendation:** Ensure `.nvmrc` and CI configs match these engine versions.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([]);
+    });
+
+    test('drops step-10 recommendation sections that only contain repo-wide follow-up items', () => {
+      const prompt = [
+        '**Supplementary Tooling, Convention, and Test Evidence:**',
+        '- `npm run lint`',
+        '- `npm run lint:md`',
+      ].join('\n');
+      const response = [
+        '## Recommendations',
+        '',
+        '1. **Expand lint coverage** to cover more files.',
+        '2. **Enable auto-fix on save** for contributors.',
+        '3. **Ensure markdown lint runs in CI** before merging.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([]);
+    });
+
+    test('keeps step-10 recommendation sections when the section contains concrete file references', () => {
+      const prompt = [
+        '**Supplementary Tooling, Convention, and Test Evidence:**',
+        '- `npm run lint`',
+      ].join('\n');
+      const response = [
+        '## Recommendations',
+        '',
+        '1. Fix the duplicated parsing branch in `src/lib/parser.js`.',
+        '2. Add the missing null guard in `src/lib/parser.js` before dereferencing `node.parent`.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([
+        '1. Fix the duplicated parsing branch in `src/lib/parser.js`.',
+        '2. Add the missing null guard in `src/lib/parser.js` before dereferencing `node.parent`.',
+      ]);
+    });
+
+    test('keeps step-04 structured config findings when all referenced files are in scope', () => {
+      const prompt = [
+        '### Configuration Files in Scope',
+        '**Root**: package.json, .nvmrc',
+        '',
+        '> **Note:**',
+        '> - Deterministic syntax/schema validation has already run on the full in-scope configuration files before this prompt was generated.',
+      ].join('\n');
+      const response = [
+        '- **File:** package.json',
+        '- **Severity:** MEDIUM',
+        '- **Issue:** `engines.node` is `>=20.19.0`, but `.nvmrc` pins `18.20.0`.',
+        '- **Recommendation:** Align `.nvmrc` with the supported engine range.',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response, { promptContent: prompt })).toEqual([
+        '- **File:** package.json',
+        '- **Severity:** MEDIUM',
+        '- **Issue:** `engines.node` is `>=20.19.0`, but `.nvmrc` pins `18.20.0`.',
+        '- **Recommendation:** Align `.nvmrc` with the supported engine range.',
+      ]);
+    });
+
+    test('drops praise-only configuration review bullets from auto-extracted issue snapshots', () => {
+      const response = [
+        '### eslint.config.js',
+        '',
+        '- Uses recommended TypeScript ESLint rules, complexity warnings, and disables `any` only for test files (good practice).',
+      ].join('\n');
+
+      expect(extractActionableIssueSignals(response)).toEqual([]);
+    });
+  });
+
+  describe('error resilience response normalization', () => {
+    test('rewrites inconsistent severity summaries to match enumerated findings', () => {
+      const response = [
+        '**Error Resilience Review**',
+        '',
+        '- **Severity**: High',
+        '- **Severity**: High',
+        '- **Severity**: Medium',
+        '',
+        '**Summary:** 1 Critical, 2 High, 1 Medium findings. Addressing these will help.',
+      ].join('\n');
+
+      expect(normalizeErrorResilienceSummary(response)).toContain(
+        '**Summary:** 2 High, 1 Medium findings.'
+      );
+      expect(normalizeErrorResilienceSummary(response)).not.toContain('Critical');
+    });
+
+    test('only applies summary normalization to error resilience prompts', () => {
+      const response = '**Summary:** 1 Critical, 2 High findings.';
+      const normalPrompt = 'Perform a comprehensive code quality review.';
+      const erPrompt = 'Perform a focused Error Resilience Review of the provided source files.';
+
+      expect(normalizePromptResponseContent(normalPrompt, response)).toBe(response);
+      expect(normalizePromptResponseContent(erPrompt, response)).toBe(
+        '**Summary:** 1 Critical, 2 High findings.'
+      );
+    });
+
+    test('executeRequest applies custom response normalizers before returning and logging', async () => {
+      const { readFile, readdir } = await import('fs/promises');
+      const promptLogDir = await mkdtemp(path.join(tmpdir(), 'ai-helper-normalized-log-'));
+      const helperWithLogs = new AiHelper({ promptsDir: promptLogDir });
+      helperWithLogs.available = true;
+      helperWithLogs.authenticated = true;
+      helperWithLogs._wrapper = {
+        send: jest
+          .fn()
+          .mockResolvedValue('Raw model response that should be normalized before logging.'),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+
+      const result = await helperWithLogs.executeRequest('Normalize this response', {
+        responseContentNormalizer: (content) =>
+          content.replace('Raw model response', 'Normalized response'),
+      });
+
+      expect(result.content).toContain('Normalized response');
+      expect(result.content).not.toContain('Raw model response');
+
+      const files = await readdir(promptLogDir);
+      const content = await readFile(path.join(promptLogDir, files[0]), 'utf8');
+      expect(content).toContain('Normalized response that should be normalized before logging.');
+      expect(content).not.toContain('Raw model response that should be normalized before logging.');
     });
   });
 });
@@ -1083,6 +1414,33 @@ describe('AiHelper class methods', () => {
       expect(result).toHaveProperty('content');
     });
 
+    test('forwards responseType and validationContext into response validation', async () => {
+      helper.available = true;
+      helper.authenticated = true;
+      helper._wrapper = {
+        send: jest
+          .fn()
+          .mockResolvedValue(
+            'All other files in the sample are type-safe and idiomatic. No other actionable issues found.'
+          ),
+        recreateSession: jest.fn().mockResolvedValue(undefined),
+        client: null,
+        session: null,
+      };
+
+      const result = await helper.executeRequest('Review the sample.', {
+        responseType: 'typescript_review',
+        validationContext: { hasIncompleteEvidence: true },
+      });
+
+      expect(result.validation).toBeDefined();
+      expect(result.validation.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Unsupported positive summary for typescript review'),
+        ])
+      );
+    });
+
     test('retries and eventually throws on repeated failures', async () => {
       helper.available = true;
       helper.authenticated = true;
@@ -1489,6 +1847,31 @@ describe('AiHelper class - additional method coverage', () => {
     expect(fallbackInitialize).toHaveBeenCalled();
     expect(fallbackSend).toHaveBeenCalledWith('test prompt', 120000);
     expect(fallbackCleanup).toHaveBeenCalled();
+  });
+
+  test('executeRequest retries tool-message ordering errors after recreating the session', async () => {
+    const helper = new AiHelper({ model: 'gpt-4.1', baseDelay: 0 });
+    helper.available = true;
+    helper.authenticated = true;
+    helper.config.maxRetries = 2;
+    const recreateSession = jest.fn().mockResolvedValue(undefined);
+    helper._wrapper = {
+      send: jest
+        .fn()
+        .mockRejectedValueOnce(
+          new Error(
+            "CAPIError: 400 Invalid parameter: messages with role 'tool' must be a response to a preceeding message with 'tool_calls'."
+          )
+        )
+        .mockResolvedValueOnce({ content: 'Recovered response', success: true }),
+      recreateSession,
+    };
+
+    const result = await helper.executeRequest('test prompt');
+
+    expect(result.content).toBe('Recovered response');
+    expect(helper._wrapper.send).toHaveBeenCalledTimes(2);
+    expect(recreateSession).toHaveBeenCalledTimes(1);
   });
 
   test('executeRequest skips fallback when fallbackModel is null', async () => {
@@ -1902,6 +2285,129 @@ describe('AiHelper._logPrompt - Project Version header', () => {
     expect(content).toContain('## Auto-Extracted Issue Signals');
     expect(content).toContain('**Detected Signals:** 0');
     expect(content).toContain('No concrete issue signals auto-detected from response text.');
+  });
+
+  test('uses outer markdown fences that do not break when prompt or response contains fenced code blocks', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      ['## Prompt body', '', '```md', 'Last Updated: 2026-04-29', '```'].join('\n'),
+      { persona: 'documentation_expert', model: 'gpt-4.1' },
+      {
+        content: ['## Response body', '', '```md', '**Last Updated**: 2026-05-20', '```'].join(
+          '\n'
+        ),
+      }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+
+    expect(content).toContain('## Prompt\n\n````');
+    expect(content).toContain('## Response\n\n````');
+    expect(content).toContain('```md\nLast Updated: 2026-04-29\n```');
+    expect(content).toContain('```md\n**Last Updated**: 2026-05-20\n```');
+  });
+
+  test('executeRefined does not apply custom response normalizers to the refinement meta-prompt', async () => {
+    const helper = new AiHelper();
+    helper.available = true;
+    helper.authenticated = true;
+    helper._wrapper = {
+      send: jest
+        .fn()
+        .mockResolvedValueOnce('Use this refined task prompt.')
+        .mockResolvedValueOnce('final task response'),
+      recreateSession: jest.fn().mockResolvedValue(undefined),
+      client: null,
+      session: null,
+    };
+
+    const result = await helper.executeRefined('original prompt', {
+      responseContentNormalizer: (content) => `[normalized] ${content}`,
+      validate: false,
+    });
+
+    expect(helper._wrapper.send).toHaveBeenNthCalledWith(
+      2,
+      'Use this refined task prompt.',
+      expect.any(Number)
+    );
+    expect(result.content).toBe('[normalized] final task response');
+  });
+
+  test('filters structured finding-schema bullets out of the auto-extracted issue snapshot', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    await helper._logPrompt(
+      'test prompt',
+      { persona: 'documentation_expert', model: 'claude-sonnet-4.5' },
+      {
+        content: [
+          '## Findings',
+          '',
+          '### Finding 1 - No Unsupported or Stale Claims',
+          '- **Classification**: inconclusive',
+          '- **Current file evidence**: No unsupported or invented claims found.',
+          '- **Repo-fact evidence**: not available',
+          '- **Action**: omit pending evidence',
+          '- **Why this matters**: Ensures only supported guidance is present.',
+        ].join('\n'),
+      }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    const snapshotSection = content.split('## Prompt')[0];
+    expect(content).toContain('**Detected Signals:** 0');
+    expect(content).toContain('No concrete issue signals auto-detected from response text.');
+    expect(snapshotSection).not.toContain('- **Classification**: inconclusive');
+    expect(snapshotSection).not.toContain(
+      '- **Current file evidence**: No unsupported or invented claims found.'
+    );
+    expect(snapshotSection).not.toContain('- **Action**: omit pending evidence');
+  });
+
+  test('suppresses step-03 partial-evidence snapshot lines that invent command examples', async () => {
+    const { readFile, readdir } = await import('fs/promises');
+    const helper = new AiHelper({ promptsDir });
+    const prompt = [
+      '**Script Documentation Coverage:**',
+      '(shows which documentation files reference each script)',
+      'scripts/deploy.sh: documented in [scripts/README.md]',
+      '... [truncated]',
+      '',
+      '**Documentation Excerpts (partial — first ~80 lines per file, may be truncated):**',
+      'Treat these excerpts as partial evidence.',
+      "Recommendation examples must preserve the script's visible interface.",
+      'Use `(no visible example)` instead of inventing a command or flag.',
+      '**Usage**: `./scripts/deploy.sh [-h|--help]`',
+    ].join('\n');
+
+    await helper._logPrompt(
+      prompt,
+      { persona: 'devops_engineer', model: 'claude-haiku-4.5' },
+      {
+        content: [
+          '### Summary Table',
+          '',
+          '| File/Location | Issue Type | Severity | Impact |',
+          '|---------------|------------|----------|--------|',
+          '| Coverage Map | Documentation coverage map is truncated; full coverage unconfirmed | Medium | Review hidden entries before claiming exhaustive counts |',
+          '| README.md, scripts/README.md | Missing usage examples for some scripts | High | Add `./scripts/deploy.sh --env=prod` |',
+        ].join('\n'),
+      }
+    );
+
+    const files = await readdir(promptsDir);
+    const content = await readFile(path.join(promptsDir, files[0]), 'utf8');
+    const snapshotSection = content.split('## Prompt')[0];
+
+    expect(snapshotSection).toContain(
+      '| Coverage Map | Documentation coverage map is truncated; full coverage unconfirmed | Medium | Review hidden entries before claiming exhaustive counts |'
+    );
+    expect(snapshotSection).not.toContain('Missing usage examples for some scripts');
+    expect(snapshotSection).not.toContain('./scripts/deploy.sh --env=prod');
   });
 });
 

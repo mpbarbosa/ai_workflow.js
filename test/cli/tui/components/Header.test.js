@@ -1,6 +1,6 @@
 /**
  * @file Header.test.js
- * @description Tests for Header — top bar of the TUI dashboard
+ * @description Tests for Header — cybernetic breadcrumb top bar
  */
 
 import React from 'react';
@@ -12,58 +12,79 @@ afterEach(() => {
 });
 
 describe('Header Component', () => {
-  it('renders project name, version, stage, and step counter (happy path)', () => {
+  it('renders breadcrumb with stage and version (happy path)', () => {
     const { lastFrame } = render(
       React.createElement(Header, { stage: 'run', completed: 3, total: 5, version: '2.0.0' })
     );
-    expect(lastFrame()).toContain('AI Workflow');
-    expect(lastFrame()).toContain('v2.0.0');
-    expect(lastFrame()).toContain('stage: run');
-    expect(lastFrame()).toContain('Step 3/5');
+    expect(lastFrame()).toContain('ai-workflow');
+    expect(lastFrame()).toContain('[v2.0.0]');
+    expect(lastFrame()).toContain('03/05');
   });
 
   it('renders default version when version prop is not provided', () => {
     const { lastFrame } = render(
       React.createElement(Header, { stage: 'init', completed: 0, total: 10 })
     );
-    expect(lastFrame()).toContain('v1.6.3');
-    expect(lastFrame()).toContain('stage: init');
-    expect(lastFrame()).toContain('Step 0/10');
+    expect(lastFrame()).toContain('[v1.6.3]');
+    expect(lastFrame()).toContain('00/10');
   });
 
-  it('shows "Initializing…" when total is 0', () => {
+  it('shows "initializing" when no currentStepId is provided', () => {
     const { lastFrame } = render(
       React.createElement(Header, { stage: 'setup', completed: 0, total: 0, version: '3.1.0' })
     );
-    expect(lastFrame()).toContain('Initializing…');
-    expect(lastFrame()).toContain('v3.1.0');
-    expect(lastFrame()).toContain('stage: setup');
+    expect(lastFrame()).toContain('initializing');
+    expect(lastFrame()).toContain('[v3.1.0]');
   });
 
-  it('handles negative completed and total values gracefully', () => {
+  it('shows currentStepId and currentStepName in breadcrumb', () => {
     const { lastFrame } = render(
-      React.createElement(Header, { stage: 'error', completed: -1, total: -5, version: '0.0.1' })
+      React.createElement(Header, {
+        stage: 'run',
+        completed: 5,
+        total: 10,
+        version: '1.0.0',
+        currentStepId: 'step_05',
+        currentStepName: 'consistency_analysis',
+      })
     );
-    expect(lastFrame()).toContain('Initializing…');
-    expect(lastFrame()).toContain('v0.0.1');
-    expect(lastFrame()).toContain('stage: error');
+    expect(lastFrame()).toContain('ai-workflow');
+    expect(lastFrame()).toContain('step_05');
+    expect(lastFrame()).toContain('consistency_analysis');
   });
 
-  it('renders with completed greater than total', () => {
+  it('shows step counter padded', () => {
     const { lastFrame } = render(
-      React.createElement(Header, { stage: 'finalize', completed: 10, total: 5, version: '4.2.0' })
+      React.createElement(Header, {
+        stage: 'run',
+        completed: 1,
+        total: 32,
+        version: '1.0.0',
+      })
     );
-    expect(lastFrame()).toContain('Step 10/5');
-    expect(lastFrame()).toContain('v4.2.0');
-    expect(lastFrame()).toContain('stage: finalize');
+    expect(lastFrame()).toContain('01/32');
   });
 
-  it('renders with empty stage string', () => {
+  it('shows projectVersion in version badge when provided', () => {
+    const { lastFrame } = render(
+      React.createElement(Header, {
+        stage: 'run',
+        completed: 0,
+        total: 5,
+        version: '2.0.0',
+        projectVersion: '1.5.0',
+      })
+    );
+    expect(lastFrame()).toContain('[v2.0.0');
+    expect(lastFrame()).toContain('1.5.0');
+  });
+
+  it('handles empty stage gracefully', () => {
     const { lastFrame } = render(
       React.createElement(Header, { stage: '', completed: 1, total: 2, version: '1.0.0' })
     );
-    expect(lastFrame()).toContain('stage: ');
-    expect(lastFrame()).toContain('Step 1/2');
-    expect(lastFrame()).toContain('v1.0.0');
+    expect(lastFrame()).toContain('ai-workflow');
+    expect(lastFrame()).toContain('[v1.0.0]');
+    expect(lastFrame()).toContain('01/02');
   });
 });

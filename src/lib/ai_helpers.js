@@ -70,18 +70,292 @@ const ISSUE_PERFORMANCE_RE =
 const FILE_REFERENCE_RE = /\b[\w./-]+\.(?:[cm]?ts|tsx|[cm]?js|jsx|md|json|ya?ml)\b/;
 const ISSUE_ACTIONABLE_VERDICT_RE = /\b(?:specific edit required|unavailable|inconclusive)\b/i;
 const ISSUE_REASON_LINE_RE = /^(?:\*\*)?Reason(?:ing)?\*{0,2}:?/i;
+const FINDING_SCHEMA_BULLET_RE =
+  /^([-*+]|\d+\.)\s+\*\*(?:classification|current file evidence|repo-fact evidence|action|why this matters)\*\*:/i;
 const NO_ISSUES_RE =
-  /\b(no (?:actionable |concrete |major |critical |high-severity )?(issues?|findings)|nothing to fix|no changes needed)\b/i;
+  /\b(no (?:actionable |concrete |major |critical |high-severity |confirmed async )?(issues?|findings)|no confirmed async issues(?: in the visible excerpts)?|no (?:exposed\s+)?secrets?(?: or hardcoded credentials)? (?:found|detected)|patterns present:\s*none|nothing to fix|no changes needed)\b/i;
 const NO_IMPACT_SIGNAL_RE =
-  /\b(no update is required|no updates required|do(?:es)? not affect|do(?:es)? not require (?:changes|updates)|remain(?:s)? accurate|already documented|already correct|functionally equivalent)\b/i;
+  /\b(no action needed|no update is required|no updates required|no immediate security risk detected|do(?:es)? not affect|do(?:es)? not require (?:changes|updates)|remain(?:s)? accurate|already documented|already correct|functionally equivalent)\b/i;
 const NON_ACTIONABLE_OBSERVATION_RE =
   /\b(no evidence of|appropriate use of|(?:the )?use of\b.*\bis appropriate|demonstrates good|already guarded|all imports are necessary|no unnecessary eager imports|no computational hot paths|benchmarking coverage is not applicable|no regex usage(?: is)? visible|all visible code is appropriate|all code is event-driven|all patterns are appropriate|this is (?:a|an) .*not a performance-critical path)\b/i;
+const NON_ACTIONABLE_VALIDATION_RE =
+  /\b(runtime timing validation is unavailable|timing evidence unavailable from static source excerpts|tests use async\/await and promise assertions to validate async behavior|behavior should be validated with tests that simulate|validation is unavailable from this request)\b/i;
+const POSITIVE_ASSESSMENT_RE =
+  /\b(good practice|best practice(?:s)?|well-organized|well organised|well-structured|well documented|structure is clear|naming is clear|clear, project-appropriate|project-appropriate formatting rules|descriptive(?:,? and dependency comments are present)?|strict typing, clear output separation, and modern targets|coverage thresholds, randomization, and cache settings are best practice|uses recommended [\w\s@/-]+rules)\b/i;
+const ASYNC_FLOW_ANALYSIS_RE = /\*\*Async Flow Analysis\*\*/i;
+const ASYNC_FLOW_STRUCTURAL_SECTION_RE =
+  /^\*\*(?:Execution Chain|Event Sequence|Error Path Diagram|Validation):?\*\*:?\s*$/i;
 const SUMMARY_TABLE_HEADER_RE =
-  /^\|\s*file\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
+  /^\|\s*(?:file|file\/location)\s*\|\s*issue type\s*\|\s*severity\s*\|\s*impact\s*\|?$/i;
 const SUMMARY_TABLE_ROW_RE = /^\|.+\|.+\|.+\|.+\|?$/;
 const SUMMARY_TABLE_SEPARATOR_RE = /^\|\s*[-:| ]+\|$/;
 const SUMMARY_TABLE_NO_ISSUE_ROW_RE =
   /^\|\s*(?:\(none found.*?\)|[^|]+)\s*\|\s*(?:no concrete issues found|no actionable issues found|none found in these excerpts)\s*\|/i;
+const ISSUE_LINE_RE = /^(?:[-*+]|\d+\.)\s+\*\*Issue:?\*\*\s*(.+)$/i;
+const NON_ACTIONABLE_ISSUE_BODY_RE =
+  /\b(?:valid pattern|not an anti-pattern|justified|appropriate|acceptable|correct and optimal|no changes required|no issue(?:s)? found|no anti-patterns found|no floating promises detected|no unnecessary async overhead detected|all error paths are handled|all async functions contain at least one `?await`?)\b/i;
+const TEST_TARGET_PATH_RE = /\*\*(?:Test file to write|Target test file)\*\*:\s*`([^`]+)`/i;
+const PROMPT_FRAMEWORK_RE = /\*\*(?:Language \/ framework|Framework)\*\*:\s*([^\n]+)/i;
+const VITEST_USAGE_RE =
+  /\bvi\.(?:mock|fn|spyOn|clearAllMocks|resetAllMocks|restoreAllMocks)\b|from\s+['"]vitest['"]|import\s*\{[^}]*\bvi\b[^}]*\}\s*from\s*['"]@jest\/globals['"]/i;
+const VUE_SFC_TEST_RE = /^```vue\b|<script(?:\s[^>]*)?>/im;
+const FORBIDDEN_TS_EXPECT_ERROR_RE = /@ts-expect-error\b/;
+const STEP7_PLACEHOLDER_MOCK_COMMENT_RE =
+  /\bif present in (?:the )?real\b|\bnot in the real interface\b|\blimitation of testing composables outside a component instance\b/i;
+const STEP3_PARTIAL_EVIDENCE_PROMPT_RE =
+  /\*\*Script Documentation Coverage:\*\*[\s\S]*Treat these excerpts as partial evidence/i;
+const STEP3_GENERIC_DOC_GAP_SIGNAL_RE =
+  /\b(?:Missing|No)\s+(?:or incomplete\s+)?(?:usage examples|argument\/flag documentation|prerequisite(?:\/dependency)? documentation|output\/side-effect\/exit code documentation|workflow\/integration context|troubleshooting guidance)\b[\s\S]*\b(?:some|most|all|user-facing|automation)\s+scripts?\b/i;
+const STEP3_PROMPT_VISIBLE_INTERFACE_RE =
+  /Recommendation examples must preserve the script's visible interface/i;
+const INLINE_COMMAND_RE = /`([^`\n]*(?:\.sh\b|npm run\b)[^`\n]*)`/g;
+const STEP4_CONFIG_PROMPT_RE =
+  /### Configuration Files in Scope[\s\S]*Deterministic syntax\/schema validation has already run/i;
+const STEP4_STRUCTURED_CONFIG_LINE_RE =
+  /^-\s+\*\*(?:File|Issue|Issue Type|Severity|Impact|Recommendation):\*\*:?/i;
+const STEP4_PARTIAL_EVIDENCE_SIGNAL_RE =
+  /\b(?:full-file syntax validity cannot be confirmed|cannot confirm full(?:-file)?(?: syntax| validation)?|partial evidence only|visible partition|visible excerpt|current run is inconclusive|review is limited to the visible partition|truncated(?:—|-)|remainder (?:is|remains) inconclusive|content unavailable)\b/i;
+const STEP4_OUT_OF_SCOPE_REVIEW_RE =
+  /\b(?:review|check|confirm|ensure|verify|recommend(?:ed|ation)?|consider)\b[\s\S]*\b(?:\.nvmrc|\.node-version|\.python-version|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)\b/i;
+const STEP4_SPECIAL_FILE_MENTION_RE =
+  /(?:\.nvmrc|\.node-version|\.python-version|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)/g;
+const STEP10_CODE_QUALITY_PROMPT_RE =
+  /\*\*Supplementary Tooling, Convention, and Test Evidence:\*\*/i;
+const STEP10_RECOMMENDATION_SECTION_RE =
+  /^#{1,6}\s+(?:top\s+\d+\s+|prioritized\s+)?(?:recommendations?|suggestions?)\b/i;
+
+function normalizeIssueSignalKey(line) {
+  return String(line ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:[-*]|\d+\.)\s+/, '')
+    .replace(/^["']((?:[-*]|\d+\.)\s+.+)["']$/, '$1')
+    .replace(/^(?:[-*]|\d+\.)\s+/, '')
+    .replace(/^["']|["']$/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function isStyleOnlyAsyncSuggestion(line) {
+  const mentionsAsyncRefactor = /(?:async\/await|\.then\(\)|\.catch\(\)|return await)/i.test(line);
+  const mentionsStyleBenefit =
+    /\b(?:readability|clarity|maintainability|stack trace clarity|consistent style)\b/i.test(line);
+  const mentionsConcreteRuntimeRisk =
+    /\b(?:error|reject|rejection|floating|unhandled|leak|abort|cleanup|duplicate|mask|fallback|stale|latency|cache|network|overfetch|n\+1|blocking|burst|redundant|throttle|debounce|race)\b/i.test(
+      line
+    );
+
+  return mentionsAsyncRefactor && mentionsStyleBenefit && !mentionsConcreteRuntimeRisk;
+}
+
+function isNonActionableIssueLine(line) {
+  const issueBody = line.match(ISSUE_LINE_RE)?.[1]?.trim();
+  if (!issueBody) return false;
+
+  return NON_ACTIONABLE_ISSUE_BODY_RE.test(issueBody) || isStyleOnlyAsyncSuggestion(issueBody);
+}
+
+function hasUnsupportedInlineCommandExample(line, promptContent) {
+  const commands = [...String(line ?? '').matchAll(INLINE_COMMAND_RE)].map((match) => match[1]);
+  if (commands.length === 0) return false;
+
+  return commands.some((command) => !promptContent.includes(command));
+}
+
+function filterStep3PartialEvidenceSignals(candidates, promptContent) {
+  const prompt = String(promptContent ?? '');
+  if (!STEP3_PARTIAL_EVIDENCE_PROMPT_RE.test(prompt)) {
+    return candidates;
+  }
+
+  return candidates.filter((candidate) => {
+    if (STEP3_GENERIC_DOC_GAP_SIGNAL_RE.test(candidate)) {
+      return false;
+    }
+
+    if (
+      STEP3_PROMPT_VISIBLE_INTERFACE_RE.test(prompt) &&
+      hasUnsupportedInlineCommandExample(candidate, prompt)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function extractStep4ScopeFiles(promptContent) {
+  const prompt = String(promptContent ?? '');
+  const match =
+    prompt.match(/### Configuration Files in Scope\s*([\s\S]*?)\n\s*>\s+\*\*Note:\*\*/i) ??
+    prompt.match(/### Configuration Files in Scope\s*([\s\S]*?)\n\s*### Project Context/i);
+  if (!match) {
+    return new Set();
+  }
+
+  const scopeFiles = new Set();
+  for (const rawLine of match[1].split('\n')) {
+    const line = rawLine.trim();
+    if (!line.startsWith('**') || !line.includes(':')) {
+      continue;
+    }
+
+    const entries = line.slice(line.indexOf(':') + 1).split(',');
+    for (const rawEntry of entries) {
+      const normalized = rawEntry
+        .trim()
+        .replace(/\s+\(part \d+\/\d+\)$/i, '')
+        .replace(/\s+\(continuation\)$/i, '')
+        .replace(/^`|`$/g, '');
+      if (!normalized) {
+        continue;
+      }
+
+      scopeFiles.add(normalized);
+      scopeFiles.add(normalized.replace(/\\/g, '/').split('/').pop());
+    }
+  }
+
+  return scopeFiles;
+}
+
+function mentionsOutOfScopeStep4File(line, scopeFiles) {
+  const matches = [
+    ...(String(line ?? '').match(FILE_REFERENCE_RE) ?? []),
+    ...(String(line ?? '').match(STEP4_SPECIAL_FILE_MENTION_RE) ?? []),
+  ];
+  if (matches.length === 0) {
+    return false;
+  }
+
+  return matches.some((filePath) => {
+    const normalized = filePath.replace(/\\/g, '/');
+    const baseName = normalized.split('/').pop();
+    return !scopeFiles.has(normalized) && !scopeFiles.has(baseName);
+  });
+}
+
+function shouldDropStep4Candidate(line, scopeFiles) {
+  if (
+    mentionsOutOfScopeStep4File(line, scopeFiles) &&
+    /^-\s+\*\*(?:Issue|Issue Type|Recommendation):\*\*:?/i.test(line)
+  ) {
+    return true;
+  }
+
+  if (
+    NO_ISSUES_RE.test(line) ||
+    NO_IMPACT_SIGNAL_RE.test(line) ||
+    NON_ACTIONABLE_OBSERVATION_RE.test(line) ||
+    NON_ACTIONABLE_VALIDATION_RE.test(line) ||
+    STEP4_PARTIAL_EVIDENCE_SIGNAL_RE.test(line)
+  ) {
+    return true;
+  }
+
+  if (mentionsOutOfScopeStep4File(line, scopeFiles) && STEP4_OUT_OF_SCOPE_REVIEW_RE.test(line)) {
+    return true;
+  }
+
+  return false;
+}
+
+function filterStep4PartialEvidenceSignals(candidates, promptContent) {
+  const prompt = String(promptContent ?? '');
+  if (!STEP4_CONFIG_PROMPT_RE.test(prompt)) {
+    return candidates;
+  }
+
+  const scopeFiles = extractStep4ScopeFiles(prompt);
+  const filtered = [];
+
+  for (let index = 0; index < candidates.length; index++) {
+    const line = candidates[index];
+    if (!STEP4_STRUCTURED_CONFIG_LINE_RE.test(line)) {
+      if (!shouldDropStep4Candidate(line, scopeFiles)) {
+        filtered.push(line);
+      }
+      continue;
+    }
+
+    const block = [line];
+    let nextIndex = index + 1;
+    while (
+      nextIndex < candidates.length &&
+      STEP4_STRUCTURED_CONFIG_LINE_RE.test(candidates[nextIndex])
+    ) {
+      block.push(candidates[nextIndex]);
+      nextIndex++;
+    }
+
+    const filteredBlock = block.filter((entry) => !shouldDropStep4Candidate(entry, scopeFiles));
+    const hasActionableBlockContent = filteredBlock.some((entry) =>
+      /^-\s+\*\*(?:Issue|Issue Type|Recommendation|Impact):\*\*:?/i.test(entry)
+    );
+
+    if (hasActionableBlockContent) {
+      filtered.push(...filteredBlock);
+    }
+
+    index = nextIndex - 1;
+  }
+
+  return filtered;
+}
+
+function filterStep10RecommendationSignals(candidates, responseContent, promptContent) {
+  const prompt = String(promptContent ?? '');
+  if (!STEP10_CODE_QUALITY_PROMPT_RE.test(prompt)) {
+    return candidates;
+  }
+
+  const lines = String(responseContent ?? '')
+    .split('\n')
+    .map((line) => line.trim());
+  const dropKeys = new Set();
+  let currentSection = null;
+  let currentSectionLines = [];
+
+  const flushSection = () => {
+    if (!STEP10_RECOMMENDATION_SECTION_RE.test(currentSection ?? '')) {
+      currentSection = null;
+      currentSectionLines = [];
+      return;
+    }
+
+    const hasScopedFileReference = currentSectionLines.some((line) => FILE_REFERENCE_RE.test(line));
+    if (!hasScopedFileReference) {
+      for (const line of currentSectionLines) {
+        if (!line) continue;
+        dropKeys.add(normalizeIssueSignalKey(line));
+      }
+    }
+
+    currentSection = null;
+    currentSectionLines = [];
+  };
+
+  for (const line of lines) {
+    if (/^#{1,6}\s+\S/.test(line)) {
+      flushSection();
+      currentSection = line;
+      currentSectionLines = [];
+      continue;
+    }
+
+    if (currentSection) {
+      currentSectionLines.push(line);
+    }
+  }
+
+  flushSection();
+
+  if (dropKeys.size === 0) {
+    return candidates;
+  }
+
+  return candidates.filter((candidate) => !dropKeys.has(normalizeIssueSignalKey(candidate)));
+}
 
 // Default AI request parameters
 const DEFAULT_REQUEST = {
@@ -175,6 +449,85 @@ export function parseAiResponse(rawResponse) {
 }
 
 /**
+ * Normalize error-resilience summary lines so logged/report content cannot claim
+ * severities that do not appear in the enumerated findings.
+ *
+ * @param {string} responseContent - Raw AI response text
+ * @returns {string} Response with a consistent trailing severity summary
+ *
+ * @pure
+ */
+export function normalizeErrorResilienceSummary(responseContent) {
+  const text =
+    typeof responseContent === 'string' ? responseContent : String(responseContent ?? '');
+
+  if (text.trim() === '') return text;
+
+  const severityMatches =
+    text.match(/^\s*-\s+\*\*Severity\*\*:\s*(Critical|High|Medium)\b/gim) || [];
+  if (severityMatches.length === 0) return text;
+
+  const counts = { Critical: 0, High: 0, Medium: 0 };
+  for (const match of severityMatches) {
+    const severity = match.match(/(Critical|High|Medium)/i)?.[1];
+    if (severity && Object.prototype.hasOwnProperty.call(counts, severity)) {
+      counts[severity] += 1;
+    }
+  }
+
+  const summaryParts = ['Critical', 'High', 'Medium']
+    .filter((severity) => counts[severity] > 0)
+    .map((severity) => `${counts[severity]} ${severity}`);
+  if (summaryParts.length === 0) return text;
+
+  const canonicalSummary = `**Summary:** ${summaryParts.join(', ')} findings.`;
+  if (/^\s*\*\*Summary:\*\*.*$/im.test(text)) {
+    return text.replace(/^\s*\*\*Summary:\*\*.*$/im, canonicalSummary);
+  }
+
+  return `${text.trimEnd()}\n\n${canonicalSummary}`;
+}
+
+/**
+ * Apply prompt-scoped normalization to AI response content before it is returned
+ * and logged.
+ *
+ * @param {string} prompt - Prompt sent to the model
+ * @param {string} responseContent - Raw AI response text
+ * @returns {string} Normalized response content
+ *
+ * @pure
+ */
+export function normalizePromptResponseContent(prompt, responseContent) {
+  const text =
+    typeof responseContent === 'string' ? responseContent : String(responseContent ?? '');
+
+  if (!/\bError Resilience Review\b/i.test(String(prompt ?? ''))) {
+    return text;
+  }
+
+  return normalizeErrorResilienceSummary(text);
+}
+
+function applyResponseContentNormalizer(responseContent, requestOptions = {}, context = {}) {
+  const text =
+    typeof responseContent === 'string' ? responseContent : String(responseContent ?? '');
+  const normalizer = requestOptions?.responseContentNormalizer;
+
+  if (typeof normalizer !== 'function') {
+    return text;
+  }
+
+  try {
+    const normalized = normalizer(text, context);
+    return typeof normalized === 'string' ? normalized : String(normalized ?? text);
+  } catch (error) {
+    logger.warn(`Custom response normalizer failed (non-fatal): ${error.message}`);
+    return text;
+  }
+}
+
+/**
  * Extract concrete, file-specific issue signals from an AI response so prompt
  * logs carry a normalized summary near the top of the file.
  *
@@ -184,6 +537,10 @@ export function parseAiResponse(rawResponse) {
  * @pure
  */
 export function extractActionableIssueSignals(responseContent) {
+  const promptContent =
+    arguments.length > 1 && arguments[1] && typeof arguments[1] === 'object'
+      ? String(arguments[1].promptContent ?? '')
+      : '';
   const text =
     typeof responseContent === 'string' ? responseContent : String(responseContent ?? '');
 
@@ -194,16 +551,22 @@ export function extractActionableIssueSignals(responseContent) {
   const addCandidate = (line) => {
     if (
       !line ||
+      FINDING_SCHEMA_BULLET_RE.test(line) ||
+      isNonActionableIssueLine(line) ||
+      isStyleOnlyAsyncSuggestion(line) ||
       NO_IMPACT_SIGNAL_RE.test(line) ||
       NON_ACTIONABLE_OBSERVATION_RE.test(line) ||
+      NON_ACTIONABLE_VALIDATION_RE.test(line) ||
+      POSITIVE_ASSESSMENT_RE.test(line) ||
       NO_ISSUES_RE.test(line) ||
       SUMMARY_TABLE_NO_ISSUE_ROW_RE.test(line)
     ) {
       return;
     }
 
-    if (!seen.has(line)) {
-      seen.add(line);
+    const normalizedKey = normalizeIssueSignalKey(line);
+    if (!seen.has(normalizedKey)) {
+      seen.add(normalizedKey);
       candidates.push(line);
     }
   };
@@ -212,9 +575,11 @@ export function extractActionableIssueSignals(responseContent) {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+  const isAsyncFlowAnalysis = ASYNC_FLOW_ANALYSIS_RE.test(text);
   let inIssueSection = false;
   let inSummaryTable = false;
   let inActionableVerdict = false;
+  let inAsyncNarrativeSection = false;
 
   for (const line of lines) {
     const isHeading = /^#{1,6}\s+\S/.test(line);
@@ -228,16 +593,19 @@ export function extractActionableIssueSignals(responseContent) {
     const mentionsPerformance = ISSUE_PERFORMANCE_RE.test(line);
     const mentionsFile = FILE_REFERENCE_RE.test(line);
     const isReasonLine = ISSUE_REASON_LINE_RE.test(line);
+    const isNonActionableValidation = NON_ACTIONABLE_VALIDATION_RE.test(line);
 
     if (isIssueSectionHeading) {
       inIssueSection = true;
       inSummaryTable = false;
+      inAsyncNarrativeSection = false;
       continue;
     }
 
     if (SUMMARY_TABLE_HEADER_RE.test(line)) {
       inIssueSection = true;
       inSummaryTable = true;
+      inAsyncNarrativeSection = false;
       addCandidate(line);
       continue;
     }
@@ -254,8 +622,13 @@ export function extractActionableIssueSignals(responseContent) {
     }
 
     if (hasActionableVerdict) {
-      addCandidate(line);
-      inActionableVerdict = true;
+      if (!isNonActionableValidation) {
+        addCandidate(line);
+        inActionableVerdict = true;
+      } else {
+        inActionableVerdict = false;
+      }
+      inAsyncNarrativeSection = false;
       continue;
     }
 
@@ -272,6 +645,12 @@ export function extractActionableIssueSignals(responseContent) {
       inIssueSection = false;
       inSummaryTable = false;
       inActionableVerdict = false;
+      inAsyncNarrativeSection = false;
+      continue;
+    }
+
+    if (isAsyncFlowAnalysis && ASYNC_FLOW_STRUCTURAL_SECTION_RE.test(line)) {
+      inAsyncNarrativeSection = true;
       continue;
     }
 
@@ -290,8 +669,10 @@ export function extractActionableIssueSignals(responseContent) {
     }
 
     if (
-      (isBullet && (mentionsIssue || mentionsAction || mentionsMetadata || hasActionableVerdict)) ||
-      (inIssueSection && (mentionsIssue || mentionsAction || mentionsMetadata))
+      !inAsyncNarrativeSection &&
+      ((isBullet &&
+        (mentionsIssue || mentionsAction || mentionsMetadata || hasActionableVerdict)) ||
+        (inIssueSection && (mentionsIssue || mentionsAction || mentionsMetadata)))
     ) {
       addCandidate(line);
     }
@@ -314,11 +695,67 @@ export function extractActionableIssueSignals(responseContent) {
     return [];
   }
 
-  if (candidates.every((candidate) => SUMMARY_TABLE_HEADER_RE.test(candidate))) {
+  if (
+    candidates.length > 0 &&
+    candidates.every((candidate) => SUMMARY_TABLE_HEADER_RE.test(candidate))
+  ) {
     return [];
   }
 
-  return candidates;
+  const promptFramework = promptContent.match(PROMPT_FRAMEWORK_RE)?.[1] ?? '';
+  const targetTestPath = promptContent.match(TEST_TARGET_PATH_RE)?.[1] ?? '';
+  if (/\bjest\b/i.test(promptFramework)) {
+    if (/\.test\.vue$/i.test(targetTestPath)) {
+      addCandidate(
+        `- Target test path \`${targetTestPath}\` uses \`.test.vue\`; prefer a Jest-discoverable module filename such as \`.vue.test.ts\` or \`.test.ts\`.`
+      );
+    }
+    if (VITEST_USAGE_RE.test(text)) {
+      addCandidate(
+        '- Response uses Vitest APIs (`vi.*` / `vitest`) even though the prompt requires Jest idioms.'
+      );
+    }
+  }
+
+  if (
+    /without `@ts-expect-error` suppressions/i.test(promptContent) &&
+    FORBIDDEN_TS_EXPECT_ERROR_RE.test(text)
+  ) {
+    addCandidate(
+      '- Response uses `@ts-expect-error` even though the prompt forbids type-error suppressions.'
+    );
+  }
+
+  if (VUE_SFC_TEST_RE.test(text) && /\b(?:describe|it|test)\s*\(/.test(text)) {
+    addCandidate(
+      '- Response is formatted as a Vue SFC (` ```vue ` / `<script>`) instead of a plain test module.'
+    );
+  }
+
+  if (STEP7_PLACEHOLDER_MOCK_COMMENT_RE.test(text)) {
+    addCandidate(
+      '- Response includes placeholder comments that admit a guessed mock shape or incomplete lifecycle coverage.'
+    );
+  }
+
+  return filterStep10RecommendationSignals(
+    filterStep4PartialEvidenceSignals(
+      filterStep3PartialEvidenceSignals(candidates, promptContent),
+      promptContent
+    ),
+    text,
+    promptContent
+  );
+}
+
+function buildMarkdownFencedBlock(content, infoString = '') {
+  const text = typeof content === 'string' ? content : String(content ?? '');
+  const backtickRuns = text.match(/`+/g) ?? [];
+  const maxRun = backtickRuns.reduce((max, run) => Math.max(max, run.length), 0);
+  const fence = '`'.repeat(Math.max(3, maxRun + 1));
+  const openingFence = infoString ? `${fence}${infoString}` : fence;
+
+  return [openingFence, text, fence].join('\n');
 }
 
 /**
@@ -347,6 +784,10 @@ export function parseErrorResponse(error) {
   if (error instanceof Error) {
     const message = error.message || 'Unknown error';
     const isCLINotFoundError = /ENOENT/i.test(message);
+    const isToolMessageOrderingError =
+      /messages?\s+with\s+role\s+['"]tool['"]/i.test(message) &&
+      /tool_calls/i.test(message) &&
+      /prece?eding/i.test(message);
     const isNetworkError =
       !isCLINotFoundError && /network|timeout|ECONNREFUSED|ETIMEDOUT/i.test(message);
     const isAuthError = /auth|unauthorized|forbidden|401|403/i.test(message);
@@ -355,15 +796,17 @@ export function parseErrorResponse(error) {
     return {
       type: isCLINotFoundError
         ? 'cli_not_found'
-        : isAuthError
-          ? 'authentication'
-          : isRateLimitError
-            ? 'rate_limit'
-            : isNetworkError
-              ? 'network'
-              : 'unknown',
+        : isToolMessageOrderingError
+          ? 'conversation_state'
+          : isAuthError
+            ? 'authentication'
+            : isRateLimitError
+              ? 'rate_limit'
+              : isNetworkError
+                ? 'network'
+                : 'unknown',
       message,
-      retryable: isNetworkError || isRateLimitError,
+      retryable: isToolMessageOrderingError || isNetworkError || isRateLimitError,
       details: {
         name: error.name,
         stack: error.stack,
@@ -1149,6 +1592,11 @@ export class AiHelper {
 
         // Parse response
         const parsed = parseAiResponse(rawResponse);
+        parsed.content = normalizePromptResponseContent(prompt, parsed.content);
+        parsed.content = applyResponseContentNormalizer(parsed.content, requestOptions, {
+          prompt,
+          options: requestOptions,
+        });
         const callMs = Date.now() - callStart;
         logger.info(
           `[AI] SDK call completed — persona: ${persona}, model: ${model}, response_chars: ${(parsed.content || '').length}, latency: ${callMs}ms`
@@ -1160,6 +1608,8 @@ export class AiHelper {
             minLength: requestOptions.minLength || 10,
             requireSections: requestOptions.requireSections,
             schema: requestOptions.schema,
+            responseType: requestOptions.responseType,
+            validationContext: requestOptions.validationContext,
           });
 
           if (!validation.valid) {
@@ -1251,6 +1701,15 @@ export class AiHelper {
         const fallbackStart = Date.now();
         const rawFallback = await fallbackWrapper.send(prompt, DEFAULT_REQUEST.TIMEOUT_MS);
         const parsedFallback = parseAiResponse(rawFallback);
+        parsedFallback.content = normalizePromptResponseContent(prompt, parsedFallback.content);
+        parsedFallback.content = applyResponseContentNormalizer(
+          parsedFallback.content,
+          requestOptions,
+          {
+            prompt,
+            options: requestOptions,
+          }
+        );
         const fallbackMs = Date.now() - fallbackStart;
         logger.info(
           `[AI] Fallback "${fallbackModel}" succeeded — persona: ${persona}, response_chars: ${(parsedFallback.content || '').length}, latency: ${fallbackMs}ms`
@@ -1260,6 +1719,8 @@ export class AiHelper {
             minLength: requestOptions.minLength || 10,
             requireSections: requestOptions.requireSections,
             schema: requestOptions.schema,
+            responseType: requestOptions.responseType,
+            validationContext: requestOptions.validationContext,
           });
           if (!validation.valid) {
             logger.warn(`Fallback response validation failed: ${validation.errors.join(', ')}`);
@@ -1329,7 +1790,9 @@ export class AiHelper {
       const filename = `${ts}_${String(this._promptCounter).padStart(4, '0')}_${persona}.md`;
       const filePath = path.join(this.config.promptsDir, filename);
       const responseContent = response.content || JSON.stringify(response);
-      const issueSignals = extractActionableIssueSignals(responseContent);
+      const issueSignals = extractActionableIssueSignals(responseContent, {
+        promptContent: prompt,
+      });
       const snapshotLines = issueSignals.slice(0, ISSUE_SNAPSHOT.MAX_LINES);
       const omittedSignals = issueSignals.length - snapshotLines.length;
       const projectVersion = await this._resolveProjectVersionForLog();
@@ -1351,22 +1814,21 @@ export class AiHelper {
         ``,
         `**Detected Signals:** ${issueSignals.length}`,
         ``,
-        `\`\`\`text`,
-        ...(snapshotLines.length > 0 ? snapshotLines : [ISSUE_SNAPSHOT.EMPTY_MESSAGE]),
-        ...(omittedSignals > 0 ? [`... (+${omittedSignals} more signals omitted)`] : []),
-        `\`\`\``,
+        buildMarkdownFencedBlock(
+          [
+            ...(snapshotLines.length > 0 ? snapshotLines : [ISSUE_SNAPSHOT.EMPTY_MESSAGE]),
+            ...(omittedSignals > 0 ? [`... (+${omittedSignals} more signals omitted)`] : []),
+          ].join('\n'),
+          'text'
+        ),
         ``,
         `## Prompt`,
         ``,
-        `\`\`\``,
-        prompt,
-        `\`\`\``,
+        buildMarkdownFencedBlock(prompt),
         ``,
         `## Response`,
         ``,
-        `\`\`\``,
-        responseContent,
-        `\`\`\``,
+        buildMarkdownFencedBlock(responseContent),
       ].join('\n');
       await fs.writeFile(filePath, content, 'utf8');
       logger.debug(`Prompt logged to: ${filename}`);
@@ -1508,8 +1970,10 @@ export class AiHelper {
     let refinedPrompt = prompt;
 
     try {
+      const metaOptions = { ...options };
+      delete metaOptions.responseContentNormalizer;
       const refinementResult = await this.executeRequest(metaPrompt, {
-        ...options,
+        ...metaOptions,
         // Never recurse — disable refinement and reflection on the meta-prompt itself
         refine: false,
         reflect: false,

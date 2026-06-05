@@ -1,26 +1,16 @@
 /**
- * @fileoverview StatusBar component — bottom keybinding hints with SDK status indicator
+ * @fileoverview StatusBar component — cybernetic bottom bar with key hints and SYS_READY
  * @module cli/tui/components/StatusBar
  *
- * Renders the bottom hints bar.  When the Copilot SDK is active (copilotStatus is
- * not 'idle') a {@link StatusChronometer} from pajussara_tui_comp is displayed on
- * the right-hand side of the bar, keeping the elapsed-time / execution-state badge
- * in sync with StepsPanel (both receive the same copilotStatus value from App.js).
+ * Key hints displayed as `key: Label` (colon-separated, warning color for key).
+ * Right side shows StatusChronometer when Copilot SDK is active, plus an
+ * animated SYS_READY dot indicator.
  *
- * ### `copilotStatus` values
- * | Value        | Badge shown                         |
- * |--------------|-------------------------------------|
- * | `'idle'`     | *(nothing)*                         |
- * | `'loading'`  | Animated braille spinner + Loading… |
- * | `'streaming'`| Animated braille spinner + Streaming… |
- * | `'done'`     | ✓ Done                              |
- * | `'error'`    | ✗ \<copilotErrorMessage\>           |
- *
- * @version 2.0.0
+ * @version 3.0.0
  * @since 2026-03-07
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { StatusChronometer } from 'pajussara_tui_comp';
 
@@ -28,7 +18,7 @@ const KEY_HINTS = [
   { key: 'q', label: 'Quit' },
   { key: 'a', label: 'Abort' },
   { key: 'Tab', label: 'Focus' },
-  { key: '↑/↓ j/k', label: 'Scroll' },
+  { key: 'j/k', label: 'Scroll' },
   { key: '/', label: 'Search' },
   { key: 'h', label: 'Help' },
   { key: 'e', label: 'Error' },
@@ -48,6 +38,13 @@ export function StatusBar({
   copilotErrorMessage = null,
   width = 80,
 }) {
+  const [dotVisible, setDotVisible] = useState(true);
+
+  useEffect(() => {
+    const t = setInterval(() => setDotVisible((prev) => !prev), 800);
+    return () => clearInterval(t);
+  }, []);
+
   const hints = isComplete ? [{ key: 'q', label: 'Exit' }] : KEY_HINTS;
 
   const showBadge =
@@ -57,8 +54,6 @@ export function StatusBar({
       copilotStatus === 'loading' ||
       copilotStatus === 'streaming');
   const forceRunning = copilotStatus === 'loading' || copilotStatus === 'streaming';
-
-  // Budget: use roughly 1/3 of the bar width for the chronometer (min 20).
   const chronometerWidth = Math.max(20, Math.floor(width / 3));
 
   return React.createElement(
@@ -70,6 +65,7 @@ export function StatusBar({
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
+    // ── Key hints ────────────────────────────────────────────────────────────
     React.createElement(
       Box,
       { flexDirection: 'row' },
@@ -77,28 +73,36 @@ export function StatusBar({
         React.createElement(
           React.Fragment,
           { key },
-          i > 0 ? React.createElement(Text, { color: 'gray' }, '   ') : null,
+          i > 0 ? React.createElement(Text, { color: 'gray', dimColor: true }, '  ') : null,
           React.createElement(
             Text,
             null,
-            React.createElement(Text, { color: 'cyan', bold: true }, `[${key}]`),
-            React.createElement(Text, { color: 'white' }, ` ${label}`)
+            React.createElement(Text, { color: 'yellow', bold: true }, `${key}:`),
+            React.createElement(Text, { color: 'gray' }, ` ${label}`)
           )
         )
       )
     ),
-    showBadge
-      ? React.createElement(StatusChronometer, {
-          status: copilotStatus,
-          errorMessage: copilotErrorMessage ?? undefined,
-          width: chronometerWidth,
-          isFocused: false,
-          forceRunning,
-          showLabel: false,
-          showBorder: false,
-          showHints: false,
-        })
-      : null
+    // ── Right: chronometer + SYS_READY ──────────────────────────────────────
+    React.createElement(
+      Box,
+      { flexDirection: 'row', gap: 1 },
+      showBadge
+        ? React.createElement(StatusChronometer, {
+            status: copilotStatus,
+            errorMessage: copilotErrorMessage ?? undefined,
+            width: chronometerWidth,
+            isFocused: false,
+            forceRunning,
+            showLabel: false,
+            showBorder: false,
+            showHints: false,
+          })
+        : null,
+      React.createElement(Text, { color: 'gray', dimColor: true }, '|'),
+      React.createElement(Text, { color: 'cyanBright', bold: true }, 'SYS_READY'),
+      React.createElement(Text, { color: 'cyanBright' }, dotVisible ? '●' : '○')
+    )
   );
 }
 

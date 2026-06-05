@@ -30,6 +30,22 @@ const TEST_RESULT_LINE_PATTERNS = [
   /^[✓✗]/,
 ];
 
+function extractFirstFailingTestName(output) {
+  const lines = output.split('\n');
+  let failFile = null;
+  for (const line of lines) {
+    const failMatch = line.match(/^FAIL\s+(\S.+)$/);
+    if (failMatch) {
+      failFile = failMatch[1].trim();
+    }
+    const bulletMatch = line.match(/^ {1,4}●\s+(.+)$/);
+    if (bulletMatch && failFile) {
+      return `${failFile} > ${bulletMatch[1].trim()}`;
+    }
+  }
+  return null;
+}
+
 function buildPackageScriptCommand(packageManager, scriptName) {
   switch (packageManager) {
     case 'yarn':
@@ -796,6 +812,8 @@ export async function runPreflightQualitySuites({
         failureKind: 'command-failure',
         failureArtifact,
         failureArtifactError,
+        firstFailingTest:
+          suite.name === 'test' ? extractFirstFailingTestName(fullFailureOutput) : null,
         message: `Command failed: ${suite.command}`,
       };
     }

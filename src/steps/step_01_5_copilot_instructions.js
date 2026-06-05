@@ -27,7 +27,11 @@ export const COPILOT_REFERENCE_DOCS = [
   'docs/CLI_USAGE_GUIDE.md',
   'docs/guides/MIGRATION_GUIDE.md',
   'CHANGELOG.md',
+  '.github/CONTRIBUTING.md',
   'CONTRIBUTING.md',
+];
+export const COPILOT_AUXILIARY_NORMATIVE_FILES = [
+  ['.markdownlint.yaml', 'Markdown formatting rules source of truth'],
 ];
 export const COPILOT_SOURCE_LAYERS = [
   ['src/core/', 'Foundational runtime helpers'],
@@ -64,8 +68,16 @@ export const COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS = [
   'Supporting Workflow Surfaces',
   'Authoritative Reference Docs',
   'Reference Doc Signals',
+  'Auxiliary Normative Files',
   'Public Package Entry Points',
+  'Source Entry Signals',
 ];
+const BROAD_REPO_FACT_HEADINGS = new Set([
+  'Authoritative Reference Docs',
+  'Reference Doc Signals',
+  'Public Package Entry Points',
+  'Source Entry Signals',
+]);
 const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?|d\.ts)$/i;
 const NON_SOURCE_LAYER_DIRS = new Set(['__tests__', '__mocks__', 'fixtures']);
 const FINDING_SECTION_PATTERN = /^###\s+Finding\s+\d+\s+-\s+.+$/gm;
@@ -95,7 +107,10 @@ function isSourceFile(fileName) {
 }
 
 function normalizeSignalSnippet(text) {
-  return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  return String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
 }
 
 function isSkippableSignalBlock(block) {
@@ -137,12 +152,10 @@ function buildReferenceDocSignals(relativePath, content) {
     .filter((block) => !isSkippableSignalBlock(block));
 
   const firstNarrativeBlock = blocks.find((block) =>
-    block
-      .split(/\r?\n/)
-      .some((line) => {
-        const trimmed = line.trim();
-        return trimmed.length > 0 && !trimmed.startsWith('#') && !trimmed.startsWith('|');
-      })
+    block.split(/\r?\n/).some((line) => {
+      const trimmed = line.trim();
+      return trimmed.length > 0 && !trimmed.startsWith('#') && !trimmed.startsWith('|');
+    })
   );
   if (firstNarrativeBlock) {
     signals.push(`${relativePath}: ${normalizeSignalSnippet(firstNarrativeBlock)}`);
@@ -194,13 +207,163 @@ function formatExportTarget(target) {
     return null;
   }
 
+  const conditions = [];
   for (const key of ['types', 'import', 'require', 'default', 'node']) {
     if (typeof target[key] === 'string' && target[key].length > 0) {
-      return `${key}: ${target[key]}`;
+      conditions.push(`${key}: ${target[key]}`);
     }
   }
 
-  return 'conditional export';
+  return conditions.length > 0 ? conditions.join(', ') : 'conditional export';
+}
+
+function extractPackageEntryTarget(entry) {
+  const SEPARATOR = ' -> ';
+  const separatorIdx = String(entry ?? '').indexOf(SEPARATOR);
+  if (separatorIdx === -1) {
+    return '';
+  }
+
+  const entryPath = entry.slice(separatorIdx + SEPARATOR.length).trim();
+  if (!entryPath || entryPath.includes(': ') || entryPath.includes(',')) {
+    return '';
+  }
+
+  return entryPath;
+}
+
+async function findEditableSourceSibling(projectRoot, entryPath, fileOps) {
+  if (typeof entryPath !== 'string' || entryPath.length === 0) {
+    return null;
+  }
+
+  const extensionCandidates = new Map([
+    ['.js', ['.ts', '.tsx']],
+    ['.jsx', ['.tsx', '.ts']],
+    ['.mjs', ['.mts', '.ts']],
+    ['.cjs', ['.cts', '.ts']],
+  ]);
+
+  for (const [fromExtension, candidates] of extensionCandidates.entries()) {
+    if (!entryPath.endsWith(fromExtension)) {
+      continue;
+    }
+
+    const basePath = entryPath.slice(0, -fromExtension.length);
+    for (const extension of candidates) {
+      const siblingPath = `${basePath}${extension}`;
+      if (await fileOps.exists(path.join(projectRoot, siblingPath))) {
+        return siblingPath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeSourceEntrySignal(relativePath, detail) {
+  return `${relativePath}: ${normalizeSignalSnippet(detail)}`;
+}
+
+function extractSourceEntrySignal(relativePath, content) {
+  const text = String(content ?? '');
+  if (!text.trim()) {
+    return normalizeSourceEntrySignal(relativePath, 'file present');
+  }
+
+  const blockCommentMatch = text.match(/^\s*\/\*\*?([\s\S]*?)\*\//);
+  if (blockCommentMatch?.[1]) {
+    const commentLines = blockCommentMatch[1]
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*\*?\s?/, '').trim())
+      .filter(Boolean)
+      .filter((line) => !/^@(?:param|returns?|example|throws|since|version)\b/i.test(line));
+    const descriptiveComment = commentLines.find((line) =>
+      /\b(entry point|router|bootstrap|mount|initialize|initialization|legacy|vue app)\b/i.test(
+        line
+      )
+    );
+    if (descriptiveComment) {
+      return normalizeSourceEntrySignal(relativePath, descriptiveComment);
+    }
+    if (commentLines.length > 0) {
+      return normalizeSourceEntrySignal(relativePath, commentLines.slice(0, 2).join(' '));
+    }
+  }
+
+  const interestingLine = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) =>
+      /\b(createApp|vue-router|window\.GuiaApp|document\.getElementById|handleRoute|init\(|bootstrap|mount)\b/.test(
+        line
+      )
+    );
+  if (interestingLine) {
+    return normalizeSourceEntrySignal(relativePath, interestingLine);
+  }
+
+  return normalizeSourceEntrySignal(relativePath, 'file present');
+}
+
+export async function collectSourceEntrySignals(projectRoot, packageJson = {}, fileOps) {
+  const candidatePaths = [];
+  const seenPaths = new Set();
+
+  const pushCandidate = (candidatePath) => {
+    if (
+      typeof candidatePath !== 'string' ||
+      candidatePath.length === 0 ||
+      seenPaths.has(candidatePath)
+    ) {
+      return;
+    }
+    seenPaths.add(candidatePath);
+    candidatePaths.push(candidatePath);
+  };
+
+  const packageEntryPoints = collectPackageEntryPoints(packageJson);
+  for (const entry of packageEntryPoints) {
+    const entryPath = extractPackageEntryTarget(entry);
+    if (!entryPath) {
+      continue;
+    }
+
+    if (await fileOps.exists(path.join(projectRoot, entryPath))) {
+      pushCandidate(entryPath);
+      continue;
+    }
+
+    const editableSourceSibling = await findEditableSourceSibling(projectRoot, entryPath, fileOps);
+    if (editableSourceSibling) {
+      pushCandidate(editableSourceSibling);
+    }
+  }
+
+  for (const conventionalPath of [
+    'src/main.ts',
+    'src/main.js',
+    'src/app.ts',
+    'src/app.js',
+    'src/index.ts',
+    'src/index.js',
+  ]) {
+    if (await fileOps.exists(path.join(projectRoot, conventionalPath))) {
+      pushCandidate(conventionalPath);
+    }
+  }
+
+  const signals = [];
+  for (const relativePath of candidatePaths) {
+    try {
+      const content = await fileOps.readFile(path.join(projectRoot, relativePath));
+      signals.push(extractSourceEntrySignal(relativePath, content));
+    } catch {
+      signals.push(normalizeSourceEntrySignal(relativePath, 'file present'));
+    }
+  }
+
+  return signals;
 }
 
 export function collectPackageEntryPoints(packageJson = {}) {
@@ -213,6 +376,7 @@ export function collectPackageEntryPoints(packageJson = {}) {
   };
 
   pushEntryPoint(formatPackageEntryPoint('main', packageJson.main));
+  pushEntryPoint(formatPackageEntryPoint('module', packageJson.module));
   pushEntryPoint(formatPackageEntryPoint('types', packageJson.types));
 
   if (typeof packageJson.exports === 'string') {
@@ -233,6 +397,34 @@ export function collectPackageEntryPoints(packageJson = {}) {
   }
 
   return sortNatural([...new Set(entryPoints)]);
+}
+
+export async function annotateEntryPointsExistence(projectRoot, entryPoints, fileOps) {
+  const SEPARATOR = ' -> ';
+  return Promise.all(
+    entryPoints.map(async (entry) => {
+      const separatorIdx = entry.indexOf(SEPARATOR);
+      if (separatorIdx === -1) return entry;
+      const entryPath = entry.slice(separatorIdx + SEPARATOR.length);
+      // Conditional export descriptions contain ': ' or ',' — skip existence check for those
+      if (entryPath.includes(': ') || entryPath.includes(',')) return entry;
+      const exists = await fileOps.exists(path.join(projectRoot, entryPath));
+      if (exists) {
+        return entry;
+      }
+
+      const editableSourceSibling = await findEditableSourceSibling(
+        projectRoot,
+        entryPath,
+        fileOps
+      );
+      if (editableSourceSibling) {
+        return `${entry} (editable source sibling: ${editableSourceSibling})`;
+      }
+
+      return `${entry} (compiled output — not present in source tree)`;
+    })
+  );
 }
 
 export async function detectSourceLayers(projectRoot, fileOps) {
@@ -353,8 +545,37 @@ export function extractCopilotInstructionsFindings(responseText) {
 }
 
 function extractFindingBulletValue(sectionText, label) {
-  const pattern = new RegExp(`^- \\*\\*${label}\\*\\*: (.+)$`, 'm');
-  return sectionText.match(pattern)?.[1]?.trim() || '';
+  const lines = String(sectionText ?? '').split('\n');
+  const bulletPattern = new RegExp(`^- \\*\\*${escapeRegExp(label)}\\*\\*:(.*)$`);
+  const nextFieldPattern = /^- \*\*[^*]+\*\*:/;
+  const collected = [];
+  let collecting = false;
+
+  for (const line of lines) {
+    if (!collecting) {
+      const match = line.match(bulletPattern);
+      if (!match) {
+        continue;
+      }
+      collecting = true;
+      if (match[1]?.trim()) {
+        collected.push(match[1].trim());
+      }
+      continue;
+    }
+
+    if (
+      nextFieldPattern.test(line) ||
+      /^###\s+Finding\s+\d+\s+-\s+.+$/.test(line) ||
+      /^##\s+\S/.test(line)
+    ) {
+      break;
+    }
+
+    collected.push(line.replace(/^\s+/, ''));
+  }
+
+  return collected.join('\n').trim();
 }
 
 function splitFindingSections(findingsText) {
@@ -381,6 +602,35 @@ function collectQuotedSnippets(text) {
     .filter(Boolean);
 }
 
+function escapeRegExp(text) {
+  return String(text ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function collectCurrentEvidenceBackticks(text) {
+  return [...String(text ?? '').matchAll(/`([^`]+)`/g)]
+    .map((match) => match[1]?.trim() || '')
+    .filter(Boolean);
+}
+
+function normalizeRepoFactComparableText(text) {
+  return String(text ?? '')
+    .normalize('NFKC')
+    .replace(/[‐‑–—]/g, '-')
+    .replace(/[`*_]+/g, '')
+    .replace(/\[(.+?)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function repoFactsContextIncludesSnippet(repoFactsContext, snippet) {
+  const normalizedSnippet = normalizeRepoFactComparableText(snippet);
+  if (!normalizedSnippet) {
+    return false;
+  }
+
+  return normalizeRepoFactComparableText(repoFactsContext).includes(normalizedSnippet);
+}
+
 function validateRepoFactEvidence(repoFactEvidence, repoFactsContext, requiresExplicitSupport) {
   const trimmedEvidence = String(repoFactEvidence ?? '').trim();
   if (!trimmedEvidence) {
@@ -390,7 +640,7 @@ function validateRepoFactEvidence(repoFactEvidence, repoFactsContext, requiresEx
     };
   }
 
-  if (trimmedEvidence === 'not available') {
+  if (/^not available\b/i.test(trimmedEvidence)) {
     return requiresExplicitSupport
       ? {
           valid: false,
@@ -402,7 +652,9 @@ function validateRepoFactEvidence(repoFactEvidence, repoFactsContext, requiresEx
   }
 
   const quotedSnippets = collectQuotedSnippets(trimmedEvidence);
-  const invalidSnippets = quotedSnippets.filter((snippet) => !repoFactsContext.includes(snippet));
+  const invalidSnippets = quotedSnippets.filter(
+    (snippet) => !repoFactsContextIncludesSnippet(repoFactsContext, snippet)
+  );
   if (invalidSnippets.length > 0) {
     return {
       valid: false,
@@ -415,11 +667,34 @@ function validateRepoFactEvidence(repoFactEvidence, repoFactsContext, requiresEx
   const matchedHeadings = COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS.filter((heading) =>
     trimmedEvidence.includes(heading)
   );
+  const citedBroadHeadings = new Set(
+    [
+      ...matchedHeadings,
+      ...quotedSnippets.filter((snippet) => BROAD_REPO_FACT_HEADINGS.has(snippet)),
+    ].filter((heading) => BROAD_REPO_FACT_HEADINGS.has(heading))
+  );
+  const hasExactNonHeadingSnippet = quotedSnippets.some(
+    (snippet) => !COPILOT_INSTRUCTIONS_REPO_FACT_HEADINGS.includes(snippet)
+  );
   if (requiresExplicitSupport && quotedSnippets.length === 0 && matchedHeadings.length === 0) {
     return {
       valid: false,
       issues: [
         '`supported guidance` findings must cite at least one surfaced repo-fact heading or quoted snippet.',
+      ],
+    };
+  }
+
+  if (
+    requiresExplicitSupport &&
+    !hasExactNonHeadingSnippet &&
+    citedBroadHeadings.size > 0 &&
+    matchedHeadings.every((heading) => BROAD_REPO_FACT_HEADINGS.has(heading))
+  ) {
+    return {
+      valid: false,
+      issues: [
+        `\`supported guidance\` findings must cite an exact surfaced snippet when relying on ${[...citedBroadHeadings].join(', ')}.`,
       ],
     };
   }
@@ -437,6 +712,74 @@ function formatInvalidFindings(issues) {
     'See the raw AI response below for the untrusted original output.',
   ];
   return `${lines.join('\n')}\n`;
+}
+
+function buildCopilotInstructionsRetryPrompt(prompt, validationIssues) {
+  const issues = [
+    ...new Set((validationIssues ?? []).map((issue) => String(issue ?? '').trim()).filter(Boolean)),
+  ];
+  if (issues.length === 0) {
+    return prompt;
+  }
+
+  const lines = [
+    String(prompt ?? '').trimEnd(),
+    '',
+    '## Response repair instructions',
+    'Your previous response was rejected by deterministic validation.',
+    'Fix every issue below and return a complete replacement response.',
+    'Only text inside the BEGIN/END `Authoritative Repo Facts` block is citable as `Repo-fact evidence`.',
+    'Do not cite task instructions, hard rules, or output-format text as repo-fact evidence.',
+    'Keep each labeled finding bullet as one field; if a value spans multiple lines, continue it under the same bullet and do not start the next `- **...**:` field until the value is complete.',
+    'If a `supported guidance` finding mixes supported and unsupported repo-specific details, rewrite it to the supported subset first; split, downgrade, or omit only the unsupported remainder.',
+    'Do not treat an unchanged corrected file as proof that no issue exists; keep every concrete finding that explains why text was retained or why support remained inconclusive.',
+    'Use a single explicit no-issue finding only when the entire file needs no corrections and every retained claim is supported by surfaced repo facts.',
+    '',
+    '### Validation issues to fix',
+    ...issues.map((issue) => `- ${issue}`),
+  ];
+
+  return `${lines.join('\n')}\n`;
+}
+
+export function validateCopilotInstructionsRewriteConsistency(
+  findingsText,
+  currentContent,
+  correctedContent
+) {
+  const normalizedCurrent = ensureTrailingNewline(String(currentContent ?? '').trim());
+  const normalizedCorrected = ensureTrailingNewline(String(correctedContent ?? '').trim());
+
+  if (!normalizedCurrent || !normalizedCorrected || normalizedCurrent !== normalizedCorrected) {
+    return { valid: true, issues: [] };
+  }
+
+  const sections = splitFindingSections(findingsText);
+  if (sections.length === 0) {
+    return { valid: true, issues: [] };
+  }
+
+  const issues = [];
+  for (const section of sections) {
+    const heading = section.split('\n', 1)[0] || 'Unknown finding';
+    const action = extractFindingBulletValue(section, 'Action');
+    const currentFileEvidence = extractFindingBulletValue(section, 'Current file evidence');
+    const currentFileEvidenceSignalsAbsence = /^(?:none\b|no\b)/i.test(currentFileEvidence);
+
+    if (/^(?:rewrite|remove)\b/i.test(action)) {
+      issues.push(
+        `${heading}: The corrected file is unchanged, so action "${action}" is inconsistent; either change the corrected file or keep the text with a finding that explains why it remains acceptable as-is.`
+      );
+    }
+
+    if (/^omit pending evidence\b/i.test(action) && !currentFileEvidenceSignalsAbsence) {
+      issues.push(
+        `${heading}: The corrected file is unchanged, so action "${action}" is inconsistent for visible current-file text; either remove that text from the corrected file or explain why it remains with action "keep".`
+      );
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateCopilotInstructionsFindings(findingsText, repoFactsContext = '') {
@@ -471,9 +814,7 @@ export function validateCopilotInstructionsFindings(findingsText, repoFactsConte
     const repoFactEvidence = extractFindingBulletValue(section, 'Repo-fact evidence');
 
     if (!COPILOT_INSTRUCTIONS_FINDING_CLASSIFICATIONS.includes(classification)) {
-      issues.push(
-        `${heading} uses unsupported classification "${classification || '(missing)'}".`
-      );
+      issues.push(`${heading} uses unsupported classification "${classification || '(missing)'}".`);
     }
 
     if (!COPILOT_INSTRUCTIONS_FINDING_ACTIONS.includes(action)) {
@@ -490,6 +831,18 @@ export function validateCopilotInstructionsFindings(findingsText, repoFactsConte
       );
     }
 
+    if (
+      sectionCount > 1 &&
+      /^keep\b/i.test(action) &&
+      /\b(?:does not include|already avoids|no unsupported|no stale|not present)\b/i.test(
+        currentFileEvidence
+      )
+    ) {
+      issues.push(
+        `${heading} is a meta or absent-topic finding; findings should map to visible current-file claims, not to the absence of a problem.`
+      );
+    }
+
     const repoFactValidation = validateRepoFactEvidence(
       repoFactEvidence,
       repoFactsContext,
@@ -498,6 +851,19 @@ export function validateCopilotInstructionsFindings(findingsText, repoFactsConte
     if (!repoFactValidation.valid) {
       for (const issue of repoFactValidation.issues) {
         issues.push(`${heading}: ${issue}`);
+      }
+    }
+
+    if (classification === 'supported guidance') {
+      const unsupportedCurrentEvidenceSnippets = collectCurrentEvidenceBackticks(
+        currentFileEvidence
+      ).filter((snippet) => !repoFactsContextIncludesSnippet(repoFactsContext, snippet));
+      if (unsupportedCurrentEvidenceSnippets.length > 0) {
+        issues.push(
+          `${heading}: \`supported guidance\` findings cannot retain unsupported repo-specific details from current-file evidence (${unsupportedCurrentEvidenceSnippets
+            .map((snippet) => `\`${snippet}\``)
+            .join(', ')}); split or downgrade the unsupported claim.`
+        );
       }
     }
   }
@@ -520,10 +886,16 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
   const referenceDocSignals = (facts.referenceDocSignals ?? [])
     .map((signal) => `- ${signal}`)
     .join('\n');
+  const auxiliaryNormativeFiles = (facts.auxiliaryNormativeFiles ?? [])
+    .map(({ path: filePath, purpose }) => `- \`${filePath}\` - ${purpose}`)
+    .join('\n');
   const supportingSurfaces = (facts.supportingSurfaces ?? [])
     .map(({ path: surfacePath, purpose }) => `- \`${surfacePath}\` - ${purpose}`)
     .join('\n');
   const packageExports = (facts.packageExports ?? []).map((entry) => `- \`${entry}\``).join('\n');
+  const sourceEntrySignals = (facts.sourceEntrySignals ?? [])
+    .map((signal) => `- ${signal}`)
+    .join('\n');
   const packageManifestPresent = facts.packageManifestPresent !== false;
   const packageName = packageManifestPresent
     ? facts.packageName || 'unknown'
@@ -563,8 +935,14 @@ export function buildCopilotInstructionsRepoFactsContext(facts) {
     '### Reference Doc Signals',
     referenceDocSignals || '- Unavailable',
     '',
+    '### Auxiliary Normative Files',
+    auxiliaryNormativeFiles || '- Unavailable',
+    '',
     '### Public Package Entry Points',
     packageExports || '- Unavailable',
+    '',
+    '### Source Entry Signals',
+    sourceEntrySignals || '- Unavailable',
   ];
 
   return `${lines.join('\n')}\n`;
@@ -614,7 +992,7 @@ export class Step1_5CopilotInstructionsValidator {
     }
 
     const currentContent = await this.fileOps.readFile(targetPath);
-    const facts = await this.collectRepoFacts(projectRoot);
+    const facts = await this.collectRepoFacts(projectRoot, currentContent);
     const repoFacts = buildCopilotInstructionsRepoFactsContext(facts);
     const parsedYaml =
       options.parsedAiHelpers ||
@@ -639,27 +1017,61 @@ export class Step1_5CopilotInstructionsValidator {
       JSON.stringify(facts),
       JSON.stringify({ alternatives: !!options.alternatives }),
     ];
-    const aiResult = await this.aiCache.withFileChangeGuard('step_01_5', cacheInputs, () =>
-      this.aiHelper.executeRequest(prompt, {
-        persona: 'documentation_expert',
-        model: 'claude-sonnet-4.5',
-      })
+    let aiContent =
+      (
+        await this.aiCache.withFileChangeGuard('step_01_5', cacheInputs, () =>
+          this.aiHelper.executeRequest(prompt, {
+            persona: 'documentation_expert',
+            model: 'claude-sonnet-4.5',
+          })
+        )
+      )?.content ?? '';
+
+    let extractedFindings = extractCopilotInstructionsFindings(aiContent);
+    let findingsValidation = validateCopilotInstructionsFindings(extractedFindings, repoFacts);
+    let correctedContent = extractCorrectedCopilotInstructions(aiContent);
+    let rewriteConsistencyValidation = validateCopilotInstructionsRewriteConsistency(
+      extractedFindings,
+      currentContent,
+      correctedContent
     );
 
-    const aiContent = aiResult?.content ?? '';
-    const extractedFindings = extractCopilotInstructionsFindings(aiContent);
-    const findingsValidation = validateCopilotInstructionsFindings(extractedFindings, repoFacts);
+    if (!findingsValidation.valid || !rewriteConsistencyValidation.valid) {
+      logger.warn('Step 1.5 response validation failed; retrying once without cache');
+      const retryPrompt = buildCopilotInstructionsRetryPrompt(prompt, [
+        ...findingsValidation.issues,
+        ...rewriteConsistencyValidation.issues,
+      ]);
+      const retryContent =
+        (
+          await this.aiHelper.executeRequest(retryPrompt, {
+            persona: 'documentation_expert',
+            model: 'claude-sonnet-4.5',
+          })
+        )?.content ?? '';
+      if (retryContent) {
+        aiContent = retryContent;
+        extractedFindings = extractCopilotInstructionsFindings(retryContent);
+        findingsValidation = validateCopilotInstructionsFindings(extractedFindings, repoFacts);
+        correctedContent = extractCorrectedCopilotInstructions(retryContent);
+        rewriteConsistencyValidation = validateCopilotInstructionsRewriteConsistency(
+          extractedFindings,
+          currentContent,
+          correctedContent
+        );
+      }
+    }
+
+    const blockingValidationIssues = [...findingsValidation.issues];
+    const validationIssues = [...blockingValidationIssues, ...rewriteConsistencyValidation.issues];
     const findings = findingsValidation.findings;
-    const correctedContent = extractCorrectedCopilotInstructions(aiContent);
     const normalizedCurrent = ensureTrailingNewline(currentContent.trim());
-    const updated = correctedContent.length > 0 && correctedContent !== normalizedCurrent;
-    const findingsValidationSection = findingsValidation.valid
-      ? []
-      : [
-          '### Findings validation issues',
-          ...findingsValidation.issues.map((issue) => `- ${issue}`),
-          '',
-        ];
+    const updated =
+      blockingValidationIssues.length === 0 &&
+      correctedContent.length > 0 &&
+      correctedContent !== normalizedCurrent;
+    const trustedFindingsHeading =
+      validationIssues.length === 0 ? '### Findings' : '### Trusted Findings Status';
 
     if (updated) {
       await this.fileOps.writeFile(targetPath, correctedContent);
@@ -675,12 +1087,12 @@ export class Step1_5CopilotInstructionsValidator {
       `- **Updated**: ${updated ? 'yes' : 'no'}`,
       `- **Validation commands surfaced**: ${Object.values(facts.validationCommands).join(', ') || 'none'}`,
       `- **Reference docs surfaced**: ${facts.referenceDocs.map((doc) => `\`${doc}\``).join(', ') || 'none'}`,
-      `- **Structured findings valid**: ${findingsValidation.valid ? 'yes' : 'no'}`,
+      `- **Structured findings valid**: ${validationIssues.length === 0 ? 'yes' : 'no'}`,
+      `- **Corrected file trusted for write**: ${blockingValidationIssues.length === 0 ? 'yes' : 'no'}`,
       '',
       repoFacts.trim(),
       '',
-      ...findingsValidationSection,
-      '### Findings',
+      trustedFindingsHeading,
       findings ? findings.trim() : 'No structured findings returned.',
       '',
       '### AI Response',
@@ -695,41 +1107,56 @@ export class Step1_5CopilotInstructionsValidator {
       file: COPILOT_INSTRUCTIONS_RELATIVE_PATH,
       facts,
       findings,
-      findingsValid: findingsValidation.valid,
-      findingsValidationIssues: findingsValidation.issues,
+      findingsValid: validationIssues.length === 0,
+      findingsValidationIssues: validationIssues,
     };
   }
 
-  async collectRepoFacts(projectRoot) {
+  async collectRepoFacts(projectRoot, currentContent = '') {
     const packageJsonPath = path.join(projectRoot, 'package.json');
     const packageManifestPresent = await this.fileOps.exists(packageJsonPath);
     const packageJson = packageManifestPresent
       ? JSON.parse(await this.fileOps.readFile(packageJsonPath))
       : {};
-    const [referenceDocs, sourceLayers, supportingSurfaces] = await Promise.all([
-      Promise.all(
-        COPILOT_REFERENCE_DOCS.map(async (relativePath) => ({
-          relativePath,
-          present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
-        }))
-      ).then((entries) =>
-        sortNatural(
-          entries.filter(({ present }) => present).map(({ relativePath }) => relativePath)
-        )
-      ),
-      detectSourceLayers(projectRoot, this.fileOps),
-      Promise.all(
-        COPILOT_SUPPORTING_SURFACES.map(async ([relativePath, purpose]) => ({
-          path: relativePath,
-          purpose,
-          present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
-        }))
-      ).then((entries) =>
-        entries
-          .filter(({ present }) => present)
-          .map(({ path: surfacePath, purpose }) => ({ path: surfacePath, purpose }))
-      ),
-    ]);
+    const [referenceDocs, sourceLayers, supportingSurfaces, auxiliaryNormativeFiles] =
+      await Promise.all([
+        Promise.all(
+          COPILOT_REFERENCE_DOCS.map(async (relativePath) => ({
+            relativePath,
+            present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+          }))
+        ).then((entries) =>
+          sortNatural(
+            entries.filter(({ present }) => present).map(({ relativePath }) => relativePath)
+          )
+        ),
+        detectSourceLayers(projectRoot, this.fileOps),
+        Promise.all(
+          COPILOT_SUPPORTING_SURFACES.map(async ([relativePath, purpose]) => ({
+            path: relativePath,
+            purpose,
+            present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+          }))
+        ).then((entries) =>
+          entries
+            .filter(({ present }) => present)
+            .map(({ path: surfacePath, purpose }) => ({ path: surfacePath, purpose }))
+        ),
+        Promise.all(
+          COPILOT_AUXILIARY_NORMATIVE_FILES.map(async ([relativePath, purpose]) => ({
+            path: relativePath,
+            purpose,
+            present: await this.fileOps.exists(path.join(projectRoot, relativePath)),
+            cited:
+              currentContent.includes(`\`${relativePath}\``) ||
+              currentContent.includes(relativePath),
+          }))
+        ).then((entries) =>
+          entries
+            .filter(({ present, cited }) => present && cited)
+            .map(({ path: filePath, purpose }) => ({ path: filePath, purpose }))
+        ),
+      ]);
     const referenceDocSignals = await Promise.all(
       referenceDocs.map(async (relativePath) => {
         try {
@@ -741,17 +1168,30 @@ export class Step1_5CopilotInstructionsValidator {
       })
     ).then((signals) => signals.flat().filter(Boolean));
 
+    const packageExports = await annotateEntryPointsExistence(
+      projectRoot,
+      collectPackageEntryPoints(packageJson),
+      this.fileOps
+    );
+    const sourceEntrySignals = await collectSourceEntrySignals(
+      projectRoot,
+      packageJson,
+      this.fileOps
+    );
+
     return {
       packageManifestPresent,
       packageName: packageJson.name || '',
       packageVersion: packageJson.version || '',
       packageDescription: packageJson.description || '',
-      packageExports: collectPackageEntryPoints(packageJson),
+      packageExports,
+      sourceEntrySignals,
       validationCommands: {
         ...(packageJson.scripts?.lint ? { Lint: 'npm run lint' } : {}),
         ...(packageJson.scripts?.test ? { Test: 'npm test' } : {}),
         ...(packageJson.scripts?.build ? { Build: 'npm run build' } : {}),
       },
+      auxiliaryNormativeFiles,
       referenceDocSignals,
       referenceDocs,
       sourceLayers,

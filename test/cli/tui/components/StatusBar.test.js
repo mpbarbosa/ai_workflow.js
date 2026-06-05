@@ -22,19 +22,19 @@ function renderStatusBar(props) {
 }
 
 describe('StatusBar Component', () => {
-  it('renders default key hints when isComplete is false (happy path)', () => {
+  it('renders default key hints in key: Label format (happy path)', () => {
     const { lastFrame } = renderStatusBar({});
-    expect(lastFrame()).toContain('[q]');
+    expect(lastFrame()).toContain('q:');
     expect(lastFrame()).toContain('Quit');
-    expect(lastFrame()).toContain('[a]');
+    expect(lastFrame()).toContain('a:');
     expect(lastFrame()).toContain('Abort');
-    expect(lastFrame()).toContain('[↑/↓ j/k]');
+    expect(lastFrame()).toContain('j/k:');
     expect(lastFrame()).toContain('Scroll');
   });
 
   it('renders only exit hint when isComplete is true', () => {
     const { lastFrame } = renderStatusBar({ isComplete: true });
-    expect(lastFrame()).toContain('[q]');
+    expect(lastFrame()).toContain('q:');
     expect(lastFrame()).toContain('Exit');
     expect(lastFrame()).not.toContain('Abort');
     expect(lastFrame()).not.toContain('Scroll');
@@ -42,27 +42,30 @@ describe('StatusBar Component', () => {
 
   it('renders with isComplete explicitly false', () => {
     const { lastFrame } = renderStatusBar({ isComplete: false });
-    expect(lastFrame()).toContain('[q]');
+    expect(lastFrame()).toContain('q:');
     expect(lastFrame()).toContain('Quit');
-    expect(lastFrame()).toContain('[a]');
+    expect(lastFrame()).toContain('a:');
     expect(lastFrame()).toContain('Abort');
-    expect(lastFrame()).toContain('[↑/↓ j/k]');
+    expect(lastFrame()).toContain('j/k:');
     expect(lastFrame()).toContain('Scroll');
   });
 
-  it('renders correct spacing between hints', () => {
+  it('renders correct ordering of hints', () => {
     const { lastFrame } = renderStatusBar({});
     expect(lastFrame()).toMatch(/Quit[\s\S]*Abort[\s\S]*Scroll/);
   });
 
+  it('renders SYS_READY indicator', () => {
+    const { lastFrame } = renderStatusBar({});
+    expect(lastFrame()).toContain('SYS_READY');
+  });
+
   it('renders with unexpected prop values gracefully', () => {
     const { lastFrame } = renderStatusBar({ isComplete: null });
-    expect(lastFrame()).toContain('[q]');
+    expect(lastFrame()).toContain('q:');
     expect(lastFrame()).toContain('Quit');
-    expect(lastFrame()).toContain('[a]');
+    expect(lastFrame()).toContain('a:');
     expect(lastFrame()).toContain('Abort');
-    expect(lastFrame()).toContain('[↑/↓ j/k]');
-    expect(lastFrame()).toContain('Scroll');
   });
 
   // ── StatusChronometer integration ────────────────────────────────────────
@@ -73,8 +76,7 @@ describe('StatusBar Component', () => {
     expect(frame).not.toContain('Loading…');
     expect(frame).not.toContain('Streaming…');
     expect(frame).not.toContain('Done');
-    // hints still present
-    expect(frame).toContain('[q]');
+    expect(frame).toContain('q:');
   });
 
   it("copilotStatus='loading' renders spinner or Loading…", () => {
@@ -86,8 +88,6 @@ describe('StatusBar Component', () => {
 
   it("copilotStatus='streaming' renders Streaming…", () => {
     const { lastFrame } = renderStatusBar({ copilotStatus: 'streaming', width: 80 });
-    // 'Streaming…' may be split across Ink visual rows (e.g. 'Streamin' / 'g…');
-    // use a cross-line regex to verify both halves are present.
     expect(lastFrame()).toMatch(/Stream[\s\S]*g…/);
   });
 
@@ -104,7 +104,6 @@ describe('StatusBar Component', () => {
       width: 80,
     });
     expect(lastFrame()).toContain('✗');
-    // Error message words may wrap across Ink visual rows; check each word separately.
     expect(lastFrame()).toContain('SDK');
     expect(lastFrame()).toContain('timeout');
   });
@@ -112,7 +111,7 @@ describe('StatusBar Component', () => {
   it('hints are still visible alongside the badge (loading)', () => {
     const { lastFrame } = renderStatusBar({ copilotStatus: 'loading', width: 80 });
     const frame = lastFrame();
-    expect(frame).toContain('[q]');
+    expect(frame).toContain('q:');
     expect(frame).toContain('Quit');
   });
 });

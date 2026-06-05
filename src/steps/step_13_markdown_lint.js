@@ -71,6 +71,57 @@ export const SEVERITY_LEVELS = {
   info: 'info',
 };
 
+/**
+ * Build the fallback structured prompt content used when the YAML prompt
+ * template is unavailable.
+ *
+ * The fallback must preserve the same evidence-bounded behavior as the YAML
+ * prompt: sparse lint summaries cannot justify repo-wide tooling conclusions or
+ * speculative prevention advice.
+ *
+ * @param {object} params - Prompt inputs
+ * @param {string} params.projectRoot - Project root path
+ * @param {number} params.fileCount - Count of linted markdown files
+ * @param {object} params.stats - Lint statistics
+ * @param {Array<object>} params.antiPatterns - Detected anti-patterns
+ * @param {string} params.status - Derived lint status
+ * @param {string} params.issuesByRule - Preformatted issues-by-rule section
+ * @param {string} params.issuesByFile - Preformatted issues-by-file section
+ * @returns {{task: string, approach: string}} Fallback structured prompt parts
+ */
+export function buildMarkdownLintFallbackPromptData({
+  projectRoot,
+  fileCount,
+  stats,
+  antiPatterns,
+  status,
+  issuesByRule,
+  issuesByFile,
+}) {
+  return {
+    task: `Analyze these markdown linting results for the project at: ${projectRoot}
+
+- Files linted: ${fileCount}
+- Total issues: ${stats.totalIssues}
+- Clean files: ${stats.cleanFiles}
+- Anti-patterns detected: ${antiPatterns?.length ?? 0}
+- Status: ${status}
+
+Issues by rule:
+${issuesByRule || '(none)'}
+
+Issues by file (top 10):
+${issuesByFile || '(none)'}
+
+IMPORTANT:
+- Only reference the files and rules listed above. Do not invent file paths or rule names not present in this data.
+- Treat rule counts, top-file summaries, and anti-pattern totals as partial evidence unless exact file/rule mappings are shown above.
+- If repo-wide style-guide files, \`.editorconfig\`, pre-commit hooks, or CI coverage are not shown above, label those checks \`Unavailable from visible evidence\` instead of recommending them as missing.
+- Do not turn sparse evidence into a clean pass or into a repo-specific prevention priority.`,
+    approach: `Provide actionable fixes for the rules and files listed above. Be precise and reference only the data provided. If repo-wide tooling or automation status is not visible, explicitly say that prevention guidance is unavailable from visible evidence instead of recommending \`.editorconfig\`, pre-commit hooks, or CI changes.`,
+  };
+}
+
 // ============================================================================
 // PURE FUNCTIONS - Markdown File Analysis
 // ============================================================================
@@ -840,6 +891,15 @@ export class Step13MarkdownLint {
         context.modifiedCount != null
           ? String(context.modifiedCount)
           : String(modifiedFiles.filter((f) => /\.md$/i.test(f)).length) || 'unknown';
+      const fallbackPromptData = buildMarkdownLintFallbackPromptData({
+        projectRoot,
+        fileCount,
+        stats,
+        antiPatterns,
+        status,
+        issuesByRule,
+        issuesByFile,
+      });
 
       const prompt = await buildStepPromptWithFallback({
         buildPrompt: async () => {
@@ -852,22 +912,8 @@ export class Step13MarkdownLint {
           });
         },
         fallbackRole: `You are an expert in Markdown authoring and documentation quality.`,
-        fallbackTask: `Analyze these markdown linting results for the project at: ${projectRoot}
-
-- Files linted: ${fileCount}
-- Total issues: ${stats.totalIssues}
-- Clean files: ${stats.cleanFiles}
-- Anti-patterns detected: ${antiPatterns?.length ?? 0}
-- Status: ${status}
-
-Issues by rule:
-${issuesByRule || '(none)'}
-
-Issues by file (top 10):
-${issuesByFile || '(none)'}
-
-IMPORTANT: Only reference the files and rules listed above. Do not invent file paths or rule names not present in this data.`,
-        fallbackApproach: `Provide actionable fixes for the rules and files listed above. Be precise and reference only the data provided.`,
+        fallbackTask: fallbackPromptData.task,
+        fallbackApproach: fallbackPromptData.approach,
         fallbackProjectContext: {
           project_name: projectRoot,
         },

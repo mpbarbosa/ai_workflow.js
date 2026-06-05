@@ -65,6 +65,16 @@ describe('Third-Party Exclusion - Pure Functions', () => {
         expect(patterns).toContain('env/**');
       }
     });
+
+    it('should treat location_based_service like a SPA for generated bundle exclusions', () => {
+      const patterns = getDefaultExclusionPatterns('location_based_service');
+
+      expect(patterns).toContain('node_modules/**');
+      expect(patterns).toContain('dist/**');
+      expect(patterns).toContain('build/**');
+      expect(patterns).toContain('public/v*/assets/**');
+      expect(patterns).toContain('*.min.js');
+    });
   });
 
   describe('parseGitignorePatterns', () => {

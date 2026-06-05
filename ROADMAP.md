@@ -102,6 +102,13 @@ misleading workflow summaries.
       subprompt from directory validation so structure review stays evidence-bound
 - [ ] **Step 2 issue accounting cleanup** — report scan candidates separately from
       confirmed issues so false positives do not inflate workflow summaries
+- [x] **`test_engineer` positive-summary suppression** — the persona prompt instructs the
+      model to avoid unsupported clean-bill statements (e.g. "no execution-risk issues
+      visible", "no CI issues") when direct evidence is absent, yet step_06 responses
+      routinely end with exactly such blanket conclusions. Strengthen the template so the
+      required wording is "inconclusive — no direct evidence" rather than "no issues", and
+      add a post-response validation check in `ai_validation.js` that flags any response
+      containing a test-review clean-bill phrase without a cited file:line reference
 
 ---
 

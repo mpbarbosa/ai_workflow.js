@@ -27,6 +27,7 @@ import {
   buildYamlStepPrompt,
   buildProjectKindPrompt,
 } from '../lib/ai_prompt_builder.js';
+import { formatValidationGateNotice } from '../lib/ai_validation.js';
 import { DEFAULT_TOTAL_TOKENS } from '../lib/token_budget.js';
 import { loadArtifacts } from '../lib/artifact_repository.js';
 import { assemble, buildManifestPreamble } from '../lib/context_assembler.js';
@@ -119,6 +120,155 @@ export function getCoverageCommand(language) {
     rust: 'cargo tarpaulin',
   };
   return coverageCommands[normalized] || 'npm run coverage';
+}
+
+/**
+ * Select the most relevant test command for the current Step 6 slice.
+ *
+ * The repository-level default remains useful context, but narrow reviews should
+ * prefer a more specific command when the visible scope and config clearly point
+ * to a dedicated suite.
+ *
+ * @pure
+ * @param {Object} params
+ * @param {string} params.language - Primary language for the project
+ * @param {string} [params.repositoryDefaultCommand] - Repository-default test command
+ * @param {string[]} [params.sliceFiles=[]] - Test files in the current review slice
+ * @param {{path: string, content?: string}[]} [params.configArtifacts=[]] - Visible test/config artifacts
+ * @returns {string} Best-matching command for the scoped files
+ */
+export function getScopedTestCommand({
+  language,
+  repositoryDefaultCommand = '',
+  sliceFiles = [],
+  configArtifacts = [],
+}) {
+  const normalizedLanguage = typeof language === 'string' ? language.trim().toLowerCase() : '';
+  const fallbackMap = {
+    javascript: 'npm test',
+    typescript: 'npm test',
+    python: 'pytest',
+    go: 'go test ./...',
+    ruby: 'rspec',
+    rust: 'cargo test',
+  };
+  const repoDefault =
+    typeof repositoryDefaultCommand === 'string' && repositoryDefaultCommand.trim()
+      ? repositoryDefaultCommand.trim()
+      : (fallbackMap[normalizedLanguage] ?? 'npm test');
+
+  const normalizedFiles = sliceFiles.map((file) => String(file).toLowerCase());
+  const hasSliceFiles = normalizedFiles.length > 0;
+  const allScopedFilesAreTypeScript =
+    hasSliceFiles && normalizedFiles.every((file) => file.endsWith('.ts') || file.endsWith('.tsx'));
+  const packageJsonArtifact = configArtifacts.find(
+    (artifact) =>
+      String(artifact?.path ?? '')
+        .replace(/\\/g, '/')
+        .toLowerCase() === 'package.json'
+  );
+  let packageScripts = {};
+  if (typeof packageJsonArtifact?.content === 'string') {
+    try {
+      const parsedPackage = JSON.parse(packageJsonArtifact.content);
+      if (parsedPackage?.scripts && typeof parsedPackage.scripts === 'object') {
+        packageScripts = parsedPackage.scripts;
+      }
+    } catch {
+      /* ignore malformed package.json content in prompt context */
+    }
+  }
+
+  const inferScopedSuiteFromFiles = (files) => {
+    if (!files.length) return '';
+
+    const suitePredicates = [
+      ['core', (file) => /^test\/core\/.+\.test\.[cm]?[jt]sx?$/.test(file)],
+      ['utils', (file) => /^test\/utils\/.+\.test\.[cm]?[jt]sx?$/.test(file)],
+      ['integration', (file) => /^test\/integration\/.+\.test\.[cm]?[jt]sx?$/.test(file)],
+      ['e2e', (file) => /^test\/e2e\/.+\.test\.[cm]?[jt]sx?$/.test(file)],
+      ['unit', (file) => /(?:^|\/)(?:__tests__|unit)\//.test(file)],
+    ];
+
+    for (const [suiteName, predicate] of suitePredicates) {
+      if (files.every((file) => predicate(file))) {
+        return suiteName;
+      }
+    }
+
+    return '';
+  };
+  const inferScopedSuiteFromConfig = (artifacts) => {
+    const normalizedArtifactPaths = artifacts.map((artifact) =>
+      String(artifact?.path ?? '')
+        .replace(/\\/g, '/')
+        .toLowerCase()
+    );
+    if (
+      normalizedArtifactPaths.some((file) =>
+        /^jest\.config\.unit\.(js|ts|cjs|mjs|json)$/.test(file.split('/').pop() ?? '')
+      )
+    ) {
+      return 'unit';
+    }
+    if (
+      normalizedArtifactPaths.some((file) =>
+        /^jest\.config\.core\.(js|ts|cjs|mjs|json)$/.test(file.split('/').pop() ?? '')
+      )
+    ) {
+      return 'core';
+    }
+    if (
+      normalizedArtifactPaths.some((file) =>
+        /^jest\.config\.integration\.(js|ts|cjs|mjs|json)$/.test(file.split('/').pop() ?? '')
+      )
+    ) {
+      return 'integration';
+    }
+    return '';
+  };
+  const buildScopedScriptCommand = (defaultCommand, suiteName) => {
+    if (!suiteName) return '';
+    if (/^npm(?:\s+run)?\s+test(?:\s|$)/.test(defaultCommand)) {
+      return `npm run test:${suiteName}`;
+    }
+    if (/^pnpm(?:\s+run)?\s+test(?:\s|$)/.test(defaultCommand)) {
+      return `pnpm run test:${suiteName}`;
+    }
+    if (/^yarn(?:\s+run)?\s+test(?:\s|$)/.test(defaultCommand)) {
+      return `yarn test:${suiteName}`;
+    }
+    if (/^bun(?:\s+run)?\s+test(?:\s|$)/.test(defaultCommand)) {
+      return `bun run test:${suiteName}`;
+    }
+    return '';
+  };
+  const hasScript = (name) =>
+    typeof packageScripts[name] === 'string' && packageScripts[name].trim();
+  const scopedSuite =
+    inferScopedSuiteFromFiles(normalizedFiles) || inferScopedSuiteFromConfig(configArtifacts);
+  const scopedScriptCommand =
+    scopedSuite && hasScript(`test:${scopedSuite}`)
+      ? buildScopedScriptCommand(repoDefault, scopedSuite)
+      : '';
+
+  if (scopedScriptCommand) {
+    return scopedScriptCommand;
+  }
+
+  if (normalizedLanguage !== 'typescript') {
+    return repoDefault;
+  }
+
+  const hasDedicatedUnitConfig = configArtifacts.some((artifact) =>
+    /^jest\.config\.unit\.(js|ts|cjs|mjs|json)$/i.test(String(artifact?.path ?? ''))
+  );
+
+  if (repoDefault === 'npm test' && allScopedFilesAreTypeScript && hasDedicatedUnitConfig) {
+    return 'npm run test:unit';
+  }
+
+  return repoDefault;
 }
 
 /**
@@ -527,14 +677,19 @@ export class Step6TestReviewer {
             'jest.config.ts',
             'jest.config.cjs',
             'jest.config.mjs',
+            'jest.config.unit.js',
+            'jest.config.unit.ts',
+            'jest.config.unit.cjs',
+            'jest.config.unit.mjs',
+            'jest.config.unit.json',
             'vitest.config.ts',
             'vitest.config.js',
             'tsconfig.json',
           ];
-          const [configArtifacts, contextArtifacts] = await Promise.all([
-            loadArtifacts(CONFIG_CANDIDATES, [], { projectRoot, fileOps: this.fileOps }),
-            loadArtifacts(['README.md'], [], { projectRoot, fileOps: this.fileOps }),
-          ]);
+          const configArtifacts = await loadArtifacts(CONFIG_CANDIDATES, [], {
+            projectRoot,
+            fileOps: this.fileOps,
+          });
 
           // Slice partition into small batches in priority order (modified files first)
           const FILES_PER_SLICE = 5;
@@ -595,27 +750,27 @@ export class Step6TestReviewer {
           // Build one AI review for a set of artifacts; returns { content, manifest }.
           const runSlice = async (sliceArtifacts, sliceId) => {
             const sliceFiles = sliceArtifacts.map((a) => a.path);
+            const scopedTestCommand = getScopedTestCommand({
+              language,
+              repositoryDefaultCommand: configTestCommand,
+              sliceFiles,
+              configArtifacts,
+            });
             const context = assemble(
               [
                 {
                   name: 'primary_test_files',
                   artifacts: sliceArtifacts,
-                  budget: 0.7,
+                  budget: 0.8,
                   policy: 'line-boundary',
                 },
-                { name: 'config_files', artifacts: configArtifacts, budget: 0.15, policy: 'skip' },
-                {
-                  name: 'project_context',
-                  artifacts: contextArtifacts,
-                  budget: 0.15,
-                  policy: 'tail',
-                },
+                { name: 'config_files', artifacts: configArtifacts, budget: 0.2, policy: 'skip' },
               ],
               DEFAULT_TOTAL_TOKENS
             );
             const testFileContents = context.slots.primary_test_files;
             const configFileContents = context.slots.config_files;
-            const projectContextContents = context.slots.project_context;
+            const projectContextContents = '';
             const evidenceManifest = buildManifestPreamble(
               context.manifest.filter((e) => e.slot === 'primary_test_files')
             );
@@ -633,6 +788,7 @@ export class Step6TestReviewer {
                   test_framework: testFramework,
                   test_env: configTestCommand,
                   test_command: configTestCommand,
+                  scoped_test_command: scopedTestCommand,
                   coverage_command: configCovCommand,
                   test_count: String(testFiles.length),
                   scoped_test_count: String(sliceFiles.length),
@@ -657,6 +813,7 @@ export class Step6TestReviewer {
                 framework: language,
                 testFramework,
                 testCommand: configTestCommand,
+                scopedTestCommand,
                 coverageCommand: configCovCommand,
               });
             }
@@ -665,9 +822,23 @@ export class Step6TestReviewer {
             const aiResult = await this.aiCache.withFileChangeGuard(
               `step_06_p${partition.index}_${sliceId}`,
               fileHashEntries,
-              () => this.aiHelper.executeRequest(prompt, { persona: 'test_engineer' })
+              () =>
+                this.aiHelper.executeRequest(prompt, {
+                  persona: 'test_engineer',
+                  responseType: 'test_review',
+                  validationContext: {
+                    hasIncompleteEvidence: context.manifest.some(
+                      (entry) => entry.status !== 'included'
+                    ),
+                  },
+                })
             );
-            return { content: aiResult?.content ?? '', manifest: context.manifest };
+            const aiValidationWarnings = aiResult?.validation?.warnings ?? [];
+            const content =
+              aiValidationWarnings.length > 0
+                ? formatValidationGateNotice(aiResult.validation, { subject: 'AI test review' })
+                : (aiResult?.content ?? '');
+            return { content, manifest: context.manifest };
           };
 
           // Round 1: run initial slices in parallel

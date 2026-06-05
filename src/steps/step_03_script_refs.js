@@ -104,11 +104,13 @@ export function getScriptDirectories(language) {
 export function extractScriptReferences(content) {
   const references = [];
 
-  // Match: `./path/to/script.sh` or `path/to/script.sh`
-  const inlinePattern = /`\.?\/?([\w\-./]+\.(?:sh|py|js|mjs|ts|rb|go|java|rs|cpp|cc))`/g;
+  // Match inline paths while preserving dot-directories (.github/...) and parent
+  // references (../tools/...) so downstream validation can distinguish in-repo
+  // scripts from out-of-repo prerequisites.
+  const inlinePattern = /`((?:\.\.?\/)?[^\s`]+?\.(?:sh|py|js|mjs|ts|rb|go|java|rs|cpp|cc))`/g;
   let match;
   while ((match = inlinePattern.exec(content)) !== null) {
-    references.push(match[1]);
+    references.push(normalizeExtractedScriptReference(match[1]));
   }
 
   // Match: ```bash\n./script.sh\n```
@@ -117,9 +119,9 @@ export function extractScriptReferences(content) {
     const commands = match[1].trim().split('\n');
     for (const cmd of commands) {
       if (cmd.includes('$(')) continue; // skip shell substitutions (e.g. source "$(dirname ...)/script.sh")
-      const scriptMatch = cmd.match(/\.?\/?([^\s]+\.(?:sh|py|js|mjs|ts|rb|go))/);
+      const scriptMatch = cmd.match(/((?:\.\.?\/)?[^\s]+\.(?:sh|py|js|mjs|ts|rb|go))/);
       if (scriptMatch) {
-        references.push(scriptMatch[1]);
+        references.push(normalizeExtractedScriptReference(scriptMatch[1]));
       }
     }
   }
@@ -136,12 +138,21 @@ export function extractScriptReferences(content) {
  */
 export function validateScriptReferences(references, existingScripts) {
   const issues = [];
+  const normalizedExistingScripts = new Set(
+    [...existingScripts].map((scriptPath) => normalizeScriptPath(scriptPath))
+  );
 
   for (const ref of references) {
-    // Normalize path (remove leading ./)
-    const normalized = ref.replace(/^\.\//, '');
+    const normalized = normalizeScriptPath(ref);
 
-    if (!existingScripts.has(normalized)) {
+    // Parent-relative or absolute references can legitimately point to sibling
+    // repositories or external tooling, so Step 3 should not auto-classify them
+    // as missing in-repo scripts.
+    if (!normalized || normalized.startsWith('../') || path.isAbsolute(normalized)) {
+      continue;
+    }
+
+    if (!normalizedExistingScripts.has(normalized)) {
       issues.push({
         reference: ref,
         normalized,
@@ -161,6 +172,12 @@ function normalizeScriptPath(scriptPath) {
   return String(scriptPath ?? '')
     .replace(/\\/g, '/')
     .replace(/^\.?\//, '');
+}
+
+function normalizeExtractedScriptReference(reference) {
+  return String(reference ?? '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '');
 }
 
 /**
@@ -435,17 +452,32 @@ export function buildDocumentationExcerpts(docFiles, scripts = [], maxChars = 20
       );
     })
   );
+  const tokenList = Array.from(tokenSet);
 
   const headingPattern =
     /^#{1,6}\s+(automation scripts|cli documentation|available cli commands)\b/i;
+  const perDocMax = Math.max(
+    600,
+    Math.min(1_200, Math.floor(maxChars / Math.max(1, Math.min(docFiles.length, 4))))
+  );
 
-  const excerpt = docFiles
+  const excerptEntries = docFiles
     .map(({ path: filePath, content }) => {
       const lines = String(content ?? '').split('\n');
-      if (lines.length === 0) return `### ${filePath}`;
+      if (lines.length === 0) {
+        return {
+          filePath,
+          excerpt: `### ${filePath}`,
+          hasRelevantSignals: false,
+          mentionCount: 0,
+          isReadme: /^README\.md$/i.test(filePath),
+        };
+      }
 
       /** @type {Array<{start: number, end: number}>} */
       const windows = [];
+      let mentionCount = 0;
+      let headingCount = 0;
       const addWindow = (start, end) => {
         const bounded = {
           start: Math.max(0, start),
@@ -468,8 +500,11 @@ export function buildDocumentationExcerpts(docFiles, scripts = [], maxChars = 20
 
       lines.forEach((line, index) => {
         const normalizedLine = line.toLowerCase();
-        const mentionsScript = Array.from(tokenSet).some((token) => normalizedLine.includes(token));
-        if (mentionsScript || headingPattern.test(line)) {
+        const mentionsScript = tokenList.some((token) => normalizedLine.includes(token));
+        const matchesHeading = headingPattern.test(line);
+        if (mentionsScript) mentionCount += 1;
+        if (matchesHeading) headingCount += 1;
+        if (mentionsScript || matchesHeading) {
           addWindow(index - 3, index + 5);
         }
       });
@@ -483,12 +518,103 @@ export function buildDocumentationExcerpts(docFiles, scripts = [], maxChars = 20
         excerptLines.push(...lines.slice(window.start, window.end + 1));
       });
 
-      return `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
+      let excerpt = `### ${filePath}\n${excerptLines.join('\n')}`.trimEnd();
+      if (excerpt.length > perDocMax) {
+        const separator = '\n... [excerpt omitted]\n';
+        const budget = Math.max(0, perDocMax - separator.length);
+        const head = Math.max(200, Math.floor(budget * 0.55));
+        const tail = Math.max(200, budget - head);
+        excerpt = excerpt.slice(0, head).trimEnd() + separator + excerpt.slice(-tail).trimStart();
+      }
+      return {
+        filePath,
+        excerpt,
+        hasRelevantSignals: mentionCount > 0 || headingCount > 0,
+        mentionCount,
+        isReadme: /^README\.md$/i.test(filePath),
+      };
     })
-    .join('\n\n---\n\n');
+    .sort((left, right) => {
+      if (left.hasRelevantSignals !== right.hasRelevantSignals) {
+        return Number(right.hasRelevantSignals) - Number(left.hasRelevantSignals);
+      }
+      if (left.isReadme !== right.isReadme) {
+        return Number(right.isReadme) - Number(left.isReadme);
+      }
+      if (left.mentionCount !== right.mentionCount) {
+        return right.mentionCount - left.mentionCount;
+      }
+      return left.filePath.localeCompare(right.filePath);
+    });
 
-  if (excerpt.length <= maxChars) return excerpt;
-  return excerpt.slice(0, maxChars) + '\n... [truncated]';
+  const separator = '\n\n---\n\n';
+  const parts = [];
+  let used = 0;
+  let truncated = false;
+
+  for (const entry of excerptEntries) {
+    const prefix = parts.length > 0 ? separator : '';
+    const available = maxChars - used - prefix.length;
+    if (available <= 0) {
+      truncated = true;
+      break;
+    }
+
+    if (entry.excerpt.length <= available) {
+      parts.push(prefix + entry.excerpt);
+      used += prefix.length + entry.excerpt.length;
+      continue;
+    }
+
+    if (available < 200) {
+      truncated = true;
+      break;
+    }
+
+    const clipped = entry.excerpt.slice(0, Math.max(0, available - '\n... [truncated]'.length));
+    parts.push(prefix + clipped.trimEnd() + '\n... [truncated]');
+    truncated = true;
+    break;
+  }
+
+  const excerpt = parts.join('');
+  if (!truncated) return excerpt;
+  return excerpt.endsWith('... [truncated]') ? excerpt : `${excerpt}\n... [truncated]`;
+}
+
+/**
+ * Build documentation context for the Step 3 AI prompt.
+ *
+ * Prefers full-file evidence for every loaded documentation file. If the
+ * combined content exceeds the prompt budget, falls back to targeted excerpts
+ * and marks the result as partial evidence.
+ *
+ * @pure
+ * @param {Array<{path: string, content: string}>} docFiles - Documentation files
+ * @param {string[]} [scripts=[]] - Script paths in scope
+ * @param {number} [maxChars=24000] - Max total characters in the returned context
+ * @returns {{content: string, isPartial: boolean}} Documentation context payload
+ */
+export function buildDocumentationContext(docFiles, scripts = [], maxChars = 24_000) {
+  if (!Array.isArray(docFiles) || docFiles.length === 0) {
+    return { content: '', isPartial: false };
+  }
+
+  const separator = '\n\n---\n\n';
+  const fullContent = docFiles
+    .map(({ path: filePath, content }) =>
+      `### ${filePath}\n${String(content ?? '').trimEnd()}`.trimEnd()
+    )
+    .join(separator);
+
+  if (fullContent.length <= maxChars) {
+    return { content: fullContent, isPartial: false };
+  }
+
+  return {
+    content: buildDocumentationExcerpts(docFiles, scripts, maxChars),
+    isPartial: true,
+  };
 }
 
 // ============================================================================
@@ -622,14 +748,8 @@ export class Step3ScriptAnalyzer {
           buildPrompt: async () => {
             const parsedYaml = await loadResolvedAiHelpers(this.fileOps);
             const coverageMap = buildDocCoverageMap(scripts, allDocFiles);
-            // Cap coverage map to avoid prompt bloat in large repos
-            const DOC_COVERAGE_MAX = 1500;
-            let docCoverageMap = formatDocCoverageMap(coverageMap);
-            if (docCoverageMap.length > DOC_COVERAGE_MAX) {
-              docCoverageMap = docCoverageMap.slice(0, DOC_COVERAGE_MAX) + '\n... [truncated]';
-            }
-            const DOC_CONTEXT_MAX = 2000;
-            const docContext = buildDocumentationExcerpts(allDocFiles, scripts, DOC_CONTEXT_MAX);
+            const docCoverageMap = formatDocCoverageMap(coverageMap);
+            const docContextResult = buildDocumentationContext(allDocFiles, scripts, 24_000);
             return buildYamlStepPrompt(parsedYaml, 'step3_script_refs_prompt', {
               project_name: projectRoot,
               project_description: options.projectDescription || '',
@@ -641,8 +761,18 @@ export class Step3ScriptAnalyzer {
               issues: String(totalIssues),
               script_issues_content: `Broken doc references (referenced in docs but file missing on disk): ${missingReferences.length}\nUndocumented scripts (exist on disk but not found in any doc file): ${undocumented.length}\nNon-executable scripts: ${nonExecutable.length}`,
               all_scripts: scripts.length > 0 ? scripts.join('\n') : 'none',
+              doc_coverage_heading:
+                '**Script Documentation Coverage (complete across included documentation files):**',
               doc_coverage_map: docCoverageMap || 'No doc files found.',
-              doc_context: docContext || 'No documentation files available.',
+              doc_coverage_guidance:
+                'This coverage map is complete for the documentation files included in this prompt. You may rely on its counts for those files. It does not imply anything about documentation files that were not loaded into this prompt.',
+              doc_context_heading: docContextResult.isPartial
+                ? '**Documentation Content (partial — included files exceeded the prompt budget and were clipped):**'
+                : '**Documentation Content (full for included files):**',
+              doc_context: docContextResult.content || 'No documentation files available.',
+              doc_context_guidance: docContextResult.isPartial
+                ? 'Treat this documentation content as partial evidence. If a file is clipped, omitted, or ends with an explicit truncation marker, keep claims scoped to the visible text and mark broader conclusions as unavailable or inconclusive.'
+                : 'These are full contents for the documentation files included in this prompt. You may treat them as complete evidence for those files, but do not infer anything about documentation files that were not included.',
             });
           },
           fallbackRole: `You are an expert in shell scripting and script reference validation.`,
@@ -665,7 +795,7 @@ export class Step3ScriptAnalyzer {
           ...allDocFiles.map(({ path: p, content }) => `${p}:${content}`),
           ...scripts.map((s) => `script:${s}`),
         ];
-        const aiResult = await this.aiCache.withFileChangeGuard('step_03', fileHashEntries, () =>
+        const aiResult = await this.aiCache.withFileChangeGuard('step_03_v2', fileHashEntries, () =>
           this.aiHelper.executeRequest(prompt, {
             persona: 'devops_engineer',
             model: 'claude-haiku-4.5',
@@ -789,6 +919,7 @@ export class Step3ScriptAnalyzer {
     const candidates = [
       'scripts/README.md',
       'docs/INTEGRATION.md',
+      'docs/DOCKER_TESTING.md',
       'docs/reference/COMMAND_CHEAT_SHEET.md',
       'docs/API.md',
       'docs/ARCHITECTURE.md',

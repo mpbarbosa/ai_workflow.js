@@ -800,6 +800,26 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
 
       expect(result).toContain('nodejs_api');
     });
+
+    test('includes repo-wide markdown inventory when provided', () => {
+      const result = buildConsistencyPrompt({
+        docDirectory: '/proj',
+        docFiles: ['README.md'],
+        repoWideDocFiles: ['README.md', 'docs/testing/TESTING.md'],
+      });
+
+      expect(result).toContain('Repo-wide markdown inventory');
+      expect(result).toContain('docs/testing/TESTING.md');
+      expect(result).toContain('outside this partition');
+    });
+
+    test('requires explicit missing-evidence and historical-drift labels', () => {
+      const result = buildConsistencyPrompt({ docDirectory: '/proj' });
+
+      expect(result).toContain('state exactly which evidence is missing');
+      expect(result).toContain('related repo docs:');
+      expect(result).toContain('Expected Historical Drift');
+    });
   });
 
   describe('buildTestReviewPrompt', () => {
@@ -896,7 +916,7 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
 
       expect(result).toContain('`npm test`');
       expect(result).toContain('`npm run test:coverage`');
-      expect(result).toContain('Repository-default test command');
+      expect(result).toContain('Best-matching scoped test command');
     });
 
     test('omits command line when testCommand is empty', () => {
@@ -937,7 +957,7 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       });
 
       expect(result).toContain('test-related artifacts');
-      expect(result).toContain('Repository-default test command: `npm test`');
+      expect(result).toContain('Best-matching scoped test command: `npm test`');
       expect(result).toContain('declarative YAML/JSON/HCL');
     });
 
@@ -948,7 +968,9 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
         testCommand: 'npm test',
       });
 
-      expect(result).toContain('context, not proof that every listed file runs under that command');
+      expect(result).toContain(
+        'Treat named commands as context, not proof that every listed file runs under them'
+      );
       expect(result).toContain('command compatibility is unverified');
     });
 
@@ -968,6 +990,38 @@ describe('AI Prompt Builder Module - Specialized Builders', () => {
       expect(result).toContain('all mocks are restored');
       expect(result).toContain('no performance issues');
       expect(result).toContain('no major anti-patterns');
+    });
+
+    test('forbids praise-only filler in test review summaries', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('Do not pad the review with praise-only observations');
+      expect(result).toContain('No concrete issue confirmed from the visible evidence');
+      expect(result).toContain('Keep summaries prioritized');
+    });
+
+    test('forbids inferring mock cleanup or library-specific matcher support from missing evidence', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('jest.resetModules()');
+      expect(result).toContain('mock-call cleanup is not visible');
+      expect(result).toContain('.toHaveTextContent');
+      expect(result).toContain('imports, configuration, or package metadata');
+    });
+
+    test('forbids reducing reroute or race-condition tests to happy-path-only claims', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('happy path only');
+      expect(result).toContain('reroute, retry, failure, or race-handling');
+    });
+
+    test('requires inconclusive wording instead of CI-safe blanket summaries', () => {
+      const result = buildTestReviewPrompt({ testFiles: ['test/app.test.ts'] });
+
+      expect(result).toContain('inconclusive from the visible evidence');
+      expect(result).toContain('safe for CI');
+      expect(result).toContain('No execution risks');
     });
 
     test('allows before/after snippets only when grounded in visible code', () => {

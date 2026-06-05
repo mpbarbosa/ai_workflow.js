@@ -57,6 +57,9 @@ const STEP10_REVIEWABLE_EXTENSIONS = [
 
 const STEP10_GENERATED_PATH_PATTERNS = [
   /(^|\/)(dist|build|out|coverage|node_modules|vendor|\.next|\.nuxt|\.svelte-kit|\.cache|\.parcel-cache|\.ai_workflow|\.jest-cache)(\/|$)/,
+  /(^|\/)docs\/api(\/|$)/,
+  /(^|\/)docs\/api-generated(\/|$)/,
+  /(^|\/)public\/v[^/]+\/assets(\/|$)/,
   /(^|\/)assets\/js(\/|$)/,
   /\.min\.(js|css)$/i,
 ];
@@ -417,7 +420,9 @@ async function resolveFormatterEvidence(fileOps, projectRoot) {
     `  - Config: ${configPath ? `\`${configPath}\` present` : 'no checked Prettier config file found'}`
   );
   if (formatScripts.length > 0) {
-    lines.push(`  - package.json scripts: ${formatScripts.map((name) => `\`${name}\``).join(', ')}`);
+    lines.push(
+      `  - package.json scripts: ${formatScripts.map((name) => `\`${name}\``).join(', ')}`
+    );
   } else if (packageJsonText) {
     lines.push('  - package.json scripts: no `format` / `format:check` script found');
   }
@@ -781,7 +786,11 @@ export class Step10AiReviewService {
       const [formatterEvidence, conventionEvidence, cohesionGuideStatus] = await Promise.all([
         resolveFormatterEvidence(this.fileOps, context.projectRoot),
         resolveConventionEvidence(this.fileOps, context.projectRoot),
-        resolveCohesionGuideStatus(this.fileOps, context.projectRoot, context.reviewableSourceFiles.length),
+        resolveCohesionGuideStatus(
+          this.fileOps,
+          context.projectRoot,
+          context.reviewableSourceFiles.length
+        ),
       ]);
       const prompt = buildYamlStepPrompt(context.sharedParsedYaml, 'step10_code_quality_prompt', {
         partition_header:

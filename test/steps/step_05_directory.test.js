@@ -3,6 +3,7 @@
  * @group steps
  */
 
+import fs from 'fs/promises';
 import {
   Step5DirectoryAnalyzer,
   shouldStayInRoot,
@@ -13,8 +14,11 @@ import {
   getDefaultCriticalDirs,
   isDirectoryDocumented,
   validateDirectoryStructure,
+  buildDirectoryDocumentationContext,
   buildDirectoryDocumentationExcerpts,
   buildAuthoritativeConfigContext,
+  buildPromptDirectoryTree,
+  hasIncompleteDirectoryPromptEvidence,
   formatDirectoryReport,
   DIR_CATEGORIES,
   ISSUE_TYPE,
@@ -36,8 +40,10 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(shouldStayInRoot('CHANGELOG.md')).toBe(true);
     });
 
-    test('rejects CONTRIBUTING.md in root', () => {
-      expect(shouldStayInRoot('CONTRIBUTING.md')).toBe(false);
+    test('allows conventional project docs in root', () => {
+      expect(shouldStayInRoot('CONTRIBUTING.md')).toBe(true);
+      expect(shouldStayInRoot('CLAUDE.md')).toBe(true);
+      expect(shouldStayInRoot('ROADMAP.md')).toBe(true);
     });
 
     test('rejects other markdown files', () => {
@@ -352,6 +358,170 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(excerpt).toContain('misc/');
       expect(excerpt).toContain('... [excerpt omitted]');
     });
+
+    test('prioritizes structural inventories over an oversized README excerpt', () => {
+      const readme = Array.from({ length: 220 }, (_, index) => `README line ${index + 1}`).join(
+        '\n'
+      );
+      const excerpt = buildDirectoryDocumentationExcerpts(
+        [
+          { path: 'README.md', content: readme },
+          {
+            path: 'docs/ARCHITECTURE.md',
+            content: ['# Architecture', '## Directory Structure', '- `src/composables/`'].join(
+              '\n'
+            ),
+          },
+          {
+            path: '.github/SKILLS.md',
+            content: [
+              '# Skills',
+              '| Skill | Purpose |',
+              '| Sync version | Propagate versions |',
+            ].join('\n'),
+          },
+        ],
+        ['src/composables', '.github/skills/sync-version'],
+        1200
+      );
+
+      expect(excerpt).toContain('### docs/ARCHITECTURE.md');
+      expect(excerpt).toContain('src/composables/');
+      expect(excerpt).toContain('### .github/SKILLS.md');
+      expect(excerpt).toContain('Sync version');
+    });
+
+    test('preserves targeted directory evidence from a long architecture tree', () => {
+      const lines = Array.from({ length: 180 }, (_, index) => `line ${index + 1}`);
+      lines[0] = '# Architecture';
+      lines[25] = '## Directory Structure';
+      lines[26] = '```text';
+      lines[27] = 'paraty_geocore.js/';
+      lines[28] = '├── src/';
+      lines[29] = '├── docs/';
+      lines[30] = '├── test/';
+      lines[31] = '├── .claude/';
+      lines[32] = '│   └── README.md';
+      lines[33] = '```';
+
+      const excerpt = buildDirectoryDocumentationExcerpts(
+        [{ path: 'docs/ARCHITECTURE.md', content: lines.join('\n') }],
+        ['.claude'],
+        1200
+      );
+
+      expect(excerpt).toContain('### docs/ARCHITECTURE.md');
+      expect(excerpt).toContain('.claude/');
+      expect(excerpt).toContain('README.md');
+    });
+  });
+
+  describe('buildDirectoryDocumentationContext', () => {
+    test('includes full prioritized file contents without excerpt markers', () => {
+      const context = buildDirectoryDocumentationContext([
+        {
+          path: 'README.md',
+          content: ['# Project', 'README line 2'].join('\n'),
+        },
+        {
+          path: 'docs/ARCHITECTURE.md',
+          content: ['# Architecture', '## Directory Structure', '- `src/composables/`'].join('\n'),
+        },
+      ]);
+
+      expect(context).toContain('### docs/ARCHITECTURE.md');
+      expect(context).toContain('## Directory Structure');
+      expect(context).toContain('### README.md');
+      expect(context).toContain('README line 2');
+      expect(context).not.toContain('[excerpt omitted]');
+      expect(context).not.toContain('[excerpt truncated]');
+    });
+
+    test('marks truncated documentation context as incomplete evidence', () => {
+      const context = buildDirectoryDocumentationContext(
+        [{ path: 'README.md', content: 'A'.repeat(64) }],
+        40
+      );
+
+      expect(context).toContain('... [truncated]');
+      expect(hasIncompleteDirectoryPromptEvidence(context)).toBe(true);
+    });
+  });
+
+  describe('buildPromptDirectoryTree', () => {
+    test('returns the full ordered tree by default', () => {
+      const dirTree = buildPromptDirectoryTree(['docs', 'src', 'src/components', 'tests', 'zzz'], {
+        structure: {
+          source_dirs: ['src'],
+          test_dirs: ['tests'],
+          docs_dirs: ['docs'],
+        },
+      });
+
+      expect(dirTree.split('\n')).toEqual(['docs', 'src', 'tests', 'zzz', 'src/components']);
+      expect(dirTree).not.toContain('[truncated:');
+    });
+
+    test('prioritizes config-defined directories and makes truncation explicit', () => {
+      const dirTree = buildPromptDirectoryTree(
+        [
+          '.github',
+          '.github/skills',
+          '__tests__',
+          '__tests__/helpers',
+          'docs',
+          'public',
+          'src',
+          'src/components',
+          'src/components/views',
+          'src/html',
+          'src/views',
+          'tests',
+          'zzz',
+        ],
+        {
+          structure: {
+            source_dirs: ['src'],
+            test_dirs: ['tests', '__tests__'],
+            docs_dirs: ['docs'],
+            ui_dirs: ['src/components/views', 'src/html', 'src/views'],
+            static_assets: ['public/service-worker.js'],
+          },
+        },
+        5
+      );
+
+      expect(dirTree.split('\n').slice(0, 5)).toEqual([
+        '__tests__',
+        'docs',
+        'src',
+        'tests',
+        'src/components',
+      ]);
+      expect(dirTree).toContain('... [truncated:');
+    });
+
+    test('returns none when there are no directories to show', () => {
+      expect(buildPromptDirectoryTree([], null)).toBe('none');
+    });
+
+    test('does not promote parent directories solely from static asset file requirements', () => {
+      const dirTree = buildPromptDirectoryTree(
+        ['docs', 'public', 'public/pwa', 'src', 'tests'],
+        {
+          structure: {
+            source_dirs: ['src'],
+            test_dirs: ['tests'],
+            docs_dirs: ['docs'],
+            static_assets: ['public/pwa/manifest.json'],
+          },
+        },
+        3
+      );
+
+      expect(dirTree.split('\n').slice(0, 3)).toEqual(['docs', 'src', 'tests']);
+      expect(dirTree.split('\n').slice(0, 3)).not.toContain('public/pwa');
+    });
   });
 
   describe('buildAuthoritativeConfigContext', () => {
@@ -378,6 +548,15 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(result).toContain('export default');
     });
 
+    test('wraps package.json in a json fenced block', () => {
+      const result = buildAuthoritativeConfigContext([
+        { path: 'package.json', content: '{ "version": "1.2.3" }\n' },
+      ]);
+      expect(result).toContain('### package.json');
+      expect(result).toContain('```json');
+      expect(result).toContain('"version": "1.2.3"');
+    });
+
     test('separates multiple files with a blank line', () => {
       const result = buildAuthoritativeConfigContext([
         { path: '.workflow-config.yaml', content: 'a: 1' },
@@ -388,11 +567,25 @@ describe('Step 5: Directory Structure Validation', () => {
       // two fenced blocks separated by blank line
       expect(result.match(/```/g)).toHaveLength(4);
     });
+
+    test('marks truncated config context as incomplete evidence', () => {
+      const result = buildAuthoritativeConfigContext(
+        [{ path: '.workflow-config.yaml', content: `key: ${'x'.repeat(64)}` }],
+        20
+      );
+
+      expect(result).toContain('... [truncated]');
+      expect(hasIncompleteDirectoryPromptEvidence(result)).toBe(true);
+    });
   });
 
   describe('AUTHORITATIVE_CONFIG_FILES', () => {
     test('includes .workflow-config.yaml as first entry', () => {
       expect(AUTHORITATIVE_CONFIG_FILES[0]).toBe('.workflow-config.yaml');
+    });
+
+    test('includes package.json for version cross-checking', () => {
+      expect(AUTHORITATIVE_CONFIG_FILES).toContain('package.json');
     });
 
     test('includes common test runner configs', () => {
@@ -645,6 +838,43 @@ describe('Step 5: Directory Structure Validation', () => {
       expect(result.documentationFiles).toEqual([expect.objectContaining({ path: 'INDEX.md' })]);
     });
 
+    test('collectDocumentationFiles reads shared and directory-local index files', async () => {
+      const seenPaths = [];
+      mockFileOps.readFile = (filePath) => {
+        seenPaths.push(filePath);
+        if (
+          [
+            '/project/.github/SKILLS.md',
+            '/project/.github/skills/README.md',
+            '/project/.github/skills/INDEX.md',
+            '/project/docs/INDEX.md',
+          ].includes(filePath)
+        ) {
+          return Promise.resolve(`# ${filePath}`);
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      const docs = await analyzer.collectDocumentationFiles('/project', ['.github/skills', 'docs']);
+
+      expect(seenPaths).toEqual(
+        expect.arrayContaining([
+          '/project/.github/SKILLS.md',
+          '/project/.github/skills/README.md',
+          '/project/.github/skills/INDEX.md',
+          '/project/docs/INDEX.md',
+        ])
+      );
+      expect(docs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: '.github/SKILLS.md' }),
+          expect.objectContaining({ path: '.github/skills/README.md' }),
+          expect.objectContaining({ path: '.github/skills/INDEX.md' }),
+          expect.objectContaining({ path: 'docs/INDEX.md' }),
+        ])
+      );
+    });
+
     test('saves report to backlog', async () => {
       let savedTitle = '';
       mockBacklog.saveStepSummary = (step, title) => {
@@ -705,6 +935,73 @@ describe('Step 5: Directory Structure Validation', () => {
         expect.arrayContaining([
           expect.stringContaining('Project-kind directory guidance was unavailable'),
         ])
+      );
+    });
+
+    test('passes directory-review validation context to the AI helper when prompt evidence is truncated', async () => {
+      const executeCalls = [];
+      const executeRequest = (prompt, requestOptions) => {
+        executeCalls.push({ prompt, requestOptions });
+        return Promise.resolve({ content: 'Inconclusive from the visible evidence.' });
+      };
+      analyzer = new Step5DirectoryAnalyzer({
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        gitOps: mockGitOps,
+        config: mockConfig,
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest,
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_cacheKey, _entries, callback) => callback(),
+        },
+        projectKindConfig: {
+          loadProjectKindsYaml: () => Promise.resolve(true),
+          getProjectKind: () => Promise.resolve('library'),
+          getAIGuidance: () => Promise.resolve({ directory_standards: [] }),
+        },
+      });
+      analyzer._listDirsRecursive = () =>
+        Promise.resolve(Array.from({ length: 305 }, (_, index) => `/project/dir-${index}`));
+      mockFileOps.listDirectory = () =>
+        Promise.resolve([
+          '/project/README.md',
+          '/project/package.json',
+          '/project/.workflow-config.yaml',
+        ]);
+      mockFileOps.readFile = async (filePath) => {
+        if (filePath.endsWith('README.md')) {
+          return Promise.resolve('# README\n' + 'x'.repeat(25_000));
+        }
+        if (filePath.endsWith('package.json')) {
+          return Promise.resolve('{ "version": "1.2.3" }');
+        }
+        if (filePath.endsWith('.workflow-config.yaml')) {
+          return Promise.resolve('structure:\n  source_dirs:\n    - src');
+        }
+        if (
+          filePath.endsWith('/.workflow_core/config/ai_helpers.yaml') ||
+          filePath.endsWith('/.workflow_core/config/prompt_roles.yaml')
+        ) {
+          return fs.readFile(filePath, 'utf8');
+        }
+        return Promise.reject(new Error('missing'));
+      };
+
+      await analyzer.execute('/project', { language: 'typescript' });
+
+      expect(executeCalls).toHaveLength(1);
+      expect(executeCalls[0]).toEqual(
+        expect.objectContaining({
+          prompt: expect.any(String),
+          requestOptions: expect.objectContaining({
+            persona: 'architecture_reviewer',
+            responseType: 'directory_review',
+            validationContext: { hasIncompleteEvidence: true },
+          }),
+        })
       );
     });
   });

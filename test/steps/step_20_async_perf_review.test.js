@@ -6,6 +6,7 @@
 import { jest } from '@jest/globals';
 import {
   isAsyncHeavyProject,
+  isAsyncGeneratedArtifactPath,
   isAsyncRuntimeTarget,
   filterAsyncRuntimeTargets,
   scoreAsyncIssues,
@@ -15,8 +16,12 @@ import {
   splitAsyncPromptEntry,
   buildAsyncPromptPartitions,
   buildAsyncFileContentsBlock,
+  buildAsyncPartitionScopeNote,
   formatAsyncPerfReport,
+  stripJavaScriptComments,
   hasAsyncPatterns,
+  buildAsyncSplitCoverage,
+  buildAsyncConsolidationPrompt,
   loadAsyncHistory,
   buildAsyncHistoryEntry,
   mergeAsyncHistory,
@@ -90,11 +95,34 @@ describe('step_20_async_perf_review - Pure Functions', () => {
       expect(isAsyncRuntimeTarget('__mocks__/fileMock.js')).toBe(false);
       expect(isAsyncRuntimeTarget('.github/scripts/jsdoc-audit.js')).toBe(false);
       expect(isAsyncRuntimeTarget('docs/api-generated/scripts/linenumber.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('docs/api/assets/main.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('scripts/smoke-test.cjs')).toBe(false);
       expect(
         isAsyncRuntimeTarget(
           'venv/lib/python3.13/site-packages/urllib3/contrib/emscripten/emscripten_fetch_worker.js'
         )
       ).toBe(false);
+    });
+
+    test('excludes generated build artifacts and archived bundle snapshots', () => {
+      expect(isAsyncRuntimeTarget('dist/main.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('public/v1/assets/main-Bn4g5hbK.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('assets/js/app.js')).toBe(false);
+      expect(isAsyncRuntimeTarget('src/app.min.js')).toBe(false);
+    });
+  });
+
+  describe('isAsyncGeneratedArtifactPath', () => {
+    test('detects generated build artifacts', () => {
+      expect(isAsyncGeneratedArtifactPath('dist/main.js')).toBe(true);
+      expect(isAsyncGeneratedArtifactPath('public/v1/assets/main-Bn4g5hbK.js')).toBe(true);
+      expect(isAsyncGeneratedArtifactPath('assets/js/app.js')).toBe(true);
+      expect(isAsyncGeneratedArtifactPath('src/app.min.js')).toBe(true);
+    });
+
+    test('ignores authored source paths', () => {
+      expect(isAsyncGeneratedArtifactPath('src/app.ts')).toBe(false);
+      expect(isAsyncGeneratedArtifactPath('public/service-worker.js')).toBe(false);
     });
   });
 
@@ -108,9 +136,11 @@ describe('step_20_async_perf_review - Pure Functions', () => {
           'vitest.config.ts',
           '__mocks__/fileMock.js',
           'docs/api-generated/scripts/linenumber.js',
+          'docs/api/assets/main.js',
+          'public/v1/assets/main-Bn4g5hbK.js',
           'scripts/validate.js',
         ])
-      ).toEqual(['src/index.ts', 'scripts/validate.js']);
+      ).toEqual(['src/index.ts']);
     });
   });
 
@@ -300,6 +330,39 @@ el.addEventListener('click', fn);
       expect(partitions[1].scopePaths).toEqual(['src/file4.ts']);
     });
 
+    describe('buildAsyncPartitionScopeNote', () => {
+      test('forces partial-coverage wording and inconclusive lifecycle dimensions when files are excluded', () => {
+        const note = buildAsyncPartitionScopeNote({
+          coveredRuntimeCount: 1,
+          readableRuntimeCount: 3,
+          excludedRuntimeCount: 2,
+          hasSplitEntries: true,
+        });
+
+        expect(note).toContain(
+          'This request covers 1 of 3 readable runtime JavaScript/TypeScript file(s)'
+        );
+        expect(note).toContain('⚠️ Coverage may be partial — not all source files were provided');
+        expect(note).toContain('mark Memory Leaks and Resource Cleanup as inconclusive');
+        expect(note).toContain('Entries labeled "(part X/Y)"');
+      });
+
+      test('omits partial-coverage warning when no runtime files were excluded', () => {
+        const note = buildAsyncPartitionScopeNote({
+          coveredRuntimeCount: 3,
+          readableRuntimeCount: 3,
+          excludedRuntimeCount: 0,
+          hasSplitEntries: false,
+        });
+
+        expect(note).toContain(
+          'This request covers all 3 readable runtime JavaScript/TypeScript file(s)'
+        );
+        expect(note).not.toContain('Coverage may be partial');
+        expect(note).not.toContain('Memory Leaks and Resource Cleanup as inconclusive');
+      });
+    });
+
     test('caps AI review partitions at the configured max per run', () => {
       const fileEntries = Array.from({ length: MAX_PARTITIONS_PER_RUN + 5 }, (_, index) => ({
         relativePath: `src/file-${index}.ts`,
@@ -402,6 +465,20 @@ el.addEventListener('click', fn);
 // =============================================================================
 
 describe('hasAsyncPatterns', () => {
+  test('ignores comment-only async keywords and path references', () => {
+    expect(
+      hasAsyncPatterns(
+        [
+          '/**',
+          ' * await fetch("/api");',
+          ' * manager.subscribe(observer);',
+          ' */',
+          "export { delay } from './utils/async.js';",
+        ].join('\n')
+      )
+    ).toBe(false);
+  });
+
   test.each([
     ['async function', 'async function fetch() {}'],
     ['await expression', 'const x = await getUser();'],
@@ -430,6 +507,80 @@ describe('hasAsyncPatterns', () => {
   test('returns false for null/undefined', () => {
     expect(hasAsyncPatterns(null)).toBe(false);
     expect(hasAsyncPatterns(undefined)).toBe(false);
+  });
+});
+
+describe('stripJavaScriptComments', () => {
+  test('removes line and block comments but preserves strings', () => {
+    const stripped = stripJavaScriptComments(
+      [
+        "const keep = '/* still a string */';",
+        '/* remove await fetch("/api") */',
+        'const value = 1; // and remove subscribe(observer)',
+      ].join('\n')
+    );
+
+    expect(stripped).toContain("'/* still a string */'");
+    expect(stripped).not.toContain('await fetch("/api")');
+    expect(stripped).not.toContain('subscribe(observer)');
+    expect(stripped).toContain('const value = 1;');
+  });
+});
+
+describe('buildAsyncSplitCoverage', () => {
+  test('tracks complete and incomplete split files across partitions', () => {
+    const coverage = buildAsyncSplitCoverage([
+      { relativePath: 'src/a.ts (part 1/2)', sourcePath: 'src/a.ts', content: 'a1' },
+      { relativePath: 'src/a.ts (part 2/2)', sourcePath: 'src/a.ts', content: 'a2' },
+      { relativePath: 'src/b.ts (part 1/3)', sourcePath: 'src/b.ts', content: 'b1' },
+      { relativePath: 'src/b.ts (part 2/3)', sourcePath: 'src/b.ts', content: 'b2' },
+    ]);
+
+    expect(coverage.completeSplitSourcePaths).toEqual(['src/a.ts']);
+    expect(coverage.incompleteSplitSourcePaths).toEqual(['src/b.ts']);
+  });
+});
+
+describe('buildAsyncConsolidationPrompt', () => {
+  test('includes split-file coverage context and partition findings', () => {
+    const prompt = buildAsyncConsolidationPrompt({
+      projectName: 'demo',
+      projectDescription: 'demo project',
+      projectKind: 'javascript_project',
+      buildSystem: 'npm',
+      testFramework: 'jest',
+      runtimeFileCount: 8,
+      readableRuntimeCount: 3,
+      excludedRuntimeCount: 5,
+      completeSplitEntries: [{ relativePath: 'src/a.ts', content: 'await foo();' }],
+      incompleteSplitSourcePaths: ['src/b.ts'],
+      partitionAnalyses: ['#### Partition 1 of 2\n\nNo issues found.'],
+    });
+
+    expect(prompt).toContain('Consolidate the partition findings below');
+    expect(prompt).toContain('Fully covered split files');
+    expect(prompt).toContain('- src/a.ts');
+    expect(prompt).toContain('- src/b.ts');
+    expect(prompt).toContain('#### Partition 1 of 2');
+  });
+
+  test('demotes speculative or pseudo-findings during consolidation', () => {
+    const prompt = buildAsyncConsolidationPrompt({
+      projectName: 'demo',
+      projectDescription: 'demo project',
+      projectKind: 'javascript_project',
+      buildSystem: 'npm',
+      testFramework: 'jest',
+      runtimeFileCount: 2,
+      readableRuntimeCount: 2,
+      excludedRuntimeCount: 0,
+      partitionAnalyses: ['#### Partition 1 of 1\n\n- Severity: None\n- Fix: N/A\n- Impact: N/A'],
+    });
+
+    expect(prompt).toContain('demote that item to a clean verdict or omit it');
+    expect(prompt).toContain('downgrade that item to inconclusive or omit it');
+    expect(prompt).toContain('Do not emit pseudo-findings such as "Severity: None"');
+    expect(prompt).toContain('Recommendations must contain only actionable next steps');
   });
 });
 
@@ -692,6 +843,28 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     );
   });
 
+  test('runs a consolidation pass after multi-partition async reviews', async () => {
+    const aiHelper = makeAiHelper('partition findings');
+    const fileOps = makeFileOps(
+      ['src/a.ts', 'src/b.ts', 'src/c.ts', 'src/d.ts', 'src/e.ts'],
+      'async function run() { await fetch("/api"); }\n'
+    );
+    const step = new Step20AsyncPerfReview({
+      fileOps,
+      backlog: makeBacklog(),
+      aiHelper,
+      aiCache: makeAiCache(),
+      techStack: makeTechStack(),
+    });
+
+    await step.execute('/project');
+
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(3);
+    expect(aiHelper.executeRequest.mock.calls.at(-1)?.[0]).toContain(
+      'Consolidate the partition findings below'
+    );
+  });
+
   test('saves backlog summary on success', async () => {
     const backlog = makeBacklog();
     const step = new Step20AsyncPerfReview({
@@ -848,7 +1021,9 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
     await step.execute('/project');
 
     const [promptArg] = aiHelper.executeRequest.mock.calls[0];
-    expect(promptArg).toContain('Files: 25 total (4 covered in this request)');
+    expect(promptArg).toContain(
+      'Files: 25 total runtime (25 with async patterns; 4 covered in this request)'
+    );
     expect(promptArg).toContain('src/file0.js');
     expect(promptArg).toContain('src/file3.js');
     expect(promptArg).not.toContain('src/file24.js');
@@ -882,7 +1057,8 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
       executeRequest: jest
         .fn()
         .mockResolvedValueOnce({ content: 'partition one findings' })
-        .mockResolvedValueOnce({ content: 'partition two findings' }),
+        .mockResolvedValueOnce({ content: 'partition two findings' })
+        .mockResolvedValueOnce({ content: 'consolidated findings' }),
     };
     const step = new Step20AsyncPerfReview({
       fileOps: makeFileOps(files, 'async function a() { await Promise.resolve(1); }\n'),
@@ -894,15 +1070,16 @@ describe('Step20AsyncPerfReview - Wrapper', () => {
 
     const result = await step.execute('/project');
 
-    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(3);
     expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
     expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
-    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
-      'split across multiple prompt logs to avoid truncated code excerpts'
+    expect(aiHelper.executeRequest.mock.calls[2][0]).toContain(
+      'Consolidate the partition findings below'
     );
-    expect(result.report).toContain('#### Partition 1 of 2');
-    expect(result.report).toContain('partition one findings');
-    expect(result.report).toContain('partition two findings');
+    expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
+      'This request covers 4 of 5 readable runtime JavaScript/TypeScript file(s)'
+    );
+    expect(result.report).toContain('consolidated findings');
   });
 
   test('splits oversized files into part-labeled prompt entries instead of truncating them', async () => {

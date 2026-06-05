@@ -57,8 +57,11 @@ export function detectDebugPersona(fileContents) {
   const observerScore = (
     combined.match(/eventemitter|addeventlistener|\.subscribe\(|\.on\(/g) || []
   ).length;
-  const asyncScore = (combined.match(/\basync\b|\bawait\b|new promise|\.then\(|callback/g) || [])
-    .length;
+  const asyncScore = (
+    combined.match(
+      /\basync\b|\bawait\b|new promise|promise\.(?:all|race|any|allsettled)\(|\.then\(|\.catch\(|\bfetch\s*\(|xmlhttprequest|callback|mutationobserver|intersectionobserver|resizeobserver|navigator\.geolocation|settimeout|setinterval|requestanimationframe|queuemicrotask|window\.open|postmessage|onmessage/g
+    ) || []
+  ).length;
   const dataStructScore = (
     combined.match(/\bnew map\b|\bnew set\b|linkedlist|binarytree|\bheap\b|\bgraph\b/g) || []
   ).length;
@@ -70,6 +73,54 @@ export function detectDebugPersona(fileContents) {
     return 'data_structure_debugger_prompt';
   }
   return 'async_flow_debugger_prompt';
+}
+
+function normalizeDebugContent(content) {
+  return typeof content === 'string' ? content.replace(/\r\n/g, '\n') : '';
+}
+
+export function hasAsyncDebugSurface(content) {
+  const normalized = normalizeDebugContent(content);
+  if (!normalized.trim()) return false;
+
+  return /\basync\b|\bawait\b|new\s+promise\b|promise\.(?:all|race|any|allsettled)\s*\(|\.then\(|\.catch\(|\bfetch\s*\(|xmlhttprequest|axios\b|superagent\b|\bgot\s*\(|navigator\.geolocation|addeventlistener\s*\(|mutationobserver|intersectionobserver|resizeobserver|settimeout\s*\(|setinterval\s*\(|requestanimationframe\s*\(|queuemicrotask\s*\(|window\.open\s*\(|postmessage\s*\(|onmessage\b/i.test(
+    normalized
+  );
+}
+
+export function isReexportOnlyDebugModule(content) {
+  const normalized = normalizeDebugContent(content)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+
+  const lines = normalized
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return false;
+
+  return lines.every((line) =>
+    /^(?:export\s+(?:type\s+)?\{[\s\S]*\}\s+from\s+['"][^'"]+['"];?|export\s+\*\s+from\s+['"][^'"]+['"];?|import\s+type\s+[\s\S]+?from\s+['"][^'"]+['"];?|import\s+\{?type\b[\s\S]*?from\s+['"][^'"]+['"];?)$/.test(
+      line
+    )
+  );
+}
+
+export function filterDebugEntriesForPersona(personaKey, entries) {
+  const readableEntries = Array.isArray(entries) ? entries : [];
+
+  if (personaKey !== 'async_flow_debugger_prompt') {
+    return readableEntries;
+  }
+
+  return readableEntries.filter(({ content }) => {
+    if (isReexportOnlyDebugModule(content)) {
+      return false;
+    }
+
+    return hasAsyncDebugSurface(content);
+  });
 }
 
 /**
@@ -91,6 +142,19 @@ export function scoreDebugSourceFile(filePath) {
   else if (/(^|\/)(src|app|lib|core|server|client|web|public)\//.test(normalized)) score += 250;
 
   if (/(^|\/)(main|app|index|service-worker)\.(js|ts)$/.test(normalized)) score += 75;
+  if (
+    /(^|\/)(services?|providers?|use-cases?|controllers?|handlers?|workers?|adapters?|clients?|api|network|http)(\/|$)/.test(
+      normalized
+    )
+  ) {
+    score += 125;
+  }
+  if (/(^|\/)(dtos?|entities|types?|interfaces?|models?|schemas?)(\/|$)/.test(normalized)) {
+    score -= 125;
+  }
+  if (/(^|\/)index\.(js|ts)$/.test(normalized)) {
+    score -= 300;
+  }
 
   if (
     /(^|\/)(tests?|__tests__|__mocks__|fixtures?|examples?|demos?|docs?|coverage|dist|build|node_modules|venv|\.venv|site-packages)(\/|$)/.test(
@@ -272,6 +336,17 @@ export class Step18Debugging {
       const personaKey = options.forcedPersona ?? detectDebugPersona(sampleContents);
       logger.info(`Selected debugger persona: ${personaKey}`);
 
+      const readableSampleEntries = sampleFiles.flatMap((relativePath, index) => {
+        const content = sampleContents[index] ?? '';
+        return content ? [{ relativePath, content }] : [];
+      });
+      const filteredSampleEntries = filterDebugEntriesForPersona(personaKey, readableSampleEntries);
+      const analysisEntries =
+        filteredSampleEntries.length > 0 || readableSampleEntries.length === 0
+          ? filteredSampleEntries
+          : readableSampleEntries;
+      const filesAnalyzed = analysisEntries.map((entry) => entry.relativePath);
+
       let aiContent = '';
       const aiAvailable = await initializeStepAiContext({
         aiHelper: this.aiHelper,
@@ -301,10 +376,7 @@ export class Step18Debugging {
           // buildYamlStepPrompt. Assemble all sections manually so the AI receives
           // the full role context, expertise spec, scoped file list, and output format.
           const cfg = parsedYaml[personaKey];
-          const readableFileEntries = sampleFiles.flatMap((relativePath, index) => {
-            const content = sampleContents[index] ?? '';
-            return content ? [{ relativePath, content }] : [];
-          });
+          const readableFileEntries = analysisEntries;
           const promptPartitions =
             readableFileEntries.length > 0 ? buildReviewPromptPartitions(readableFileEntries) : [];
           const partitionsToAnalyze =
@@ -326,7 +398,7 @@ export class Step18Debugging {
                 ? `[Partition ${index + 1} of ${total} — analyze ONLY the files or file-parts listed below for this request]`
                 : '';
               const partitionScopeNote = isMultiPartition
-                ? `This request covers ${partition.scopePaths.length} of ${sampleFiles.length} sampled source file(s) in the current debugging run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
+                ? `This request covers ${partition.scopePaths.length} of ${filesAnalyzed.length} sampled source file(s) in the current debugging run. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt logs to avoid truncated code excerpts.`
                 : `This request contains the full readable debugging scope for this run (${readableFileEntries.length} readable sampled file(s)).`;
 
               if (cfg && typeof cfg === 'object') {
@@ -340,7 +412,7 @@ export class Step18Debugging {
                 if (partitionHeader) parts.push(partitionHeader);
                 parts.push(partitionScopeNote);
                 parts.push(
-                  `**Source Files to Analyze** (${sampleFiles.length} total, ${partition.scopePaths.length} covered in this request): ${partitionDisplayPaths.join(', ')}`
+                  `**Source Files to Analyze** (${filesAnalyzed.length} total, ${partition.scopePaths.length} covered in this request): ${partitionDisplayPaths.join(', ')}`
                 );
                 parts.push(
                   `**Files in This Request**:\n${
@@ -362,7 +434,7 @@ export class Step18Debugging {
               const builtPrompt = buildYamlStepPrompt(parsedYaml, personaKey, {
                 project_name: projectRoot,
                 source_files: partitionDisplayPaths.join(', '),
-                file_count: `${sampleFiles.length} total, ${partition.scopePaths.length} covered in this request`,
+                file_count: `${filesAnalyzed.length} total, ${partition.scopePaths.length} covered in this request`,
               });
               if (!builtPrompt) return '';
 
@@ -387,7 +459,7 @@ export class Step18Debugging {
               return sections.join('\n\n');
             },
             executePartition: async (_partition, { index, total }, prompt) => {
-              const cacheKey = `step_18:${personaKey}:part:${index + 1}/${total}:files:${sampleFiles.length}`;
+              const cacheKey = `step_18:${personaKey}:part:${index + 1}/${total}:files:${filesAnalyzed.length}`;
               return this.aiCache.withCache(prompt, cacheKey, () =>
                 this.aiHelper.executeRequest(prompt, {
                   persona: personaKey,
@@ -407,7 +479,7 @@ export class Step18Debugging {
 
       const report = formatDebuggingReport({
         personaKey,
-        filesAnalyzed: sampleFiles,
+        filesAnalyzed,
         aiContent,
       });
 
@@ -422,7 +494,7 @@ export class Step18Debugging {
       return {
         success: true,
         personaKey,
-        filesAnalyzed: sampleFiles,
+        filesAnalyzed,
         totalSourceFiles: sourceFiles.length,
         aiContent,
         report,

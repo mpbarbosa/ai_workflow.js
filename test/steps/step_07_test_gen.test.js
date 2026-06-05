@@ -11,12 +11,17 @@ import {
   hasCorrespondingTest,
   findUntestedFiles,
   calculateCoverage,
+  canBeTypeOnlySourceFile,
+  isTypeOnlySourceFile,
   categorizeUntestedFiles,
   formatTestGenerationReport,
   getTestOutputPath,
   buildSingleFileTestPrompt,
+  buildTargetModuleSpecifiers,
   extractTestCode,
+  findGeneratedTestProblems,
   buildTestFilesSummary,
+  usesRuntimeTargetModule,
   MAX_FILES_TO_GENERATE,
   MAX_SOURCE_FILE_CHARS,
 } from '../../src/steps/step_07_test_gen.js';
@@ -250,6 +255,37 @@ describe('Step 7: Test Generation', () => {
     });
   });
 
+  describe('type-only source detection', () => {
+    test('detects TypeScript declaration-only modules', () => {
+      expect(canBeTypeOnlySourceFile('src/types/contracts.ts')).toBe(true);
+      expect(
+        isTypeOnlySourceFile(
+          'src/types/contracts.ts',
+          'import type { Foo } from "./foo.js";\nexport interface Bar { baz: Foo }\nexport type Qux = string;\n'
+        )
+      ).toBe(true);
+    });
+
+    test('does not classify runtime exports as type-only', () => {
+      expect(
+        isTypeOnlySourceFile(
+          'src/status.ts',
+          'export enum Status { Ready, Waiting }\nexport interface Metadata { ok: boolean }\n'
+        )
+      ).toBe(false);
+      expect(
+        isTypeOnlySourceFile(
+          'src/runtime.ts',
+          'export interface Foo { value: number }\nexport const answer = 42;\n'
+        )
+      ).toBe(false);
+    });
+
+    test('treats .d.ts files as type-only', () => {
+      expect(isTypeOnlySourceFile('src/contracts.d.ts', 'export interface Foo {}')).toBe(true);
+    });
+  });
+
   describe('categorizeUntestedFiles', () => {
     test('categorizes files by directory', () => {
       const files = ['src/utils.js', 'src/helpers.js', 'lib/parser.js'];
@@ -276,6 +312,7 @@ describe('Step 7: Test Generation', () => {
     test('reports excluded unmatched assets separately from actionable gaps', () => {
       const report = formatTestGenerationReport({
         totalSourceFiles: 5,
+        totalActionableSourceFiles: 4,
         totalTestFiles: 2,
         rawUntestedFiles: ['src/assets/js/jquery.min.js', 'src/utils.js'],
         untestedFiles: ['src/utils.js'],
@@ -287,6 +324,22 @@ describe('Step 7: Test Generation', () => {
       expect(report).toContain('**Excluded From Actionable Gaps**: 1');
       expect(report).toContain('excluded from action because they appear to be minified');
     });
+
+    test('reports type-only files separately from actionable gaps', () => {
+      const report = formatTestGenerationReport({
+        totalSourceFiles: 3,
+        totalActionableSourceFiles: 1,
+        totalTestFiles: 1,
+        rawUntestedFiles: ['src/types/contracts.ts'],
+        untestedFiles: ['src/runtime/service.ts'],
+        excludedUntestedFiles: [],
+        typeOnlySourceFiles: ['src/types/contracts.ts'],
+        categories: { src: ['src/runtime/service.ts'] },
+      });
+
+      expect(report).toContain('**Type-Only Source Files Excluded**: 1');
+      expect(report).toContain('declaration-only TypeScript file(s) were excluded');
+    });
   });
 
   // ========================================================================
@@ -297,6 +350,7 @@ describe('Step 7: Test Generation', () => {
     test('formats report with complete test file inventory', () => {
       const results = {
         totalSourceFiles: 10,
+        totalActionableSourceFiles: 10,
         totalTestFiles: 10,
         untestedFiles: [],
         coveragePercentage: 100,
@@ -307,7 +361,7 @@ describe('Step 7: Test Generation', () => {
 
       expect(report).toContain('Test Generation Report');
       expect(report).toContain('**Total Source Files**: 10');
-      expect(report).toContain('**Matched Source Files**: 10/10');
+      expect(report).toContain('**Matched Actionable Source Files**: 10/10');
       expect(report).toContain('Inventory Type');
       expect(report).toContain('Test File Inventory Complete');
     });
@@ -315,6 +369,7 @@ describe('Step 7: Test Generation', () => {
     test('formats report with inventory gaps when files are untested', () => {
       const results = {
         totalSourceFiles: 10,
+        totalActionableSourceFiles: 10,
         totalTestFiles: 9,
         untestedFiles: ['src/utils.js'],
         coveragePercentage: 90,
@@ -324,12 +379,13 @@ describe('Step 7: Test Generation', () => {
       const report = formatTestGenerationReport(results);
 
       expect(report).toContain('Test File Inventory Gaps');
-      expect(report).toContain('1 of 10 discovered source file(s)');
+      expect(report).toContain('1 of 10 actionable runtime source file(s)');
     });
 
     test('includes recommendations for untested files', () => {
       const results = {
         totalSourceFiles: 10,
+        totalActionableSourceFiles: 10,
         totalTestFiles: 5,
         untestedFiles: ['src/utils.js'],
         coveragePercentage: 50,
@@ -352,6 +408,7 @@ describe('Step 7: Test Generation', () => {
 
       const results = {
         totalSourceFiles: 30,
+        totalActionableSourceFiles: 30,
         totalTestFiles: 5,
         untestedFiles,
         coveragePercentage: 17,
@@ -377,6 +434,14 @@ describe('Step 7: Test Generation', () => {
       expect(getTestOutputPath('src/lib/bar.ts', 'typescript')).toBe('test/lib/bar.test.ts');
     });
 
+    test('Vue TS: src/components/AppBar.vue → __tests__/components/AppBar.vue.test.ts when preferred root is __tests__', () => {
+      expect(
+        getTestOutputPath('src/components/AppBar.vue', 'typescript', {
+          preferredTestRoot: '__tests__',
+        })
+      ).toBe('__tests__/components/AppBar.vue.test.ts');
+    });
+
     test('Python: src/module.py → test/test_module.py', () => {
       expect(getTestOutputPath('src/module.py', 'python')).toBe('test/test_module.py');
     });
@@ -391,6 +456,23 @@ describe('Step 7: Test Generation', () => {
 
     test('non-src dir: lib/helper.js → test/lib/helper.test.js', () => {
       expect(getTestOutputPath('lib/helper.js', 'javascript')).toBe('test/lib/helper.test.js');
+    });
+  });
+
+  describe('buildTargetModuleSpecifiers', () => {
+    test('includes extensionless and .js specifiers for TypeScript sources', () => {
+      const specifiers = buildTargetModuleSpecifiers(
+        'src/types/contracts.ts',
+        '__tests__/types/contracts.test.ts'
+      );
+
+      expect(specifiers).toEqual(
+        new Set([
+          '../../src/types/contracts.ts',
+          '../../src/types/contracts',
+          '../../src/types/contracts.js',
+        ])
+      );
     });
   });
 
@@ -415,6 +497,32 @@ describe('Step 7: Test Generation', () => {
       const prompt = buildSingleFileTestPrompt('src/foo.py', 'def f(): pass', 'python');
       expect(prompt).toContain('python');
     });
+
+    test('uses framework-specific mock API guidance in prompt', () => {
+      const prompt = buildSingleFileTestPrompt(
+        'src/foo.ts',
+        'export const foo = 1;',
+        'typescript',
+        null,
+        'test/foo.test.ts',
+        { detectedTestFramework: 'vitest', mockApiGuidance: '`vi.mock()` with a factory function' }
+      );
+      expect(prompt).toContain('`vi.mock()` with a factory function');
+      expect(prompt).not.toContain('`jest.mock()` with a factory function instead');
+    });
+
+    test('uses the target test extension for the output fence while preserving the source fence', () => {
+      const prompt = buildSingleFileTestPrompt(
+        'src/components/views/ExtraView.vue',
+        '<template><div /></template>',
+        'typescript',
+        null,
+        '__tests__/components/views/ExtraView.vue.test.ts'
+      );
+
+      expect(prompt).toContain('single fenced code block (```ts ... ```)');
+      expect(prompt).toContain('```vue\n<template><div /></template>\n```');
+    });
   });
 
   describe('extractTestCode', () => {
@@ -435,6 +543,97 @@ describe('Step 7: Test Generation', () => {
     test('handles multiline code blocks', () => {
       const response = '```js\nline1\nline2\nline3\n```';
       expect(extractTestCode(response)).toBe('line1\nline2\nline3');
+    });
+  });
+
+  describe('findGeneratedTestProblems', () => {
+    test('rejects @ts-expect-error, placeholder comments, and forbidden dynamic import shims', () => {
+      const problems = findGeneratedTestProblems({
+        testCode: [
+          '// @ts-expect-error test helper',
+          '// Add any other required fields if present in real CachedLocationSnapshot',
+          "const shim = globalThis['import'];",
+        ].join('\n'),
+        testOutputPath: '__tests__/composables/useLocationSnapshot.test.ts',
+        testFramework: 'Jest',
+      });
+
+      expect(problems).toEqual([
+        'generated test uses `@ts-expect-error` despite the prompt forbidding type-error suppressions',
+        'generated test contains placeholder comments instead of an implemented mocking/lifecycle strategy',
+        "generated test uses `globalThis['import']`, which step_07 explicitly forbids",
+      ]);
+    });
+
+    test('rejects Vue SFC output and Vitest APIs for Jest projects', () => {
+      const problems = findGeneratedTestProblems({
+        testCode: [
+          '<script lang="ts">',
+          "import { vi } from '@jest/globals';",
+          "vi.mock('vue-router', () => ({ useRoute: vi.fn() }));",
+          '</script>',
+        ].join('\n'),
+        testOutputPath: '__tests__/components/views/BottomNav.vue.test.ts',
+        testFramework: 'Jest',
+      });
+
+      expect(problems).toEqual([
+        'generated test is formatted as a Vue SFC instead of a plain module for `__tests__/components/views/BottomNav.vue.test.ts`',
+        'generated test uses Vitest APIs even though the project requires Jest idioms',
+      ]);
+    });
+
+    test('accepts plain Jest test modules that do not contain forbidden constructs', () => {
+      expect(
+        findGeneratedTestProblems({
+          testCode: [
+            "import { sum } from '../../src/sum.js';",
+            '',
+            "describe('sum', () => {",
+            "  it('adds two numbers', () => {",
+            '    expect(sum(1, 2)).toBe(3);',
+            '  });',
+            '});',
+          ].join('\n'),
+          testOutputPath: '__tests__/sum.test.ts',
+          testFramework: 'Jest',
+        })
+      ).toEqual([]);
+    });
+  });
+
+  describe('usesRuntimeTargetModule', () => {
+    test('rejects tests that only import types from the target module', () => {
+      expect(
+        usesRuntimeTargetModule({
+          sourceFile: 'src/types/contracts.ts',
+          testOutputPath: '__tests__/types/contracts.test.ts',
+          testCode:
+            "import type { Contracts } from '../../src/types/contracts.js';\n\ndescribe('contracts', () => {\n  it('keeps local mocks working', () => {\n    const value = {} as Contracts;\n    expect(value).toBeDefined();\n  });\n});\n",
+        })
+      ).toBe(false);
+    });
+
+    test('accepts tests that import and use a runtime export from the target module', () => {
+      expect(
+        usesRuntimeTargetModule({
+          sourceFile: 'src/runtime/status.ts',
+          testOutputPath: 'test/runtime/status.test.ts',
+          testCode:
+            "import { Status } from '../../src/runtime/status.js';\n\ndescribe('Status', () => {\n  it('exposes enum members', () => {\n    expect(Status.Ready).toBe(0);\n  });\n});\n",
+        })
+      ).toBe(true);
+    });
+
+    test('accepts mixed imports when a runtime binding is still exercised', () => {
+      expect(
+        usesRuntimeTargetModule({
+          sourceFile: 'src/runtime/service.ts',
+          testOutputPath: 'test/runtime/service.test.ts',
+          testCode:
+            "import { createService, type ServiceOptions } from '../../src/runtime/service.js';\n\ndescribe('service', () => {\n  it('creates a service', () => {\n    const options = {} as ServiceOptions;\n    expect(createService(options)).toBeDefined();\n  });\n});\n",
+        })
+      ).toBe(true);
     });
   });
 
@@ -500,6 +699,7 @@ describe('Step 7: Test Generation', () => {
 
       expect(result.success).toBe(true);
       expect(result.coveragePercentage).toBe(100);
+      expect(result.totalActionableSourceFiles).toBe(2);
       expect(result.untestedFiles).toHaveLength(0);
     });
 
@@ -518,7 +718,98 @@ describe('Step 7: Test Generation', () => {
 
       expect(result.success).toBe(true);
       expect(result.coveragePercentage).toBe(50);
+      expect(result.totalActionableSourceFiles).toBe(2);
       expect(result.untestedFiles).toContain('src/helpers.js');
+    });
+
+    test('excludes type-only files from actionable inventory metrics', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.js')) {
+          return Promise.resolve([]);
+        }
+        if (pattern.includes('src/**/*.ts')) {
+          return Promise.resolve(['src/runtime/service.ts', 'src/types/contracts.ts']);
+        }
+        if (pattern.includes('**/*.test.ts')) {
+          return Promise.resolve(['test/runtime/service.test.ts']);
+        }
+        return Promise.resolve([]);
+      };
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('src/runtime/service.ts')) {
+          return Promise.resolve('export const createService = () => ({ ok: true });');
+        }
+        if (filePath.endsWith('src/types/contracts.ts')) {
+          return Promise.resolve('export interface Contracts { ok: boolean }\n');
+        }
+        return Promise.reject(new Error('not found'));
+      };
+      mockTechStack.detectAll = () => Promise.resolve({ languages: ['typescript'] });
+
+      const result = await generator.execute('/project');
+
+      expect(result.totalSourceFiles).toBe(2);
+      expect(result.totalActionableSourceFiles).toBe(1);
+      expect(result.coveragePercentage).toBe(100);
+      expect(result.typeOnlySourceFiles).toEqual(['src/types/contracts.ts']);
+      expect(result.untestedFiles).toHaveLength(0);
+    });
+
+    test('reads Jest unit config and existing Vue test examples from __tests__', async () => {
+      mockFileOps.readFile = (filePath) => {
+        if (filePath.endsWith('package.json')) {
+          return Promise.resolve(
+            JSON.stringify({
+              scripts: {
+                test: 'node jest/bin/jest.js',
+                'test:unit': 'node jest/bin/jest.js --config=jest.config.unit.js',
+              },
+              devDependencies: {
+                jest: '^30.0.0',
+                'ts-jest': '^29.0.0',
+              },
+            })
+          );
+        }
+        if (filePath.endsWith('jest.config.unit.js')) {
+          return Promise.resolve(`
+            export default {
+              testMatch: ['**/__tests__/**/*.ts', '**/*.test.ts'],
+              moduleNameMapper: {
+                '^vue-router$': '<rootDir>/node_modules/vue-router/dist/vue-router.cjs'
+              }
+            };
+          `);
+        }
+        if (filePath.endsWith('tsconfig.json')) {
+          return Promise.resolve(
+            JSON.stringify({ compilerOptions: { strict: true, paths: { '@/*': ['src/*'] } } })
+          );
+        }
+        if (filePath.endsWith('__tests__/components/AppBar.vue.test.ts')) {
+          return Promise.resolve(
+            "import { mount } from '@vue/test-utils';\nimport AppBar from '../../src/components/AppBar.vue';\n"
+          );
+        }
+        return Promise.reject(new Error('not found'));
+      };
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('__tests__/**/*.vue.test.ts')) {
+          return Promise.resolve(['__tests__/components/AppBar.vue.test.ts']);
+        }
+        return Promise.resolve([]);
+      };
+
+      const context = await generator._readProjectTestContext(
+        '/project',
+        'typescript',
+        'src/components/AppBar.vue'
+      );
+
+      expect(context.preferredTestRoot).toBe('__tests__');
+      expect(context.jestConstraints).toContain('jest.config.unit.js');
+      expect(context.jestConstraints).toContain('Do NOT emit `.test.vue` files');
+      expect(context.testImportExamples).toContain('__tests__/components/AppBar.vue.test.ts');
     });
 
     test('handles no source files', async () => {
@@ -528,6 +819,7 @@ describe('Step 7: Test Generation', () => {
 
       expect(result.success).toBe(true);
       expect(result.totalSourceFiles).toBe(0);
+      expect(result.totalActionableSourceFiles).toBe(0);
       expect(result.coveragePercentage).toBe(0);
     });
 
@@ -583,6 +875,11 @@ describe('Step 7: Test Generation', () => {
         return Promise.reject(new Error('not found')); // test file does not exist yet
       };
       mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = () =>
+        Promise.resolve({
+          content:
+            "```js\nimport { x } from '../src/utils.js';\n\ndescribe('x', () => {\n  it('uses runtime export', () => {\n    expect(x).toBe(1);\n  });\n});\n```",
+        });
 
       let writtenPath = null;
       mockFileOps.writeFile = (p) => {
@@ -594,6 +891,39 @@ describe('Step 7: Test Generation', () => {
 
       expect(result.generatedFiles).toHaveLength(1);
       expect(writtenPath).toContain('utils.test.js');
+    });
+
+    test('rejects generated tests that only import types from the target module', async () => {
+      mockFileOps.glob = (pattern) => {
+        if (pattern.includes('src/**/*.ts')) return Promise.resolve(['src/types/contracts.ts']);
+        return Promise.resolve([]);
+      };
+      mockTechStack.detectAll = () => Promise.resolve({ languages: ['typescript'] });
+      mockFileOps.readFile = (p) => {
+        if (p.endsWith('src/types/contracts.ts')) {
+          return Promise.resolve(
+            'export const runtimeValue = 1;\nexport interface Contracts { ok: boolean }\n'
+          );
+        }
+        return Promise.reject(new Error('not found'));
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = () =>
+        Promise.resolve({
+          content:
+            "```ts\nimport type { Contracts } from '../../src/types/contracts.js';\n\ndescribe('contracts', () => {\n  it('keeps local mocks working', () => {\n    const value = {} as Contracts;\n    expect(value).toBeDefined();\n  });\n});\n```",
+        });
+
+      let writeCount = 0;
+      mockFileOps.writeFile = () => {
+        writeCount++;
+        return Promise.resolve();
+      };
+
+      const result = await generator.execute('/project');
+
+      expect(writeCount).toBe(0);
+      expect(result.generatedFiles).toHaveLength(0);
     });
 
     test('AI generation is skipped when AI unavailable', async () => {
@@ -640,6 +970,11 @@ describe('Step 7: Test Generation', () => {
         return Promise.reject(new Error('not found'));
       };
       mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = () =>
+        Promise.resolve({
+          content:
+            "```js\nimport { x } from '../src/file0.js';\n\ndescribe('generated', () => {\n  it('uses runtime export', () => {\n    expect(x).toBeDefined();\n  });\n});\n```",
+        });
 
       const writtenPaths = [];
       mockFileOps.writeFile = (p) => {
@@ -685,6 +1020,11 @@ describe('Step 7: Test Generation', () => {
         return Promise.resolve('x'.repeat(MAX_SOURCE_FILE_CHARS + 100));
       };
       mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = () =>
+        Promise.resolve({
+          content:
+            "```js\nimport { x } from '../src/map.js';\n\ndescribe('map', () => {\n  it('uses runtime export', () => {\n    expect(x).toBeDefined();\n  });\n});\n```",
+        });
 
       const result = await generator.execute('/project');
 

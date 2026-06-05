@@ -1057,7 +1057,10 @@ describe('Step 9: Dependency Validation', () => {
         },
       });
 
-      const result = await validator.execute('/project', { projectKind: 'nodejs_api' });
+      const result = await validator.execute('/project', {
+        projectKind: 'nodejs_api',
+        changeScope: 'all-categories',
+      });
 
       expect(result.success).toBe(true);
       const dependencyPrompt = prompts.find((prompt) =>
@@ -1065,6 +1068,10 @@ describe('Step 9: Dependency Validation', () => {
       );
       expect(dependencyPrompt).toBeTruthy();
       expect(dependencyPrompt).toContain('- Project Kind: nodejs_api');
+      expect(dependencyPrompt).toContain(
+        '- Change Scope: all-categories (changed file categories in this run, not project architecture)'
+      );
+      expect(dependencyPrompt).not.toContain('\n- Scope: ');
       expect(dependencyPrompt).toContain('**Evidence Boundaries:**');
       expect(dependencyPrompt).toContain('Manifest Detail Level: Manifest excerpt available');
       expect(dependencyPrompt).toContain('Dependency Tree / Usage Evidence:');
@@ -1144,6 +1151,8 @@ describe('Step 9: Dependency Validation', () => {
       expect(jsPrompt).toContain('- Test Framework: vitest');
       expect(jsPrompt).toContain('- Test Command: vitest run');
       expect(jsPrompt).toContain('- Lint Command: eslint "src/**/*.ts"');
+      expect(jsPrompt).toContain('A standalone `No package.json changes required` is forbidden');
+      expect(jsPrompt).toContain('marked `Inconclusive` / `Unavailable` in the same response');
       expect(jsPrompt).not.toContain('- Test Framework: jest');
       expect(jsPrompt).not.toContain('- Lint Command: eslint .');
     });

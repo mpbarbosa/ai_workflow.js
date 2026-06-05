@@ -15,6 +15,7 @@ import {
   splitPerformancePromptEntry,
   buildPerformancePromptPartitions,
   buildPerformanceFileContentsBlock,
+  buildPerformanceConsolidationPrompt,
   formatPerfReport,
   STEP_DEFINITION,
   Step23PerfReview,
@@ -77,6 +78,8 @@ describe('step_23_perf_review - Pure Functions', () => {
       expect(isPerformanceReviewTarget('src/lib/review_prompt_scope.spec.ts')).toBe(false);
       expect(isPerformanceReviewTarget('src/__tests__/perf.ts')).toBe(false);
       expect(isPerformanceReviewTarget('.ai_workflow/logs/run.js')).toBe(false);
+      expect(isPerformanceReviewTarget('docs/api/assets/main.js')).toBe(false);
+      expect(isPerformanceReviewTarget('docs/api-generated/scripts/linenumber.js')).toBe(false);
     });
   });
 
@@ -89,6 +92,8 @@ describe('step_23_perf_review - Pure Functions', () => {
           'test/index.test.js',
           'README.md',
           '.ai_workflow/logs/run.js',
+          'docs/api/assets/main.js',
+          'docs/api-generated/scripts/linenumber.js',
           'src/app.ts',
           'src/helpers.spec.ts',
         ])
@@ -99,6 +104,28 @@ describe('step_23_perf_review - Pure Functions', () => {
   describe('performance response scope validation', () => {
     test('normalizes partition labels before comparing file identities', () => {
       expect(normalizePerformanceScopePath('src/app.ts (part 2/3)')).toBe('src/app.ts');
+    });
+
+    describe('buildPerformanceConsolidationPrompt', () => {
+      test('includes partition findings and fully covered split-file context', () => {
+        const prompt = buildPerformanceConsolidationPrompt({
+          projectName: 'demo',
+          projectDescription: 'Performance-sensitive service',
+          buildSystem: 'npm',
+          totalFileCount: 8,
+          readableFileCount: 5,
+          completeSplitEntries: [
+            { relativePath: 'src/huge.ts', content: 'export const value = 1;\n' },
+          ],
+          incompleteSplitSourcePaths: ['src/partial.ts'],
+          partitionAnalyses: ['#### Partition 1 of 2\n\nFirst findings'],
+        });
+
+        expect(prompt).toContain('Consolidate the partition findings below');
+        expect(prompt).toContain('src/huge.ts');
+        expect(prompt).toContain('src/partial.ts');
+        expect(prompt).toContain('First findings');
+      });
     });
 
     test('extracts normalized JavaScript and TypeScript file mentions from AI responses', () => {
@@ -736,7 +763,8 @@ describe('Step23PerfReview - Wrapper', () => {
       executeRequest: jest
         .fn()
         .mockResolvedValueOnce({ content: 'partition one findings' })
-        .mockResolvedValueOnce({ content: 'partition two findings' }),
+        .mockResolvedValueOnce({ content: 'partition two findings' })
+        .mockResolvedValueOnce({ content: 'consolidated performance findings' }),
     };
     const step = new Step23PerfReview({
       fileOps: makeFileOps(files, 'export const value = 1;\n'),
@@ -748,15 +776,16 @@ describe('Step23PerfReview - Wrapper', () => {
 
     const result = await step.execute('/project');
 
-    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(2);
+    expect(aiHelper.executeRequest).toHaveBeenCalledTimes(3);
     expect(aiHelper.executeRequest.mock.calls[0][0]).toContain('[Partition 1 of 2');
     expect(aiHelper.executeRequest.mock.calls[1][0]).toContain('[Partition 2 of 2');
+    expect(aiHelper.executeRequest.mock.calls[2][0]).toContain(
+      'Consolidate the partition findings below'
+    );
     expect(aiHelper.executeRequest.mock.calls[0][0]).toContain(
       'split across multiple prompt logs to avoid truncated code excerpts'
     );
-    expect(result.report).toContain('#### Partition 1 of 2');
-    expect(result.report).toContain('partition one findings');
-    expect(result.report).toContain('partition two findings');
+    expect(result.report).toContain('consolidated performance findings');
   });
 
   test('retries with a fresh AI session and omits responses that stay off-scope', async () => {

@@ -50,7 +50,7 @@
       "hasAsyncPatterns": false
     },
     "scripts/postinstall.js": {
-      "mtimeMs": 1778104097059,
+      "mtimeMs": 1778764344549,
       "hasAsyncPatterns": false
     },
     "scripts/postprocess-typedoc-media-links.js": {
@@ -70,7 +70,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/clean.js": {
-      "mtimeMs": 1778159295399,
+      "mtimeMs": 1779058725539,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/clean.ts": {
@@ -78,7 +78,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/config.js": {
-      "mtimeMs": 1778159295406,
+      "mtimeMs": 1779058725545,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/config.ts": {
@@ -86,7 +86,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/deploy.js": {
-      "mtimeMs": 1778159295413,
+      "mtimeMs": 1779058725550,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/deploy.ts": {
@@ -94,7 +94,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/fix_log_issues.js": {
-      "mtimeMs": 1778159295420,
+      "mtimeMs": 1779058725555,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/fix_log_issues.ts": {
@@ -102,7 +102,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/init.js": {
-      "mtimeMs": 1778159295425,
+      "mtimeMs": 1779058725559,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/init.ts": {
@@ -110,7 +110,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/resume.js": {
-      "mtimeMs": 1778159295433,
+      "mtimeMs": 1779058725565,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/resume.ts": {
@@ -118,7 +118,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/run.js": {
-      "mtimeMs": 1778159295429,
+      "mtimeMs": 1779058725562,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/run.ts": {
@@ -126,7 +126,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/commands/status.js": {
-      "mtimeMs": 1778159295437,
+      "mtimeMs": 1779058725568,
       "hasAsyncPatterns": true
     },
     "src/cli/commands/status.ts": {
@@ -138,7 +138,7 @@
       "hasAsyncPatterns": true
     },
     "src/cli/index.js": {
-      "mtimeMs": 1777026235008,
+      "mtimeMs": 1778176521508,
       "hasAsyncPatterns": true
     },
     "src/cli/output.js": {
@@ -154,11 +154,11 @@
       "hasAsyncPatterns": true
     },
     "src/cli/tui/App.js": {
-      "mtimeMs": 1777518715798,
+      "mtimeMs": 1778815654636,
       "hasAsyncPatterns": true
     },
     "src/cli/tui/components/ErrorDetailPanel.js": {
-      "mtimeMs": 1778159295386,
+      "mtimeMs": 1779058725529,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/ErrorDetailPanel.ts": {
@@ -166,43 +166,43 @@
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/Header.js": {
-      "mtimeMs": 1778159295387,
+      "mtimeMs": 1779058725530,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/Header.ts": {
-      "mtimeMs": 1777317009483,
+      "mtimeMs": 1778815654636,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/HelpOverlay.js": {
-      "mtimeMs": 1778159295388,
-      "hasAsyncPatterns": false
+      "mtimeMs": 1779058725531,
+      "hasAsyncPatterns": true
     },
     "src/cli/tui/components/HelpOverlay.ts": {
       "mtimeMs": 1777399277897,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/LogPanel.js": {
-      "mtimeMs": 1777518715798,
-      "hasAsyncPatterns": false
+      "mtimeMs": 1778815654637,
+      "hasAsyncPatterns": true
     },
     "src/cli/tui/components/LogSearchBar.js": {
       "mtimeMs": 1772928141449,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/ProgressBar.js": {
-      "mtimeMs": 1777518715798,
+      "mtimeMs": 1778815758886,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/StatusBar.js": {
-      "mtimeMs": 1775534664433,
-      "hasAsyncPatterns": false
+      "mtimeMs": 1778815654637,
+      "hasAsyncPatterns": true
     },
     "src/cli/tui/components/StepDetailOverlay.js": {
       "mtimeMs": 1777518715798,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/StepsPanel.js": {
-      "mtimeMs": 1778160088674,
+      "mtimeMs": 1778815781790,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/components/StreamViewer.js": {
@@ -210,11 +210,11 @@
       "hasAsyncPatterns": false
     },
     "src/cli/tui/helpers/project.js": {
-      "mtimeMs": 1778039151210,
-      "hasAsyncPatterns": false
+      "mtimeMs": 1778170379078,
+      "hasAsyncPatterns": true
     },
     "src/cli/tui/helpers/reusable.js": {
-      "mtimeMs": 1778159295392,
+      "mtimeMs": 1779058725534,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/helpers/reusable.ts": {
@@ -222,7 +222,7 @@
       "hasAsyncPatterns": false
     },
     "src/cli/tui/helpers.js": {
-      "mtimeMs": 1777518715798,
+      "mtimeMs": 1778171277792,
       "hasAsyncPatterns": false
     },
     "src/cli/tui/hooks/useOrchestrator.js": {
@@ -262,7 +262,7 @@
       "hasAsyncPatterns": false
     },
     "src/lib/ai_cache.js": {
-      "mtimeMs": 1778159295366,
+      "mtimeMs": 1779058725514,
       "hasAsyncPatterns": true
     },
     "src/lib/ai_cache.ts": {
@@ -270,11 +270,11 @@
       "hasAsyncPatterns": true
     },
     "src/lib/ai_helpers.js": {
-      "mtimeMs": 1778126340755,
+      "mtimeMs": 1778984567083,
       "hasAsyncPatterns": true
     },
     "src/lib/ai_personas.js": {
-      "mtimeMs": 1778159295375,
+      "mtimeMs": 1779058725520,
       "hasAsyncPatterns": true
     },
     "src/lib/ai_personas.ts": {
@@ -282,11 +282,11 @@
       "hasAsyncPatterns": true
     },
     "src/lib/ai_prompt_builder.js": {
-      "mtimeMs": 1778154717068,
+      "mtimeMs": 1778974290043,
       "hasAsyncPatterns": true
     },
     "src/lib/ai_provider.js": {
-      "mtimeMs": 1778159295354,
+      "mtimeMs": 1779058725505,
       "hasAsyncPatterns": false
     },
     "src/lib/ai_provider.ts": {
@@ -326,11 +326,11 @@
       "hasAsyncPatterns": true
     },
     "src/lib/claude_sdk_wrapper.js": {
-      "mtimeMs": 1778159295349,
+      "mtimeMs": 1779058725501,
       "hasAsyncPatterns": true
     },
     "src/lib/claude_sdk_wrapper.ts": {
-      "mtimeMs": 1777212258642,
+      "mtimeMs": 1778174315696,
       "hasAsyncPatterns": true
     },
     "src/lib/cleanup_handlers.js": {
@@ -350,15 +350,15 @@
       "hasAsyncPatterns": false
     },
     "src/lib/context_assembler.js": {
-      "mtimeMs": 1778156230951,
+      "mtimeMs": 1778161260935,
       "hasAsyncPatterns": false
     },
     "src/lib/copilot_sdk_wrapper.js": {
-      "mtimeMs": 1778160088674,
+      "mtimeMs": 1779058725493,
       "hasAsyncPatterns": false
     },
     "src/lib/copilot_sdk_wrapper.ts": {
-      "mtimeMs": 1778160088674,
+      "mtimeMs": 1778174386854,
       "hasAsyncPatterns": false
     },
     "src/lib/dependency_cache.js": {
@@ -366,7 +366,7 @@
       "hasAsyncPatterns": true
     },
     "src/lib/docs_only_optimization.js": {
-      "mtimeMs": 1773359026408,
+      "mtimeMs": 1778176365541,
       "hasAsyncPatterns": false
     },
     "src/lib/edit_operations.js": {
@@ -402,7 +402,7 @@
       "hasAsyncPatterns": false
     },
     "src/lib/log_parser.js": {
-      "mtimeMs": 1776275803888,
+      "mtimeMs": 1778533461100,
       "hasAsyncPatterns": true
     },
     "src/lib/metrics.js": {
@@ -422,7 +422,7 @@
       "hasAsyncPatterns": true
     },
     "src/lib/performance_monitoring.js": {
-      "mtimeMs": 1777526175812,
+      "mtimeMs": 1778533576998,
       "hasAsyncPatterns": false
     },
     "src/lib/project_kind_config.js": {
@@ -474,11 +474,11 @@
       "hasAsyncPatterns": true
     },
     "src/lib/step1_incremental.js": {
-      "mtimeMs": 1772130796822,
+      "mtimeMs": 1778764344550,
       "hasAsyncPatterns": true
     },
     "src/lib/step1_parallel.js": {
-      "mtimeMs": 1777331828647,
+      "mtimeMs": 1779030541935,
       "hasAsyncPatterns": true
     },
     "src/lib/tech_stack.js": {
@@ -498,7 +498,7 @@
       "hasAsyncPatterns": false
     },
     "src/lib/workflow_profiles.js": {
-      "mtimeMs": 1772552472637,
+      "mtimeMs": 1778801369390,
       "hasAsyncPatterns": true
     },
     "src/orchestrator/checkpoint_manager.js": {
@@ -510,7 +510,7 @@
       "hasAsyncPatterns": false
     },
     "src/orchestrator/dependency_resolver.js": {
-      "mtimeMs": 1770346493791,
+      "mtimeMs": 1778764344551,
       "hasAsyncPatterns": false
     },
     "src/orchestrator/generic_step_registry.js": {
@@ -522,11 +522,11 @@
       "hasAsyncPatterns": false
     },
     "src/orchestrator/main_orchestrator.js": {
-      "mtimeMs": 1778126340824,
+      "mtimeMs": 1779058622113,
       "hasAsyncPatterns": true
     },
     "src/orchestrator/olinda_step_registry.js": {
-      "mtimeMs": 1778159295382,
+      "mtimeMs": 1779058725526,
       "hasAsyncPatterns": false
     },
     "src/orchestrator/olinda_step_registry.ts": {
@@ -534,7 +534,7 @@
       "hasAsyncPatterns": true
     },
     "src/orchestrator/preflight_quality_runner.js": {
-      "mtimeMs": 1778158819064,
+      "mtimeMs": 1779058613374,
       "hasAsyncPatterns": true
     },
     "src/orchestrator/step_definition.js": {
@@ -542,7 +542,7 @@
       "hasAsyncPatterns": false
     },
     "src/orchestrator/step_executor.js": {
-      "mtimeMs": 1773337550403,
+      "mtimeMs": 1778764344553,
       "hasAsyncPatterns": true
     },
     "src/orchestrator/step_registry.js": {
@@ -550,15 +550,15 @@
       "hasAsyncPatterns": false
     },
     "src/orchestrator/workflow_engine.js": {
-      "mtimeMs": 1777419739294,
+      "mtimeMs": 1778533432659,
       "hasAsyncPatterns": true
     },
     "src/orchestrator/workflow_execution_plan.js": {
-      "mtimeMs": 1778039151213,
+      "mtimeMs": 1778801369821,
       "hasAsyncPatterns": false
     },
     "src/orchestrator/workflow_step_catalog.js": {
-      "mtimeMs": 1778039151213,
+      "mtimeMs": 1778533745723,
       "hasAsyncPatterns": true
     },
     "src/steps/index.js": {
@@ -574,7 +574,7 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_01_documentation.js": {
-      "mtimeMs": 1778126340909,
+      "mtimeMs": 1779030100012,
       "hasAsyncPatterns": true
     },
     "src/steps/step_02_5_doc_optimize.js": {
@@ -606,31 +606,31 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_02_consistency.js": {
-      "mtimeMs": 1778039151214,
+      "mtimeMs": 1778978913632,
       "hasAsyncPatterns": true
     },
     "src/steps/step_03_script_refs.js": {
-      "mtimeMs": 1777310877858,
+      "mtimeMs": 1778176521508,
       "hasAsyncPatterns": true
     },
     "src/steps/step_04_config_validation.js": {
-      "mtimeMs": 1778126340947,
+      "mtimeMs": 1778768081149,
       "hasAsyncPatterns": true
     },
     "src/steps/step_05_directory.js": {
-      "mtimeMs": 1778126340976,
+      "mtimeMs": 1778974290046,
       "hasAsyncPatterns": true
     },
     "src/steps/step_06_test_review.js": {
-      "mtimeMs": 1778158782869,
+      "mtimeMs": 1778764344555,
       "hasAsyncPatterns": true
     },
     "src/steps/step_07_test_gen.js": {
-      "mtimeMs": 1778039151215,
+      "mtimeMs": 1778768081302,
       "hasAsyncPatterns": true
     },
     "src/steps/step_08_test_exec.js": {
-      "mtimeMs": 1778039151216,
+      "mtimeMs": 1778764344556,
       "hasAsyncPatterns": true
     },
     "src/steps/step_09_dependencies.js": {
@@ -638,7 +638,7 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_0b_bootstrap_docs.js": {
-      "mtimeMs": 1778039151216,
+      "mtimeMs": 1778764344557,
       "hasAsyncPatterns": true
     },
     "src/steps/step_0d_docker_preflight.js": {
@@ -654,7 +654,7 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_10_code_quality.js": {
-      "mtimeMs": 1778122429491,
+      "mtimeMs": 1778176521509,
       "hasAsyncPatterns": true
     },
     "src/steps/step_11_5_aws_lbs_validation.js": {
@@ -674,7 +674,7 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_13_markdown_lint.js": {
-      "mtimeMs": 1777419806948,
+      "mtimeMs": 1778801369936,
       "hasAsyncPatterns": true
     },
     "src/steps/step_14_prompt_engineer.js": {
@@ -686,15 +686,15 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_16_version_update.js": {
-      "mtimeMs": 1778126341063,
+      "mtimeMs": 1778533440004,
       "hasAsyncPatterns": true
     },
     "src/steps/step_17_summary.js": {
-      "mtimeMs": 1778039151217,
+      "mtimeMs": 1778764344558,
       "hasAsyncPatterns": true
     },
     "src/steps/step_18_debugging.js": {
-      "mtimeMs": 1778040610770,
+      "mtimeMs": 1778898958245,
       "hasAsyncPatterns": true
     },
     "src/steps/step_19_typescript_review.js": {
@@ -702,7 +702,7 @@
       "hasAsyncPatterns": true
     },
     "src/steps/step_20_async_perf_review.js": {
-      "mtimeMs": 1777307570403,
+      "mtimeMs": 1778764344558,
       "hasAsyncPatterns": true
     },
     "src/steps/step_21_doc_consolidation.js": {

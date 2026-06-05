@@ -4,6 +4,8 @@ import { jest } from '@jest/globals';
 import {
   isTypeScriptProject,
   scoreTypeScriptIssues,
+  classifyPromptCoverage,
+  formatEvidenceCoverageSection,
   formatTypeScriptReport,
   Step19TypescriptReview,
   STEP_DEFINITION,
@@ -107,6 +109,58 @@ describe('scoreTypeScriptIssues', () => {
     expect(score.tsIgnoreCount).toBe(0);
     expect(score.missingReturnTypeCount).toBe(0);
     expect(score.totalIssues).toBe(0);
+  });
+});
+
+describe('classifyPromptCoverage', () => {
+  it('classifies full, truncated, unreadable, and omitted files within prompt budgets', () => {
+    const result = classifyPromptCoverage(
+      [
+        { filename: 'src/a.ts', content: 'a'.repeat(100) },
+        { filename: 'src/b.ts', content: 'b'.repeat(4500) },
+        { filename: 'src/c.ts', content: null },
+        { filename: 'src/d.ts', content: 'd'.repeat(3500) },
+        { filename: 'src/e.ts', content: 'e'.repeat(200) },
+      ],
+      {
+        maxCharsPerFile: 4000,
+        maxCharsTotal: 4300,
+        stopOnOverflow: true,
+      }
+    );
+
+    expect(result.entries).toEqual([
+      expect.objectContaining({ filename: 'src/a.ts', status: 'full', included: true }),
+      expect.objectContaining({ filename: 'src/b.ts', status: 'truncated', included: true }),
+      expect.objectContaining({ filename: 'src/c.ts', status: 'unreadable', included: false }),
+      expect.objectContaining({ filename: 'src/d.ts', status: 'omitted', included: false }),
+      expect.objectContaining({ filename: 'src/e.ts', status: 'omitted', included: false }),
+    ]);
+    expect(result.charsUsed).toBe(4100);
+  });
+});
+
+describe('formatEvidenceCoverageSection', () => {
+  it('renders the evidence coverage section with all coverage buckets', () => {
+    const section = formatEvidenceCoverageSection({
+      configCoverage: [
+        { filename: 'tsconfig.json', status: 'full' },
+        { filename: 'tsconfig.esm.json', status: 'truncated' },
+      ],
+      sourceCoverage: [
+        { filename: 'src/a.ts', status: 'full' },
+        { filename: 'src/b.ts', status: 'truncated' },
+        { filename: 'src/c.ts', status: 'omitted' },
+        { filename: 'src/d.ts', status: 'unreadable' },
+      ],
+    });
+
+    expect(section).toContain('**Evidence Coverage**');
+    expect(section).toContain('Configuration files fully visible: tsconfig.json');
+    expect(section).toContain('Configuration files truncated: tsconfig.esm.json');
+    expect(section).toContain('TypeScript files omitted due to prompt budget: src/c.ts');
+    expect(section).toContain('TypeScript files unreadable: src/d.ts');
+    expect(section).toContain('mark broader judgments as inconclusive or unavailable');
   });
 });
 
@@ -321,6 +375,43 @@ describe('Step19TypescriptReview', () => {
     expect(capturedPrompt).toContain('**File Contents**');
     expect(capturedPrompt).toContain('`src/utils.tsx`');
     expect(capturedPrompt).toContain(fileContent);
+  });
+
+  it('injects evidence coverage metadata and validation context into the AI prompt request', async () => {
+    const largeContent = `export const longValue = "${'x'.repeat(4500)}";`;
+    mockFileOps.glob.mockResolvedValue(['src/large.ts', 'src/unreadable.ts']);
+    mockFileOps.readFile
+      .mockResolvedValueOnce(largeContent) // src/large.ts
+      .mockRejectedValueOnce(new Error('Read error')) // src/unreadable.ts
+      .mockResolvedValueOnce(
+        'typescript_developer_prompt:\n  role_prefix: "You are Strider"\n  task_template: "Task"\n  approach: "Type-first"'
+      ); // ai_helpers.yaml
+
+    mockAiHelper.initialize.mockResolvedValue(true);
+
+    let capturedPrompt = '';
+    mockAiCache.withFileChangeGuard.mockImplementation(async (_stepId, _fileContents, fn) => {
+      await fn();
+      return { content: 'ok' };
+    });
+    mockAiHelper.executeRequest.mockImplementation(async (prompt) => {
+      capturedPrompt = prompt;
+      return { content: 'ok' };
+    });
+
+    await step.execute('/project/root');
+
+    expect(capturedPrompt).toContain('**Evidence Coverage**');
+    expect(capturedPrompt).toContain('TypeScript files truncated: src/large.ts');
+    expect(capturedPrompt).toContain('TypeScript files unreadable: src/unreadable.ts');
+    expect(capturedPrompt).toContain('Do not claim that all other sampled files are clean');
+    expect(mockAiHelper.executeRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        responseType: 'typescript_review',
+        validationContext: { hasIncompleteEvidence: true },
+      })
+    );
   });
 
   it('resolves task template placeholders for project summary and file paths', async () => {

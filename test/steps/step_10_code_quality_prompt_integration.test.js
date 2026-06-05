@@ -38,13 +38,19 @@ describe('step10_code_quality_prompt — config correctness', () => {
     expect(template).toContain('{partition_header}');
     expect(template).toContain('{partition_scope_note}');
     expect(template).toContain('Entries labeled `(part X/Y)`');
+    expect(template).toContain('do not assign an A-F quality');
     expect(approach).toContain('Do not assert JSDoc completeness');
     expect(approach).toContain('Do not assess commit-message quality');
     expect(approach).toContain(
       'Do not restate repository-wide or multi-language automated summaries'
     );
+    expect(approach).toContain(
+      'Do not convert aggregate tooling, CI, markdown, formatter, or repository-wide process snapshots'
+    );
     expect(approach).toContain('do not say "no globals"');
     expect(approach).toContain('Separate confirmed findings from inconclusive checks');
+    expect(approach).toContain('Recommendations limited to excluding generated artifacts');
+    expect(approach).toContain('no file-scoped refactoring priorities are confirmed');
   });
 
   test('rendered prompt supports per-slice file-part labels', () => {

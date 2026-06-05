@@ -32,6 +32,17 @@ export const MAX_PROMPT_ENTRY_CHARS = 4_000;
 export const MAX_PROMPT_PARTITION_CHARS = 9_000;
 export const MAX_PROMPT_ENTRIES_PER_PARTITION = 4;
 export const MAX_PARTITIONS_PER_RUN = 15;
+const ASYNC_GENERATED_PATH_PATTERNS = [
+  /(^|\/)(dist|build|out|coverage|node_modules|vendor|\.next|\.nuxt|\.svelte-kit|\.cache|\.parcel-cache|\.ai_workflow)(\/|$)/,
+  /(^|\/)docs\/api(\/|$)/,
+  /(^|\/)public\/v[^/]+\/assets(\/|$)/,
+  /(^|\/)assets\/js(\/|$)/,
+  /\.min\.js$/i,
+];
+const NON_RUNTIME_ASYNC_PATH_PATTERN = /(^|\/)(scripts|script)(\/|$)/i;
+const ASYNC_SPLIT_PART_RE = /\s+\(part\s+(\d+)\/(\d+)\)$/i;
+const ASYNC_SIGNAL_PATTERN =
+  /\basync\s+function\b|=\s*async\b|\bawait\b|new\s+Promise\s*\(|\.then\s*\(|\.catch\s*\(|\bfetch\s*\(|\baxios(?:\.[A-Za-z_$][\w$]*)?\s*\(|\bsetTimeout\s*\(|\bsetInterval\s*\(|\baddEventListener\s*\(|\bremoveEventListener\s*\(|\bwatchPosition\s*\(|\bclearWatch\s*\(|\bsubscribe\s*\(|\bunsubscribe\s*\(|\bobserve\s*\(|\bdisconnect\s*\(|\bdispose\s*\(|\bdestroy\s*\(|\bclose\s*\(/i;
 
 /** Relative path (inside .ai_workflow/cache/) for the async-pattern history file. */
 export const ASYNC_HISTORY_CACHE_PATH = '.ai_workflow/cache/step_20_async_history.json';
@@ -52,6 +63,12 @@ export function isAsyncHeavyProject(files) {
   return files.some((f) => /\.[cm]?[jt]sx?$/i.test(f));
 }
 
+export function isAsyncGeneratedArtifactPath(filePath) {
+  if (typeof filePath !== 'string' || filePath.length === 0) return false;
+  const normalized = filePath.replace(/\\/g, '/').toLowerCase();
+  return ASYNC_GENERATED_PATH_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 /**
  * Determine whether a file path is a runtime-oriented async review target.
  *
@@ -69,7 +86,12 @@ export function isAsyncRuntimeTarget(filePath) {
     return false;
   }
 
+  if (isAsyncGeneratedArtifactPath(normalized)) {
+    return false;
+  }
+
   if (
+    NON_RUNTIME_ASYNC_PATH_PATTERN.test(normalized) ||
     normalized.startsWith('.workflow_core/') ||
     normalized.startsWith('.workflow_fspec/') ||
     normalized.startsWith('.github/') ||
@@ -116,7 +138,9 @@ export function filterAsyncRuntimeTargets(files) {
  * }}
  */
 export function scoreAsyncIssues(fileContents) {
-  const combined = fileContents.join('\n');
+  const combined = (Array.isArray(fileContents) ? fileContents : [])
+    .map((content) => stripJavaScriptComments(content))
+    .join('\n');
 
   // Explicit Promise constructor wrapping async code
   const promiseConstructorCount = (combined.match(/new\s+Promise\s*\(/g) || []).length;
@@ -140,13 +164,9 @@ export function scoreAsyncIssues(fileContents) {
 }
 
 export function scoreAsyncRuntimeEntry(entry) {
-  const content = entry?.content ?? '';
+  const content = stripJavaScriptComments(entry?.content ?? '');
   const relativePath = entry?.relativePath ?? '';
-  const keywordScore = (
-    content.match(
-      /\b(await|async|Promise|setTimeout|setInterval|fetch|axios|addEventListener)\b/g
-    ) || []
-  ).length;
+  const keywordScore = (content.match(new RegExp(ASYNC_SIGNAL_PATTERN.source, 'gi')) || []).length;
   const issueScore = scoreAsyncIssues([content]).totalIssues * 10;
   const hotPathScore = /(src|lib|server|api|routes|controllers|services|hooks|middleware)\//i.test(
     relativePath
@@ -346,6 +366,27 @@ export function buildAsyncFileContentsBlock(entries) {
     .join('\n\n');
 }
 
+export function buildAsyncPartitionScopeNote({
+  coveredRuntimeCount,
+  readableRuntimeCount,
+  excludedRuntimeCount,
+  hasSplitEntries = false,
+}) {
+  const coversAllVisible = coveredRuntimeCount >= readableRuntimeCount;
+  const coverageSentence = coversAllVisible
+    ? `This request covers all ${readableRuntimeCount} readable runtime JavaScript/TypeScript file(s) that contained detectable async patterns in this review run.`
+    : `This request covers ${coveredRuntimeCount} of ${readableRuntimeCount} readable runtime JavaScript/TypeScript file(s) that contained detectable async patterns in this review run.`;
+  const excludedSentence =
+    excludedRuntimeCount > 0
+      ? ` ${excludedRuntimeCount} additional runtime file(s) were excluded by the async-pattern filter and are not shown here. Treat coverage as partial, include the warning "⚠️ Coverage may be partial — not all source files were provided", and mark Memory Leaks and Resource Cleanup as inconclusive unless every lifecycle path needed for a claim is fully visible in the listed excerpts.`
+      : '';
+  const splitSentence = hasSplitEntries
+    ? ' Entries labeled "(part X/Y)" are sequential chunks of oversized files split across multiple prompt logs.'
+    : '';
+
+  return `${coverageSentence}${excludedSentence}${splitSentence}`;
+}
+
 /**
  * Format the AI response and heuristic scores into a markdown summary block
  * suitable for saving to the backlog.
@@ -379,23 +420,218 @@ export function formatAsyncPerfReport(aiContent, scores) {
 }
 
 // ============================================================================
-// PURE FUNCTIONS — Async Pattern History
+// PURE FUNCTIONS — Async Pattern Detection + Consolidation
 // ============================================================================
+
+/**
+ * Strip JavaScript/TypeScript comments while preserving string literals.
+ *
+ * This keeps async-pattern heuristics from firing on docblocks, commented-out
+ * examples, and explanatory prose without corrupting quoted source snippets.
+ *
+ * @param {string} content - Raw source content
+ * @returns {string}
+ */
+export function stripJavaScriptComments(content) {
+  const source = String(content ?? '');
+  if (!source) return '';
+
+  let result = '';
+  let state = 'code';
+  let quote = '';
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    const next = source[i + 1];
+
+    if (state === 'code') {
+      if (char === "'" || char === '"' || char === '`') {
+        quote = char;
+        state = 'string';
+        result += char;
+        continue;
+      }
+
+      if (char === '/' && next === '/') {
+        state = 'line-comment';
+        result += ' ';
+        i += 1;
+        continue;
+      }
+
+      if (char === '/' && next === '*') {
+        state = 'block-comment';
+        result += ' ';
+        i += 1;
+        continue;
+      }
+
+      result += char;
+      continue;
+    }
+
+    if (state === 'string') {
+      result += char;
+      if (char === '\\' && i + 1 < source.length) {
+        result += source[i + 1];
+        i += 1;
+        continue;
+      }
+      if (char === quote) {
+        state = 'code';
+      }
+      continue;
+    }
+
+    if (state === 'line-comment') {
+      if (char === '\n') {
+        result += '\n';
+        state = 'code';
+      }
+      continue;
+    }
+
+    if (state === 'block-comment') {
+      if (char === '\n') {
+        result += '\n';
+        continue;
+      }
+      if (char === '*' && next === '/') {
+        state = 'code';
+        i += 1;
+      }
+    }
+  }
+
+  return result;
+}
 
 /**
  * Detect whether source content contains async-relevant patterns.
  *
- * Covers all patterns that step 20 heuristics and scoring use:
- * `async`, `await`, `Promise`, `.then(`, `new Promise`, `fetch`, `axios`,
- * `setTimeout`, `setInterval`, `addEventListener`, `removeEventListener`.
+ * Covers the operational patterns that step 20 heuristics and scoring use,
+ * while ignoring comment-only examples and filename references.
  *
  * @param {string} content - Source file content
  * @returns {boolean}
  */
 export function hasAsyncPatterns(content) {
-  return /\b(async|await|Promise|fetch|axios|setTimeout|setInterval|addEventListener|removeEventListener|watchPosition|clearWatch|subscribe|unsubscribe|observe|disconnect|dispose|destroy|close)\b|\.then\s*\(|\.catch\s*\(/i.test(
-    String(content ?? '')
-  );
+  return new RegExp(ASYNC_SIGNAL_PATTERN.source, 'i').test(stripJavaScriptComments(content));
+}
+
+export function buildAsyncSplitCoverage(entries) {
+  const splitFiles = new Map();
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const relativePath = String(entry?.relativePath ?? '');
+    const sourcePath = String(entry?.sourcePath ?? entry?.relativePath ?? '');
+    const match = relativePath.match(ASYNC_SPLIT_PART_RE);
+    if (!match || !sourcePath) {
+      continue;
+    }
+
+    const partNumber = Number(match[1]);
+    const totalParts = Number(match[2]);
+    if (!Number.isInteger(partNumber) || !Number.isInteger(totalParts) || totalParts <= 0) {
+      continue;
+    }
+
+    if (!splitFiles.has(sourcePath)) {
+      splitFiles.set(sourcePath, { totalParts, partsSeen: new Set() });
+    }
+
+    const current = splitFiles.get(sourcePath);
+    current.totalParts = Math.max(current.totalParts, totalParts);
+    current.partsSeen.add(partNumber);
+  }
+
+  const splitFileCoverage = [...splitFiles.entries()].map(([sourcePath, value]) => {
+    const partsSeen = [...value.partsSeen].sort((left, right) => left - right);
+    return {
+      sourcePath,
+      totalParts: value.totalParts,
+      partsSeen,
+      complete: partsSeen.length === value.totalParts,
+    };
+  });
+
+  return {
+    splitFileCoverage,
+    completeSplitSourcePaths: splitFileCoverage
+      .filter((entry) => entry.complete)
+      .map((entry) => entry.sourcePath),
+    incompleteSplitSourcePaths: splitFileCoverage
+      .filter((entry) => !entry.complete)
+      .map((entry) => entry.sourcePath),
+  };
+}
+
+export function buildAsyncConsolidationPrompt({
+  projectName,
+  projectDescription,
+  projectKind,
+  buildSystem,
+  testFramework,
+  runtimeFileCount,
+  readableRuntimeCount,
+  excludedRuntimeCount,
+  completeSplitEntries = [],
+  incompleteSplitSourcePaths = [],
+  partitionAnalyses = [],
+}) {
+  const fullyCoveredSplitList =
+    completeSplitEntries.length > 0
+      ? completeSplitEntries.map((entry) => `- ${entry.relativePath}`).join('\n')
+      : '- None';
+  const incompleteSplitList =
+    incompleteSplitSourcePaths.length > 0
+      ? incompleteSplitSourcePaths.map((filePath) => `- ${filePath}`).join('\n')
+      : '- None';
+  const fullSplitFileBlock =
+    completeSplitEntries.length > 0
+      ? buildAsyncFileContentsBlock(completeSplitEntries)
+      : '_No fully covered split files are available for file-level consolidation._';
+
+  return [
+    '**Role**: You are a Senior JavaScript/TypeScript Asynchronous Performance Specialist.',
+    '',
+    '**Task**: Consolidate the partition findings below into one folder-scoped async performance review.',
+    '',
+    '**Consolidation context:**',
+    `- Project: ${projectName}`,
+    `- Project Summary: ${projectDescription}`,
+    `- Project Kind: ${projectKind}`,
+    '- Primary Language: JavaScript/TypeScript',
+    `- Build System: ${buildSystem}`,
+    `- Test Framework: ${testFramework}`,
+    `- Runtime Files Considered: ${runtimeFileCount}`,
+    `- Readable Runtime Files with Detected Async Patterns: ${readableRuntimeCount}`,
+    `- Runtime Files Excluded by the Async-Pattern Filter: ${excludedRuntimeCount}`,
+    '- Fully covered split files (all parts were analyzed):',
+    fullyCoveredSplitList,
+    '- Split files that remain incomplete in this run:',
+    incompleteSplitList,
+    '',
+    '**Rules:**',
+    '- Preserve only findings supported by the partition analyses and the fully covered split-file excerpts below.',
+    '- If a partition labels something as a finding but the visible evidence only supports "already handled", "acceptable as-is", or "no changes required", demote that item to a clean verdict or omit it.',
+    '- If a partition suggests debounce/throttle, loading-state, or extra try/catch changes without concrete evidence of duplicate work, burst-triggered requests, floating promises, or observable failure handling gaps, downgrade that item to inconclusive or omit it.',
+    '- You may promote a conclusion to a file-scoped verdict only for files listed under "Fully covered split files".',
+    '- If runtime files were excluded by the async-pattern filter, keep repository-wide or cross-file Memory Leaks and Resource Cleanup conclusions inconclusive unless the fully covered split-file evidence is sufficient for a file-scoped claim.',
+    '- Remove duplicate partition boilerplate, conflicting summaries, and repeated tables.',
+    '- Do not introduce findings for files that are not mentioned below.',
+    '- Do not emit pseudo-findings such as "Severity: None", "Fix: N/A", or "Impact: N/A".',
+    '- Recommendations must contain only actionable next steps for findings that remain supported after consolidation.',
+    '- If the evidence is still insufficient, say so plainly.',
+    '',
+    '**Required output:** Produce one consolidated async performance review with the same structure used in the partition reviews: overview, the 9 dimensions, prioritized recommendations, and a summary table.',
+    '',
+    '**Partition findings:**',
+    partitionAnalyses.join('\n\n') || '_No partition findings were available._',
+    '',
+    '**Fully covered split-file contents:**',
+    fullSplitFileBlock,
+  ].join('\n');
 }
 
 /**
@@ -691,6 +927,7 @@ export class Step20AsyncPerfReview {
           }
 
           const aiSections = [];
+          const partitionResponses = [];
           for (let i = 0; i < partitionsToAnalyze.length; i += 1) {
             const partition = partitionsToAnalyze[i];
             const partitionDisplayPaths = partition.entries.map((entry) => entry.relativePath);
@@ -708,10 +945,14 @@ export class Step20AsyncPerfReview {
                 partitionsToAnalyze.length > 1
                   ? `[Partition ${i + 1} of ${partitionsToAnalyze.length} — analyze ONLY the files or file-parts listed below for this request]`
                   : '',
-              partition_scope_note:
-                partitionsToAnalyze.length > 1
-                  ? `This request covers ${partition.scopePaths.length} of ${readableRuntimeCount} runtime JavaScript/TypeScript files that contained detectable async patterns in this review run (${runtimeFiles.length - readableRuntimeCount} runtime file(s) were excluded by the async-pattern filter and are not shown; their resource-lifecycle code may still be relevant to Memory Leak and Resource Cleanup dimensions). Entries labeled "(part X/Y)" are sequential chunks of oversized files split across multiple prompt logs.`
-                  : `This request covers all ${readableRuntimeCount} runtime JavaScript/TypeScript file(s) that contained detectable async patterns for this run. ${runtimeFiles.length - readableRuntimeCount} additional runtime file(s) were excluded by the async-pattern filter and are not shown here; they may contain resource-lifecycle code relevant to Memory Leak and Resource Cleanup dimensions.`,
+              partition_scope_note: buildAsyncPartitionScopeNote({
+                coveredRuntimeCount: partition.scopePaths.length,
+                readableRuntimeCount,
+                excludedRuntimeCount: runtimeFiles.length - readableRuntimeCount,
+                hasSplitEntries: partition.entries.some((entry) =>
+                  /\(part \d+\/\d+\)/.test(entry.relativePath)
+                ),
+              }),
               project_name: options.projectName ?? path.basename(projectRoot),
               project_description: options.projectDescription ?? 'JavaScript/TypeScript project',
               project_kind: resolvedProjectKind,
@@ -742,6 +983,11 @@ export class Step20AsyncPerfReview {
             const response = typeof aiResult === 'string' ? aiResult : (aiResult?.content ?? '');
 
             if (response) {
+              partitionResponses.push({
+                index: i,
+                response,
+                partition,
+              });
               aiSections.push(
                 partitionsToAnalyze.length > 1
                   ? `#### Partition ${i + 1} of ${partitionsToAnalyze.length}\n\n${response}`
@@ -751,6 +997,59 @@ export class Step20AsyncPerfReview {
           }
 
           aiContent = aiSections.join('\n\n');
+
+          if (aiContent && partitionsToAnalyze.length > 1) {
+            const splitCoverage = buildAsyncSplitCoverage(
+              partitionsToAnalyze.flatMap((partition) => partition.entries)
+            );
+            const completeSplitEntries = fileEntries.filter((entry) =>
+              splitCoverage.completeSplitSourcePaths.includes(entry.relativePath)
+            );
+
+            try {
+              const consolidationPrompt = buildAsyncConsolidationPrompt({
+                projectName: options.projectName ?? path.basename(projectRoot),
+                projectDescription: options.projectDescription ?? 'JavaScript/TypeScript project',
+                projectKind: resolvedProjectKind,
+                buildSystem,
+                testFramework,
+                runtimeFileCount: runtimeFiles.length,
+                readableRuntimeCount,
+                excludedRuntimeCount: runtimeFiles.length - readableRuntimeCount,
+                completeSplitEntries,
+                incompleteSplitSourcePaths: splitCoverage.incompleteSplitSourcePaths,
+                partitionAnalyses: partitionResponses.map(
+                  ({ index, response }) =>
+                    `#### Partition ${index + 1} of ${partitionsToAnalyze.length}\n\n${response}`
+                ),
+              });
+              const consolidationCacheContext =
+                `step_20|project:${projectRoot}|consolidated|partitions:${partitionsToAnalyze.length}` +
+                `|fullSplits:${splitCoverage.completeSplitSourcePaths.join(',') || 'none'}` +
+                `|signals:${scores.totalIssues}`;
+              const consolidatedResult = await this.aiCache.withCache(
+                consolidationPrompt,
+                consolidationCacheContext,
+                () =>
+                  this.aiHelper.executeRequest(consolidationPrompt, {
+                    persona: 'async_performance_engineer',
+                  })
+              );
+              const consolidatedContent =
+                typeof consolidatedResult === 'string'
+                  ? consolidatedResult
+                  : (consolidatedResult?.content ?? '');
+
+              if (consolidatedContent) {
+                aiContent = consolidatedContent;
+              }
+            } catch (consolidationError) {
+              warnings.push(`Async review consolidation skipped: ${consolidationError.message}`);
+              logger.warn(
+                `[step_20] Async review consolidation skipped — ${consolidationError.message}`
+              );
+            }
+          }
         } catch (promptError) {
           degraded = true;
           warnings.push(`AI analysis skipped: ${promptError.message}`);

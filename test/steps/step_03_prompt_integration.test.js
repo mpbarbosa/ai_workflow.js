@@ -45,6 +45,14 @@ describe('step3_script_refs_prompt — config correctness', () => {
     expect(template).toContain('repository-root context agree with the scoped path');
     expect(template).toContain('path-context mismatch or ambiguity');
   });
+
+  test('task_template uses injected headings and guidance for coverage and documentation evidence', () => {
+    const template = aiHelpers.step3_script_refs_prompt.task_template;
+    expect(template).toContain('{doc_coverage_heading}');
+    expect(template).toContain('{doc_coverage_guidance}');
+    expect(template).toContain('{doc_context_heading}');
+    expect(template).toContain('{doc_context_guidance}');
+  });
 });
 
 describe('step3_script_refs_prompt — rendered prompt behavior', () => {
@@ -67,9 +75,16 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
       modified_count: '1',
       issues: '0',
       script_issues_content: 'none',
+      doc_coverage_heading:
+        '**Script Documentation Coverage (complete across included documentation files):**',
       doc_coverage_map: 'bin/ai-workflow.js: README.md',
+      doc_coverage_guidance:
+        'This coverage map is complete for the documentation files included in this prompt. You may rely on its counts for those files. It does not imply anything about documentation files that were not loaded into this prompt.',
       all_scripts: ['bin/ai-workflow.js', 'scripts/validate-exports.js'].join('\n'),
+      doc_context_heading: '**Documentation Content (full for included files):**',
       doc_context: '### README.md\nUse `ai-workflow` to run the CLI.',
+      doc_context_guidance:
+        'These are full contents for the documentation files included in this prompt. You may treat them as complete evidence for those files, but do not infer anything about documentation files that were not included.',
     });
 
     expect(prompt).toContain(
@@ -81,7 +96,7 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
     expect(prompt).toContain('Apply shell-specific checks only to shell scripts in scope.');
   });
 
-  test('rendered prompt treats doc excerpts as partial evidence instead of proof of global gaps', () => {
+  test('rendered prompt can treat included docs as full evidence when full file content is provided', () => {
     const prompt = buildYamlStepPrompt(aiHelpers, 'step3_script_refs_prompt', {
       project_name: '/tmp/project',
       project_description: 'example',
@@ -93,22 +108,26 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
       modified_count: '3',
       issues: '1',
       script_issues_content: '- scripts/setup.sh: missing usage docs',
+      doc_coverage_heading:
+        '**Script Documentation Coverage (complete across included documentation files):**',
       doc_coverage_map: 'scripts/setup.sh: README.md',
+      doc_coverage_guidance:
+        'This coverage map is complete for the documentation files included in this prompt. You may rely on its counts for those files. It does not imply anything about documentation files that were not loaded into this prompt.',
       all_scripts: ['scripts/setup.sh', 'bin/ai-workflow.js'].join('\n'),
+      doc_context_heading: '**Documentation Content (full for included files):**',
       doc_context: [
         '### README.md',
         '# Project',
-        '... [excerpt omitted]',
         '## Automation Scripts',
         '- `scripts/setup.sh`',
       ].join('\n'),
+      doc_context_guidance:
+        'These are full contents for the documentation files included in this prompt. You may treat them as complete evidence for those files, but do not infer anything about documentation files that were not included.',
     });
 
-    expect(prompt).toContain('Treat these excerpts as partial evidence');
-    expect(prompt).toContain('do not claim that "no usage examples"');
-    expect(prompt).toContain(
-      'Treat README command examples, command tables, automation-script sections'
-    );
+    expect(prompt).toContain('Documentation Content (full for included files)');
+    expect(prompt).toContain('You may treat them as complete evidence for those files');
+    expect(prompt).toContain('do not infer anything about documentation files');
   });
 
   test('rendered prompt forces inconclusive integration outcomes and interface-faithful examples', () => {
@@ -123,15 +142,27 @@ describe('step3_script_refs_prompt — rendered prompt behavior', () => {
       modified_count: '0',
       issues: '1',
       script_issues_content: 'Undocumented scripts: 1',
+      doc_coverage_heading:
+        '**Script Documentation Coverage (complete across included documentation files):**',
       doc_coverage_map:
         'scripts/update_submodules.sh: documented in [README.md (path variant: .workflow_core/scripts/update_submodules.sh)]',
+      doc_coverage_guidance:
+        'This coverage map is complete for the documentation files included in this prompt. You may rely on its counts for those files. It does not imply anything about documentation files that were not loaded into this prompt.',
       all_scripts: 'scripts/update_submodules.sh',
+      doc_context_heading:
+        '**Documentation Content (partial — included files exceeded the prompt budget and were clipped):**',
       doc_context:
         '### README.md\nUse `bash .workflow_core/scripts/update_submodules.sh` after updates.',
+      doc_context_guidance:
+        'Treat this documentation content as partial evidence. If a file is clipped, omitted, or ends with an explicit truncation marker, keep claims scoped to the visible text and mark broader conclusions as unavailable or inconclusive.',
     });
 
     expect(prompt).toContain('mark CI/container conclusions as unavailable or inconclusive');
     expect(prompt).toContain('Do not invent placeholder flags, positional arguments');
+    expect(prompt).toContain('mark the per-path detail as unavailable');
+    expect(prompt).toContain('write `(no visible example)` instead of inventing');
     expect(prompt).toContain('path-context mismatch or ambiguity');
+    expect(prompt).toContain('root-level script');
+    expect(prompt).toContain('Do not generalise from one or two weak matches');
   });
 });

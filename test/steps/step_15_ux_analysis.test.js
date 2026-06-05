@@ -14,6 +14,8 @@ import {
   filterFrameworkUiFiles,
   groupUiFilesByType,
   selectKeyFiles,
+  resolveUxTargetAudience,
+  resolveUxDesignSystemStatus,
   buildUxAnalysisPrompt,
   calculateSeverityScore,
   parseUxAnalysisResult,
@@ -352,6 +354,48 @@ describe('Step 15: UX Analysis', () => {
       const cssInResult = result.filter((f) => f.endsWith('.css'));
       expect(cssInResult.length).toBeGreaterThan(0); // CSS must always be represented
       expect(result.length).toBe(10); // Total capped at maxFiles
+    });
+
+    test('prioritizes files from configured ui_dirs before fallback HTML examples', () => {
+      const uiFiles = [
+        'examples/address-converter.html',
+        'src/components/HomeView.vue',
+        'src/components/AppHeroHeader.vue',
+      ];
+      const fileGroups = {
+        html: ['examples/address-converter.html'],
+        css: [],
+        vue: ['src/components/HomeView.vue', 'src/components/AppHeroHeader.vue'],
+      };
+      const result = selectKeyFiles(uiFiles, fileGroups, 3, ['src/components']);
+
+      expect(result).toEqual([
+        'src/components/HomeView.vue',
+        'src/components/AppHeroHeader.vue',
+        'examples/address-converter.html',
+      ]);
+    });
+  });
+
+  describe('UX metadata resolution', () => {
+    test('uses explicit target audience when provided', () => {
+      expect(resolveUxTargetAudience({ targetAudience: 'Tourists and travelers' })).toBe(
+        'Tourists and travelers'
+      );
+    });
+
+    test('falls back to end users for web projects', () => {
+      expect(resolveUxTargetAudience({})).toBe('End users');
+    });
+
+    test('uses explicit design system when provided', () => {
+      expect(resolveUxDesignSystemStatus({ designSystemStatus: 'Material Design 3 tokens' })).toBe(
+        'Material Design 3 tokens'
+      );
+    });
+
+    test('falls back to workflow-metadata placeholder for web projects', () => {
+      expect(resolveUxDesignSystemStatus({})).toBe('Not specified in workflow metadata');
     });
   });
 
@@ -805,6 +849,58 @@ describe('Step 15: UX Analysis', () => {
       );
     });
 
+    test('injects workflow UX metadata and prioritizes configured ui_dirs in sampled snippets', async () => {
+      const prompts = [];
+      const exampleFiles = Array.from({ length: 12 }, (_, i) => `examples/demo-${i}.html`);
+      const step = new Step15UxAnalysis({
+        backlog: mockBacklog,
+        logger: mockLogger,
+        fileOps: {
+          readFile: jest.fn().mockImplementation((filePath) => {
+            if (filePath.endsWith('package.json')) {
+              return Promise.resolve(JSON.stringify({ dependencies: { express: '^4.0.0' } }));
+            }
+            if (filePath.includes('ai_helpers')) {
+              return Promise.resolve(
+                [
+                  'ui_ux_designer_prompt:',
+                  '  role_prefix: |',
+                  '    You are a UX reviewer.',
+                  '  task_template: |',
+                  '    Audience: {target_audience}. Design System: {design_system_status}.',
+                ].join('\n')
+              );
+            }
+            if (filePath.endsWith('src/components/HomeView.vue')) {
+              return Promise.resolve('<template><main>Primary app UI</main></template>');
+            }
+            return Promise.resolve('<html><body>Example page</body></html>');
+          }),
+        },
+        aiHelper: { initialize: () => Promise.resolve(true) },
+      });
+
+      step.discoverFiles = jest
+        .fn()
+        .mockResolvedValue([...exampleFiles, 'src/components/HomeView.vue']);
+      step.performAnalysis = jest.fn().mockImplementation(async (prompt) => {
+        prompts.push(prompt);
+        return '## UX findings';
+      });
+
+      const result = await step.execute({
+        projectType: 'vue_spa',
+        targetAudience: 'Tourists and travelers',
+        designSystemStatus: 'Material Design 3',
+        uiDirs: ['src/components'],
+      });
+
+      expect(result.success).toBe(true);
+      expect(prompts[0]).toContain('Audience: Tourists and travelers.');
+      expect(prompts[0]).toContain('Design System: Material Design 3.');
+      expect(prompts[0]).toContain('### src/components/HomeView.vue');
+    });
+
     test('grounds fallback React-only analysis with component source snippets', async () => {
       const prompts = [];
       const step = new Step15UxAnalysis({
@@ -849,15 +945,17 @@ describe('Step 15: UX Analysis', () => {
                 : Promise.resolve('<main>visible snippet</main>')
             ),
         },
-        aiHelper: { initialize: () => Promise.resolve(true) },
+        aiHelper: {
+          initialize: () => Promise.resolve(true),
+          executeRequest: jest.fn().mockImplementation(async (_prompt, options) => ({
+            content: options.responseContentNormalizer(
+              'UI/UX-related files are listed for project `guia_js`, but no UI source content is visible in the provided context. A reliable UI/UX review is unavailable from filenames alone. Review inconclusive.'
+            ),
+          })),
+        },
       });
 
       step.discoverFiles = jest.fn().mockResolvedValue(['examples/address-converter.html']);
-      step.performAnalysis = jest
-        .fn()
-        .mockResolvedValue(
-          'UI/UX-related files are listed for project `guia_js`, but no UI source content is visible in the provided context. A reliable UI/UX review is unavailable from filenames alone. Review inconclusive.'
-        );
 
       const result = await step.execute({ projectType: 'react_spa' });
 

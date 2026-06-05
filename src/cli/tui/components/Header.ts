@@ -2,9 +2,9 @@
  * @fileoverview Header component — top bar of the TUI dashboard
  * @module cli/tui/components/Header
  *
- * Displays project name, version, active stage, and step counter.
+ * Cybernetic breadcrumb header: ai-workflow > step_id > step_name
  *
- * @version 1.0.0
+ * @version 2.0.0
  * @since 2026-03-07
  */
 
@@ -18,6 +18,8 @@ export interface HeaderProps {
   version?: string;
   projectRoot?: string;
   projectVersion?: string | null;
+  currentStepId?: string | null;
+  currentStepName?: string | null;
 }
 
 export function Header({
@@ -25,39 +27,45 @@ export function Header({
   completed,
   total,
   version = '1.6.3',
-  projectRoot = '',
   projectVersion = null,
+  currentStepId = null,
+  currentStepName = null,
 }: HeaderProps): ReactElement {
-  const stepLabel = total > 0 ? `Step ${completed}/${total}` : 'Initializing…';
+  const completedPad = String(completed).padStart(2, '0');
+  const totalPad = total > 0 ? String(total).padStart(2, '0') : '--';
+  const stepCounter = `${completedPad}/${totalPad}`;
+
+  const breadcrumbStep = currentStepId ?? stage;
+  const breadcrumbLabel = currentStepName ?? (currentStepId ? stage : 'initializing');
 
   return React.createElement(
     Box,
     {
       borderStyle: 'single',
-      borderColor: 'blue',
+      borderColor: 'cyanBright',
       paddingX: 1,
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
     React.createElement(
-      Text,
-      { bold: true, color: 'blueBright' },
-      'AI Workflow ',
-      React.createElement(Text, { color: 'gray', bold: false }, `v${version}`),
-      '  ',
-      React.createElement(Text, { color: 'cyan' }, `stage: ${stage}`),
-      projectRoot
-        ? React.createElement(
-            Text,
-            { color: 'gray', bold: false },
-            `  ${projectRoot}`,
-            projectVersion
-              ? React.createElement(Text, { color: 'yellow', bold: false }, ` v${projectVersion}`)
-              : null
-          )
-        : null
+      Box,
+      { flexDirection: 'row', gap: 1 },
+      React.createElement(Text, { color: 'gray', dimColor: true }, 'ai-workflow'),
+      React.createElement(Text, { color: 'gray', dimColor: true }, '>'),
+      React.createElement(Text, { color: 'gray' }, breadcrumbStep),
+      React.createElement(Text, { color: 'gray', dimColor: true }, '>'),
+      React.createElement(Text, { color: 'cyanBright', bold: true }, breadcrumbLabel)
     ),
-    React.createElement(Text, { color: 'gray' }, stepLabel)
+    React.createElement(
+      Box,
+      { flexDirection: 'row', gap: 2 },
+      React.createElement(
+        Text,
+        { color: 'cyanBright' },
+        `[v${version}${projectVersion ? `  proj:${projectVersion}` : ''}]`
+      ),
+      React.createElement(Text, { color: 'gray' }, stepCounter)
+    )
   );
 }
 

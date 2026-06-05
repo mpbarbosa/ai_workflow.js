@@ -83,6 +83,106 @@ export function scoreTypeScriptIssues(fileContents) {
 }
 
 /**
+ * Classify which prompt file entries are fully visible, truncated, omitted, or unreadable.
+ *
+ * @param {Array<{filename: string, content: string|null}>} entries - Prompt file entries
+ * @param {Object} [options={}] - Classification options
+ * @param {number} [options.maxCharsPerFile=4000] - Per-file prompt budget
+ * @param {number} [options.maxCharsTotal=30000] - Total prompt budget across entries
+ * @param {number} [options.startCharsUsed=0] - Prompt budget already consumed
+ * @param {boolean} [options.stopOnOverflow=false] - Mark later files omitted after first overflow
+ * @returns {{entries: Array<{filename: string, content: string|null, status: string, included: boolean}>, charsUsed: number}}
+ */
+export function classifyPromptCoverage(entries, options = {}) {
+  const {
+    maxCharsPerFile = 4000,
+    maxCharsTotal = 30000,
+    startCharsUsed = 0,
+    stopOnOverflow = false,
+  } = options;
+
+  const classifiedEntries = [];
+  let charsUsed = startCharsUsed;
+  let budgetExhausted = false;
+
+  for (const entry of entries) {
+    if (!entry || !entry.filename) {
+      continue;
+    }
+
+    const { filename, content } = entry;
+
+    if (content === null || content === undefined) {
+      classifiedEntries.push({ filename, content: null, status: 'unreadable', included: false });
+      continue;
+    }
+
+    if (budgetExhausted) {
+      classifiedEntries.push({ filename, content, status: 'omitted', included: false });
+      continue;
+    }
+
+    const contribution = Math.min(content.length, maxCharsPerFile);
+
+    if (charsUsed + contribution > maxCharsTotal) {
+      classifiedEntries.push({ filename, content, status: 'omitted', included: false });
+      if (stopOnOverflow) {
+        budgetExhausted = true;
+      }
+      continue;
+    }
+
+    classifiedEntries.push({
+      filename,
+      content,
+      status: content.length > maxCharsPerFile ? 'truncated' : 'full',
+      included: true,
+    });
+    charsUsed += contribution;
+  }
+
+  return { entries: classifiedEntries, charsUsed };
+}
+
+function formatCoverageLine(label, files) {
+  return `- ${label}: ${files.length ? files.join(', ') : '(none)'}`;
+}
+
+/**
+ * Format prompt evidence coverage so the reviewer can see which files are incomplete.
+ *
+ * @param {Object} [options={}] - Coverage groups
+ * @param {Array<{filename: string, status: string}>} [options.configCoverage=[]] - Config coverage
+ * @param {Array<{filename: string, status: string}>} [options.sourceCoverage=[]] - Source coverage
+ * @returns {string} Markdown section describing prompt evidence coverage
+ */
+export function formatEvidenceCoverageSection(options = {}) {
+  const { configCoverage = [], sourceCoverage = [] } = options;
+  const collect = (entries, status) =>
+    entries.filter((entry) => entry.status === status).map((entry) => entry.filename);
+
+  return [
+    '**Evidence Coverage**',
+    formatCoverageLine('Configuration files fully visible', collect(configCoverage, 'full')),
+    formatCoverageLine('Configuration files truncated', collect(configCoverage, 'truncated')),
+    formatCoverageLine(
+      'Configuration files omitted due to prompt budget',
+      collect(configCoverage, 'omitted')
+    ),
+    formatCoverageLine('Configuration files unreadable', collect(configCoverage, 'unreadable')),
+    formatCoverageLine('TypeScript files fully visible', collect(sourceCoverage, 'full')),
+    formatCoverageLine('TypeScript files truncated', collect(sourceCoverage, 'truncated')),
+    formatCoverageLine(
+      'TypeScript files omitted due to prompt budget',
+      collect(sourceCoverage, 'omitted')
+    ),
+    formatCoverageLine('TypeScript files unreadable', collect(sourceCoverage, 'unreadable')),
+    '- If any file is truncated, omitted, or unreadable, limit conclusions to directly cited visible evidence and mark broader judgments as inconclusive or unavailable.',
+    '- Do not claim truncated, omitted, or unreadable files are issue-free, and do not issue blanket "all other files are type-safe" conclusions when coverage is incomplete.',
+  ].join('\n');
+}
+
+/**
  * Format the TypeScript review report in Markdown.
  *
  * @param {Object} params
@@ -205,12 +305,12 @@ export class Step19TypescriptReview {
           try {
             return await this.fileOps.readFile(path.join(projectRoot, f));
           } catch {
-            return '';
+            return null;
           }
         })
       );
 
-      const issueScore = scoreTypeScriptIssues(sampleContents);
+      const issueScore = scoreTypeScriptIssues(sampleContents.map((content) => content ?? ''));
       logger.info(
         `Issue score: ${issueScore.totalIssues} (any=${issueScore.anyCount}, ts-ignore=${issueScore.tsIgnoreCount}, missing-return-type=${issueScore.missingReturnTypeCount})`
       );
@@ -232,26 +332,40 @@ export class Step19TypescriptReview {
           let tsPrompt = null;
 
           // Build file-contents section: tsconfig files first, then source files
-          const fileContentBlocks = [];
-          let totalChars = 0;
-
-          // Prepend tsconfig files so the AI can verify strict-mode settings
-          for (const { filename, content } of tsconfigs) {
-            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
-            if (totalChars + contribution <= MAX_CHARS_TOTAL_CONTENTS) {
-              fileContentBlocks.push(buildFileContentBlock(filename, content));
-              totalChars += contribution;
+          const configCoverage = classifyPromptCoverage(
+            tsconfigs.map(({ filename, content }) => ({ filename, content })),
+            {
+              maxCharsPerFile: MAX_CHARS_PER_FILE,
+              maxCharsTotal: MAX_CHARS_TOTAL_CONTENTS,
             }
-          }
-
-          for (let i = 0; i < sampleFiles.length; i++) {
-            const content = sampleContents[i] ?? '';
-            if (!content) continue;
-            const contribution = Math.min(content.length, MAX_CHARS_PER_FILE);
-            if (totalChars + contribution > MAX_CHARS_TOTAL_CONTENTS) break;
-            fileContentBlocks.push(buildFileContentBlock(sampleFiles[i], content));
-            totalChars += contribution;
-          }
+          );
+          const sourceCoverage = classifyPromptCoverage(
+            sampleFiles.map((filename, index) => ({
+              filename,
+              content: sampleContents[index],
+            })),
+            {
+              maxCharsPerFile: MAX_CHARS_PER_FILE,
+              maxCharsTotal: MAX_CHARS_TOTAL_CONTENTS,
+              startCharsUsed: configCoverage.charsUsed,
+              stopOnOverflow: true,
+            }
+          );
+          const fileContentBlocks = [
+            ...configCoverage.entries
+              .filter((entry) => entry.included)
+              .map((entry) => buildFileContentBlock(entry.filename, entry.content)),
+            ...sourceCoverage.entries
+              .filter((entry) => entry.included)
+              .map((entry) => buildFileContentBlock(entry.filename, entry.content)),
+          ];
+          const evidenceCoverageSection = formatEvidenceCoverageSection({
+            configCoverage: configCoverage.entries,
+            sourceCoverage: sourceCoverage.entries,
+          });
+          const hasIncompleteEvidence = [...configCoverage.entries, ...sourceCoverage.entries].some(
+            (entry) => entry.status !== 'full'
+          );
           const fileContentsSection =
             fileContentBlocks.length > 0
               ? `**File Contents**:\n\n${fileContentBlocks.join('\n\n')}`
@@ -292,17 +406,27 @@ export class Step19TypescriptReview {
               parts.push(task.trim());
             }
             if (tsconfigs.length > 0) {
+              const includedConfigFiles = configCoverage.entries
+                .filter((entry) => entry.included)
+                .map((entry) => entry.filename);
               parts.push(
-                `**Configuration Files included**: ${tsconfigs.map((t) => t.filename).join(', ')}`
+                `**Configuration Files included**: ${includedConfigFiles.length ? includedConfigFiles.join(', ') : '(none within prompt budget)'}`
               );
             }
             parts.push(
               `**TypeScript Files to Review** (${tsFiles.length} total, sampling ${sampleFiles.length}): ${sampleFiles.join(', ')}`
             );
+            parts.push(evidenceCoverageSection);
             if (fileContentsSection) parts.push(fileContentsSection);
             if (cfg.approach) {
               parts.push(buildPromptFromTemplate(cfg.approach, promptContext).trim());
             }
+            parts.push(
+              '**Evidence Handling Rules**:\n' +
+                '1. Treat the Evidence Coverage section as authoritative.\n' +
+                '2. If any file is truncated, omitted, or unreadable, limit conclusions to directly cited visible evidence and mark broader judgments as inconclusive or unavailable.\n' +
+                '3. Do not claim that all other sampled files are clean, type-safe, or issue-free unless every sampled file is fully visible and your conclusion is backed by direct citations.'
+            );
             tsPrompt = parts.join('\n\n');
           } else {
             // Fallback to generic builder
@@ -312,9 +436,10 @@ export class Step19TypescriptReview {
               file_count: `${tsFiles.length} total, sampling ${sampleFiles.length}`,
             });
             if (builtPrompt) {
-              let combined = fileContentsSection
-                ? `${builtPrompt}\n\n${fileContentsSection}`
-                : builtPrompt;
+              let combined = `${builtPrompt}\n\n${evidenceCoverageSection}`;
+              if (fileContentsSection) {
+                combined += `\n\n${fileContentsSection}`;
+              }
               if (contextProfile) {
                 combined += `\n\n**Codebase Profile — Verified Ground Truth**:\n\nThe following facts about this codebase have been verified against the live code. Treat them as authoritative. Do NOT flag items documented here as issues.\n\n${contextProfile}`;
               }
@@ -322,6 +447,11 @@ export class Step19TypescriptReview {
               if (projectCtxSectionFallback) {
                 combined = `${builtPrompt}\n\n${projectCtxSectionFallback}${combined.slice(builtPrompt.length)}`;
               }
+              combined +=
+                '\n\n**Evidence Handling Rules**:\n' +
+                '1. Treat the Evidence Coverage section as authoritative.\n' +
+                '2. If any file is truncated, omitted, or unreadable, limit conclusions to directly cited visible evidence and mark broader judgments as inconclusive or unavailable.\n' +
+                '3. Do not claim that all other sampled files are clean, type-safe, or issue-free unless every sampled file is fully visible and your conclusion is backed by direct citations.';
               tsPrompt = combined;
             }
           }
@@ -335,6 +465,8 @@ export class Step19TypescriptReview {
                 this.aiHelper.executeRequest(tsPrompt, {
                   persona: 'typescript_reviewer',
                   model: 'claude-haiku-4.5',
+                  responseType: 'typescript_review',
+                  validationContext: { hasIncompleteEvidence },
                 })
             );
             aiContent = aiResult?.content ?? '';

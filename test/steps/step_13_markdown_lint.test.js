@@ -6,6 +6,7 @@
 import { jest } from '@jest/globals';
 import {
   Step13MarkdownLint,
+  buildMarkdownLintFallbackPromptData,
   filterMarkdownFiles,
   shouldExcludePath,
   parseMdlOutput,
@@ -163,6 +164,30 @@ docs/guide.md:10: MD022 Blank lines around headers`;
       expect(stats.cleanFiles).toBe(3);
       expect(stats.issuesPerFile).toBe(0.6);
       expect(stats.uniqueRules).toBe(2);
+    });
+  });
+
+  describe('buildMarkdownLintFallbackPromptData', () => {
+    test('keeps repo-wide tooling conclusions unavailable when evidence is absent', () => {
+      const fallback = buildMarkdownLintFallbackPromptData({
+        projectRoot: '/project',
+        fileCount: 7,
+        stats: { totalIssues: 12, cleanFiles: 1 },
+        antiPatterns: [],
+        status: 'warning',
+        issuesByRule: 'MD009: 12 occurrence(s)',
+        issuesByFile: 'README.md: 12 issue(s)',
+      });
+
+      expect(fallback.task).toContain('Unavailable from visible evidence');
+      expect(fallback.task).toContain('Do not turn sparse evidence into a clean pass');
+      expect(fallback.task).toContain('pre-commit hooks, or CI coverage');
+      expect(fallback.approach).toContain(
+        'prevention guidance is unavailable from visible evidence'
+      );
+      expect(fallback.approach).toContain(
+        'instead of recommending `.editorconfig`, pre-commit hooks, or CI changes'
+      );
     });
   });
 
@@ -568,9 +593,13 @@ docs/guide.md:10: MD022 Blank lines around headers`;
       mockExecutor.executeCommand = jest
         .fn()
         .mockResolvedValueOnce({ stdout: '0.11.0', stderr: '' })
-        .mockRejectedValueOnce({ stdout: 'README.md:1: MD041 First line should be a top-level heading\n' })
+        .mockRejectedValueOnce({
+          stdout: 'README.md:1: MD041 First line should be a top-level heading\n',
+        })
         .mockResolvedValueOnce({ stdout: '', stderr: '' })
-        .mockRejectedValueOnce({ stdout: 'README.md:1: MD041 First line should be a top-level heading\n' });
+        .mockRejectedValueOnce({
+          stdout: 'README.md:1: MD041 First line should be a top-level heading\n',
+        });
 
       const step = new Step13MarkdownLint({
         aiHelper: mockAiHelper,

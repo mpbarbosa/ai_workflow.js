@@ -12,6 +12,7 @@ import {
   getTestPatterns,
   getCoveragePaths,
   getCoverageCommand,
+  getScopedTestCommand,
   isTestFile,
   categorizeTestFiles,
   countDedicatedTestDirectoryFiles,
@@ -80,6 +81,92 @@ describe('Step 6: Test Review', () => {
 
     test('falls back to a generic npm coverage command for unknown languages', () => {
       expect(getCoverageCommand('unknown')).toBe('npm run coverage');
+    });
+  });
+
+  describe('getScopedTestCommand', () => {
+    test('prefers test:core when all scoped files live under test/core and the script exists', () => {
+      const command = getScopedTestCommand({
+        language: 'typescript',
+        repositoryDefaultCommand: 'npm test',
+        sliceFiles: ['test/core/GeoPosition.test.ts', 'test/core/errors.test.ts'],
+        configArtifacts: [
+          {
+            path: 'package.json',
+            content: JSON.stringify({
+              scripts: {
+                test: 'jest --coverage',
+                'test:core': 'jest --testPathPatterns="test/(core|index)"',
+              },
+            }),
+          },
+        ],
+      });
+
+      expect(command).toBe('npm run test:core');
+    });
+
+    test('prefers test:integration for integration-only slices when the script exists', () => {
+      const command = getScopedTestCommand({
+        language: 'javascript',
+        repositoryDefaultCommand: 'npm test',
+        sliceFiles: ['test/integration/api.test.js'],
+        configArtifacts: [
+          {
+            path: 'package.json',
+            content: JSON.stringify({
+              scripts: {
+                test: 'jest',
+                'test:integration': 'jest --testPathPatterns="test/integration"',
+              },
+            }),
+          },
+        ],
+      });
+
+      expect(command).toBe('npm run test:integration');
+    });
+
+    test('prefers test:unit for TypeScript slices with dedicated unit Jest config', () => {
+      const command = getScopedTestCommand({
+        language: 'typescript',
+        repositoryDefaultCommand: 'npm test',
+        sliceFiles: ['__tests__/data/example.test.ts'],
+        configArtifacts: [{ path: 'jest.config.unit.js' }],
+      });
+
+      expect(command).toBe('npm run test:unit');
+    });
+
+    test('keeps the repository default when a scoped suite script is not declared', () => {
+      const command = getScopedTestCommand({
+        language: 'typescript',
+        repositoryDefaultCommand: 'npm test',
+        sliceFiles: ['test/core/GeoPosition.test.ts'],
+        configArtifacts: [
+          {
+            path: 'package.json',
+            content: JSON.stringify({
+              scripts: {
+                test: 'jest --coverage',
+              },
+            }),
+          },
+        ],
+      });
+
+      expect(command).toBe('npm test');
+    });
+
+    test('keeps the repository default when the scope does not clearly map to a dedicated suite', () => {
+      const command = getScopedTestCommand({
+        language: 'typescript',
+        repositoryDefaultCommand: 'npm test',
+        sliceFiles: ['__tests__/data/example.test.ts'],
+        configArtifacts: [{ path: 'jest.config.js' }],
+      });
+
+      expect(command).toBe('npm test');
     });
   });
 
@@ -365,6 +452,7 @@ describe('Step 6: Test Review', () => {
 
       mockTechStack = {
         detectAll: () => Promise.resolve({ languages: ['javascript'] }),
+        detectTechStack: () => Promise.resolve({ primaryLanguage: 'javascript' }),
       };
 
       mockAiHelper = {
@@ -485,7 +573,7 @@ describe('Step 6: Test Review', () => {
       expect(instance.aiHelper).toBeDefined();
     });
 
-    test('injects config_file_contents and project_context_contents into AI prompt', async () => {
+    test('injects config_file_contents and leaves broad project context empty in AI prompt', async () => {
       const prompts = [];
       const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-slots-'));
       mockFileOps.glob = () => Promise.resolve(['test/unit.test.js']);
@@ -508,6 +596,58 @@ step6_test_review_prompt:
         return Promise.resolve('// test body');
       };
       mockAiHelper.initialize = () => Promise.resolve(true);
+      const executeRequestCalls = [];
+      mockAiHelper.executeRequest = (prompt, options) => {
+        executeRequestCalls.push([prompt, options]);
+        prompts.push(prompt);
+        return Promise.resolve({ content: 'ok' });
+      };
+      mockAiCache.withFileChangeGuard = (_key, _entries, fn) => fn();
+      try {
+        const result = await reviewer.execute(tempProjectRoot);
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(1);
+        expect(executeRequestCalls).toHaveLength(1);
+        expect(executeRequestCalls[0][1]).toMatchObject({
+          persona: 'test_engineer',
+          responseType: 'test_review',
+          validationContext: { hasIncompleteEvidence: true },
+        });
+        expect(prompts[0]).toContain('package.json');
+        expect(prompts[0]).toContain('ctx=');
+        expect(prompts[0]).not.toContain('README.md');
+        expect(prompts[0]).toContain('test/unit.test.js');
+      } finally {
+        fs.rmSync(tempProjectRoot, { recursive: true, force: true });
+      }
+    });
+
+    test('injects a scoped TypeScript test command when dedicated unit config is visible', async () => {
+      const prompts = [];
+      const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-scoped-cmd-'));
+      mockTechStack.detectAll = () => Promise.resolve({ languages: ['typescript'] });
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = () => Promise.resolve(['__tests__/data/example.test.ts']);
+      mockFileOps.readFile = (filePath) => {
+        const p = String(filePath);
+        if (p.endsWith('ai_helpers.yaml')) {
+          return Promise.resolve(`
+step6_test_review_prompt:
+  role: Test reviewer
+  task_template: |
+    repo={test_command}
+    scoped={scoped_test_command}
+    cfg={config_file_contents}
+  approach: |
+    noop
+`);
+        }
+        if (p.endsWith('package.json')) return Promise.resolve('{"name":"my-pkg"}');
+        if (p.endsWith('jest.config.unit.js')) return Promise.resolve('export default {};');
+        if (p.endsWith('tsconfig.json')) return Promise.resolve('{"compilerOptions":{}}');
+        return Promise.resolve('// visible test content');
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
       mockAiHelper.executeRequest = (prompt) => {
         prompts.push(prompt);
         return Promise.resolve({ content: 'ok' });
@@ -517,9 +657,61 @@ step6_test_review_prompt:
         const result = await reviewer.execute(tempProjectRoot);
         expect(result.success).toBe(true);
         expect(prompts).toHaveLength(1);
-        expect(prompts[0]).toContain('package.json');
-        expect(prompts[0]).toContain('README.md');
-        expect(prompts[0]).toContain('test/unit.test.js');
+        expect(prompts[0]).toContain('repo=npm test');
+        expect(prompts[0]).toContain('scoped=npm run test:unit');
+        expect(prompts[0]).toContain('jest.config.unit.js');
+      } finally {
+        fs.rmSync(tempProjectRoot, { recursive: true, force: true });
+      }
+    });
+
+    test('injects a scoped core test command when package.json exposes test:core for test/core slices', async () => {
+      const prompts = [];
+      const tempProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'step6-scoped-core-'));
+      mockTechStack.detectAll = () => Promise.resolve({ languages: ['typescript'] });
+      mockTechStack.detectTechStack = () => Promise.resolve({ primaryLanguage: 'typescript' });
+      mockFileOps.glob = () =>
+        Promise.resolve(['test/core/GeoPosition.test.ts', 'test/core/errors.test.ts']);
+      mockFileOps.readFile = (filePath) => {
+        const p = String(filePath);
+        if (p.endsWith('ai_helpers.yaml')) {
+          return Promise.resolve(`
+step6_test_review_prompt:
+  role: Test reviewer
+  task_template: |
+    repo={test_command}
+    scoped={scoped_test_command}
+    cfg={config_file_contents}
+  approach: |
+    noop
+`);
+        }
+        if (p.endsWith('package.json')) {
+          return Promise.resolve(
+            JSON.stringify({
+              name: 'my-pkg',
+              scripts: {
+                test: 'jest --coverage',
+                'test:core': 'jest --testPathPatterns="test/(core|index)"',
+              },
+            })
+          );
+        }
+        if (p.endsWith('tsconfig.json')) return Promise.resolve('{"compilerOptions":{}}');
+        return Promise.resolve('// visible test content');
+      };
+      mockAiHelper.initialize = () => Promise.resolve(true);
+      mockAiHelper.executeRequest = (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve({ content: 'ok' });
+      };
+      mockAiCache.withFileChangeGuard = (_key, _entries, fn) => fn();
+      try {
+        const result = await reviewer.execute(tempProjectRoot);
+        expect(result.success).toBe(true);
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain('repo=npm test');
+        expect(prompts[0]).toContain('scoped=npm run test:core');
       } finally {
         fs.rmSync(tempProjectRoot, { recursive: true, force: true });
       }

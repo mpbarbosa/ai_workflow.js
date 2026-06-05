@@ -26,6 +26,7 @@ import {
 } from '../lib/ai_prompt_builder.js';
 import yaml from 'js-yaml';
 import path from 'path';
+import ts from 'typescript';
 import executor from '../core/executor.js';
 
 // ============================================================================
@@ -238,6 +239,246 @@ export function calculateCoverage(testedCount, totalCount) {
 }
 
 /**
+ * Check whether a file path can contain type-only TypeScript source.
+ * @pure
+ * @param {string} sourceFile - Source file path
+ * @returns {boolean} True when the file can be declaration-only TypeScript
+ */
+export function canBeTypeOnlySourceFile(sourceFile) {
+  if (typeof sourceFile !== 'string') return false;
+  return /\.(?:d\.ts|ts|tsx|cts|mts)$/i.test(sourceFile.replace(/\\/g, '/'));
+}
+
+function hasModifier(node, modifierKind) {
+  return Array.isArray(node.modifiers)
+    ? node.modifiers.some((modifier) => modifier.kind === modifierKind)
+    : false;
+}
+
+function isTypeOnlyStatement(statement) {
+  if (
+    ts.isInterfaceDeclaration(statement) ||
+    ts.isTypeAliasDeclaration(statement) ||
+    ts.isImportEqualsDeclaration(statement)
+  ) {
+    return true;
+  }
+
+  if (ts.isImportDeclaration(statement)) {
+    return statement.importClause?.isTypeOnly === true;
+  }
+
+  if (ts.isExportDeclaration(statement)) {
+    if (statement.isTypeOnly) return true;
+    if (
+      !statement.moduleSpecifier &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause) &&
+      statement.exportClause.elements.length === 0
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  if (ts.isModuleDeclaration(statement)) {
+    return hasModifier(statement, ts.SyntaxKind.DeclareKeyword);
+  }
+
+  if (
+    ts.isVariableStatement(statement) ||
+    ts.isFunctionDeclaration(statement) ||
+    ts.isClassDeclaration(statement)
+  ) {
+    return hasModifier(statement, ts.SyntaxKind.DeclareKeyword);
+  }
+
+  if (ts.isEnumDeclaration(statement)) {
+    return hasModifier(statement, ts.SyntaxKind.DeclareKeyword);
+  }
+
+  return false;
+}
+
+/**
+ * Determine whether a TypeScript source file is declaration-only and has no runtime exports.
+ * @pure
+ * @param {string} sourceFile - Source file path
+ * @param {string} content - Source content
+ * @returns {boolean} True when the file is declaration-only
+ */
+export function isTypeOnlySourceFile(sourceFile, content) {
+  if (!canBeTypeOnlySourceFile(sourceFile)) return false;
+  if (typeof content !== 'string' || content.trim().length === 0) return false;
+  if (sourceFile.replace(/\\/g, '/').toLowerCase().endsWith('.d.ts')) return true;
+
+  const scriptKind = sourceFile.toLowerCase().endsWith('.tsx')
+    ? ts.ScriptKind.TSX
+    : ts.ScriptKind.TS;
+  const parsed = ts.createSourceFile(sourceFile, content, ts.ScriptTarget.Latest, true, scriptKind);
+
+  if (!Array.isArray(parsed.statements) || parsed.statements.length === 0) return false;
+  return parsed.statements.every((statement) => isTypeOnlyStatement(statement));
+}
+
+function normalizeRelativeModulePath(filePath) {
+  const normalized = filePath.replace(/\\/g, '/');
+  return normalized.startsWith('.') ? normalized : `./${normalized}`;
+}
+
+/**
+ * Build acceptable import specifiers from a generated test file back to the target source file.
+ * @pure
+ * @param {string} sourceFile - Relative source file path
+ * @param {string} testOutputPath - Relative generated test file path
+ * @returns {Set<string>} Acceptable module specifiers
+ */
+export function buildTargetModuleSpecifiers(sourceFile, testOutputPath) {
+  const relativeSourcePath = normalizeRelativeModulePath(
+    path.relative(path.dirname(testOutputPath), sourceFile)
+  );
+  const ext = path.extname(relativeSourcePath);
+  const withoutExt = ext ? relativeSourcePath.slice(0, -ext.length) : relativeSourcePath;
+  const specifiers = new Set([relativeSourcePath, withoutExt]);
+
+  if (ext === '.ts' || ext === '.tsx' || ext === '.mts' || ext === '.cts') {
+    specifiers.add(`${withoutExt}.js`);
+  }
+
+  if (ext === '.tsx') {
+    specifiers.add(`${withoutExt}.jsx`);
+  }
+
+  return specifiers;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Check whether generated test code imports and uses a runtime export from the target module.
+ * @pure
+ * @param {Object} params - Parameters
+ * @param {string} params.testCode - Generated test code
+ * @param {string} params.sourceFile - Relative source file path
+ * @param {string} params.testOutputPath - Relative test file path
+ * @returns {boolean} True when the generated test exercises a runtime export
+ */
+export function usesRuntimeTargetModule({ testCode, sourceFile, testOutputPath }) {
+  if (typeof testCode !== 'string' || testCode.trim().length === 0) return false;
+
+  const specifiers = buildTargetModuleSpecifiers(sourceFile, testOutputPath);
+  const isTypeScriptTest = /\.(?:ts|tsx|mts|cts)$/.test(testOutputPath.toLowerCase());
+  const parsed = ts.createSourceFile(
+    testOutputPath,
+    testCode,
+    ts.ScriptTarget.Latest,
+    true,
+    isTypeScriptTest ? ts.ScriptKind.TS : ts.ScriptKind.JS
+  );
+
+  const targetImportRanges = [];
+  const runtimeBindings = [];
+
+  for (const statement of parsed.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    const specifier =
+      statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)
+        ? statement.moduleSpecifier.text
+        : '';
+    if (!specifiers.has(specifier)) continue;
+
+    targetImportRanges.push([statement.getFullStart(), statement.getEnd()]);
+    const importClause = statement.importClause;
+    if (!importClause || importClause.isTypeOnly) continue;
+
+    if (importClause.name) {
+      runtimeBindings.push(importClause.name.text);
+    }
+
+    if (importClause.namedBindings) {
+      if (ts.isNamespaceImport(importClause.namedBindings)) {
+        runtimeBindings.push(importClause.namedBindings.name.text);
+      } else if (ts.isNamedImports(importClause.namedBindings)) {
+        for (const element of importClause.namedBindings.elements) {
+          if (!element.isTypeOnly) {
+            runtimeBindings.push(element.name.text);
+          }
+        }
+      }
+    }
+  }
+
+  if (runtimeBindings.length === 0) return false;
+
+  let body = '';
+  let cursor = 0;
+  for (const [start, end] of targetImportRanges.sort((a, b) => a[0] - b[0])) {
+    body += testCode.slice(cursor, start);
+    cursor = end;
+  }
+  body += testCode.slice(cursor);
+
+  return runtimeBindings.some((binding) => new RegExp(`\\b${escapeRegExp(binding)}\\b`).test(body));
+}
+
+const VUE_SFC_TEST_RE = /<script\b|<template\b/i;
+const VITEST_USAGE_RE =
+  /\b(?:vi\.(?:mock|fn|spyOn|importActual|importMock|stubGlobal|resetModules)|from\s+['"]vitest['"])\b/i;
+const FORBIDDEN_TS_EXPECT_ERROR_RE = /@ts-expect-error\b/;
+const PLACEHOLDER_MOCK_COMMENT_RE =
+  /\bif present in (?:the )?real\b|\bnot in the real interface\b|\blimitation of testing composables outside a component instance\b/i;
+
+/**
+ * Detect deterministic problems in generated test code that should be rejected
+ * before writing the file to disk.
+ *
+ * @pure
+ * @param {Object} params - Validation parameters
+ * @param {string} params.testCode - Generated test code
+ * @param {string} params.testOutputPath - Relative test file path
+ * @param {string} [params.testFramework] - Prompt framework label
+ * @returns {string[]} Human-readable rejection reasons
+ */
+export function findGeneratedTestProblems({ testCode, testOutputPath, testFramework = '' }) {
+  const problems = [];
+  const code = typeof testCode === 'string' ? testCode : String(testCode ?? '');
+
+  if (code.trim() === '') {
+    return ['generated test code is empty'];
+  }
+
+  if (FORBIDDEN_TS_EXPECT_ERROR_RE.test(code)) {
+    problems.push(
+      'generated test uses `@ts-expect-error` despite the prompt forbidding type-error suppressions'
+    );
+  }
+
+  if (PLACEHOLDER_MOCK_COMMENT_RE.test(code)) {
+    problems.push(
+      'generated test contains placeholder comments instead of an implemented mocking/lifecycle strategy'
+    );
+  }
+
+  if (VUE_SFC_TEST_RE.test(code)) {
+    problems.push(
+      `generated test is formatted as a Vue SFC instead of a plain module for \`${testOutputPath}\``
+    );
+  }
+
+  if (/\bjest\b/i.test(testFramework) && VITEST_USAGE_RE.test(code)) {
+    problems.push('generated test uses Vitest APIs even though the project requires Jest idioms');
+  }
+
+  if (/globalThis\[['"]import['"]\]/.test(code)) {
+    problems.push("generated test uses `globalThis['import']`, which step_07 explicitly forbids");
+  }
+
+  return problems;
+}
+
+/**
  * Categorize untested files by directory
  * @pure
  * @param {string[]} untestedFiles - Array of untested file paths
@@ -272,37 +513,50 @@ export function categorizeUntestedFiles(untestedFiles) {
 export function formatTestGenerationReport(results) {
   const {
     totalSourceFiles = 0,
+    totalActionableSourceFiles = 0,
     totalTestFiles = 0,
     untestedFiles = [],
     categories = {},
     rawUntestedFiles = [],
     excludedUntestedFiles = [],
+    typeOnlySourceFiles = [],
   } = results;
-  const testedSourceFiles = Math.max(0, totalSourceFiles - untestedFiles.length);
+  const testedSourceFiles = Math.max(0, totalActionableSourceFiles - untestedFiles.length);
 
   let report = '# Test Generation Report\n\n';
 
   // Summary
   report += '## Summary\n\n';
   report += `- **Total Source Files**: ${totalSourceFiles}\n`;
+  report += `- **Actionable Runtime Source Files**: ${totalActionableSourceFiles}\n`;
   report += `- **Total Test Files**: ${totalTestFiles}\n`;
-  report += `- **Matched Source Files**: ${testedSourceFiles}/${totalSourceFiles}\n`;
+  report += `- **Matched Actionable Source Files**: ${testedSourceFiles}/${totalActionableSourceFiles}\n`;
   report += `- **Untested Files**: ${untestedFiles.length}\n`;
   if (rawUntestedFiles.length > untestedFiles.length) {
     report += `- **Excluded From Actionable Gaps**: ${excludedUntestedFiles.length}\n`;
   }
+  if (typeOnlySourceFiles.length > 0) {
+    report += `- **Type-Only Source Files Excluded**: ${typeOnlySourceFiles.length}\n`;
+  }
   report += '- **Inventory Type**: File matching only (not measured runtime coverage)\n\n';
 
   // Inventory status
-  if (totalSourceFiles > 0 && untestedFiles.length === 0) {
+  if (totalActionableSourceFiles === 0 && totalSourceFiles > 0) {
+    report += '## ℹ️ No Actionable Runtime Sources\n\n';
+    report +=
+      'Discovered source files were all excluded from actionable test generation because they are vendored/generated assets or declaration-only TypeScript modules.\n\n';
+  } else if (totalActionableSourceFiles > 0 && untestedFiles.length === 0) {
     report += '## ✅ Test File Inventory Complete\n\n';
     report +=
-      'Every discovered source file has at least one corresponding test file by naming convention. This inventory does not prove line, branch, or runtime coverage.\n\n';
-  } else if (totalSourceFiles > 0) {
+      'Every actionable runtime source file has at least one corresponding test file by naming convention. This inventory does not prove line, branch, or runtime coverage.\n\n';
+  } else if (totalActionableSourceFiles > 0) {
     report += '## ⚠️ Test File Inventory Gaps\n\n';
-    report += `${untestedFiles.length} of ${totalSourceFiles} discovered source file(s) do not have a corresponding test file by naming convention.\n\n`;
+    report += `${untestedFiles.length} of ${totalActionableSourceFiles} actionable runtime source file(s) do not have a corresponding test file by naming convention.\n\n`;
     if (excludedUntestedFiles.length > 0) {
       report += `${excludedUntestedFiles.length} additional unmatched file(s) were excluded from action because they appear to be minified, generated, vendored, or third-party assets.\n\n`;
+    }
+    if (typeOnlySourceFiles.length > 0) {
+      report += `${typeOnlySourceFiles.length} declaration-only TypeScript file(s) were excluded from actionable gaps because they do not expose runtime behavior to test directly.\n\n`;
     }
   }
 
@@ -389,22 +643,127 @@ export function buildTestFilesSummary(testFiles) {
   return lines.join('\n');
 }
 
+const PREFERRED_TEST_ROOTS = ['__tests__', 'test', 'tests'];
+const TEST_MODULE_EXTENSIONS = Object.freeze({
+  javascript: '.js',
+  typescript: '.ts',
+});
+
+function normalizeTestRoot(testRoot) {
+  return typeof testRoot === 'string' && testRoot.trim() ? testRoot.trim() : 'test';
+}
+
+function buildTestDir(dir, testRoot) {
+  const normalizedRoot = normalizeTestRoot(testRoot);
+  return dir.startsWith('src')
+    ? dir.replace(/^src(?=\/|$)/, normalizedRoot)
+    : path.join(normalizedRoot, dir);
+}
+
+function extractQuotedValues(listContent) {
+  return [...listContent.matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+}
+
+function extractJestConfigPathFromScripts(scripts = {}) {
+  const preferredScriptNames = [
+    'test:unit',
+    'test',
+    'test:all',
+    'test:integration',
+    'test:changed',
+  ];
+  const orderedNames = [
+    ...preferredScriptNames,
+    ...Object.keys(scripts).filter((name) => !preferredScriptNames.includes(name)),
+  ];
+
+  for (const scriptName of orderedNames) {
+    const script = scripts[scriptName];
+    if (typeof script !== 'string' || !/\bjest\b/i.test(script)) {
+      continue;
+    }
+
+    const configMatch = script.match(/--config(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
+    const configPath = configMatch?.[1] ?? configMatch?.[2] ?? configMatch?.[3] ?? null;
+    if (configPath) {
+      return configPath;
+    }
+  }
+
+  return null;
+}
+
+function buildJestConfigCandidates(pkg = {}) {
+  const scriptConfig = extractJestConfigPathFromScripts(pkg.scripts ?? {});
+  const defaults = [
+    'jest.config.js',
+    'jest.config.ts',
+    'jest.config.cjs',
+    'jest.config.mjs',
+    'jest.config.json',
+    'jest.config.unit.js',
+    'jest.config.unit.ts',
+    'jest.config.unit.cjs',
+    'jest.config.unit.mjs',
+    'jest.config.unit.json',
+  ];
+
+  return [...new Set([scriptConfig, ...defaults].filter(Boolean))];
+}
+
+function inferPreferredTestRoot(testFiles, sourceFile = '') {
+  if (!Array.isArray(testFiles) || testFiles.length === 0) {
+    return 'test';
+  }
+
+  const normalizedSource = sourceFile.replace(/\\/g, '/');
+  const sourceIsVue = normalizedSource.endsWith('.vue');
+  const scores = new Map(PREFERRED_TEST_ROOTS.map((root) => [root, 0]));
+
+  for (const file of testFiles) {
+    const normalizedFile = file.replace(/\\/g, '/');
+    const root = normalizedFile.split('/')[0];
+    if (!scores.has(root)) continue;
+
+    let score = 1;
+    if (sourceIsVue && /\.vue\.test\.[jt]sx?$/i.test(normalizedFile)) {
+      score += 5;
+    }
+    if (normalizedSource.startsWith('src/components/') && normalizedFile.includes('/components/')) {
+      score += 2;
+    }
+    if (normalizedSource.startsWith('src/views/') && normalizedFile.includes('/views/')) {
+      score += 2;
+    }
+
+    scores.set(root, scores.get(root) + score);
+  }
+
+  return [...scores.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'test';
+}
+
 /**
  * Compute the output path for a generated test file.
  * @pure
  * @param {string} sourceFile - Relative source file path
  * @param {string} language - Programming language
+ * @param {{ preferredTestRoot?: string }} [options] - Project-specific test path hints
  * @returns {string} Relative test file path
  */
-export function getTestOutputPath(sourceFile, language) {
+export function getTestOutputPath(sourceFile, language, options = {}) {
   const ext = path.extname(sourceFile);
   const base = path.basename(sourceFile, ext);
   const dir = path.dirname(sourceFile);
+  const testRoot = options?.preferredTestRoot ?? 'test';
 
-  // Replace leading src/ with test/, otherwise prepend test/
-  const testDir = dir.startsWith('src') ? dir.replace(/^src/, 'test') : path.join('test', dir);
+  // Replace leading src/ with the preferred test root, otherwise prepend the test root.
+  const testDir = buildTestDir(dir, testRoot);
 
   const lang = language.toLowerCase();
+  if ((lang === 'javascript' || lang === 'typescript') && ext === '.vue') {
+    const moduleExt = TEST_MODULE_EXTENSIONS[lang] ?? '.js';
+    return path.join(testDir, `${base}.vue.test${moduleExt}`);
+  }
   if (lang === 'python') {
     return path.join(testDir, `test_${base}${ext}`);
   }
@@ -455,11 +814,21 @@ export function buildSingleFileTestPrompt(
     content.length > MAX_SOURCE_FILE_CHARS
       ? content.substring(0, MAX_SOURCE_FILE_CHARS) + '\n...(truncated)'
       : content;
-  const ext = path.extname(sourceFile).replace('.', '') || language;
+  const sourceExt = path.extname(sourceFile).replace('.', '') || language;
   // Prefer the framework detected from the project's package.json; fall back to the static map.
   const testFramework =
     projectContext.detectedTestFramework ?? TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
-  const resolvedTargetPath = targetTestPath ?? getTestOutputPath(sourceFile, language);
+  const resolvedTargetPath =
+    targetTestPath ?? getTestOutputPath(sourceFile, language, projectContext);
+  const outputExt = path.extname(resolvedTargetPath).replace('.', '') || sourceExt;
+  const frameworkName = String(testFramework).toLowerCase();
+  const mockApiGuidance =
+    projectContext.mockApiGuidance ??
+    (frameworkName === 'jest'
+      ? '`jest.mock()` with a factory function'
+      : frameworkName === 'vitest'
+        ? '`vi.mock()` with a factory function'
+        : `the mock API provided by ${testFramework}`);
 
   const jestConstraints =
     projectContext.jestConstraints ?? `- Use standard ${testFramework} idioms for this project`;
@@ -475,11 +844,13 @@ export function buildSingleFileTestPrompt(
       target_test_path: resolvedTargetPath,
       language,
       test_framework: testFramework,
-      source_ext: ext,
+      source_ext: sourceExt,
+      output_ext: outputExt,
       source_content: truncated,
       jest_constraints: jestConstraints,
       typescript_constraints: typescriptConstraints,
       test_import_examples: testImportExamples,
+      mock_api_guidance: mockApiGuidance,
     });
     if (prompt) return prompt;
   }
@@ -499,19 +870,19 @@ ${jestConstraints}
 ${typescriptConstraints}
 
 **Requirements**:
-- Output ONLY the test file content inside a single fenced code block (\`\`\`${ext} ... \`\`\`)
+- Output ONLY the test file content inside a single fenced code block (\`\`\`${outputExt} ... \`\`\`)
 - Cover: happy paths, edge cases, and error scenarios
 - Use ${testFramework} idioms and conventions
 - Use descriptive test names
 - Do NOT include explanations outside the code block
 - Compute the import path for \`${sourceFile}\` relative to \`${resolvedTargetPath}\`
 - All imports MUST resolve to real files — do not invent module paths
-- Never use \`globalThis['import']\` for mocking; use the mock API provided by ${testFramework} (e.g. \`vi.mock()\` for vitest, \`jest.mock()\` for Jest)
+- Never use \`globalThis['import']\` for mocking; use ${mockApiGuidance}
 
 **Example import style from existing tests**:
 ${testImportExamples}
 
-\`\`\`${ext}
+\`\`\`${sourceExt}
 ${truncated}
 \`\`\`
 
@@ -580,6 +951,7 @@ export class Step7TestGenerator {
         logger.warn('No source files found!');
         const report = formatTestGenerationReport({
           totalSourceFiles: 0,
+          totalActionableSourceFiles: 0,
           totalTestFiles: testFiles.length,
           untestedFiles: [],
           coveragePercentage: 0,
@@ -589,6 +961,7 @@ export class Step7TestGenerator {
         return {
           success: true,
           totalSourceFiles: 0,
+          totalActionableSourceFiles: 0,
           totalTestFiles: testFiles.length,
           untestedFiles: [],
           coveragePercentage: 0,
@@ -597,16 +970,35 @@ export class Step7TestGenerator {
       }
 
       // Phase 3: Identify untested files
-      const rawUntestedFiles = findUntestedFiles({
-        sourceFiles,
+      const excludedSourceFiles = sourceFiles.filter((sourceFile) => shouldExcludeFile(sourceFile));
+      const candidateRuntimeSourceFiles = sourceFiles.filter(
+        (sourceFile) => !shouldExcludeFile(sourceFile)
+      );
+      const typeOnlySourceFiles = await this._findTypeOnlySourceFiles(
+        projectRoot,
+        candidateRuntimeSourceFiles
+      );
+      const typeOnlySourceSet = new Set(typeOnlySourceFiles);
+      const actionableSourceFiles = candidateRuntimeSourceFiles.filter(
+        (sourceFile) => !typeOnlySourceSet.has(sourceFile)
+      );
+      const untestedFiles = findUntestedFiles({
+        sourceFiles: actionableSourceFiles,
         testFiles,
         language,
         includeExcluded: true,
       });
-      const excludedUntestedFiles = rawUntestedFiles.filter((sourceFile) =>
-        shouldExcludeFile(sourceFile)
+      const excludedUntestedFiles = excludedSourceFiles.filter(
+        (sourceFile) => !hasCorrespondingTest(sourceFile, testFiles, language)
       );
-      const untestedFiles = rawUntestedFiles.filter((sourceFile) => !shouldExcludeFile(sourceFile));
+      const typeOnlyUntestedFiles = typeOnlySourceFiles.filter(
+        (sourceFile) => !hasCorrespondingTest(sourceFile, testFiles, language)
+      );
+      const rawUntestedFiles = [
+        ...untestedFiles,
+        ...excludedUntestedFiles,
+        ...typeOnlyUntestedFiles,
+      ];
 
       logger.info(`Identified ${untestedFiles.length} actionable untested file(s)`);
       if (excludedUntestedFiles.length > 0) {
@@ -614,13 +1006,18 @@ export class Step7TestGenerator {
           `Excluded ${excludedUntestedFiles.length} unmatched file(s) from test-gap action because they appear minified, generated, vendored, or third-party`
         );
       }
+      if (typeOnlySourceFiles.length > 0) {
+        logger.info(
+          `Excluded ${typeOnlySourceFiles.length} type-only source file(s) from actionable test-gap analysis`
+        );
+      }
 
       // Phase 4: Calculate coverage
-      const testedCount = sourceFiles.length - untestedFiles.length;
-      const coveragePercentage = calculateCoverage(testedCount, sourceFiles.length);
+      const testedCount = actionableSourceFiles.length - untestedFiles.length;
+      const coveragePercentage = calculateCoverage(testedCount, actionableSourceFiles.length);
 
       logger.info(
-        `Test file inventory: ${testedCount}/${sourceFiles.length} source file(s) matched to test files by naming convention`
+        `Test file inventory: ${testedCount}/${actionableSourceFiles.length} actionable runtime source file(s) matched to test files by naming convention`
       );
 
       // Phase 5: Categorize untested files
@@ -629,10 +1026,13 @@ export class Step7TestGenerator {
       // Phase 6: Generate report
       const results = {
         totalSourceFiles: sourceFiles.length,
+        totalActionableSourceFiles: actionableSourceFiles.length,
         totalTestFiles: testFiles.length,
         rawUntestedFiles,
         untestedFiles,
         excludedUntestedFiles,
+        typeOnlySourceFiles,
+        typeOnlyUntestedFiles,
         coveragePercentage,
         categories,
       };
@@ -653,12 +1053,20 @@ export class Step7TestGenerator {
             // avoiding a false "Critical" gap for files that are about to be generated in this run.
             const filesToGenerate = untestedFiles.slice(0, MAX_FILES_TO_GENERATE);
             const projectedTestedCount = testedCount + filesToGenerate.length;
-            const projectedCoverage = calculateCoverage(projectedTestedCount, sourceFiles.length);
+            const projectedCoverage = calculateCoverage(
+              projectedTestedCount,
+              actionableSourceFiles.length
+            );
 
             // Preliminary: test strategy analysis using test_strategy_prompt + project-kind overlay
             try {
               const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
               const parsedYaml = yaml.load(yamlContent);
+              const strategyEvidence = await this._buildTestStrategyEvidence(
+                projectRoot,
+                filesToGenerate,
+                testFiles
+              );
               let roleOverride = '';
               try {
                 const pkYaml = await this.fileOps.readFile(AI_PROJECT_KINDS_PATH);
@@ -674,11 +1082,13 @@ export class Step7TestGenerator {
               }
               const strategyPrompt = buildYamlStepPrompt(parsedYaml, 'test_strategy_prompt', {
                 project_name: path.basename(projectRoot),
-                coverage_stats: `${coveragePercentage}% (${testedCount}/${sourceFiles.length} source files have tests, ${testFiles.length} total test files)`,
-                projected_coverage_stats: `${projectedCoverage}% after generating ${filesToGenerate.length} file(s) in this run`,
+                file_inventory_stats: `${coveragePercentage}% (${testedCount}/${actionableSourceFiles.length} actionable runtime source files have corresponding tests by naming convention; ${sourceFiles.length} total source files discovered, ${typeOnlySourceFiles.length} type-only files excluded, ${excludedSourceFiles.length} vendored/generated files excluded, ${testFiles.length} total test files)`,
+                projected_file_inventory_stats: `${projectedCoverage}% (${projectedTestedCount}/${actionableSourceFiles.length} actionable runtime source files would have matching tests after generating ${filesToGenerate.length} file(s) in this run)`,
                 files_to_generate: filesToGenerate.join(', ') || 'none',
                 test_files: buildTestFilesSummary(testFiles),
                 modified_count: options?.modifiedFiles?.length ?? 0,
+                source_file_excerpts: strategyEvidence.sourceFileExcerpts,
+                test_file_excerpts: strategyEvidence.testFileExcerpts,
               });
               if (strategyPrompt) {
                 const stratPromptWithRole = roleOverride
@@ -737,9 +1147,13 @@ export class Step7TestGenerator {
         }
       }
 
-      if (untestedFiles.length === 0) {
+      if (actionableSourceFiles.length === 0) {
         logger.success(
-          'Step 7 completed - all discovered source files have corresponding test files'
+          'Step 7 completed - no actionable runtime source files required test generation'
+        );
+      } else if (untestedFiles.length === 0) {
+        logger.success(
+          'Step 7 completed - all actionable runtime source files have corresponding test files'
         );
       } else {
         logger.warn(`Step 7 completed - ${untestedFiles.length} actionable file(s) need testing`);
@@ -774,7 +1188,10 @@ export class Step7TestGenerator {
         );
       }
 
-      const testOutputPath = getTestOutputPath(sourceFile, language);
+      const projectContext = await this._readProjectTestContext(projectRoot, language, sourceFile);
+      const testOutputPath = getTestOutputPath(sourceFile, language, projectContext);
+      const testFramework =
+        projectContext.detectedTestFramework ?? TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
       const absTestPath = path.join(projectRoot, testOutputPath);
 
       // Skip if test file already exists
@@ -791,7 +1208,8 @@ export class Step7TestGenerator {
         sourceFile,
         content,
         language,
-        testOutputPath
+        testOutputPath,
+        projectContext
       );
       const aiResult = await this.aiCache.withFileChangeGuard(
         `step_07|${sourceFile}`,
@@ -804,6 +1222,25 @@ export class Step7TestGenerator {
 
       if (!testCode) {
         logger.warn(`AI returned empty test for ${sourceFile}`);
+        return null;
+      }
+
+      const generatedTestProblems = findGeneratedTestProblems({
+        testCode,
+        testOutputPath,
+        testFramework,
+      });
+      if (generatedTestProblems.length > 0) {
+        logger.warn(
+          `Rejected generated test for ${sourceFile} because ${generatedTestProblems.join('; ')}`
+        );
+        return null;
+      }
+
+      if (!usesRuntimeTargetModule({ testCode, sourceFile, testOutputPath })) {
+        logger.warn(
+          `Rejected generated test for ${sourceFile} because it does not import and use a runtime export from the target module`
+        );
         return null;
       }
 
@@ -826,8 +1263,16 @@ export class Step7TestGenerator {
    * @param {string} targetTestPath - Relative path where the generated test file will be written
    * @returns {Promise<string>} Prompt string
    */
-  async _buildSingleFilePrompt(projectRoot, sourceFile, content, language, targetTestPath) {
-    const projectContext = await this._readProjectTestContext(projectRoot, language);
+  async _buildSingleFilePrompt(
+    projectRoot,
+    sourceFile,
+    content,
+    language,
+    targetTestPath,
+    projectContext = null
+  ) {
+    const resolvedProjectContext =
+      projectContext ?? (await this._readProjectTestContext(projectRoot, language, sourceFile));
     try {
       const yamlContent = await this.fileOps.readFile(AI_HELPERS_PATH);
       const parsedYaml = yaml.load(yamlContent);
@@ -837,7 +1282,7 @@ export class Step7TestGenerator {
         language,
         parsedYaml,
         targetTestPath,
-        projectContext
+        resolvedProjectContext
       );
     } catch {
       return buildSingleFileTestPrompt(
@@ -846,9 +1291,30 @@ export class Step7TestGenerator {
         language,
         null,
         targetTestPath,
-        projectContext
+        resolvedProjectContext
       );
     }
+  }
+
+  /**
+   * Find declaration-only TypeScript source files that should be excluded from runtime test generation.
+   * @param {string} projectRoot - Absolute project root
+   * @param {string[]} sourceFiles - Relative source file paths
+   * @returns {Promise<string[]>} Type-only source files
+   */
+  async _findTypeOnlySourceFiles(projectRoot, sourceFiles) {
+    const candidates = sourceFiles.filter((sourceFile) => canBeTypeOnlySourceFile(sourceFile));
+    const matches = await Promise.all(
+      candidates.map(async (sourceFile) => {
+        try {
+          const content = await this.fileOps.readFile(path.join(projectRoot, sourceFile));
+          return isTypeOnlySourceFile(sourceFile, content) ? sourceFile : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+    return matches.filter(Boolean);
   }
 
   /**
@@ -856,19 +1322,22 @@ export class Step7TestGenerator {
    * Returns empty strings for any field that can't be read — callers must handle missing context.
    * @param {string} projectRoot - Absolute project root
    * @param {string} language - Detected language
+   * @param {string} sourceFile - Relative source file path
    * @returns {Promise<{jestConstraints: string, typescriptConstraints: string, testImportExamples: string}>}
    */
-  async _readProjectTestContext(projectRoot, language) {
+  async _readProjectTestContext(projectRoot, language, sourceFile = '') {
     const lines = [];
+    const candidateTestFiles = [];
 
     // Detect the actual test framework from package.json dependencies.
     // This overrides the static TEST_FRAMEWORK_BY_LANGUAGE map so that projects
     // using vitest, mocha, etc. get correct idioms in the generated test files.
     let detectedTestFramework = null;
+    let packageJson = null;
     try {
       const pkgRaw = await this.fileOps.readFile(path.join(projectRoot, 'package.json'));
-      const pkg = JSON.parse(pkgRaw);
-      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      packageJson = JSON.parse(pkgRaw);
+      const allDeps = { ...packageJson.dependencies, ...packageJson.devDependencies };
       if (allDeps.vitest) detectedTestFramework = 'vitest';
       else if (allDeps.jest || allDeps['@jest/core'] || allDeps['ts-jest'])
         detectedTestFramework = 'Jest';
@@ -879,33 +1348,70 @@ export class Step7TestGenerator {
       /* package.json unreadable — keep null, falls back to static map */
     }
 
-    // Jest config: extract testPathPattern and moduleNameMapper
-    try {
-      const jestConfigPath = path.join(projectRoot, 'jest.config.js');
-      const jestRaw = await this.fileOps.readFile(jestConfigPath);
-      const patternMatch = jestRaw.match(/testPathPattern['":\s]+['"]([^'"]+)['"]/);
-      const testMatch = jestRaw.match(/testMatch[^[]*\[([^\]]+)\]/);
-      const moduleMapper = jestRaw.match(/moduleNameMapper\s*:\s*\{([^}]+)\}/s);
+    const jestConfigCandidates = buildJestConfigCandidates(packageJson ?? {});
+    let jestMatchPatterns = [];
+    for (const relativeConfigPath of jestConfigCandidates) {
+      try {
+        const jestConfigPath = path.join(projectRoot, relativeConfigPath);
+        const jestRaw = await this.fileOps.readFile(jestConfigPath);
+        const patternMatch = jestRaw.match(/testPathPattern['":\s]+['"]([^'"]+)['"]/);
+        const testMatch = jestRaw.match(/testMatch[^[]*\[([^\]]+)\]/s);
+        const testRegex = jestRaw.match(/testRegex['":\s]+['"]([^'"]+)['"]/);
+        const rootsMatch = jestRaw.match(/roots[^[]*\[([^\]]+)\]/s);
+        const moduleMapper = jestRaw.match(/moduleNameMapper\s*:\s*\{([^}]+)\}/s);
 
-      if (patternMatch)
-        lines.push(
-          `- Jest testPathPattern: \`${patternMatch[1]}\` — the generated file MUST be under a matching path`
-        );
-      if (testMatch) lines.push(`- Jest testMatch: ${testMatch[1].trim()}`);
-      if (moduleMapper) {
-        const mapperLines = moduleMapper[1]
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((l) => l && !l.startsWith('//'))
-          .slice(0, 5);
-        if (mapperLines.length > 0) {
+        lines.push(`- Jest config file: \`${relativeConfigPath}\``);
+
+        if (patternMatch) {
           lines.push(
-            `- Jest moduleNameMapper (use mapped paths — do NOT import the raw package directly):\n  ${mapperLines.join('\n  ')}`
+            `- Jest testPathPattern: \`${patternMatch[1]}\` — the generated file MUST be under a matching path`
           );
         }
+
+        if (testMatch) {
+          jestMatchPatterns = extractQuotedValues(testMatch[1]);
+          lines.push(`- Jest testMatch: ${jestMatchPatterns.join(', ')}`);
+        }
+
+        if (testRegex) {
+          lines.push(`- Jest testRegex: \`${testRegex[1]}\``);
+        }
+
+        if (rootsMatch) {
+          const roots = extractQuotedValues(rootsMatch[1]);
+          if (roots.length > 0) {
+            lines.push(`- Jest roots: ${roots.join(', ')}`);
+          }
+        }
+
+        if (jestMatchPatterns.length > 0) {
+          lines.push(
+            `- Generated test filenames MUST match one of the configured patterns above; do not invent a different suffix or extension.`
+          );
+          if (!jestMatchPatterns.some((pattern) => /\.vue/.test(pattern))) {
+            lines.push(
+              '- Do NOT emit `.test.vue` files unless the Jest config explicitly matches `.vue` test files.'
+            );
+          }
+        }
+
+        if (moduleMapper) {
+          const mapperLines = moduleMapper[1]
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('//'))
+            .slice(0, 5);
+          if (mapperLines.length > 0) {
+            lines.push(
+              `- Jest moduleNameMapper (use mapped paths — do NOT import the raw package directly):\n  ${mapperLines.join('\n  ')}`
+            );
+          }
+        }
+
+        break;
+      } catch {
+        /* config candidate unreadable — keep looking */
       }
-    } catch {
-      /* jest.config.js unreadable — skip */
     }
 
     // TypeScript: extract strict mode and paths aliases
@@ -935,15 +1441,46 @@ export class Step7TestGenerator {
     const importExamples = [];
     if (language === 'typescript' || language === 'javascript') {
       try {
-        const testDir = path.join(projectRoot, 'test');
-        const files = await this.fileOps.glob('**/*.test.{ts,js}', {
-          cwd: testDir,
-          absolute: false,
+        const candidateGlobs = [
+          '__tests__/**/*.vue.test.ts',
+          '__tests__/**/*.test.ts',
+          'test/**/*.vue.test.ts',
+          'test/**/*.test.ts',
+          '__tests__/**/*.vue.test.js',
+          '__tests__/**/*.test.js',
+          'test/**/*.vue.test.js',
+          'test/**/*.test.js',
+        ];
+        for (const pattern of candidateGlobs) {
+          const files = await this.fileOps.glob(pattern, {
+            cwd: projectRoot,
+            absolute: false,
+          });
+          candidateTestFiles.push(...files);
+        }
+
+        const normalizedSource = sourceFile.replace(/\\/g, '/');
+        const sourceIsVue = normalizedSource.endsWith('.vue');
+        const uniqueFiles = [...new Set(candidateTestFiles)].sort((a, b) => {
+          const score = (file) => {
+            let value = 0;
+            if (sourceIsVue && /\.vue\.test\.[jt]s$/i.test(file)) value += 4;
+            if (file.startsWith('__tests__/')) value += 2;
+            if (
+              normalizedSource.startsWith('src/components/') &&
+              file.replace(/\\/g, '/').includes('/components/')
+            ) {
+              value += 1;
+            }
+            return value;
+          };
+          return score(b) - score(a);
         });
-        for (const f of files.slice(0, 8)) {
+
+        for (const f of uniqueFiles.slice(0, 10)) {
           if (importExamples.length >= 2) break;
           try {
-            const raw = await this.fileOps.readFile(path.join(testDir, f));
+            const raw = await this.fileOps.readFile(path.join(projectRoot, f));
             const importBlock = raw
               .split('\n')
               .slice(0, 8)
@@ -963,8 +1500,16 @@ export class Step7TestGenerator {
 
     const resolvedFramework =
       detectedTestFramework ?? TEST_FRAMEWORK_BY_LANGUAGE[language] ?? language;
+    const preferredTestRoot = inferPreferredTestRoot(candidateTestFiles, sourceFile);
     return {
       detectedTestFramework,
+      preferredTestRoot,
+      mockApiGuidance:
+        String(resolvedFramework).toLowerCase() === 'jest'
+          ? '`jest.mock()` with a factory function'
+          : String(resolvedFramework).toLowerCase() === 'vitest'
+            ? '`vi.mock()` with a factory function'
+            : `the mock API provided by ${resolvedFramework}`,
       jestConstraints:
         lines.length > 0
           ? lines.join('\n')
@@ -977,6 +1522,37 @@ export class Step7TestGenerator {
         importExamples.length > 0
           ? importExamples.join('\n\n')
           : '(no examples available — infer from the source file location)',
+    };
+  }
+
+  async _buildTestStrategyEvidence(projectRoot, sourceFiles, testFiles) {
+    const buildExcerpt = async (relativePath) => {
+      try {
+        const raw = await this.fileOps.readFile(path.join(projectRoot, relativePath));
+        const excerpt = raw.split('\n').slice(0, 40).join('\n').trim();
+        if (!excerpt) return null;
+        const truncated =
+          excerpt.length > 2000 ? `${excerpt.slice(0, 2000).trimEnd()}\n...(truncated)` : excerpt;
+        return `### ${relativePath}\n\`\`\`\n${truncated}\n\`\`\``;
+      } catch {
+        return null;
+      }
+    };
+
+    const sourceFileExcerpts = (
+      await Promise.all((sourceFiles ?? []).slice(0, 3).map((file) => buildExcerpt(file)))
+    )
+      .filter(Boolean)
+      .join('\n\n');
+    const testFileExcerpts = (
+      await Promise.all((testFiles ?? []).slice(0, 3).map((file) => buildExcerpt(file)))
+    )
+      .filter(Boolean)
+      .join('\n\n');
+
+    return {
+      sourceFileExcerpts: sourceFileExcerpts || '(no source file excerpts provided)',
+      testFileExcerpts: testFileExcerpts || '(no existing test excerpts provided)',
     };
   }
 

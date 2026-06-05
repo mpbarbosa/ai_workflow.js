@@ -6,6 +6,7 @@
  * Part of: AI Workflow Automation (Phase 9)
  */
 
+import path from 'path';
 import { STEP_KIND } from './step_contract.js';
 import logger from '../core/logger.js';
 import { GitAutomation } from '../lib/git_automation.js';
@@ -41,6 +42,7 @@ import {
   runPartitionedAiResponses,
   splitReviewPromptEntry,
 } from '../lib/review_step_helpers.js';
+import { extractCurrentVersionReferences } from '../lib/version_reference_scanner.js';
 export {
   buildReviewFileContentsBlock as buildStep1FileContentsBlock,
   buildReviewPromptPartitions as buildStep1PromptPartitions,
@@ -93,9 +95,7 @@ export function validateDocumentationCounts(counts) {
  * @returns {Object} Check result with mismatches
  */
 export function checkVersionReferences(content, expectedVersion) {
-  const versionPattern = /v?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?/g;
-  const matches = content.match(versionPattern) || [];
-  const uniqueVersions = [...new Set(matches)];
+  const uniqueVersions = extractCurrentVersionReferences(content);
 
   const mismatches = uniqueVersions.filter(
     (v) => v !== expectedVersion && v !== `v${expectedVersion}`
@@ -138,7 +138,11 @@ export function classifyChangedFiles(changedFiles) {
 
     if (file.endsWith('.md') || file.includes('docs/')) {
       classification.documentation.push(file);
-    } else if (file.endsWith('.test.js') || file.includes('test/')) {
+    } else if (
+      /\.(test|spec)\.[cm]?[jt]sx?$/i.test(file) ||
+      file.includes('test/') ||
+      file.includes('__tests__/')
+    ) {
       classification.tests.push(file);
     } else if (
       file.endsWith('.json') ||
@@ -199,11 +203,26 @@ export function shouldRunAiAnalysis(classification, options = {}) {
 }
 
 export const STEP1_MAX_SUPPORTING_EVIDENCE_FILES = 12;
-export const STEP1_SCOPED_DOC_CONTEXT_MAX_CHARS = 2500;
+export const STEP1_SCOPED_DOC_CONTEXT_MAX_CHARS = 6000;
 export const STEP1_PROJECT_CONVENTION_MAX_CHARS = 2000;
 
 function normalizeStep1EvidencePath(filePath) {
-  return String(filePath ?? '').replace(/\\/g, '/');
+  let normalized = String(filePath ?? '')
+    .trim()
+    .replace(/\\/g, '/');
+
+  normalized = normalized.replace(/^`|`$/g, '').replace(/[:;,]+$/g, '');
+  normalized = normalized.replace(/^[-*+]\s+/u, '');
+
+  if (
+    /^\.(?:docs|src|test|scripts|bin|lib|README\.md|CHANGELOG\.md|CONTRIBUTING\.md|ROADMAP\.md|package(?:-lock)?\.json|tsconfig(?:\.[^/]+)?\.json|Dockerfile|LICENSE)(?:\/|$)/u.test(
+      normalized
+    )
+  ) {
+    normalized = normalized.slice(1);
+  }
+
+  return normalized;
 }
 
 function isMarkdownDoc(filePath) {
@@ -311,8 +330,15 @@ export function selectStep1EvidenceFiles(docFiles, classification, options = {})
   const docFileSet = new Set(normalizedDocFiles);
   const primaryCategory = categorizeDocFile(normalizedDocFiles[0] ?? '');
   const maxSupportingFiles = options.maxSupportingFiles ?? STEP1_MAX_SUPPORTING_EVIDENCE_FILES;
+  const alwaysIncludeCandidates =
+    primaryCategory === DOC_CATEGORIES.README ||
+    primaryCategory === DOC_CATEGORIES.CONTRIBUTING ||
+    primaryCategory === DOC_CATEGORIES.CHANGELOG
+      ? ['package.json']
+      : [];
   const candidates = [
     ...normalizedDocFiles,
+    ...alwaysIncludeCandidates,
     ...(classification?.documentation ?? []).map(normalizeStep1EvidencePath),
     ...(classification?.source ?? []).map(normalizeStep1EvidencePath),
     ...(classification?.config ?? []).map(normalizeStep1EvidencePath),
@@ -431,6 +457,66 @@ export function buildStep1ScopedDocContextBlock(
     .join('\n\n');
 }
 
+function extractStep1ScopedDocLinkedPaths(scopedDocEntries = []) {
+  const linkedPaths = new Set();
+
+  for (const entry of Array.isArray(scopedDocEntries) ? scopedDocEntries : []) {
+    const relativePath = normalizeStep1EvidencePath(entry?.relativePath);
+    const baseDir = path.posix.dirname(relativePath || '.');
+    const markdownContent = String(entry?.content ?? '');
+
+    for (const match of markdownContent.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
+      const rawTarget = match[1]?.trim();
+      if (!rawTarget || rawTarget.startsWith('#') || /^(?:[a-z]+:|\/\/)/iu.test(rawTarget)) {
+        continue;
+      }
+
+      const targetPath = rawTarget.split('#')[0]?.split('?')[0]?.trim() ?? '';
+      if (!targetPath) {
+        continue;
+      }
+
+      const resolvedTarget = targetPath.endsWith('/')
+        ? path.posix.join(baseDir, targetPath, 'README.md')
+        : path.posix.join(baseDir, targetPath);
+      linkedPaths.add(normalizeStep1EvidencePath(path.posix.normalize(resolvedTarget)));
+    }
+  }
+
+  return linkedPaths;
+}
+
+function isIndexLikeMarkdownEvidence(filePath) {
+  return isMarkdownDoc(filePath) && /(^|\/)[^/]*index[^/]*\.md$/iu.test(filePath);
+}
+
+export function filterStep1SupportingIndexEvidence(
+  fileEntries,
+  scopedDocEntries = [],
+  docFiles = []
+) {
+  const normalizedDocFileSet = new Set(
+    (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
+  );
+  const linkedPaths = extractStep1ScopedDocLinkedPaths(scopedDocEntries);
+  if (linkedPaths.size === 0) {
+    return Array.isArray(fileEntries) ? fileEntries : [];
+  }
+
+  return (Array.isArray(fileEntries) ? fileEntries : []).filter((entry) => {
+    const relativePath = normalizeStep1EvidencePath(entry?.sourcePath ?? entry?.relativePath);
+    if (
+      !relativePath ||
+      normalizedDocFileSet.has(relativePath) ||
+      !isIndexLikeMarkdownEvidence(relativePath)
+    ) {
+      return true;
+    }
+
+    return linkedPaths.has(relativePath);
+  });
+}
+
 export function buildStep1PartitionEvidenceSummary(partitions = [], docFiles = []) {
   const docFileSet = new Set(
     (Array.isArray(docFiles) ? docFiles : []).map(normalizeStep1EvidencePath).filter(Boolean)
@@ -529,10 +615,17 @@ ${findingsContext}`;
   const approach = `Use the partition findings to reconcile cross-partition contradictions, but ground every final conclusion in the visible documentation excerpts above. Provide one final whole-scope answer only. Choose exactly one verdict per scoped documentation file or clearly labeled file section: specific edit, "No updates required", "Not applicable", "Unavailable", or "Inconclusive". Never combine "Not applicable" with "No updates required" for the same file. If the partition findings conflict or the visible documentation evidence is incomplete, mark the affected file Inconclusive instead of guessing.
 
 - Use the partition evidence summary to tell apart genuinely unrelated support-only partitions from support evidence that still affects commands, APIs, architecture, or inventories described in the scoped documentation targets.
+- Do not let support-only evidence or partial changed-file context override the scoped documentation excerpts. A final "Specific edit required" verdict is only valid when the visible scoped documentation excerpt itself shows the stale or incorrect text that needs to change.
+- If every partition result is "No updates required", "Not applicable", "Unavailable", or "Inconclusive", do not escalate the whole-scope result to "Specific edit required" unless the visible scoped documentation excerpt above contains the exact text you are proposing to replace.
 - Treat current-state docs (status summaries, implementation tables, released step lists, "current version" blocks) as describing shipped behavior unless the visible scoped document already labels that section as planned/future work.
 - Do not promote roadmap-only or planned items into released/current-state docs unless the visible implementation evidence in this prompt shows the feature already exists.
 - When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines), reconcile them as a linked set. Update only the values explicitly supported by visible evidence, and keep any unsupported line Unavailable or Inconclusive rather than guessing.
+- For metadata replacements (for example "Last updated", "Version", "Documentation Version", or "Release date"), only propose the new value when that exact key/value pair is visible for the same scoped file in the excerpts above.
+- Do not use changelog bullets, "Recently Updated" lists, or dated history/timeline entries as replacement metadata for the scoped file unless the same metadata key/value pair is shown as metadata for that scoped file.
 - If a visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list, cross-check changed files against that visible inventory. A changed file that should appear there but is missing or no longer described is documentation drift and should not be cleared as "No updates required".
+- Use repository-relative POSIX paths exactly as they appear in the scoped excerpts or changed-file list. Never prefix a normal path with stray punctuation such as \`.docs/\` or \`.src/\`.
+- Do not require top-level inventories or module indexes to list internal helper files unless the visible scoped document already inventories internal-only modules or the helper is part of the public API/export surface shown in the evidence.
+- If a scoped document summarizes the purpose of a documentation directory and a support file named for that same directory (for example \`docs/misc/README.md\` for \`misc/\`) states a contradictory current purpose, treat the scoped summary line as stale and propose a targeted edit for that line.
 - Never invent or infer release dates or "Last updated" dates from prompt timestamps, roadmap phases, or general recency.`;
 
   return injectProjectContext(buildStructuredPrompt({ role, task, approach }), projectInfo);
@@ -555,14 +648,303 @@ function splitPartitionedDocAnalysisSections(content) {
 }
 
 function isNoUpdateDocAnalysisSection(section) {
-  return (
-    /\bNo updates (?:required|needed)\b/i.test(section) &&
-    !/\b(?:Unavailable|Inconclusive|Not applicable)\b/i.test(section)
-  );
+  return extractStep1DocAnalysisVerdict(section) === 'no_updates_required';
 }
 
 function isInconclusiveDocAnalysisSection(section) {
-  return /\b(?:Unavailable|Inconclusive|Not applicable)\b/i.test(section);
+  const verdict = extractStep1DocAnalysisVerdict(section);
+  return verdict === 'unavailable' || verdict === 'inconclusive' || verdict === 'not_applicable';
+}
+
+function isSpecificEditDocAnalysisSection(section) {
+  return extractStep1DocAnalysisVerdict(section) === 'specific_edit_required';
+}
+
+function extractStep1DocAnalysisVerdict(section) {
+  const normalized = String(section ?? '').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const explicitVerdictMatch = normalized.match(
+    /^(?:[^\n]*\n)*?(?:Whole-scope verdict|Verdict):\s*\**([^*\n]+?)\**\s*$/im
+  );
+  const verdictText = explicitVerdictMatch?.[1]?.trim().toLowerCase() ?? null;
+  if (verdictText) {
+    return normalizeStep1DocAnalysisVerdict(verdictText);
+  }
+
+  const leadingLine =
+    normalized
+      .split('\n')
+      .find((line) => line.trim().length > 0)
+      ?.trim() ?? '';
+  return normalizeStep1DocAnalysisVerdict(leadingLine.toLowerCase());
+}
+
+function normalizeStep1DocAnalysisVerdict(verdictText) {
+  if (!verdictText) {
+    return null;
+  }
+
+  if (verdictText.startsWith('specific edit required')) {
+    return 'specific_edit_required';
+  }
+  if (
+    verdictText.startsWith('no updates required') ||
+    verdictText.startsWith('no updates needed')
+  ) {
+    return 'no_updates_required';
+  }
+  if (verdictText.startsWith('not applicable')) {
+    return 'not_applicable';
+  }
+  if (verdictText.startsWith('unavailable')) {
+    return 'unavailable';
+  }
+  if (verdictText.startsWith('inconclusive')) {
+    return 'inconclusive';
+  }
+
+  return null;
+}
+
+function extractStep1BeforeBlocks(content) {
+  const normalized = String(content ?? '');
+  const blocks = [];
+  const beforeBlockRegex = /\*\*Before:\*\*\s*```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```/g;
+  let match;
+
+  while ((match = beforeBlockRegex.exec(normalized)) !== null) {
+    const block = match[1]?.trim();
+    if (block) {
+      blocks.push(block);
+    }
+  }
+
+  return blocks;
+}
+
+const STEP1_SUPPORTED_METADATA_KEYS = new Set([
+  'last updated',
+  'documentation version',
+  'version',
+  'current version',
+  'release date',
+  'updated',
+]);
+
+const STEP1_NARRATIVE_METADATA_KEYS = [...STEP1_SUPPORTED_METADATA_KEYS].sort(
+  (left, right) => right.length - left.length
+);
+
+function escapeStep1RegExp(text) {
+  return String(text ?? '').replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function normalizeStep1MetadataText(text) {
+  return String(text ?? '')
+    .replace(/[*`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function extractStep1MetadataPair(line) {
+  const normalizedLine = String(line ?? '')
+    .trim()
+    .replace(/^[+-]\s*/, '');
+  if (!normalizedLine.includes(':')) {
+    return null;
+  }
+
+  const metadataSegment = normalizedLine.split(/\s+\|\s+/u)[0]?.trim() ?? '';
+  const separatorIndex = metadataSegment.indexOf(':');
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const key = normalizeStep1MetadataText(metadataSegment.slice(0, separatorIndex));
+  const value = normalizeStep1MetadataText(metadataSegment.slice(separatorIndex + 1));
+  if (!STEP1_SUPPORTED_METADATA_KEYS.has(key) || !value) {
+    return null;
+  }
+
+  return { key, value };
+}
+
+function extractStep1NarrativeMetadataPairs(line) {
+  const source = String(line ?? '').trim();
+  if (!source || !/\b(update|replace|set|change|sync)\b/iu.test(source)) {
+    return [];
+  }
+
+  const results = [];
+  const seen = new Set();
+
+  for (const key of STEP1_NARRATIVE_METADATA_KEYS) {
+    if (key === 'version' && /\b(?:documentation version|current version)\b/iu.test(source)) {
+      continue;
+    }
+
+    if (key === 'updated' && /\blast updated\b/iu.test(source)) {
+      continue;
+    }
+
+    const keyPattern = new RegExp(`\\b${escapeStep1RegExp(key)}\\b`, 'iu');
+    const keyMatch = keyPattern.exec(source);
+    if (!keyMatch) {
+      continue;
+    }
+
+    const tail = source.slice(keyMatch.index);
+    const candidateValue =
+      tail.match(/\bto\b[\s\S]{0,160}\(`([^`]+)`\)/u)?.[1] ??
+      tail.match(/\bto\b[^`]{0,120}`([^`]+)`/u)?.[1] ??
+      tail.match(/:\s*`([^`]+)`/u)?.[1] ??
+      null;
+    const value = normalizeStep1MetadataText(candidateValue);
+    if (!value) {
+      continue;
+    }
+
+    const signature = `${key}::${value}`;
+    if (!seen.has(signature)) {
+      seen.add(signature);
+      results.push({ key, value });
+    }
+  }
+
+  return results;
+}
+
+function buildStep1ScopedDocMetadataSet(scopedDocEntries = []) {
+  const metadataPairs = new Map();
+
+  for (const entry of Array.isArray(scopedDocEntries) ? scopedDocEntries : []) {
+    const relativePath = normalizeStep1EvidencePath(entry?.relativePath);
+    if (!relativePath) {
+      continue;
+    }
+
+    if (!metadataPairs.has(relativePath)) {
+      metadataPairs.set(relativePath, new Set());
+    }
+
+    const lines = String(entry?.content ?? '').split('\n');
+    for (const line of lines) {
+      const pair = extractStep1MetadataPair(line);
+      if (pair) {
+        metadataPairs.get(relativePath)?.add(`${pair.key}::${pair.value}`);
+      }
+    }
+  }
+
+  return metadataPairs;
+}
+
+function extractStep1SynthesisMetadataReplacements(content) {
+  const lines = String(content ?? '').split('\n');
+  const replacements = [];
+  const seen = new Set();
+  let lastNonEmptyLine = '';
+  let currentFile = null;
+
+  const addReplacement = (pair) => {
+    if (!pair || !currentFile) {
+      return;
+    }
+
+    const signature = `${currentFile}::${pair.key}::${pair.value}`;
+    if (!seen.has(signature)) {
+      seen.add(signature);
+      replacements.push({
+        filePath: currentFile,
+        ...pair,
+      });
+    }
+  };
+
+  for (let index = 0; index < lines.length; index++) {
+    const trimmedLine = lines[index].trim();
+    const fenceMatch = trimmedLine.match(/^(`{3,}|~{3,})(?:[A-Za-z0-9_-]*)?\s*$/u);
+
+    if (!fenceMatch) {
+      if (trimmedLine) {
+        const headingFileMatch = trimmedLine.match(/^#{1,6}\s+`?([^`]+?\.md)`?$/u);
+        const plainFileMatch = trimmedLine.match(/^`?([^`]+?\.md)`?$/u);
+        const nextFile = headingFileMatch?.[1] ?? plainFileMatch?.[1] ?? null;
+        if (nextFile) {
+          currentFile = normalizeStep1EvidencePath(nextFile);
+        }
+        for (const pair of extractStep1NarrativeMetadataPairs(trimmedLine)) {
+          addReplacement(pair);
+        }
+        lastNonEmptyLine = trimmedLine;
+      }
+      continue;
+    }
+
+    const openingFence = fenceMatch[1];
+    const blockLabel = lastNonEmptyLine.toLowerCase();
+    const blockLines = [];
+    index += 1;
+
+    while (index < lines.length && lines[index].trim() !== openingFence) {
+      blockLines.push(lines[index]);
+      index += 1;
+    }
+
+    const collectAllMetadata = /^\*\*after(?:\b|:)/u.test(blockLabel) || /^to$/u.test(blockLabel);
+    const collectAddedMetadata = /^\*\*edit block:\*\*$/u.test(blockLabel);
+    const candidateLines = collectAllMetadata
+      ? blockLines
+      : collectAddedMetadata
+        ? blockLines.filter((line) => /^\+\s*/u.test(line))
+        : [];
+
+    for (const blockLine of candidateLines) {
+      addReplacement(extractStep1MetadataPair(blockLine));
+    }
+
+    lastNonEmptyLine = '';
+  }
+
+  return replacements;
+}
+
+function synthesisMetadataReplacementsSupported(synthesisContent, scopedDocEntries = []) {
+  const replacements = extractStep1SynthesisMetadataReplacements(synthesisContent);
+  if (replacements.length === 0) {
+    return true;
+  }
+
+  const supportedMetadata = buildStep1ScopedDocMetadataSet(scopedDocEntries);
+  if (supportedMetadata.size === 0) {
+    return false;
+  }
+
+  return replacements.every(({ filePath, key, value }) => {
+    const fileMetadata = supportedMetadata.get(filePath);
+    return Boolean(fileMetadata?.has(`${key}::${value}`));
+  });
+}
+
+function synthesisBeforeBlocksMatchScopedDocs(synthesisContent, scopedDocEntries = []) {
+  const beforeBlocks = extractStep1BeforeBlocks(synthesisContent);
+  if (beforeBlocks.length === 0) {
+    return false;
+  }
+
+  const docContents = (Array.isArray(scopedDocEntries) ? scopedDocEntries : [])
+    .map((entry) => String(entry?.content ?? ''))
+    .filter(Boolean);
+
+  if (docContents.length === 0) {
+    return false;
+  }
+
+  return beforeBlocks.every((block) => docContents.some((content) => content.includes(block)));
 }
 
 export function consolidateStep1DocAnalysis(content, docFiles = []) {
@@ -616,21 +998,48 @@ export function selectStep1FinalAnalysisContent(
     partitionSections.length > 1 && partitionSections.every(isNoUpdateDocAnalysisSection);
   const allInconclusive =
     partitionSections.length > 1 && partitionSections.every(isInconclusiveDocAnalysisSection);
+  const allNonSpecific =
+    partitionSections.length > 1 &&
+    partitionSections.every(
+      (section) =>
+        !isSpecificEditDocAnalysisSection(section) && extractStep1DocAnalysisVerdict(section)
+    );
   const combinedInconclusive = isInconclusiveDocAnalysisSection(consolidatedCombined);
   const synthesisNoUpdate = isNoUpdateDocAnalysisSection(normalizedSynthesis);
   const synthesisInconclusive = isInconclusiveDocAnalysisSection(normalizedSynthesis);
+  const synthesisSpecificEdit = isSpecificEditDocAnalysisSection(normalizedSynthesis);
   const scopedDocsIncomplete = hasStep1OmittedScopedDocContext(scopedDocEntries);
+  const synthesisBeforeBlocksAnchored = synthesisBeforeBlocksMatchScopedDocs(
+    normalizedSynthesis,
+    scopedDocEntries
+  );
+  const synthesisMetadataSupported = synthesisMetadataReplacementsSupported(
+    normalizedSynthesis,
+    scopedDocEntries
+  );
 
   if (synthesisInconclusive && allNoUpdate) {
-    return normalizedCombined;
+    return consolidatedCombined;
   }
 
   if (synthesisNoUpdate && (allInconclusive || scopedDocsIncomplete)) {
-    return normalizedCombined;
+    return consolidatedCombined;
   }
 
   if (synthesisNoUpdate && combinedInconclusive) {
-    return normalizedCombined;
+    return consolidatedCombined;
+  }
+
+  if (synthesisSpecificEdit && !synthesisMetadataSupported) {
+    return consolidatedCombined;
+  }
+
+  if (
+    synthesisSpecificEdit &&
+    allNonSpecific &&
+    (scopedDocsIncomplete || !synthesisBeforeBlocksAnchored)
+  ) {
+    return consolidatedCombined;
   }
 
   return normalizedSynthesis;
@@ -965,7 +1374,7 @@ export class Step1DocumentationAnalyzer {
         }
         const rawResult = await this.parallelProcessor.validate(
           docsToProcess,
-          async (_category, files, { signal } = {}) => {
+          async (_category, files, { signal, heartbeat } = {}) => {
             const ensureActive = () => {
               if (signal?.aborted) {
                 const error = new Error('Cancelled');
@@ -975,6 +1384,7 @@ export class Step1DocumentationAnalyzer {
             };
 
             ensureActive();
+            heartbeat?.();
             if (!aiAvailable) {
               return { success: true, skipped: true, reason: 'ai_unavailable' };
             }
@@ -997,14 +1407,20 @@ export class Step1DocumentationAnalyzer {
               evidenceFiles
             );
             ensureActive();
+            heartbeat?.();
             const scopedDocEntries = getStep1ScopedDocEntries(fileEntries, files);
+            const filteredFileEntries = filterStep1SupportingIndexEvidence(
+              fileEntries,
+              scopedDocEntries,
+              files
+            );
             const scopedDocPathsContext = buildStep1ScopedDocPathsContext(files);
             const totalScopedDocCount = new Set(
               (Array.isArray(files) ? files : [])
                 .map((filePath) => normalizeStep1EvidencePath(filePath))
                 .filter(Boolean)
             ).size;
-            const fileHashEntries = fileEntries.map(
+            const fileHashEntries = filteredFileEntries.map(
               ({ relativePath, content }) => `${relativePath}:${content}`
             );
             const projectConventions = await readProjectConventions(this.fileOps, projectRoot);
@@ -1038,7 +1454,9 @@ export class Step1DocumentationAnalyzer {
               this.aiHelper?.config?.model
             );
             const promptPartitions =
-              fileEntries.length > 0 ? buildReviewPromptPartitions(fileEntries) : [];
+              filteredFileEntries.length > 0
+                ? buildReviewPromptPartitions(filteredFileEntries)
+                : [];
             const partitionsToAnalyze =
               promptPartitions.length > 0 ? promptPartitions : [{ entries: [], scopePaths: [] }];
 
@@ -1077,7 +1495,7 @@ export class Step1DocumentationAnalyzer {
                     ? coveredScopedDocCount > 0
                       ? `This request covers ${coveredScopedDocCount} of ${totalScopedDocCount} scoped documentation target(s) for the current documentation-analysis category. Entries labeled "(part X/Y)" are sequential chunks of oversized files that were split across multiple prompt requests to avoid truncated evidence.`
                       : `This request contains supporting evidence only for the current documentation-analysis category. No scoped documentation target text is included in this partition; use these files only to identify concrete documentation impact on the scoped targets, and do not treat this partition alone as a final verdict.`
-                    : `This request contains the full readable scoped file set for this category (${fileEntries.length} readable file(s)).`;
+                    : `This request contains the full readable scoped file set for this category (${filteredFileEntries.length} readable file(s)).`;
                 let prompt = null;
 
                 if (parsedYaml) {
@@ -1157,10 +1575,15 @@ export class Step1DocumentationAnalyzer {
                   fileHashEntries,
                   () => {
                     ensureActive();
-                    return this.aiHelper.executeRequest(prompt, {
-                      persona: 'documentation_expert',
-                      model: selectedModel,
-                    });
+                    return this.aiHelper
+                      .executeRequest(prompt, {
+                        persona: 'documentation_expert',
+                        model: selectedModel,
+                      })
+                      .then((result) => {
+                        heartbeat?.();
+                        return result;
+                      });
                   }
                 );
               },
@@ -1194,10 +1617,15 @@ export class Step1DocumentationAnalyzer {
                 [...fileHashEntries, `partition-findings:${combinedContent}`],
                 () => {
                   ensureActive();
-                  return this.aiHelper.executeRequest(synthesisPrompt, {
-                    persona: 'documentation_expert',
-                    model: selectedModel,
-                  });
+                  return this.aiHelper
+                    .executeRequest(synthesisPrompt, {
+                      persona: 'documentation_expert',
+                      model: selectedModel,
+                    })
+                    .then((result) => {
+                      heartbeat?.();
+                      return result;
+                    });
                 }
               );
 

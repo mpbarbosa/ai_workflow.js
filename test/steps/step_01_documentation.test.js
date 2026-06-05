@@ -14,6 +14,7 @@ import {
   classifyChangedFiles,
   buildStep1SynthesisPrompt,
   consolidateStep1DocAnalysis,
+  filterStep1SupportingIndexEvidence,
   isLowSignalStep1Evidence,
   rankStep1EvidenceFile,
   selectStep1FinalAnalysisContent,
@@ -23,6 +24,7 @@ import {
   calculateStep1ParallelTimeoutBudget,
   readProjectConventions,
 } from '../../src/steps/step_01_documentation.js';
+import { Step1ParallelProcessor } from '../../src/lib/step1_parallel.js';
 
 describe('Step 1: Documentation Validation', () => {
   // ========================================================================
@@ -107,6 +109,22 @@ describe('Step 1: Documentation Validation', () => {
       expect(result.hasMismatches).toBe(true);
       expect(result.mismatches).toContain('1.0.0');
       expect(result.mismatches).toContain('1.2.3');
+    });
+
+    test('ignores historical since markers', () => {
+      const content = '**Since:** 0.9.0-alpha';
+      const result = checkVersionReferences(content, '2.0.0');
+
+      expect(result.found).toHaveLength(0);
+      expect(result.hasMismatches).toBe(false);
+    });
+
+    test('ignores changelog-style release headings', () => {
+      const content = '## Release 1.2.3';
+      const result = checkVersionReferences(content, '2.0.0');
+
+      expect(result.found).toHaveLength(0);
+      expect(result.hasMismatches).toBe(false);
     });
 
     test('handles multiple occurrences of same version', () => {
@@ -336,6 +354,64 @@ describe('Step 1: Documentation Validation', () => {
       expect(selected).not.toContain('assets/js/index.js');
       expect(selected).not.toContain('.mcp.json');
     });
+
+    test('includes package.json for CONTRIBUTING docs even when it is unchanged', () => {
+      const selected = selectStep1EvidenceFiles(['CONTRIBUTING.md'], {
+        documentation: ['CONTRIBUTING.md'],
+        source: ['src/index.ts'],
+        config: ['tsconfig.json'],
+      });
+
+      expect(selected).toContain('CONTRIBUTING.md');
+      expect(selected).toContain('package.json');
+    });
+
+    test('drops unlinked index-style support docs when scoped docs link more specific support files', () => {
+      const filtered = filterStep1SupportingIndexEvidence(
+        [
+          { relativePath: 'docs/README.md', sourcePath: 'docs/README.md', content: '# Docs' },
+          {
+            relativePath: 'docs/infrastructure/README.md',
+            sourcePath: 'docs/infrastructure/README.md',
+            content: '# Infrastructure',
+          },
+          {
+            relativePath: 'docs/misc/README.md',
+            sourcePath: 'docs/misc/README.md',
+            content: '# Misc',
+          },
+          {
+            relativePath: 'docs/MASTER_INDEX.md',
+            sourcePath: 'docs/MASTER_INDEX.md',
+            content: '# Master Index',
+          },
+          { relativePath: 'package.json', sourcePath: 'package.json', content: '{}' },
+        ],
+        [
+          {
+            relativePath: 'docs/README.md',
+            content: [
+              '# Documentation Hub',
+              '',
+              '- [misc/README.md](./misc/README.md)',
+              '- [infrastructure/](./infrastructure/)',
+              '- [INDEX.md](./INDEX.md)',
+            ].join('\n'),
+          },
+        ],
+        ['docs/README.md']
+      ).map((entry) => entry.relativePath);
+
+      expect(filtered).toEqual(
+        expect.arrayContaining([
+          'docs/README.md',
+          'docs/infrastructure/README.md',
+          'docs/misc/README.md',
+          'package.json',
+        ])
+      );
+      expect(filtered).not.toContain('docs/MASTER_INDEX.md');
+    });
   });
 
   describe('Step 1 partition consolidation', () => {
@@ -472,11 +548,32 @@ describe('Step 1: Documentation Validation', () => {
         'Use the partition evidence summary to tell apart genuinely unrelated support-only partitions'
       );
       expect(prompt).toContain(
+        'A final "Specific edit required" verdict is only valid when the visible scoped documentation excerpt itself shows the stale or incorrect text that needs to change.'
+      );
+      expect(prompt).toContain(
+        'do not escalate the whole-scope result to "Specific edit required" unless the visible scoped documentation excerpt above contains the exact text you are proposing to replace'
+      );
+      expect(prompt).toContain(
         'When adjacent metadata lines form a summary block (for example version, tests, coverage, and last-updated lines)'
       );
       expect(prompt).toContain('Never invent or infer release dates or "Last updated" dates');
       expect(prompt).toContain(
+        'For metadata replacements (for example "Last updated", "Version", "Documentation Version", or "Release date")'
+      );
+      expect(prompt).toContain(
+        'Do not use changelog bullets, "Recently Updated" lists, or dated history/timeline entries as replacement metadata for the scoped file'
+      );
+      expect(prompt).toContain(
         'If a visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list'
+      );
+      expect(prompt).toContain(
+        'Use repository-relative POSIX paths exactly as they appear in the scoped excerpts or changed-file list'
+      );
+      expect(prompt).toContain(
+        'Do not require top-level inventories or module indexes to list internal helper files'
+      );
+      expect(prompt).toContain(
+        'If a scoped document summarizes the purpose of a documentation directory and a support file named for that same directory'
       );
     });
 
@@ -523,7 +620,42 @@ describe('Step 1: Documentation Validation', () => {
         },
       ];
 
-      expect(selectStep1FinalAnalysisContent(combined, synthesis, scopedDocEntries)).toBe(combined);
+      expect(selectStep1FinalAnalysisContent(combined, synthesis, scopedDocEntries)).toBe(
+        'Inconclusive — consolidated across 2 prompt partition(s) for the scoped documentation files. At least one partition had incomplete, tangential, or support-only evidence, so Step 1 cannot safely collapse the full result to "No updates required".'
+      );
+    });
+
+    test('selectStep1FinalAnalysisContent accepts normalized .docs paths in synthesis metadata replacements', () => {
+      const combined = [
+        '#### Partition 1 of 1',
+        '',
+        'docs/FUNCTIONAL_REQUIREMENTS.md',
+        '',
+        'Verdict: Specific edit required',
+      ].join('\n');
+      const synthesis = [
+        '.docs/FUNCTIONAL_REQUIREMENTS.md',
+        '',
+        '**Edit block:**',
+        '```diff',
+        '--- docs/FUNCTIONAL_REQUIREMENTS.md',
+        '@@',
+        '- **Current version:** 0.14.3-alpha',
+        '+ **Current version:** 0.15.0-alpha',
+        '```',
+      ].join('\n');
+      const scopedDocEntries = [
+        {
+          relativePath: 'docs/FUNCTIONAL_REQUIREMENTS.md',
+          content: ['# Functional Requirements', '', '**Current version:** 0.15.0-alpha'].join(
+            '\n'
+          ),
+        },
+      ];
+
+      expect(selectStep1FinalAnalysisContent(combined, synthesis, scopedDocEntries)).toBe(
+        synthesis
+      );
     });
 
     test('selectStep1FinalAnalysisContent keeps partition findings when synthesis overstates certainty on mixed support-only evidence', () => {
@@ -546,7 +678,220 @@ describe('Step 1: Documentation Validation', () => {
         selectStep1FinalAnalysisContent(combined, synthesis, [
           { relativePath: 'README.md', content: '# README' },
         ])
+      ).toBe(
+        'Inconclusive — consolidated across 3 prompt partition(s) for the scoped documentation files. At least one partition had incomplete, tangential, or support-only evidence, so Step 1 cannot safely collapse the full result to "No updates required".'
+      );
+    });
+
+    test('selectStep1FinalAnalysisContent rejects unsupported synthesis escalation to specific edit', () => {
+      const combined = [
+        '#### Partition 1 of 3',
+        '',
+        'docs/ROADMAP.md',
+        '',
+        'Verdict: No updates required',
+        '',
+        '#### Partition 2 of 3',
+        '',
+        'docs/ROADMAP.md',
+        '',
+        'Verdict: No updates required',
+        '',
+        '#### Partition 3 of 3',
+        '',
+        'Not applicable — support-only evidence with no direct docs/ROADMAP.md excerpt.',
+      ].join('\n');
+      const synthesis = [
+        'docs/ROADMAP.md',
+        '',
+        'Whole-scope verdict: **Specific edit required**',
+        '',
+        '**Before:**',
+        '```md',
+        '- **Legacy router 404** — app.ts hash-router only knows #/ and #/converter',
+        '```',
+      ].join('\n');
+
+      expect(
+        selectStep1FinalAnalysisContent(combined, synthesis, [
+          {
+            relativePath: 'docs/ROADMAP.md',
+            content: [
+              '# Project Roadmap',
+              '',
+              '- Router work remains tracked here.',
+              '- No legacy-router 404 bullet is present in this visible excerpt.',
+            ].join('\n'),
+          },
+        ])
+      ).toBe(
+        'Inconclusive — consolidated across 3 prompt partition(s) for the scoped documentation files. At least one partition had incomplete, tangential, or support-only evidence, so Step 1 cannot safely collapse the full result to "No updates required".'
+      );
+    });
+
+    test('selectStep1FinalAnalysisContent rejects unsupported metadata replacements even when another partition found a valid specific edit', () => {
+      const combined = [
+        '#### Partition 1 of 3',
+        '',
+        'docs/README.md',
+        '',
+        'Verdict: Specific edit required',
+        '',
+        '**Before:**',
+        '```md',
+        '**Last Updated**: 2026-04-27',
+        '```',
+        '',
+        '**After:**',
+        '```md',
+        '**Last Updated**: 2026-05-20',
+        '```',
+        '',
+        '#### Partition 2 of 3',
+        '',
+        'README.md',
+        '',
+        'Verdict: No updates required',
+        '',
+        '#### Partition 3 of 3',
+        '',
+        'Not applicable — support-only evidence with no direct README.md excerpt.',
+      ].join('\n');
+      const synthesis = [
+        '### README.md',
+        '',
+        'Whole-scope verdict: **Specific edit required**',
+        '',
+        '**Edit block:**',
+        '',
+        '```md',
+        '- Last Updated: 2026-04-29',
+        '+ Last Updated: 2026-05-20',
+        'Status: Active',
+        'version: 0.24.7-alpha',
+        '```',
+        '',
+        '### docs/README.md',
+        '',
+        'Whole-scope verdict: **Specific edit required**',
+        '',
+        '**After:**',
+        '```md',
+        '**Last Updated**: 2026-05-20',
+        '```',
+      ].join('\n');
+
+      expect(
+        selectStep1FinalAnalysisContent(combined, synthesis, [
+          {
+            relativePath: 'README.md',
+            content: [
+              '# README',
+              '',
+              'Last Updated: 2026-04-29',
+              'Status: Active',
+              'version: 0.24.7-alpha',
+            ].join('\n'),
+          },
+          {
+            relativePath: 'docs/README.md',
+            content: [
+              '# Docs',
+              '',
+              'Last Updated: 2026-05-20',
+              '',
+              '**Last Updated**: 2026-04-27',
+            ].join('\n'),
+          },
+        ])
       ).toBe(combined);
+    });
+
+    test('selectStep1FinalAnalysisContent rejects unsupported narrative metadata replacements', () => {
+      const combined = [
+        '#### Partition 1 of 2',
+        '',
+        'docs/README.md',
+        '',
+        'Verdict: Specific edit required',
+        '',
+        '**Before:**',
+        '```md',
+        '**Documentation Version**: 0.17.2-alpha',
+        '```',
+        '',
+        '**After:**',
+        '```md',
+        '**Documentation Version**: 0.26.2-alpha',
+        '```',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'Not applicable — support-only evidence with no direct docs/README.md excerpt.',
+      ].join('\n');
+      const synthesis = [
+        '### docs/README.md',
+        '',
+        'Whole-scope verdict: **Specific edit required**',
+        '',
+        'Update the "Documentation Version" in the metadata block to match the new version in `package.json` (`0.26.2-alpha`). Also, update the "Last Updated" date to `2026-05-22`.',
+      ].join('\n');
+
+      expect(
+        selectStep1FinalAnalysisContent(combined, synthesis, [
+          {
+            relativePath: 'docs/README.md',
+            content: [
+              '# Docs',
+              '',
+              'Last Updated: 2026-05-20',
+              '',
+              '**Last Updated**: 2026-04-27',
+              '**Documentation Version**: 0.17.2-alpha',
+            ].join('\n'),
+          },
+        ])
+      ).toBe(combined);
+    });
+
+    test('selectStep1FinalAnalysisContent keeps anchored specific edit synthesis', () => {
+      const combined = [
+        '#### Partition 1 of 2',
+        '',
+        'README.md',
+        '',
+        'Verdict: No updates required',
+        '',
+        '#### Partition 2 of 2',
+        '',
+        'README.md',
+        '',
+        'Verdict: No updates required',
+      ].join('\n');
+      const synthesis = [
+        'README.md',
+        '',
+        'Whole-scope verdict: **Specific edit required**',
+        '',
+        '**Before:**',
+        '```md',
+        '- Old command: `npm start`',
+        '```',
+        '',
+        '**After:**',
+        '```md',
+        '- New command: `npm run dev`',
+        '```',
+      ].join('\n');
+
+      expect(
+        selectStep1FinalAnalysisContent(combined, synthesis, [
+          {
+            relativePath: 'README.md',
+            content: '# README\n\n- Old command: `npm start`\n',
+          },
+        ])
+      ).toBe(synthesis);
     });
   });
 
@@ -751,6 +1096,48 @@ describe('Step 1: Documentation Validation', () => {
       await analyzer.execute('/project', { enableParallel: true });
 
       expect(validateCalls).toEqual([798000]);
+    });
+
+    test('keeps long partitioned analysis alive while AI requests make progress', async () => {
+      mockGitOps.getModifiedFiles = () =>
+        Promise.resolve([
+          'docs/api/a.md',
+          'docs/api/b.md',
+          'docs/api/c.md',
+          'docs/api/d.md',
+          'docs/api/e.md',
+        ]);
+      mockIncrementalProcessor.detectChangedDocs = (files) => Promise.resolve(files);
+      mockFileOps.readFile = () => Promise.resolve('Documentation content');
+
+      analyzer = new Step1DocumentationAnalyzer({
+        gitOps: mockGitOps,
+        fileOps: mockFileOps,
+        backlog: mockBacklog,
+        incrementalProcessor: mockIncrementalProcessor,
+        parallelProcessor: new Step1ParallelProcessor({ timeout: 50 }),
+        aiHelper: {
+          config: {
+            timeout: 10,
+            maxRetries: 1,
+            fallbackModel: null,
+          },
+          initialize: () => Promise.resolve(true),
+          executeRequest: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            return { success: true, content: 'No updates required.' };
+          },
+        },
+        aiCache: {
+          init: () => Promise.resolve(),
+          withFileChangeGuard: (_key, _files, fn) => fn(),
+        },
+      });
+
+      const result = await analyzer.execute('/project', { enableParallel: true });
+
+      expect(result.success).toBe(true);
+      expect(result.analysis.stats.processed).toBe(5);
     });
 
     test('fails when parallel processing returns incomplete analysis', async () => {

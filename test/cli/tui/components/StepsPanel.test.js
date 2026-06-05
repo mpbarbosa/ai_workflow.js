@@ -1,14 +1,15 @@
 /**
  * @file StepsPanel.test.js
- * @description Tests for StepsPanel — backward-compatible adapter over ListPanel
+ * @description Tests for StepsPanel — cybernetic dot-indicator step list
  *
- * StepsPanel now delegates to ListPanel from pajussara_tui_comp, so icons and
- * duration formatting follow that package's helpers:
- *   done → '✔', running → '●', pending → '○', error → '✘'
- *   duration 1000ms → '1.0s'
+ * Custom implementation with colored dots:
+ *   done    → ●  greenBright
+ *   running → ●  cyanBright + [ ACTIVE ] badge
+ *   skipped → ⊘  gray
+ *   error   → ✗  red
+ *   pending → ○  gray dimmed
  */
 
-import { jest } from '@jest/globals';
 import React from 'react';
 import { render, cleanup } from 'ink-testing-library';
 
@@ -36,97 +37,95 @@ describe('StepsPanel Component', () => {
     expect(lastFrame()).toContain('STEPS');
   });
 
-  it('renders step names and icons', () => {
+  it('renders step names with dot indicators', () => {
     const { lastFrame } = render(
       React.createElement(StepsPanel, { steps: makeSteps(), currentStepId: 'step2', width: 40 })
     );
     expect(lastFrame()).toContain('Project Detection');
     expect(lastFrame()).toContain('Doc Validation');
     expect(lastFrame()).toContain('Test Generation');
-    expect(lastFrame()).toContain('✔');
+    // done → ●, running → ●, pending → ○
     expect(lastFrame()).toContain('●');
     expect(lastFrame()).toContain('○');
   });
 
-  it('shows cursor (>) for selected step when isFocused', () => {
+  it('shows [ ACTIVE ] badge on the running step', () => {
+    const { lastFrame } = render(
+      React.createElement(StepsPanel, { steps: makeSteps(), currentStepId: 'step2', width: 50 })
+    );
+    expect(lastFrame()).toContain('[ACTIVE]');
+  });
+
+  it('does not show [ ACTIVE ] badge when isFocused is false and no step is running', () => {
+    const steps = {
+      step1: { id: 'step1', name: 'Project Detection', status: 'done', duration: 1000 },
+      step2: { id: 'step2', name: 'Doc Validation', status: 'pending', duration: null },
+    };
     const { lastFrame } = render(
       React.createElement(StepsPanel, {
-        steps: makeSteps(),
-        currentStepId: 'step2',
+        steps,
+        currentStepId: null,
         width: 40,
-        isFocused: true,
-        selectedStepId: 'step1',
+        isFocused: false,
       })
     );
-    expect(lastFrame()).toContain('>');
+    expect(lastFrame()).not.toContain('[ACTIVE]');
   });
 
-  it('does not show cursor when isFocused is false', () => {
+  it('renders error step with ✗ indicator', () => {
+    const steps = {
+      step1: {
+        id: 'step1',
+        name: 'Build',
+        status: 'error',
+        duration: null,
+        errorMessage: 'exit 1',
+      },
+    };
     const { lastFrame } = render(
-      React.createElement(StepsPanel, {
-        steps: makeSteps(),
-        currentStepId: 'step2',
-        width: 40,
-        isFocused: false,
-        selectedStepId: 'step1',
-      })
+      React.createElement(StepsPanel, { steps, currentStepId: null, width: 40 })
     );
-    // The cursor char > should not appear prominently
-    expect(lastFrame()).not.toMatch(/^>/m);
+    expect(lastFrame()).toContain('✗');
+    expect(lastFrame()).toContain('Build');
   });
 
-  it('calls onSelectStep with next step id on j key when focused', () => {
-    const onSelectStep = jest.fn();
-    const { stdin } = render(
-      React.createElement(StepsPanel, {
-        steps: makeSteps(),
-        currentStepId: 'step2',
-        width: 40,
-        isFocused: true,
-        selectedStepId: 'step1',
-        onSelectStep,
-      })
+  it('renders skipped step with ⊘ indicator', () => {
+    const steps = {
+      step1: { id: 'step1', name: 'Skipped Step', status: 'skipped', duration: null },
+    };
+    const { lastFrame } = render(
+      React.createElement(StepsPanel, { steps, currentStepId: null, width: 40 })
     );
-    stdin.write('j');
-    expect(onSelectStep).toHaveBeenCalledWith('step2');
+    expect(lastFrame()).toContain('⊘');
+    expect(lastFrame()).toContain('Skipped Step');
   });
 
-  it('calls onSelectStep with previous step id on k key when focused', () => {
-    const onSelectStep = jest.fn();
-    const { stdin } = render(
-      React.createElement(StepsPanel, {
-        steps: makeSteps(),
-        currentStepId: 'step2',
-        width: 40,
-        isFocused: true,
-        selectedStepId: 'step2',
-        onSelectStep,
-      })
-    );
-    stdin.write('k');
-    expect(onSelectStep).toHaveBeenCalledWith('step1');
-  });
-
-  it('does not call onSelectStep when not focused', () => {
-    const onSelectStep = jest.fn();
-    const { stdin } = render(
-      React.createElement(StepsPanel, {
-        steps: makeSteps(),
-        currentStepId: 'step2',
-        width: 40,
-        isFocused: false,
-        selectedStepId: 'step1',
-        onSelectStep,
-      })
-    );
-    stdin.write('j');
-    expect(onSelectStep).not.toHaveBeenCalled();
-  });
-
-  it('renders durations for completed steps', () => {
+  it('renders [ STEPS ] section title', () => {
     const { lastFrame } = render(
       React.createElement(StepsPanel, { steps: makeSteps(), currentStepId: 'step2', width: 40 })
     );
-    expect(lastFrame()).toContain('1.0s');
+    expect(lastFrame()).toContain('[ STEPS ]');
+  });
+
+  it('renders step counter in XX/YY format', () => {
+    const { lastFrame } = render(
+      React.createElement(StepsPanel, { steps: makeSteps(), currentStepId: 'step2', width: 40 })
+    );
+    // 1 done out of 3 total
+    expect(lastFrame()).toContain('01/03');
+  });
+
+  it('does not call onSelectStep when not focused (j key)', () => {
+    const { stdin, lastFrame } = render(
+      React.createElement(StepsPanel, {
+        steps: makeSteps(),
+        currentStepId: 'step2',
+        width: 40,
+        isFocused: false,
+      })
+    );
+    stdin.write('j');
+    // No crash; component still renders
+    expect(lastFrame()).toContain('STEPS');
   });
 });

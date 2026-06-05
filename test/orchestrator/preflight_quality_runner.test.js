@@ -529,4 +529,48 @@ describe('preflight_quality_runner', () => {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
   });
+
+  test('runPreflightQualitySuites extracts firstFailingTest from Jest command-failure output', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'preflight-firstfail-'));
+    const projectRoot = path.join(tempRoot, 'project');
+    const workflowDir = path.join(tempRoot, '.ai_workflow');
+    const logsRunDir = path.join(workflowDir, 'logs', 'workflow_test');
+
+    await fs.mkdir(path.join(projectRoot, 'node_modules', '.bin'), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, 'node_modules', '.bin', 'placeholder'), '', 'utf8');
+    // Emit a Jest-formatted failure with FAIL + ● lines, then exit 1
+    const jestOutput = [
+      'FAIL test/my_suite.test.js',
+      '  ● My Suite › my failing test',
+      '',
+      'Test Suites: 1 failed, 1 total',
+      'Tests: 1 failed, 1 total',
+      'Ran all test suites.',
+    ].join('\\n');
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'firstfail-fixture',
+        version: '1.0.0',
+        scripts: {
+          test: `node -e "process.stdout.write('${jestOutput}\\n'); process.exit(1)"`,
+        },
+      }),
+      'utf8'
+    );
+
+    const result = await runPreflightQualitySuites({
+      projectRoot,
+      workflowDir,
+      logsRunDir,
+      changeCounts: { tests: 1 },
+      logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    });
+
+    expect(result.passed).toBe(false);
+    expect(result.failureKind).toBe('command-failure');
+    expect(result.firstFailingTest).toBe('test/my_suite.test.js > My Suite › my failing test');
+
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
 });

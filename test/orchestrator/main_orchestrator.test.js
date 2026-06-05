@@ -43,6 +43,13 @@ function mockSkippedPreflightSuites(orchestrator) {
   });
 }
 
+// Tests that call execute() must call mockDetectProfile(orch) — detectProfile() reads
+// git status from process.cwd() (the live repo) and returns 'code_changes' whenever
+// there are uncommitted changes, breaking any assertion on the logged profile name.
+function mockDetectProfile(orchestrator, profile = 'full_validation') {
+  orchestrator.profileManager.detectProfile = jest.fn().mockResolvedValue(profile);
+}
+
 beforeEach(() => {
   jest.spyOn(MainOrchestrator.prototype, '_runPreflightQualitySuites').mockResolvedValue({
     passed: true,
@@ -1514,6 +1521,41 @@ describe('Main Orchestrator - Integration Tests', () => {
       expect(orchestrator.stepRegistry).toBeDefined();
       expect(orchestrator.workflowEngine).toBeDefined();
       expect(orchestrator.summaryGenerator).toBeDefined();
+    });
+  });
+
+  describe('Workflow execution context', () => {
+    test('passes workflow UX metadata through to step context', async () => {
+      orchestrator = new MainOrchestrator({ workflowDir: testDir, projectRoot: testDir });
+      orchestrator.projectWorkflowConfig = {
+        project: {
+          description: 'Tourist guide SPA',
+          target_audience: 'Tourists and travelers',
+          design_system: 'Material Design 3',
+        },
+        structure: {
+          ui_dirs: ['src/components', 'src/views'],
+          config_files: ['package.json'],
+        },
+      };
+      orchestrator.projectDetection.detectProjectKind = jest
+        .fn()
+        .mockResolvedValue({ kind: 'vue_spa' });
+      orchestrator.configManager.workflowRunId = 'run-123';
+
+      const context = await orchestrator._buildWorkflowExecutionContext(
+        {},
+        'full_validation',
+        ['src/components/HomeView.vue'],
+        { checks: {} },
+        { steps: [{ id: 'step_15', critical: true }] }
+      );
+
+      expect(context.projectDescription).toBe('Tourist guide SPA');
+      expect(context.targetAudience).toBe('Tourists and travelers');
+      expect(context.designSystemStatus).toBe('Material Design 3');
+      expect(context.uiDirs).toEqual(['src/components', 'src/views']);
+      expect(context.configFiles).toEqual(['package.json']);
     });
   });
 
@@ -3106,6 +3148,7 @@ describe('Main Orchestrator - Integration Tests', () => {
       const orch = new MainOrchestrator({ workflowDir: localTestDir });
       // Override healthCheck to return failure
       orch.healthCheck = async () => ({ passed: false, checks: {} });
+      mockDetectProfile(orch);
       const result = await orch.execute({});
       const runDir = path.join(localTestDir, 'logs', orch.configManager.workflowRunId);
       const logContent = await fs.readFile(path.join(runDir, 'workflow.log'), 'utf8');
@@ -3229,7 +3272,7 @@ describe('Main Orchestrator - Integration Tests', () => {
         '[WorkflowConfig] Dependency override validation failed. Raw vs effective dependency diagnostics:'
       );
       expect(logContent).toContain(
-        '[WorkflowConfig] Invalid dependency override for step_02 (Consistency Analysis) | canonical=[step_01_5] | raw=[step_01] | dependency_comment=missing'
+        '[WorkflowConfig] [STRUCTURAL] Invalid dependency override for step_02 (Consistency Analysis) | canonical=[step_01_5] | raw=[step_01] | dependency_comment=missing'
       );
       expect(logContent).toContain(
         'Effective configured workflow step set before dependency override validation failure:'

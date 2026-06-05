@@ -921,5 +921,183 @@ For example, this shows quality [1].
       expect(result.quality.total).toBeGreaterThan(0);
       expect(result.sections.found).toBeGreaterThan(0);
     });
+
+    test('flags unsupported clean-bill summaries in test review responses', () => {
+      const response = `
+### 5. Execution-Risk Signals
+- Environment Sensitivity:
+  - Relies on jsdom and DOM manipulation; no real network or timers—safe for CI.
+- Non-determinism:
+  - No visible non-deterministic patterns.
+- Performance:
+  - No slow operations; test is async but not slow.
+
+### Summary
+No execution risks are present in the visible code.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'test_review',
+      });
+
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('safe for CI'),
+          expect.stringContaining('No visible non-deterministic patterns'),
+          expect.stringContaining('No slow operations'),
+          expect.stringContaining('No execution risks'),
+        ])
+      );
+      expect(result.confidence).toBeLessThan(70);
+    });
+
+    test('flags unsupported coverage, scope, and CI robustness claims in test review responses', () => {
+      const response = `
+### Summary
+- Coverage meets the stated threshold.
+- All expected suites ran across unit, integration, and e2e.
+- CI/CD pipeline is already robust.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'test_review',
+      });
+
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Coverage meets the stated threshold'),
+          expect.stringContaining('All expected suites ran'),
+          expect.stringContaining('across unit, integration, and e2e'),
+          expect.stringContaining('CI/CD pipeline is already robust'),
+        ])
+      );
+    });
+
+    test('allows cited or explicitly inconclusive test review statements', () => {
+      const response = `
+### 5. Execution-Risk Signals
+- __tests__/app/route-handling.test.ts:150-170 shows shared DOM and hash mutation, so CI sensitivity is inconclusive from the visible evidence.
+- __tests__/app/route-handling.test.ts:143-148 restores readyState, but mock-call cleanup is not visible here.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'test_review',
+      });
+
+      expect(result.warnings).toEqual(
+        expect.not.arrayContaining([expect.stringContaining('inconclusive')])
+      );
+    });
+
+    test('does not apply test-review summary rules to other response types', () => {
+      const response = 'This environment is safe for CI.';
+      const result = validateAIResponse(response, {
+        responseType: 'documentation_review',
+      });
+
+      expect(result.warnings).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('Unsupported positive summary for test review'),
+        ])
+      );
+    });
+
+    test('flags unsupported blanket summaries in typescript review responses when evidence is incomplete', () => {
+      const response = `
+### Summary
+All other files in the sample are type-safe and idiomatic.
+No other actionable issues found.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'typescript_review',
+        validationContext: { hasIncompleteEvidence: true },
+      });
+
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('All other files in the sample are type-safe and idiomatic'),
+          expect.stringContaining('No other actionable issues found'),
+        ])
+      );
+      expect(result.confidence).toBeLessThan(60);
+    });
+
+    test('allows cited or inconclusive typescript review statements when evidence is incomplete', () => {
+      const response = `
+### Findings
+- src/coordination/EventCoordinator.ts:53-54 shows an explicit any in the subscribe callback type.
+- Broader conclusions about the remaining sample are inconclusive from the visible evidence because multiple files are truncated.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'typescript_review',
+        validationContext: { hasIncompleteEvidence: true },
+      });
+
+      expect(result.warnings).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('Unsupported positive summary for typescript review'),
+        ])
+      );
+    });
+
+    test('does not apply typescript-review summary rules when evidence coverage is complete', () => {
+      const response = 'All other files in the sample are type-safe and idiomatic.';
+      const result = validateAIResponse(response, {
+        responseType: 'typescript_review',
+        validationContext: { hasIncompleteEvidence: false },
+      });
+
+      expect(result.warnings).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('Unsupported positive summary for typescript review'),
+        ])
+      );
+    });
+
+    test('flags unsupported clean-pass summaries in directory review responses when evidence is incomplete', () => {
+      const response = `
+### Summary
+All required directories are present and match their documented purpose.
+All major directories are described in README.md.
+No critical architectural violations detected.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'directory_review',
+        validationContext: { hasIncompleteEvidence: true },
+      });
+
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(
+            'All required directories are present and match their documented purpose'
+          ),
+          expect.stringContaining('All major directories are described'),
+          expect.stringContaining('No critical architectural violations detected'),
+        ])
+      );
+      expect(result.confidence).toBeLessThan(60);
+    });
+
+    test('allows cited or explicitly inconclusive directory review statements', () => {
+      const response = `
+### Findings
+- README.md:394-430 documents the project structure section that covers \`src/\` and \`docs/\`.
+- Checks for static assets and broader architectural cleanliness remain inconclusive from the visible evidence because the prompt includes truncated config and documentation blocks.
+      `.trim();
+
+      const result = validateAIResponse(response, {
+        responseType: 'directory_review',
+        validationContext: { hasIncompleteEvidence: true },
+      });
+
+      expect(result.warnings).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('Unsupported positive summary for directory review'),
+        ])
+      );
+    });
   });
 });

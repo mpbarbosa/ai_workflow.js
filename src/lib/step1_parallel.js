@@ -495,12 +495,17 @@ export class Step1ParallelProcessor {
     try {
       // Execute with timeout
       const result = await this._executeWithTimeout(
-        () => validator(task.category, task.files, { signal: controller.signal, task }),
+        ({ heartbeat }) =>
+          validator(task.category, task.files, {
+            signal: controller.signal,
+            task,
+            heartbeat,
+          }),
         this.config.timeout,
         controller
       );
 
-       if (result?.success === false) {
+      if (result?.success === false) {
         const error = new Error(result.error || 'Validation failed');
         error.result = result;
         throw error;
@@ -534,14 +539,83 @@ export class Step1ParallelProcessor {
    * @async
    */
   async _executeWithTimeout(fn, timeout, controller = null) {
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
+    let timeoutId = null;
+    let settled = false;
+    let abortHandler = null;
+
+    const clearTimer = () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    const heartbeat = () => {
+      if (settled) {
+        return;
+      }
+
+      clearTimer();
       timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
         controller?.abort?.();
-        reject(new Error('Timeout'));
       }, timeout);
-    });
-    return Promise.race([fn(), timeoutPromise]).finally(() => clearTimeout(timeoutId));
+    };
+
+    heartbeat();
+
+    try {
+      return await new Promise((resolve, reject) => {
+        const failWithTimeout = () => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimer();
+          controller?.signal?.removeEventListener?.('abort', abortHandler);
+          reject(new Error('Timeout'));
+        };
+
+        abortHandler = () => {
+          failWithTimeout();
+        };
+
+        controller?.signal?.addEventListener?.('abort', abortHandler, { once: true });
+
+        Promise.resolve()
+          .then(() => fn({ heartbeat }))
+          .then(
+            (result) => {
+              if (settled) {
+                return;
+              }
+
+              settled = true;
+              clearTimer();
+              controller?.signal?.removeEventListener?.('abort', abortHandler);
+              resolve(result);
+            },
+            (error) => {
+              if (settled) {
+                return;
+              }
+
+              settled = true;
+              clearTimer();
+              controller?.signal?.removeEventListener?.('abort', abortHandler);
+              reject(error);
+            }
+          );
+      });
+    } finally {
+      settled = true;
+      clearTimer();
+      controller?.signal?.removeEventListener?.('abort', abortHandler);
+    }
   }
 
   /**

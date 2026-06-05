@@ -11,7 +11,8 @@
  * @version 1.0.0
  * @since 2026-02-10
  */
-export type ConfigAction = 'show' | 'validate' | 'get' | 'set';
+export type ConfigAction = 'show' | 'validate' | 'get' | 'set' | 'fix-deps';
+export type FixDepsMode = 'comment' | 'restore' | 'remove-disabled';
 export interface ConfigCommandValidationResult {
     isValid: boolean;
     errors: string[];
@@ -24,6 +25,8 @@ export interface ConfigValidationIssue {
 export interface ConfigCommandOptions {
     config?: string;
     verbose?: boolean;
+    mode?: FixDepsMode;
+    dryRun?: boolean;
 }
 export type ConfigValue = string | number | boolean | null | ConfigRecord | ConfigValue[];
 export interface ConfigRecord {
@@ -42,6 +45,37 @@ export interface WorkflowConfigManager {
  * Validate config command action.
  */
 export declare function validateConfigAction(action: string, args: string[]): ConfigCommandValidationResult;
+interface WorkflowStep {
+    id?: string;
+    enabled?: boolean;
+    dependencies?: string[];
+    dependency_comment?: string;
+    [key: string]: unknown;
+}
+interface WorkflowConfig {
+    workflow?: {
+        steps?: WorkflowStep[];
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+}
+interface FixDepChange {
+    stepId: string;
+    severity: string;
+    description: string;
+}
+/**
+ * Build the canonical dependency map from the step catalog.
+ */
+export declare function buildCanonicalDepMap(): Map<string, string[]>;
+/**
+ * Compute the set of changes fix-deps would apply without mutating the config.
+ */
+export declare function computeFixDepsChanges(config: WorkflowConfig, mode: FixDepsMode): FixDepChange[];
+/**
+ * Apply fix-deps changes to the parsed config object in place.
+ */
+export declare function applyFixDepsChanges(config: WorkflowConfig, mode: FixDepsMode, canonicalDepMap: Map<string, string[]>): number;
 /**
  * Get nested config value by key path.
  */
@@ -64,6 +98,9 @@ declare const configCommandModule: {
     getConfigValue: typeof getConfigValue;
     formatConfigValue: typeof formatConfigValue;
     formatValidationErrors: typeof formatValidationErrors;
+    buildCanonicalDepMap: typeof buildCanonicalDepMap;
+    computeFixDepsChanges: typeof computeFixDepsChanges;
+    applyFixDepsChanges: typeof applyFixDepsChanges;
 };
 export { configCommandModule };
 export default configCommandModule;

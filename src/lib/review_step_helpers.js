@@ -19,6 +19,7 @@ export {
 } from './review_prompt_scope.js';
 
 export const MAX_FILE_PATHS_IN_CONTEXT = 20;
+export const PARTITION_SUFFIX_RE = /\s+\(part\s+(\d+)\/(\d+)\)$/i;
 
 /**
  * Split a source file into prompt-safe review entries without truncating content.
@@ -79,6 +80,64 @@ export function buildPartitionFilePathsContext(
   return partitionDisplayPaths.length > maxFilePathsInContext
     ? `${filePathList}\n      ... and ${partitionDisplayPaths.length - maxFilePathsInContext} more`
     : filePathList;
+}
+
+/**
+ * Inspect prompt entries and determine whether split-file `(part X/Y)` coverage
+ * is complete for any underlying source path.
+ *
+ * @param {Array<{relativePath?: string, sourcePath?: string}>} entries - Prompt entries
+ * @returns {{
+ *   splitFileCoverage: Array<{sourcePath: string, totalParts: number, partsSeen: number[], complete: boolean}>,
+ *   completeSplitSourcePaths: string[],
+ *   incompleteSplitSourcePaths: string[],
+ * }}
+ */
+export function buildSplitFileCoverage(entries) {
+  const splitFiles = new Map();
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const relativePath = String(entry?.relativePath ?? '');
+    const sourcePath = String(entry?.sourcePath ?? entry?.relativePath ?? '');
+    const match = relativePath.match(PARTITION_SUFFIX_RE);
+    if (!match || !sourcePath) {
+      continue;
+    }
+
+    const partNumber = Number(match[1]);
+    const totalParts = Number(match[2]);
+    if (!Number.isInteger(partNumber) || !Number.isInteger(totalParts) || totalParts <= 0) {
+      continue;
+    }
+
+    if (!splitFiles.has(sourcePath)) {
+      splitFiles.set(sourcePath, { totalParts, partsSeen: new Set() });
+    }
+
+    const current = splitFiles.get(sourcePath);
+    current.totalParts = Math.max(current.totalParts, totalParts);
+    current.partsSeen.add(partNumber);
+  }
+
+  const splitFileCoverage = [...splitFiles.entries()].map(([sourcePath, value]) => {
+    const partsSeen = [...value.partsSeen].sort((left, right) => left - right);
+    return {
+      sourcePath,
+      totalParts: value.totalParts,
+      partsSeen,
+      complete: partsSeen.length === value.totalParts,
+    };
+  });
+
+  return {
+    splitFileCoverage,
+    completeSplitSourcePaths: splitFileCoverage
+      .filter((entry) => entry.complete)
+      .map((entry) => entry.sourcePath),
+    incompleteSplitSourcePaths: splitFileCoverage
+      .filter((entry) => !entry.complete)
+      .map((entry) => entry.sourcePath),
+  };
 }
 
 /**

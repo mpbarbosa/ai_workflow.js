@@ -2,7 +2,7 @@
  * @fileoverview Regression test: doc_analysis_prompt in ai_helpers.yaml
  *
  * Verifies that the generated Step 01 documentation prompt stays repository-agnostic
- * about specific doc filenames while enforcing the root-doc placement rule.
+ * about specific doc filenames while allowing conventional root-level docs.
  *
  * @group integration
  */
@@ -33,12 +33,12 @@ describe('doc_analysis_prompt — config correctness', () => {
     expect(parsed).toHaveProperty('doc_analysis_prompt');
   });
 
-  test('task_template keeps generic scope while enforcing the root-doc placement rule', async () => {
+  test('task_template keeps generic scope while allowing conventional root-level docs', async () => {
     const { parsed } = await loadRealAiHelpersYaml();
     const template = parsed.doc_analysis_prompt.task_template;
 
     expect(template).toContain(
-      'Treat markdown documentation outside `docs/` as misplaced unless the file is `README.md` or `CHANGELOG.md`'
+      'Treat markdown documentation outside `docs/` as misplaced unless the file is a conventional root-level documentation file'
     );
     expect(template).not.toContain('Quick links table of `CONTRIBUTING.md`');
     expect(template).not.toContain('docs/GETTING_STARTED.md');
@@ -77,7 +77,19 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
       'Treat the files in `Documentation to review` as the only documentation targets for edits'
     );
     expect(prompt).toContain(
-      'Treat markdown documentation outside `docs/` as misplaced unless the file is `README.md` or `CHANGELOG.md`'
+      'Treat markdown documentation outside `docs/` as misplaced unless the file is a conventional root-level documentation file'
+    );
+    expect(prompt).toContain(
+      'If this partition does not include a direct scoped documentation excerpt, do not return "No updates required" or "Specific edit required"'
+    );
+    expect(prompt).toContain(
+      'If a scoped doc summarizes the purpose of a documentation directory and a support file named for that same directory'
+    );
+    expect(prompt).toContain(
+      'If this partition is support-only evidence, do not issue a final scoped-file verdict from this partition alone'
+    );
+    expect(prompt).toContain(
+      'treat that location as valid rather than proposing a move into `docs/`'
     );
     expect(prompt).toContain(
       'Entries labeled "(part X/Y)" are sequential chunks of oversized files; treat unseen parts or omitted files as unavailable'
@@ -90,6 +102,9 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
     );
     expect(prompt).toContain(
       'If the visible scoped document includes a directory tree, project structure, module inventory, runtime boot path, or responsibility list'
+    );
+    expect(prompt).toContain(
+      'Do not treat changelog bullets, "Recently Updated" lists, or dated history/timeline entries as replacement metadata for the scoped file'
     );
     expect(prompt).toContain(
       'Avoid verbosity, creative expansion, and speculative rewrites beyond the visible change set'
@@ -113,7 +128,7 @@ describe('doc_analysis_prompt — rendered prompt behavior', () => {
       'Treat the files in "Documentation to review" as the only documentation edit targets.'
     );
     expect(prompt).toContain(
-      'Treat markdown documentation outside docs/ as misplaced unless the file is README.md or CHANGELOG.md.'
+      'Treat markdown documentation outside docs/ as misplaced unless the file is a conventional root-level documentation file'
     );
     expect(prompt).toContain('Choose exactly one verdict per scoped documentation file');
     expect(prompt).toContain('Unavailable" or "Inconclusive"');

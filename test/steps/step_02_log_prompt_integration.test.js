@@ -57,9 +57,12 @@ const REQUIRED_PLACEHOLDERS = [
   '{project_summary}',
   '{primary_language}',
   '{doc_count}',
+  '{expected_version}',
   '{broken_refs_content}',
   '{doc_files}',
   '{file_contents}',
+  '{canonical_version_evidence}',
+  '{repo_wide_doc_inventory}',
 ];
 
 // ---------------------------------------------------------------------------
@@ -207,6 +210,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
       expect(approach).toContain('unverified from visible context');
       expect(approach).toContain('broken-reference candidate');
       expect(approach).toContain('not present in the provided context');
+      expect(approach).toContain('Expected Historical Drift');
+      expect(approach).toContain('For every limited or inconclusive conclusion');
+      expect(approach).toContain('authoritative source prevented confirmation');
     });
 
     test('task_template includes doc_count as documentation file count', () => {
@@ -260,12 +266,17 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         const prompt = buildConsistencyPrompt({
           docDirectory: tempDir,
           docFiles: ['README.md'],
+          repoWideDocFiles: ['README.md', 'docs/testing/TESTING.md'],
           fileContents: '### `README.md`\n```md\n# Project\n```\n',
+          expectedVersion: '1.2.3',
         });
 
         expect(prompt).toContain('Provided file contents and excerpts');
         expect(prompt).toContain('### `README.md`');
         expect(prompt).toContain('# Project');
+        expect(prompt).toContain('Canonical package version detected by the workflow: 1.2.3');
+        expect(prompt).toContain('Repo-wide markdown inventory');
+        expect(prompt).toContain('docs/testing/TESTING.md');
         expect(prompt).toContain('truncated, omitted, or unavailable');
         expect(prompt).toContain('Do not claim that no version numbers or badges are present');
         expect(prompt).toContain(
@@ -288,6 +299,7 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
           primary_language: 'typescript',
           doc_count: '5',
           ts_source_count: '3',
+          expected_version: '1.2.3',
           change_scope: 'full_validation',
           modified_count: '5',
           broken_refs_content: 'none',
@@ -297,6 +309,9 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
             '**.github/ — Guides & Policies** (1): .github/copilot-instructions.md',
           ].join('\n'),
           file_contents: '### `README.md`\n```md\n# gitx\n```\n',
+          canonical_version_evidence: 'Canonical package version detected by the workflow: 1.2.3',
+          repo_wide_doc_inventory:
+            'Repo-wide markdown inventory contains 5 file(s).\n- README.md\n- docs/testing/TESTING.md',
           language_specific_documentation:
             '- Use TSDoc format when documentation examples include TypeScript API docs.',
         });
@@ -308,6 +323,10 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain('limited or inconclusive');
         expect(prompt).toContain('do not contradict the programmatic scan');
         expect(prompt).toContain('Provided file contents and excerpts');
+        expect(prompt).toContain('Canonical package version detected by the workflow: 1.2.3');
+        expect(prompt).toContain(
+          'do **not** conclude "No version mismatch detected" unless the same visible excerpt also makes it clear that the document is archival or historical context'
+        );
         expect(prompt).toContain('### `README.md`');
         expect(prompt).toContain(
           '**Status**: [False Positive / Confirmed Broken / Unverified From Visible Context]'
@@ -317,8 +336,16 @@ describe('Integration: Step 2 — Prompt / Log File / Prompt Response', () => {
         expect(prompt).toContain('classify it as **False Positive** and recommend no action');
         expect(prompt).toContain('recommend the exact relative correction');
         expect(prompt).toContain('never suggest a repo-root-looking path for a nested source file');
+        expect(prompt).toContain(
+          'not automatically as the final replacement path; if the visible link label, nearby visible docs, or source-directory context clearly point to a more plausible destination'
+        );
         expect(prompt).toContain('Do not explain a broken-reference candidate by saying only');
         expect(prompt).toContain('keep the conclusion narrowly scoped to the evidence that was');
+        expect(prompt).toContain('related repo docs:');
+        expect(prompt).toContain('Expected Historical Drift');
+        expect(prompt).toContain(
+          'state exactly which missing file, excerpt, or authoritative source'
+        );
         expect(prompt).toContain('Do not claim that no version numbers or badges are present');
         expect(prompt).toContain(
           'Do not claim heading, list, or code-fence consistency across files'

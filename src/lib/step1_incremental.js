@@ -361,7 +361,7 @@ export class Step1IncrementalProcessor {
     } catch (error) {
       if (error.code === 'ENOENT') {
         logger.warn(
-          `Step1: ${filePath} listed in key_docs or eligible_docs but not found on disk — remove stale entry from .workflow-config.yaml`
+          `Step1: ${filePath} not found on disk — file may be newly created and not yet written, or it is a deleted file whose entry should be removed from configuration`
         );
       } else {
         logger.warn(`Step1: Failed to read file ${filePath}: ${error.message}`);
