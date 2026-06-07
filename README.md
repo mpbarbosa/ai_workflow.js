@@ -8,7 +8,7 @@ AI-Powered Workflow Automation for Software Development
 [![Tests](https://img.shields.io/badge/tests-8156%20passing-yellow)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
-**Version:** 2.6.0
+**Version:** 2.6.1
 **Status:** Alpha — under active development, not production-ready
 **Last Updated:** June 6, 2026
 
@@ -85,7 +85,7 @@ import { Step0Analyzer } from 'ai-workflow/steps';
 
 ## Current Implementation Status
 
-**Version:** 2.6.0 (Alpha)
+**Version:** 2.6.1 (Alpha)
 **Tests:** 8,163 total (8,156 passing, 7 failing)
 **Coverage:** 86.68% overall
 **Phases Complete:** 13 of 13
