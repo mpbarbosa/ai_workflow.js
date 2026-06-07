@@ -5,14 +5,12 @@ AI-Powered Workflow Automation for Software Development
 [![npm version](https://img.shields.io/npm/v/ai-workflow.svg)](https://www.npmjs.com/package/ai-workflow)
 [![Node.js Version](https://img.shields.io/node/v/ai-workflow.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
-[![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
-[![Tests](https://img.shields.io/badge/tests-7330%20passing-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/tests-8156%20passing-yellow)](test/)
 [![Coverage](https://img.shields.io/badge/coverage-86.68%25-green)](coverage/)
 
-**Version:** 2.6.0 🎉 **STABLE RELEASE**
-**Status:** Production Ready ✅
-**Last Updated:** April 25, 2026
+**Version:** 2.6.0
+**Status:** Alpha — under active development, not production-ready
+**Last Updated:** June 6, 2026
 
 ---
 
@@ -35,10 +33,8 @@ ai-workflow status
 
 ## 📖 Overview
 
-**ai_workflow.js** is a production-ready Node.js implementation of AI-powered workflow automation for software development projects. It provides a comprehensive 30+ step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
-**ai_workflow.js** is a production-ready Node.js implementation of AI-powered workflow automation for software development projects. It provides a comprehensive 30+ step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
+**ai_workflow.js** is a Node.js implementation of AI-powered workflow automation for software development projects. It provides a 30+ step pipeline for documentation validation, test generation, code quality analysis, and CI/CD integration with GitHub Copilot.
 
-See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming from the original Shell/Bash implementation.
 See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming from the original Shell/Bash implementation.
 
 ### ✨ Key Features
@@ -47,10 +43,9 @@ See the [Migration Guide](./docs/guides/MIGRATION_GUIDE.md) for those coming fro
 - **⚡ Fast**: Parallel execution, smart caching, incremental processing
 - **🔧 Configurable**: Project-specific workflows via YAML config
 - **📊 Observable**: Progress tracking, metrics, and checkpoints
-- **🧪 Tested**: 7,330 tests passing, 86.68% coverage
-- **🧪 Tested**: 7,330 tests passing, 86.68% coverage
-- **🔒 Secure**: 0 vulnerabilities, automated security scanning
-- **📦 Production-Ready**: npm package with CI/CD automation
+- **🧪 Tested**: 8,156 tests passing (8,163 total)
+- **🔒 Secure**: Automated security scanning
+- **📦 Packaged**: npm package with CI/CD automation
 
 ---
 
@@ -90,35 +85,28 @@ import { Step0Analyzer } from 'ai-workflow/steps';
 
 ## Current Implementation Status
 
-**Version:** 2.6.0 (Stable Release)
-**Tests:** 7,330 passing (3 failing)
-**Coverage:** 86.68% overall, 88.65% orchestrator
-**Security:** 0 vulnerabilities
-**Phases Complete:** 13 of 13 ✅
+**Version:** 2.6.0 (Alpha)
+**Tests:** 8,163 total (8,156 passing, 7 failing)
+**Coverage:** 86.68% overall
+**Phases Complete:** 13 of 13
 
 ### Phase Completion
 
-| Phase    | Status | Modules | Tests | Description                                                                                       |
-| -------- | ------ | ------- | ----- | ------------------------------------------------------------------------------------------------- |
-| Phase 1  | ✅     | 7       | 113   | Core Foundation (colors, logger, system, version, executor, errors)                               |
-| Phase 2  | ✅     | 4       | 174   | Configuration & State (config, backlog, session, metrics)                                         |
-| Phase 3  | ✅     | 5       | 354   | File Operations (file ops, edit ops, utils, arg parser, cleanup)                                  |
-| Phase 4  | ✅     | 4       | 167   | Project Detection (kind detection, config, tech stack, exclusions)                                |
-| Phase 5  | ✅     | 4       | 219   | Git Integration (automation, cache, auto-commit, change detection)                                |
-| Phase 6  | ✅     | 6       | 424   | AI Integration (jq, personas, validation, cache, prompts, helpers)                                |
-| Phase 7  | ✅     | 6       | 329   | Workflow Orchestration (engine, registry, resolver, executor, conditional, checkpoint)            |
-| Phase 8  | ✅     | 1       | 646   | Performance Optimization (parallel validation)                                                    |
-| Phase 9  | ✅     | 32      | 1100+ | Workflow Steps (32 complete steps: step_00–step_23 plus step_01_5, step_0b/0d/0f, step_11_5/11_6) |
-| Phase 10 | ✅     | 1       | 64    | Main Orchestrator (main workflow orchestrator)                                                    |
-| Phase 11 | ✅     | 10      | 231   | CLI Layer (8 commands, TUI layer)                                                                 |
-| Phase 12 | ✅     | -       | 8     | Testing & Security (automation scripts, security audit)                                           |
-| Phase 13 | ✅     | -       | -     | Packaging & Release (npm package, CI/CD, documentation)                                           |
-
-**Total:** 13 phases complete, 7,330 passing tests
-
----
-
-**Total:** 13 phases complete, 7,330 passing tests
+| Phase    | Status | Modules | Tests | Description                                                                              |
+| -------- | ------ | ------- | ----- | ---------------------------------------------------------------------------------------- |
+| Phase 1  | ✅     | 7       | 113   | Core Foundation (colors, logger, system, version, executor, errors)                      |
+| Phase 2  | ✅     | 4       | 174   | Configuration & State (config, backlog, session, metrics)                                |
+| Phase 3  | ✅     | 5       | 354   | File Operations (file ops, edit ops, utils, arg parser, cleanup)                         |
+| Phase 4  | ✅     | 4       | 167   | Project Detection (kind detection, config, tech stack, exclusions)                       |
+| Phase 5  | ✅     | 4       | 219   | Git Integration (automation, cache, auto-commit, change detection)                       |
+| Phase 6  | ✅     | 6       | 424   | AI Integration (jq, personas, validation, cache, prompts, helpers)                       |
+| Phase 7  | ✅     | 6       | 329   | Workflow Orchestration (engine, registry, resolver, executor, conditional, checkpoint)   |
+| Phase 8  | ✅     | 1       | 646   | Performance Optimization (parallel validation)                                           |
+| Phase 9  | ✅     | 32      | 1100+ | Workflow Steps (32 steps: step_00–step_23 plus step_01_5, step_0b/0d/0f, step_11_5/11_6) |
+| Phase 10 | ✅     | 1       | 64    | Main Orchestrator (main workflow orchestrator)                                           |
+| Phase 11 | ✅     | 10      | 231   | CLI Layer (8 commands, TUI layer)                                                        |
+| Phase 12 | ✅     | -       | 8     | Testing & Security (automation scripts, security audit)                                  |
+| Phase 13 | ✅     | -       | -     | Packaging & Release (npm package, CI/CD, documentation)                                  |
 
 ---
 
@@ -128,7 +116,6 @@ Key project documents:
 
 - **[API Reference](./docs/api/README.md)** - Complete API documentation for all modules with usage examples
 - **[Workflow Engine Requirements](./docs/WORKFLOW_ENGINE_REQUIREMENTS.md)** - Phase 7 planning, test validation, and orchestration specifications
-- **[Migration Guide](./docs/guides/MIGRATION_GUIDE.md)** - Migrating from the bash v3.0.0 implementation: CLI equivalents, config compatibility, API, and implementation history
 - **[Migration Guide](./docs/guides/MIGRATION_GUIDE.md)** - Migrating from the bash v3.0.0 implementation: CLI equivalents, config compatibility, API, and implementation history
 - **[FUNCTIONAL_REQUIREMENTS.md](./docs/FUNCTIONAL_REQUIREMENTS.md)** - Detailed module requirements for Phase 1-5 (Foundation, Configuration/State Management, File Operations, Project Detection, Git Integration)
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and notable changes with semantic versioning
@@ -169,7 +156,6 @@ ai_workflow.js/
 │   ├── core/             # Foundation utilities (colors, logger, system, version, executor)
 │   ├── utils/            # Helper utilities (errors)
 │   ├── lib/              # Core libraries (config, session, metrics, file ops, git, AI)
-│   ├── steps/            # Workflow step implementations (step_00–step_23 plus extras)
 │   ├── steps/            # Workflow step implementations (step_00–step_23 plus extras)
 │   │   └── step_02_5_lib/ # Helper modules for step_02_5 (doc optimization)
 │   ├── orchestrator/     # Workflow orchestration engine, step catalog, execution planning, and preflight coordination
@@ -241,16 +227,17 @@ The installed `ai-workflow` command is backed by [`bin/ai-workflow.js`](./bin/ai
 
 ### Available CLI Commands
 
-| Command  | Description            | Example                             |
-| -------- | ---------------------- | ----------------------------------- |
-| `run`    | Execute workflow       | `ai-workflow run --stage quick`     |
-| `resume` | Resume from checkpoint | `ai-workflow resume --latest`       |
-| `status` | Show workflow status   | `ai-workflow status`                |
-| `init`   | Initialize project     | `ai-workflow init --interactive`    |
-| `config` | Manage configuration   | `ai-workflow config show`           |
-| `clean`  | Clean artifacts        | `ai-workflow clean --all --dry-run` |
-| `deploy` | Deploy workflow        | `ai-workflow deploy`                |
-| `deploy` | Deploy workflow        | `ai-workflow deploy`                |
+| Command          | Description                      | Example                             |
+| ---------------- | -------------------------------- | ----------------------------------- |
+| `run`            | Execute workflow                 | `ai-workflow run --stage quick`     |
+| `resume`         | Resume from checkpoint           | `ai-workflow resume --latest`       |
+| `status`         | Show workflow status             | `ai-workflow status`                |
+| `init`           | Initialize project               | `ai-workflow init --interactive`    |
+| `config`         | Manage configuration             | `ai-workflow config show`           |
+| `clean`          | Clean artifacts                  | `ai-workflow clean --all --dry-run` |
+| `deploy`         | Deploy workflow                  | `ai-workflow deploy`                |
+| `fix_log_issues` | Fix issues found in workflow log | `ai-workflow fix_log_issues`        |
+| `validate`       | Validate project configuration   | `ai-workflow validate`              |
 
 ### CLI Documentation
 
@@ -303,8 +290,7 @@ ai-workflow resume --list
 
 ## Development Commands
 
-- `npm test` - Run Jest test suite (7,333 tests, 7,330 passing ✅, 3 failures)
-- `npm test` - Run Jest test suite (7,333 tests, 7,330 passing ✅, 3 failures)
+- `npm test` - Run Jest test suite (8,163 total, 8,156 passing)
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Generate coverage report
 - `npm run lint` - Check code style with ESLint
@@ -326,7 +312,6 @@ ai-workflow resume --list
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests.
 Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests.
 
 ## License
